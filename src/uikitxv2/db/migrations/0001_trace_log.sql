@@ -1,13 +1,8 @@
-CREATE TABLE IF NOT EXISTS TraceLog (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp TEXT NOT NULL,
-    session_id TEXT NOT NULL,
-    span_id TEXT NOT NULL,
-    parent_span_id TEXT,
-    seq INTEGER NOT NULL,
-    func TEXT NOT NULL,
-    wall_ms REAL,
-    cpu_pct_start REAL,
-    cpu_pct_end REAL,
-    error TEXT
+CREATE TABLE IF NOT EXISTS trace_log (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts           TEXT    NOT NULL,
+    log_type     TEXT    NOT NULL,
+    name         TEXT    NOT NULL,
+    duration_ms  REAL,
+    payload_json TEXT    -- JSON string
 );
