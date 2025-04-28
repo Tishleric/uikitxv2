@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from uikitxv2.core.logger_protocol import LoggerProtocol
@@ -75,3 +75,18 @@ class SQLiteLogger(LoggerProtocol):
                     payload_json=data,
                 )
             )
+
+
+
+_DB_ENV = "UIKITX_DB_PATH"
+_DEFAULT_PATH = Path.home() / ".uikitx" / "traces.db"
+
+_engine_cache: dict[str, Engine] = {}
+
+def get_engine() -> Engine:
+    """Return the (cached) SQLAlchemy Engine for the current DB path."""
+    db_path = Path(os.getenv(_DB_ENV, _DEFAULT_PATH)).expanduser()
+    key = str(db_path)
+    if key not in _engine_cache:
+        _engine_cache[key] = create_engine(f"sqlite:///{db_path}", future=True)
+    return _engine_cache[key]

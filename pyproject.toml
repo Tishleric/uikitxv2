@@ -2,31 +2,62 @@
 name = "uikitxv2"
 version = "0.1.0"
 requires-python = ">=3.12"
+
+# ---------- Runtime ----------
 dependencies = [
-    "dash>=3.0.4",
-    "dash-bootstrap-components>=1",
+    "dash==3.0.4",                     # latest stable Dash
+    "dash-bootstrap-components==1.6.0",
+    "plotly==6.0.1",
     "sqlalchemy>=2",
-    "pandas>=2",                  # used by upcoming mock data
+    "pandas>=2",
 ]
 
+# ---------- Dev / tooling / stubs ----------
 [project.optional-dependencies]
 dev = [
+    # lint / typing / tests
     "ruff",
     "mypy",
     "pytest",
     "pytest-cov",
-    "types-python-dateutil",      # stdlib stubs
+
+    # Selenium-based Dash integration testing
+    "selenium==4.19.*",
+    "percy>=2.0.2",
+    "waitress>=3.0.2",
+    "flask-compress>=1.17",
+    "ansi2html>=1.9.2",
+    "stringcase>=1.2.0",
+    "chromedriver-binary==135.*",
+
+    # Type stubs
+    "plotly-stubs",                # plotly 6 APIs
+    "types-python-dateutil",
 ]
 
+# ---------- mypy ----------
 [tool.mypy]
 strict = true
+
+# Dash & dbc still have no official stubs → ignore just those modules
+[[tool.mypy.overrides]]
+module = "dash.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "dash_bootstrap_components.*"
+ignore_missing_imports = true
+
+# ---------- Ruff ----------
 [tool.ruff]
 select = ["F", "E", "I"]
 exclude = ["build", ".venv", ".mypy_cache"]
 line-length = 120
 
+# ---------- Pytest ----------
 [tool.pytest.ini_options]
 addopts = "-q"
-pythonpath = ["src"]              # eliminates manual sys.path hacks
+pythonpath = ["src"]
+markers = [
+    "integration: slow browser tests",
+]

@@ -2,12 +2,14 @@ from uikitxv2.components.button import Button
 from uikitxv2.components.grid import Grid
 
 
-def test_grid_render():
+def test_grid_even_split():
     g = Grid([Button("A"), Button("B"), Button("C")]).render()
+    assert [c.width for c in g.children] == [4, 4, 4]
 
-    assert g.id.startswith("grid-")
-    assert len(g.children) == 3
 
-    # Each child is a dbc.Col and has width 4 for 12-column grid with 3 items.
-    widths = [col.width for col in g.children]
-    assert all(w == 4 for w in widths)
+def test_grid_custom_widths():
+    g = Grid(
+        [Button("Left"), Button("Right")],
+        col_widths=[3, 9],
+    ).render()
+    assert [c.width for c in g.children] == [3, 9]

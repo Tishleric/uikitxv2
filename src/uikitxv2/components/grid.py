@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import uuid
-from typing import Any, Sequence, cast
+from typing import Any, List, Sequence, cast
 
 import dash_bootstrap_components as dbc
 from dash.development.base_component import Component
@@ -12,14 +12,19 @@ from uikitxv2.utils.colour_palette import Theme, default_theme
 
 
 class Grid(BaseComponent):
-    """Even-split Bootstrap grid for a sequence of wrapped components."""
+    """Bootstrap grid wrapper.
+
+    If *col_widths* is provided, each child gets the explicit width (must sum to *cols*).
+    Otherwise children share the space equally.
+    """
 
     def __init__(
         self,
         children: Sequence[BaseComponent],
         *,
+        col_widths: Sequence[int] | None = None,   # NEW
         cols: int = 12,
-        gap: int = 2,  # Bootstrap gutter scale 0-5
+        gap: int = 2,
         id: str | None = None,
         theme: Theme = default_theme,
         **row_kwargs: Any,
@@ -28,6 +33,18 @@ class Grid(BaseComponent):
             raise ValueError("Grid requires at least one child component.")
         if not (1 <= cols <= 12):
             raise ValueError("cols must be between 1 and 12.")
+        if col_widths is not None:
+            if len(col_widths) != len(children):
+                raise ValueError("col_widths length must match children length.")
+            if sum(col_widths) != cols:
+                raise ValueError("sum(col_widths) must equal cols.")
+            if any(w < 1 or w > cols for w in col_widths):
+                raise ValueError("each width must be in 1..cols")
+            self._widths: List[int] = list(col_widths)
+        else:
+            n = len(children)
+            even = max(1, math.floor(cols / n))
+            self._widths = [even] * n
 
         self.children = list(children)
         self.cols = cols
@@ -37,18 +54,11 @@ class Grid(BaseComponent):
         self.kwargs = row_kwargs
 
     # -------------------------------------------------------------- #
-    def _build_cols(self) -> list[dbc.Col]: 
-        n = len(self.children)
-        min_width = math.floor(self.cols / n) or 1
-        cols: list[dbc.Col] = []
-        for wrapped in self.children:
-            cols.append(
-                dbc.Col(
-                    wrapped.render(),
-                    width=min_width,
-                )
-            )
-        return cols
+    def _build_cols(self) -> list[dbc.Col]:  
+        return [
+            dbc.Col(child.render(), width=w)
+            for child, w in zip(self.children, self._widths, strict=True)
+        ]
 
     def render(self) -> Component:
         row = dbc.Row(
