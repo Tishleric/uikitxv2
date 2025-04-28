@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from uikitxv2.core.logger_protocol import LoggerProtocol
+
 from .models import Base, TraceLog
 
 _DB_ENV = "UIKITX_DB_PATH"
