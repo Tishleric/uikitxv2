@@ -1,0 +1,17 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Architectural Contracts
+
+• ABC_FIRST — Every new feature begins with an Abstract Base Class or Protocol that lives in [core/](mdc:src/uikitxv2/core). Concrete implementations must inherit or implement it.
+
+• SOLID_ENFORCED — New code must respect all 5 SOLID principles. If a design breaks one, Cursor must halt with a PLAN suggesting a refactor.
+
+• NO_DB_IN_DECORATORS — Decorators may depend only on [logger_protocol.py](mdc:src/uikitxv2/core/logger_protocol.py); they must never import SQLAlchemy or sqlite3 directly.
+
+• ONE_COMPONENT_ONE_FILE — Exactly one wrapped UI class per file in [components/](mdc:src/uikitxv2/components). No multi-widget god-files.
+
+• NO_UTIL_GODFILE — Utility helpers stay ≤ 300 LOC and must be scoped; if a util module grows beyond that, prompt a split.
+

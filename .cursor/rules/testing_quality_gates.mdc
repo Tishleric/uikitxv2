@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Testing & Quality Gates
+
+• TEST_OUTSIDE_PACKAGE — All new tests go under [tests/](mdc:tests), never inside [src/](mdc:src).
+
+• GOLDEN_TRACE_MATCH — Integration tests for decorators must compare SQLite rows against [expected_trace.json](mdc:demo/expected_trace.json).
+
+• STRICT_STATIC_ANALYSIS — New code must pass ruff, mypy --strict, and pytest locally before Cursor marks the task complete.
+

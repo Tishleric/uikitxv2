@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: uikitxv2
+Version: 0.1.0
+Requires-Python: >=3.12
+Requires-Dist: dash>=3.0.4
+Requires-Dist: dash-bootstrap-components>=1
+Requires-Dist: sqlalchemy>=2
+Requires-Dist: pandas>=2
+Provides-Extra: dev
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: mypy; extra == "dev"
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: types-python-dateutil; extra == "dev"

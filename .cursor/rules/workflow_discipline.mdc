@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Workflow Discipline
+
+• PLAN_BEFORE_ACT — For any change touching >50 LOC or >1 file, Cursor must enter # Mode: PLAN, list affected files, and await approval.
+
+• SMALL_COMMITS — Each ACT chunk ≤ 50 LOC unless user explicitly waives.
+
+• NO_CYCLIC_IMPORTS — If mypy or ruff detects a cycle, stop and propose a fix before continuing.
+

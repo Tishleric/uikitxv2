@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Misc Guard-Rails
+
+• NO_ROOT_IMPORTS — Package code must import via 'from uikitxv2.…' not from repo root or relative '..' outside [src/](mdc:src).
+
+• DOCSTRING_REQUIRED — Public classes/functions need Google-style docstrings or Cursor must add them.
+

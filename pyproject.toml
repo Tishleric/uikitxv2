@@ -1,0 +1,31 @@
+[project]
+name = "uikitxv2"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "dash>=3.0.4",
+    "dash-bootstrap-components>=1",
+    "sqlalchemy>=2",
+    "pandas>=2",                  # used by upcoming mock data
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "types-python-dateutil",      # stdlib stubs
+]
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true     # suppresses dash-bootstrap-components
+
+[tool.ruff]
+select = ["F", "E", "I"]
+exclude = ["build", ".venv", ".mypy_cache"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["src"]              # eliminates manual sys.path hacks

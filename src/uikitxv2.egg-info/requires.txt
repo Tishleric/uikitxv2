@@ -1,0 +1,11 @@
+dash>=3.0.4
+dash-bootstrap-components>=1
+sqlalchemy>=2
+pandas>=2
+
+[dev]
+ruff
+mypy
+pytest
+pytest-cov
+types-python-dateutil

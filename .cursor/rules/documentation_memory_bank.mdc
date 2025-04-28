@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Documentation & Memory Bank
+
+• UPDATE_CODE_INDEX — Any file add/rename/delete MUST update [code-index.md](mdc:memory-bank/code-index.md) within the same ACT chunk.
+
+• UPDATE_IO_SCHEMA — If a public constant, env var, CLI arg or return shape changes, Cursor must patch [io-schema.md](mdc:memory-bank/io-schema.md) immediately.
+
