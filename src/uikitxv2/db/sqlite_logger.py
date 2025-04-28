@@ -1,46 +1,61 @@
 from __future__ import annotations
 
-import os
+import json
+from datetime import datetime
+from typing import Any, DefaultDict, Dict
 from collections import defaultdict
-from pathlib import Path
-from typing import DefaultDict
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
+from uikitxv2.db.session import get_engine    # NEW – authoritative
 from uikitxv2.core.logger_protocol import LoggerProtocol
 from uikitxv2.core.trace_event import TraceEvent
-
-_DB_PATH = Path(
-    os.environ.get("UIKITX_DB_PATH", Path.home() / ".uikitx" / "traces.db")
-)
-engine = create_engine(f"sqlite:///{_DB_PATH}", future=True)
 
 _seq_counter: DefaultDict[str, int] = defaultdict(int)
 
 class SQLiteLogger(LoggerProtocol):
     def log(self, ev: TraceEvent) -> None:
+        """Persist a TraceEvent row into trace_log."""
         ev.seq = _seq_counter[ev.session_id] = _seq_counter[ev.session_id] + 1
+        payload: Dict[str, Any] = ev.details or {}
+        engine = get_engine()                         # fetch per-call
         with engine.begin() as conn:
             conn.execute(
                 text(
                     """
-                    INSERT INTO TraceLog
-                    (timestamp, session_id, span_id, parent_span_id, seq, func,
-                     wall_ms, cpu_pct_start, cpu_pct_end, error)
-                    VALUES (:ts, :sid, :span, :parent, :seq, :func,
-                            :wall, :cpu0, :cpu1, :err)
+                    INSERT INTO trace_log
+                      (ts, log_type, name, duration_ms, payload_json)
+                    VALUES
+                      (:ts, :log_type, :name, :dur, json(:payload))
                     """
                 ),
                 {
                     "ts": ev.timestamp.isoformat(timespec="milliseconds"),
-                    "sid": ev.session_id,
-                    "span": ev.span_id,
-                    "parent": ev.parent_span_id,
-                    "seq": ev.seq,
-                    "func": ev.func,
-                    "wall": ev.wall_ms,
-                    "cpu0": ev.cpu_pct_start,
-                    "cpu1": ev.cpu_pct_end,
-                    "err": ev.error,
+                    "log_type": "perf",
+                    "name": ev.func,
+                    "dur": ev.wall_ms,
+                    "payload": json.dumps(payload),
                 },
             )
+
+    # Back-compat for old tests that still call .write()
+    def write(  # noqa: D401
+        self,
+        log_type: str,
+        name: str,
+        data: dict[str, Any],
+        *,
+        ts: datetime | None = None,
+        duration_ms: float | None = None,
+    ) -> None:
+        ev = TraceEvent(
+            timestamp=ts or datetime.utcnow(),
+            session_id="legacy",
+            span_id="legacy",
+            parent_span_id=None,
+            seq=0,
+            func=name,
+            wall_ms=duration_ms,
+            details=data,
+        )
+        self.log(ev)

@@ -2,46 +2,62 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator
+from typing import Dict, Iterator
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from uikitxv2.core.logger_protocol import LoggerProtocol
+from .models import Base
 
-from .models import Base, TraceLog
-
+# -----------------------------------------------------------------------------
+# Constants
+# -----------------------------------------------------------------------------
 _DB_ENV = "UIKITX_DB_PATH"
 _DEFAULT_PATH = Path.home() / ".uikitx" / "traces.db"
 
-# --------------------------------------------------------------------------- #
-#   Engine cache keyed by database path
-# --------------------------------------------------------------------------- #
-_ENGINE_CACHE: Dict[Path, sessionmaker[Session]] = {}   # ★ add generics
+# -----------------------------------------------------------------------------
+# Caches (keyed by absolute DB-path)
+# -----------------------------------------------------------------------------
+_engine_cache: Dict[str, Engine] = {}
+_sessionmaker_cache: Dict[str, sessionmaker[Session]] = {}
 
 
-def _get_db_path() -> Path:
+# -----------------------------------------------------------------------------
+# Helpers
+# -----------------------------------------------------------------------------
+def _current_db_path() -> Path:
+    """Resolve the active DB file (env-overridable, then default)."""
     return Path(os.getenv(_DB_ENV, _DEFAULT_PATH)).expanduser()
 
 
-def _sessionmaker_for(path: Path) -> sessionmaker[Session]:          # ★
-    """Return a sessionmaker bound to an engine for *path*, caching per path."""
-    if path not in _ENGINE_CACHE:
-        engine = create_engine(f"sqlite:///{path}", future=True, echo=False)
-        Base.metadata.create_all(engine)
-        _ENGINE_CACHE[path] = sessionmaker(bind=engine, autoflush=False, future=True)
-    return _ENGINE_CACHE[path]
+def get_engine() -> Engine:
+    """Return a cached SQLAlchemy Engine for the current DB path."""
+    key = str(_current_db_path())
+    if key not in _engine_cache:
+        eng = create_engine(f"sqlite:///{key}", future=True, echo=False)
+        Base.metadata.create_all(eng)           # create tables once
+        _engine_cache[key] = eng
+    return _engine_cache[key]
 
 
-# --------------------------------------------------------------------------- #
-#   Public helpers
-# --------------------------------------------------------------------------- #
+def _get_sessionmaker() -> sessionmaker[Session]:
+    """Return (or create) a sessionmaker bound to the current engine."""
+    key = str(_current_db_path())
+    if key not in _sessionmaker_cache:
+        _sessionmaker_cache[key] = sessionmaker(
+            bind=get_engine(), autoflush=False, future=True
+        )
+    return _sessionmaker_cache[key]
+
+
+# -----------------------------------------------------------------------------
+# Public context-manager
+# -----------------------------------------------------------------------------
 @contextmanager
 def get_session() -> Iterator[Session]:
-    """Yield a SQLAlchemy session bound to the *current* UIKITX_DB_PATH."""
-    sm = _sessionmaker_for(_get_db_path())
+    """Provide a transactional SQLAlchemy session for the current DB."""
+    sm = _get_sessionmaker()
     session: Session = sm()
     try:
         yield session
@@ -51,42 +67,3 @@ def get_session() -> Iterator[Session]:
         raise
     finally:
         session.close()
-
-
-class SQLiteLogger(LoggerProtocol):
-    """Concrete Logger writing TraceLog rows to SQLite."""
-
-    def write(
-        self,
-        log_type: str,
-        name: str,
-        data: dict[str, Any],                   # ★ explicit key/value types
-        *,
-        ts: datetime | None = None,             # ★ annotate ts
-        duration_ms: float | None = None,
-    ) -> None:
-        with get_session() as s:
-            s.add(
-                TraceLog(
-                    ts=ts,
-                    log_type=log_type,
-                    name=name,
-                    duration_ms=duration_ms,
-                    payload_json=data,
-                )
-            )
-
-
-
-_DB_ENV = "UIKITX_DB_PATH"
-_DEFAULT_PATH = Path.home() / ".uikitx" / "traces.db"
-
-_engine_cache: dict[str, Engine] = {}
-
-def get_engine() -> Engine:
-    """Return the (cached) SQLAlchemy Engine for the current DB path."""
-    db_path = Path(os.getenv(_DB_ENV, _DEFAULT_PATH)).expanduser()
-    key = str(db_path)
-    if key not in _engine_cache:
-        _engine_cache[key] = create_engine(f"sqlite:///{db_path}", future=True)
-    return _engine_cache[key]

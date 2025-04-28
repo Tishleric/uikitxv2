@@ -46,22 +46,23 @@ def setup_test_db():
 
     old_db_path = os.environ.get("UIKITX_DB_PATH")
     os.environ["UIKITX_DB_PATH"] = temp_db_path
+
+    # ── create trace_log table in *this* fresh file ──────────
+    from pathlib import Path
+    import sqlalchemy as sa
+    from uikitxv2.db.session import get_engine
+
+    _DDL_PATH = Path("src/uikitxv2/db/migrations/0001_trace_log.sql")
+    with get_engine().begin() as conn:
+        conn.execute(sa.text(_DDL_PATH.read_text()))
+
     try:
         yield
     finally:
+        from uikitxv2.db.session import get_engine
+        get_engine().dispose()          # close pool, release file handle
         Path(temp_db_path).unlink(missing_ok=True)
         if old_db_path is not None:
             os.environ["UIKITX_DB_PATH"] = old_db_path
         else:
             os.environ.pop("UIKITX_DB_PATH", None)
-
-# --------------------------------------------------------------------------- #
-# Create TraceLog table in the temp database
-# --------------------------------------------------------------------------- #
-
-_DDL_PATH = Path("src/uikitxv2/db/migrations/0001_trace_log.sql")
-
-@pytest.fixture(scope="session", autouse=True)
-def _create_schema():
-    with get_engine().begin() as conn:
-        conn.execute(sa.text(_DDL_PATH.read_text()))

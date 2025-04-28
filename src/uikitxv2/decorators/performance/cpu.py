@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-import time
-from typing import Any, Callable
-import psutil
 import functools
-
-from uikitxv2.core.logger_protocol import get_logger
-from uikitxv2.core.trace_event import TraceEvent
-from uikitxv2.core.trace_control import get_session_id
+import time
 import uuid
 from contextvars import ContextVar
+from datetime import datetime, timezone
+from typing import Any, Callable
+
+import psutil
+
+from uikitxv2.core.logger_protocol import get_logger
+from uikitxv2.core.trace_control import get_session_id
+from uikitxv2.core.trace_event import TraceEvent
 
 _span_stack: ContextVar[list[str]] = ContextVar("_span_stack", default=[])
 
@@ -34,7 +36,7 @@ def trace_cpu() -> Callable[[Callable[..., Any]], Callable[..., Any]]:  # decora
                 raise
             finally:
                 ev = TraceEvent(
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     session_id=get_session_id(),
                     span_id=span_id,
                     parent_span_id=parent,
