@@ -14,6 +14,11 @@
 
 - `src/core/base_component.py` - Abstract base class for all UI components.
 
+### Lumberjack (Logging)
+
+- `src/lumberjack/logging_config.py` - Configures logging with console and SQLite handlers.
+- `src/lumberjack/sqlite_handler.py` - Custom logging handler that writes function execution details to SQLite.
+
 ### Utils
 
 - `src/utils/colour_palette.py` - Utility for managing color schemes and palettes.

@@ -99,4 +99,4 @@ def shutdown_logging():
 #     ch, dbh = setup_logging(db_path='../logs/example_run.db') # Example: specify path relative to caller
 #     logging.getLogger().info("This is a test info.")
 #     logging.getLogger('__main__').debug("This is a test debug from main.")
-#     shutdown_logging()
+#     shutdown_logging() 

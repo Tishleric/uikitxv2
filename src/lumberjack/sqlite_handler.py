@@ -168,5 +168,4 @@ class SQLiteHandler(logging.Handler):
                 print(f"Error closing SQLite connection: {e}")
                 self.conn = None
                 self.cursor = None
-        super().close()
-
+        super().close() 
