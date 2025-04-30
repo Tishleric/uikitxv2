@@ -1,1 +1,3 @@
-uikitxv2
+components
+core
+utils

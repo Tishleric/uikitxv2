@@ -1,6 +1,6 @@
-from uikitxv2.components.button import Button
-from uikitxv2.components.tabs import Tabs
-from uikitxv2.utils.colour_palette import default_theme
+from components.button import Button
+from components.tabs import Tabs
+from utils.colour_palette import default_theme
 
 
 def test_tabs_render():

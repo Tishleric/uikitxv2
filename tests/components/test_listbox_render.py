@@ -1,5 +1,5 @@
-from uikitxv2.components.listbox import ListBox
-from uikitxv2.utils.colour_palette import default_theme
+from components.listbox import ListBox
+from utils.colour_palette import default_theme
 
 
 def test_listbox_render():

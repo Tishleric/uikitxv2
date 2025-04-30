@@ -1,7 +1,6 @@
 """
 Global pytest fixtures for the uikitxv2 test-suite.
 
-• Spins up an isolated SQLite file via UIKITX_DB_PATH for every test.
 • Exposes the bundled chromedriver.exe to Selenium / dash_duo and
   disables webdriver-manager downloads, so integration tests work
   offline and on CI.
@@ -9,14 +8,9 @@ Global pytest fixtures for the uikitxv2 test-suite.
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
 
 import chromedriver_binary  # noqa: F401  – importing unpacks the wheel
-import pytest
-import sqlalchemy as sa
-
-from uikitxv2.db.session import get_engine  # existing helper
 
 
 # --------------------------------------------------------------------------- #
@@ -33,36 +27,3 @@ def pytest_configure() -> None:
     driver_dir = Path(chromedriver_binary.chromedriver_filename).parent
     os.environ["PATH"] = f"{driver_dir}{os.pathsep}{os.environ.get('PATH', '')}"
     os.environ["WDM_SKIP_DOWNLOAD"] = "1"
-
-
-# --------------------------------------------------------------------------- #
-#  Per-test temporary SQLite database
-# --------------------------------------------------------------------------- #
-@pytest.fixture(scope="function", autouse=True)
-def setup_test_db():
-    """Each test gets its own throw-away SQLite file."""
-    fd, temp_db_path = tempfile.mkstemp(suffix=".db")
-    os.close(fd)  # we only need the path; SQLAlchemy will open the file
-
-    old_db_path = os.environ.get("UIKITX_DB_PATH")
-    os.environ["UIKITX_DB_PATH"] = temp_db_path
-
-    # ── create trace_log table in *this* fresh file ──────────
-    from pathlib import Path
-    import sqlalchemy as sa
-    from uikitxv2.db.session import get_engine
-
-    _DDL_PATH = Path("src/uikitxv2/db/migrations/0001_trace_log.sql")
-    with get_engine().begin() as conn:
-        conn.execute(sa.text(_DDL_PATH.read_text()))
-
-    try:
-        yield
-    finally:
-        from uikitxv2.db.session import get_engine
-        get_engine().dispose()          # close pool, release file handle
-        Path(temp_db_path).unlink(missing_ok=True)
-        if old_db_path is not None:
-            os.environ["UIKITX_DB_PATH"] = old_db_path
-        else:
-            os.environ.pop("UIKITX_DB_PATH", None)

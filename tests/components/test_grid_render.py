@@ -1,5 +1,5 @@
-from uikitxv2.components.button import Button
-from uikitxv2.components.grid import Grid
+from components.button import Button
+from components.grid import Grid
 
 
 def test_grid_even_split():

@@ -1,5 +1,5 @@
-from uikitxv2.components.radiobutton import RadioButton
-from uikitxv2.utils.colour_palette import default_theme
+from components.radiobutton import RadioButton
+from utils.colour_palette import default_theme
 
 
 def test_radiobutton_render():
