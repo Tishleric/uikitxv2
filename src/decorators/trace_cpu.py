@@ -31,45 +31,52 @@ class TraceCpu:
         @functools.wraps(func) # Preserve metadata
         def wrapper(*args, **kwargs):
             """The wrapper function that replaces the original function."""
-            # Get log_uuid from context (should be set by FunctionLogger)
-            current_log_uuid = log_uuid_var.get()
-            uuid_short = current_log_uuid[:8] if current_log_uuid else "NO_UUID"
+            # Get log_uuid from context initially *only* for the start debug log
+            initial_log_uuid = log_uuid_var.get()
+            initial_uuid_short = initial_log_uuid[:8] if initial_log_uuid else "NO_UUID"
 
             cpu_start = None # Initialize cpu_start
+            result = None # Initialize result
             try:
-                # --- Get Starting CPU Usage ---
+                # --- Get Starting CPU Usage --- (Uses initial_uuid_short)
                 try:
                     cpu_start = psutil.cpu_percent(interval=0.01)
-                    self.logger.debug(f"Start CPU {self.func_name} ({uuid_short}): {cpu_start:.1f}%")
+                    self.logger.debug(f"Start CPU {self.func_name} ({initial_uuid_short}): {cpu_start:.1f}%")
                 except Exception as cpu_e:
-                    self.logger.warning(f"Could not get start CPU usage for {self.func_name} ({uuid_short}): {cpu_e}")
+                    self.logger.warning(f"Could not get start CPU usage for {self.func_name} ({initial_uuid_short}): {cpu_e}")
 
-                # --- Execute the wrapped function ---
-                result = func(*args, **kwargs) # Call the wrapped function
+                # --- Execute the wrapped function (including inner decorators) ---
+                # The context variable might be set/reset by inner decorators during this call
+                result = func(*args, **kwargs)
 
             finally:
-                # --- Get Ending CPU Usage & Log Delta (if UUID exists) ---
-                if current_log_uuid: # Check if UUID was set by FunctionLogger
+                # --- Get log_uuid FRESHLY from context before logging ---
+                # This reads the value potentially set by TraceCloser/FunctionLogger,
+                # before TraceCloser's finally block resets it.
+                final_log_uuid = log_uuid_var.get()
+                final_uuid_short = final_log_uuid[:8] if final_log_uuid else "NO_UUID"
+
+                # --- Get Ending CPU Usage & Log Delta (if final UUID exists) ---
+                if final_log_uuid: # Check the freshly retrieved UUID
                     try:
                         cpu_end = psutil.cpu_percent(interval=None)
-                        self.logger.debug(f"End CPU {self.func_name} ({uuid_short}): {cpu_end:.1f}%")
+                        # Use final_uuid_short for the end debug log for consistency
+                        self.logger.debug(f"End CPU {self.func_name} ({final_uuid_short}): {cpu_end:.1f}%")
 
                         if cpu_start is not None:
                             cpu_delta = cpu_end - cpu_start
                             db_log_data = {
-                                "log_uuid": current_log_uuid, # Include the UUID
+                                "log_uuid": final_log_uuid, # Use the final UUID for DB log
                                 "cpu_delta": round(cpu_delta, 2)
                             }
                             db_log_msg = f"{self.DB_LOG_PREFIX}{json.dumps(db_log_data)}"
                             self.logger.info(db_log_msg) # Log to DB
 
                     except Exception as cpu_e:
-                        self.logger.warning(f"Could not get end CPU usage or delta for {self.func_name} ({uuid_short}): {cpu_e}")
+                        self.logger.warning(f"Could not get end CPU usage or delta for {self.func_name} ({final_uuid_short}): {cpu_e}")
                 else:
-                    # Log a warning if no UUID was found (FunctionLogger likely not used/outer)
-                    self.logger.warning(f"No log_uuid found in context for {self.func_name}, skipping CPU DB log.")
-
-                # --- Reset logic removed ---
+                    # This warning means TraceCloser likely wasn't used or failed
+                    self.logger.warning(f"No final log_uuid found in context for {self.func_name}, skipping CPU DB log.")
 
             return result
 

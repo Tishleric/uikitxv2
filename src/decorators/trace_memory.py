@@ -43,47 +43,54 @@ class TraceMemory:
                  self.logger.warning("Could not get process handle, skipping memory trace.")
                  return func(*args, **kwargs)
 
-            # Get log_uuid from context (should be set by FunctionLogger)
-            current_log_uuid = log_uuid_var.get()
-            uuid_short = current_log_uuid[:8] if current_log_uuid else "NO_UUID"
+            # Get log_uuid from context initially *only* for the start debug log
+            initial_log_uuid = log_uuid_var.get()
+            initial_uuid_short = initial_log_uuid[:8] if initial_log_uuid else "NO_UUID"
 
             mem_start_rss_mb = None # Initialize start memory
+            result = None # Initialize result
             try:
-                # --- Get Starting Memory Usage ---
+                # --- Get Starting Memory Usage --- (Uses initial_uuid_short)
                 try:
                     mem_info_start = CURRENT_PROCESS.memory_info()
                     mem_start_rss_mb = mem_info_start.rss * self.BYTES_TO_MB
-                    self.logger.debug(f"Start Memory RSS {self.func_name} ({uuid_short}): {mem_start_rss_mb:.2f} MB")
+                    self.logger.debug(f"Start Memory RSS {self.func_name} ({initial_uuid_short}): {mem_start_rss_mb:.2f} MB")
                 except Exception as mem_e:
-                    self.logger.warning(f"Could not get start memory usage for {self.func_name} ({uuid_short}): {mem_e}")
+                    self.logger.warning(f"Could not get start memory usage for {self.func_name} ({initial_uuid_short}): {mem_e}")
 
-                # --- Execute the wrapped function ---
-                result = func(*args, **kwargs) # Call the wrapped function
+                # --- Execute the wrapped function (including inner decorators) ---
+                # The context variable might be set/reset by inner decorators during this call
+                result = func(*args, **kwargs)
 
             finally:
-                # --- Get Ending Memory Usage & Log Delta (if UUID exists) ---
-                if current_log_uuid: # Check if UUID was set by FunctionLogger
+                # --- Get log_uuid FRESHLY from context before logging ---
+                # This reads the value potentially set by TraceCloser/FunctionLogger,
+                # before TraceCloser's finally block resets it.
+                final_log_uuid = log_uuid_var.get()
+                final_uuid_short = final_log_uuid[:8] if final_log_uuid else "NO_UUID"
+
+                # --- Get Ending Memory Usage & Log Delta (if final UUID exists) ---
+                if final_log_uuid: # Check the freshly retrieved UUID
                     try:
                         mem_info_end = CURRENT_PROCESS.memory_info()
                         mem_end_rss_mb = mem_info_end.rss * self.BYTES_TO_MB
-                        self.logger.debug(f"End Memory RSS {self.func_name} ({uuid_short}): {mem_end_rss_mb:.2f} MB")
+                        # Use final_uuid_short for the end debug log for consistency
+                        self.logger.debug(f"End Memory RSS {self.func_name} ({final_uuid_short}): {mem_end_rss_mb:.2f} MB")
 
                         if mem_start_rss_mb is not None:
                             mem_delta_mb = mem_end_rss_mb - mem_start_rss_mb
                             db_log_data = {
-                                "log_uuid": current_log_uuid, # Include the UUID
+                                "log_uuid": final_log_uuid, # Use the final UUID for DB log
                                 "memory_delta_mb": round(mem_delta_mb, 3) # Round to 3 decimal places
                             }
                             db_log_msg = f"{self.DB_LOG_PREFIX}{json.dumps(db_log_data)}"
                             self.logger.info(db_log_msg) # Log to DB
 
                     except Exception as mem_e:
-                        self.logger.warning(f"Could not get end memory usage or delta for {self.func_name} ({uuid_short}): {mem_e}")
+                        self.logger.warning(f"Could not get end memory usage or delta for {self.func_name} ({final_uuid_short}): {mem_e}")
                 else:
-                    # Log a warning if no UUID was found
-                    self.logger.warning(f"No log_uuid found in context for {self.func_name}, skipping Memory DB log.")
-
-                # --- Reset logic removed ---
+                     # This warning means TraceCloser likely wasn't used or failed
+                    self.logger.warning(f"No final log_uuid found in context for {self.func_name}, skipping Memory DB log.")
 
             return result
 
