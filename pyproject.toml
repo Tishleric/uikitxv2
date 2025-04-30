@@ -8,8 +8,6 @@ dependencies = [
     "dash==3.0.4",                     # latest stable Dash
     "dash-bootstrap-components==1.6.0",
     "plotly==6.0.1",
-    "sqlalchemy>=2",
-    "pandas>=2",
 ]
 
 # ---------- Dev / tooling / stubs ----------
@@ -58,6 +56,3 @@ line-length = 120
 [tool.pytest.ini_options]
 addopts = "-q"
 pythonpath = ["src"]
-markers = [
-    "integration: slow browser tests",
-]

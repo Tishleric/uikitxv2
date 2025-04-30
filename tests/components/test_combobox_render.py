@@ -1,5 +1,5 @@
-from uikitxv2.components.combobox import ComboBox
-from uikitxv2.utils.colour_palette import default_theme
+from components.combobox import ComboBox
+from utils.colour_palette import default_theme
 
 
 def test_combobox_render():

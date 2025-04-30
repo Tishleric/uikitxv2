@@ -1,5 +1,5 @@
-from uikitxv2.components.graph import Graph
-from uikitxv2.utils.colour_palette import default_theme
+from components.graph import Graph
+from utils.colour_palette import default_theme
 
 
 def test_graph_render():
