@@ -8,6 +8,11 @@ import sys
 import logging
 import atexit
 import numpy as np
+import sqlite3
+from decorators.logger_decorator import FunctionLogger
+from decorators.trace_cpu import TraceCpu
+from decorators.trace_memory import TraceMemory
+from decorators.trace_closer import TraceCloser
 
 # --- Adjust Python path ---
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,10 +32,8 @@ try:
     from lumberjack.logging_config import setup_logging, shutdown_logging
     from utils.colour_palette import default_theme
     import plotly.graph_objects as go
+    from dash.exceptions import PreventUpdate
     # Import the decorators
-    from decorators.logger_decorator import FunctionLogger
-    from decorators.trace_cpu import TraceCpu
-    from decorators.trace_memory import TraceMemory
     logger.debug("Successfully imported uikitxv2 components and theme")
 except ImportError as e:
     logger.error(f"Error importing uikitxv2 components: {e}")
@@ -49,6 +52,33 @@ console_handler, db_handler = setup_logging(
 )
 atexit.register(shutdown_logging)
 logger.info("Logging configured via setup_logging and shutdown registered.")
+
+# --- Database Query Function ---
+def fetch_log_data(db_path):
+    """Queries the function_log table and returns data for DataTable."""
+    conn = None # Initialize conn to None
+    try:
+        conn = sqlite3.connect(db_path, check_same_thread=False)
+        cursor = conn.cursor()
+        # Fetch all columns, ordered by timestamp descending
+        cursor.execute("""
+            SELECT timestamp, function_name, execution_time_s, cpu_usage_delta, memory_usage_delta_mb, log_uuid
+            FROM function_log
+            ORDER BY timestamp DESC
+        """)
+        rows = cursor.fetchall()
+        # Get column names from cursor description
+        columns = [description[0] for description in cursor.description]
+        # Format data as list of dicts
+        data = [dict(zip(columns, row)) for row in rows]
+        logger.debug(f"Fetched {len(data)} log records from {db_path}")
+        return data
+    except sqlite3.Error as e:
+        logger.error(f"Database error fetching logs from {db_path}: {e}")
+        return [] # Return empty list on error
+    finally:
+        if conn:
+            conn.close()
 
 # --- Initialize Dash App ---
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -122,6 +152,14 @@ log_table = DataTable(
 )
 logger.debug("Instantiated uikitxv2.DataTable for logs tab with theme")
 
+# Add Refresh Button for Logs Tab
+refresh_log_button = Button(
+    id='refresh-log-button',
+    label='Refresh',
+    theme=default_theme
+)
+logger.debug("Instantiated refresh log button")
+
 # --- Define Tab Content using uikitxv2.Grid ---
 components_tab_content_grid = Grid(
     id="grid-components-tab",
@@ -131,7 +169,8 @@ components_tab_content_grid = Grid(
 )
 logs_tab_content_grid = Grid(
     id="grid-logs-tab",
-    children=[log_table],
+    children=[refresh_log_button, log_table],
+    col_widths=[1, 11],
     theme=default_theme
 )
 logger.debug("Defined tab content using uikitxv2.Grid with theme")
@@ -148,15 +187,19 @@ main_tabs = Tabs(
 logger.debug("Instantiated uikitxv2.Tabs with theme")
 
 # --- App Layout ---
-# Just add black background to containing div
+# Just add black background to containing div and use flexbox for height
 app.layout = html.Div([
-    main_tabs.render()
+    # Wrap Tabs in a Div that can grow
+    html.Div(main_tabs.render(), style={'flexGrow': 1})
 ], style={
     "backgroundColor": "#000000",
     "padding": "20px",
-    "minHeight": "100vh"
+    "minHeight": "100vh",
+    # Add flex properties to main container
+    "display": "flex",
+    "flexDirection": "column"
 })
-logger.debug("Dash layout defined with black background")
+logger.debug("Dash layout defined with black background and flex structure")
 
 # --- Callbacks ---
 @app.callback(
@@ -164,6 +207,7 @@ logger.debug("Dash layout defined with black background")
     [Input("simple-demo-button", "n_clicks")],
     [State("simple-demo-combobox", "value")]
 )
+@TraceCloser()
 @TraceMemory()
 @TraceCpu()
 @FunctionLogger(log_args=True, log_return=False)
@@ -215,6 +259,18 @@ def update_graph(n_clicks, selected_data):
     
     logger.debug(f"Updated graph with {selected_data}")
     return fig
+
+# New callback to update the log table
+@app.callback(
+    Output("log-table-display", "data"),
+    Input("refresh-log-button", "n_clicks")
+)
+def update_log_table(n_clicks):
+    """Fetches log data and updates the table when refresh button is clicked or on initial load."""
+    # Fetch data on initial load (n_clicks is None) or when button is clicked
+    log_data = fetch_log_data(LOG_DB_PATH)
+    logger.debug(f"Callback triggered: update_log_table (n_clicks={n_clicks}). Returning {len(log_data)} rows.")
+    return log_data
 
 # --- Execution ---
 if __name__ == "__main__":

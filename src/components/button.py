@@ -33,6 +33,7 @@ class Button(BaseComponent):
             color="primary",
             style={
                 "backgroundColor": self.theme.primary,
+                "borderColor": self.theme.primary,
                 "borderRadius": "4px",
                 "color": self.theme.text_light,
                 "fontFamily": "Inter, sans-serif",
