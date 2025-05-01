@@ -61,7 +61,6 @@ def setup_logging(
                 print(f"Created log directory: {db_dir}")
             except OSError as e:
                 print(f"Error creating log directory {db_dir}: {e}")
-                # Consider how critical DB logging is - maybe proceed without it?
                 # For now, we proceed, SQLiteHandler handles connection errors
 
         _db_handler = SQLiteHandler(db_filename=db_path)
