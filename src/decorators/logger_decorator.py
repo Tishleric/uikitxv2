@@ -1,26 +1,21 @@
+# src/decorators/logger_decorator.py
+
 import logging
 import functools
 import time
 import json
 import datetime
 from zoneinfo import ZoneInfo
-import uuid  # Added import
-import contextvars  # Added import
+import uuid
+import contextvars # Keep for general contextvar usage if needed elsewhere
 
-# Define the context variable here
-log_uuid_var = contextvars.ContextVar('log_uuid', default=None)
+# --- Import context vars from the new central file ---
+from .context_vars import log_uuid_var, current_log_data
+# ---
 
 NY_TZ = ZoneInfo("America/New_York")
 
 class FunctionLogger:
-    """
-    A class-based decorator for logging function execution details.
-    Generates/sets log_uuid in context if not already present.
-
-    - Logs detailed start/executing/done messages to console at DEBUG level.
-    - Logs a summary message (function name, timestamp, duration, log_uuid)
-      at INFO level, formatted for the SQLiteHandler.
-    """
     DB_LOG_PREFIX = "FUNC_EXEC_LOG:"
 
     def __init__(self, log_args=True, log_return=True):
@@ -35,52 +30,58 @@ class FunctionLogger:
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # --- Read UUID from Context (Set by outer TraceCloser) ---
             current_log_uuid = log_uuid_var.get()
-            # Use "NO_UUID" if TraceCloser wasn't used or failed
             uuid_short = current_log_uuid[:8] if current_log_uuid else "NO_UUID"
-            # --- End UUID Handling ---
+            data_dict = current_log_data.get()
 
             start_time_perf = time.perf_counter()
             start_time_utc = datetime.datetime.now(datetime.timezone.utc)
             start_time_ny = start_time_utc.astimezone(NY_TZ)
-            timestamp_str = start_time_ny.strftime('%m/%d/%y %H:%M')
+            # --- Updated timestamp format for DB log ---
+            timestamp_db_str = start_time_ny.strftime('%m/%d/%y %H:%M:%S')
+            # Keep console format separate if needed, or use the same
+            timestamp_console_str = start_time_ny.strftime('%m/%d/%y %H:%M:%S') # Using same format for console DEBUG logs for consistency
 
-            # --- Log Starting Message (DEBUG - Console) ---
+            if data_dict is not None:
+                data_dict['function_name'] = self.func_name
+                # Store the more precise timestamp internally if needed, but use formatted one for DB log
+                data_dict['start_timestamp_iso'] = start_time_utc.isoformat()
+
             start_log_msg = f"Starting: {self.func_name} ({uuid_short})..."
             self.logger.debug(start_log_msg)
 
-            # --- Log "What it's doing" (DEBUG - Console) ---
             args_repr = f"{args!r}" if self.log_args else "[ARGS HIDDEN]"
             kwargs_repr = f"{kwargs!r}" if self.log_args else "[KWARGS HIDDEN]"
             call_details_msg = f"Executing: {self.func_name}(args={args_repr}, kwargs={kwargs_repr}) ({uuid_short})"
             self.logger.debug(call_details_msg)
 
-            # --- Execute function and handle results/exceptions ---
-            try: # Inner try for function execution and exception logging
+            try:
                 result = func(*args, **kwargs)
                 end_time_perf = time.perf_counter()
                 duration_s = end_time_perf - start_time_perf
 
-                # --- Log Done Message (DEBUG - Console) ---
+                if data_dict is not None:
+                    data_dict['duration_s'] = round(duration_s, 3)
+
                 done_log_msg = f"Done: {self.func_name} ({uuid_short})."
                 if self.log_return:
-                    done_log_msg += f" Returned: {result!r}"
+                    res_repr = repr(result)
+                    if len(res_repr) > 200:
+                        res_repr = res_repr[:200] + '...'
+                    done_log_msg += f" Returned: {res_repr}"
                 done_log_msg += f" Duration: {duration_s:.3f}s"
                 self.logger.debug(done_log_msg)
 
-                # --- Log Summary Message (INFO - For SQLite Handler) ---
-                if current_log_uuid: # Only log to DB if we have a UUID from context
+                if current_log_uuid:
                     db_log_data = {
-                        "log_uuid": current_log_uuid, # Include the UUID
+                        "log_uuid": current_log_uuid,
                         "name": self.func_name,
-                        "timestamp": timestamp_str,
+                        "timestamp": timestamp_db_str, # Use the updated format
                         "duration_s": round(duration_s, 3)
                     }
                     db_log_msg = f"{self.DB_LOG_PREFIX}{json.dumps(db_log_data)}"
                     self.logger.info(db_log_msg)
                 else:
-                    # Log warning if TraceCloser didn't provide a UUID
                     self.logger.warning(f"No log_uuid found in context for {self.func_name}, skipping DB log.")
 
                 return result
@@ -88,11 +89,14 @@ class FunctionLogger:
             except Exception as e:
                 end_time_perf = time.perf_counter()
                 duration_s = end_time_perf - start_time_perf
+
+                if data_dict is not None:
+                    data_dict['error'] = str(e)
+                    data_dict['duration_s'] = round(duration_s, 3)
+
                 error_log_msg = f"Exception in {self.func_name} ({uuid_short}): {e!r}"
                 error_log_msg += f" (Occurred after {duration_s:.3f}s)"
-                # Log error with traceback info
                 self.logger.error(error_log_msg, exc_info=True)
-                # Note: We don't log FUNC_EXEC_LOG to DB on exception here.
-                raise # Re-raise the exception
 
+                raise
         return wrapper
