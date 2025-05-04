@@ -13,9 +13,9 @@ from decorators.trace_closer import TraceCloser
 # --- Corrected: Import specific context var instances used in trace_closer ---
 from decorators.trace_closer import log_uuid_var, current_log_data
 # ---
-from decorators.logger_decorator import FunctionLogger # For stacking
-from decorators.trace_cpu import TraceCpu             # For stacking
-from decorators.trace_memory import TraceMemory         # For stacking
+from decorators.trace_time import TraceTime # For stacking
+from decorators.trace_cpu import TraceCpu   # For stacking
+from decorators.trace_memory import TraceMemory # For stacking
 
 # Use the shared fixtures from tests/decorators/conftest.py
 # setup_logging_context fixture is applied automatically via autouse=True

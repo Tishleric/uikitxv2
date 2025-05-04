@@ -1,3 +1,5 @@
+# src/decorators/trace_cpu.py
+
 import logging
 import functools
 import time
@@ -9,7 +11,7 @@ from .context_vars import log_uuid_var, current_log_data
 # ---
 
 class TraceCpu:
-    DB_LOG_PREFIX = "CPU_TRACE_LOG:"
+    # DB_LOG_PREFIX = "CPU_TRACE_LOG:" # REMOVED - No longer emitting DB log directly
 
     def __init__(self):
         self.logger = None
@@ -31,38 +33,52 @@ class TraceCpu:
 
             try:
                 try:
-                    cpu_start = psutil.cpu_percent(interval=0.01)
+                    # Measure start CPU
+                    cpu_start = psutil.cpu_percent(interval=0.01) # Short interval before call
+                    # --- Keep Console Log ---
                     self.logger.debug(f"Start CPU {self.func_name} ({initial_uuid_short}): {cpu_start:.1f}%")
+                    # --- End Console Log ---
                 except Exception as cpu_e:
                     self.logger.warning(f"Could not get start CPU usage for {self.func_name} ({initial_uuid_short}): {cpu_e}")
 
+                # Execute the wrapped function
                 result = func(*args, **kwargs)
 
             finally:
-                final_log_uuid = log_uuid_var.get()
-                final_uuid_short = final_log_uuid[:8] if final_log_uuid else "NO_UUID"
-
-                if final_log_uuid:
+                # Measure end CPU and calculate delta
+                if cpu_start is not None: # Only calculate delta if start measurement succeeded
                     try:
-                        cpu_end = psutil.cpu_percent(interval=None)
-                        self.logger.debug(f"End CPU {self.func_name} ({final_uuid_short}): {cpu_end:.1f}%")
+                        cpu_end = psutil.cpu_percent(interval=None) # Get current CPU after call
+                        # --- Keep Console Log ---
+                        self.logger.debug(f"End CPU {self.func_name} ({initial_uuid_short}): {cpu_end:.1f}%")
+                        # --- End Console Log ---
 
-                        if cpu_start is not None:
-                            cpu_delta = cpu_end - cpu_start
-                            db_log_data = {
-                                "log_uuid": final_log_uuid,
-                                "cpu_delta": round(cpu_delta, 2)
-                            }
-                            db_log_msg = f"{self.DB_LOG_PREFIX}{json.dumps(db_log_data)}"
-                            self.logger.info(db_log_msg)
+                        cpu_delta = cpu_end - cpu_start
 
-                            if data_dict is not None:
-                                data_dict['cpu_delta'] = round(cpu_delta, 2)
+                        # --- Update Context ---
+                        if data_dict is not None:
+                            data_dict['cpu_delta'] = round(cpu_delta, 2)
+                        else:
+                            # Log warning if context is missing
+                            self.logger.warning(f"TraceCpu: Context data dictionary not found for {self.func_name} ({initial_uuid_short}). CPU delta will not be added to context.")
+                        # --- End Context Update ---
+
+                        # --- REMOVED DB Log Emission Block ---
+                        # final_log_uuid = log_uuid_var.get() # Get potentially updated UUID
+                        # if final_log_uuid:
+                        #     db_log_data = { ... }
+                        #     db_log_msg = f"{self.DB_LOG_PREFIX}{json.dumps(db_log_data)}"
+                        #     self.logger.info(db_log_msg)
+                        # else:
+                        #     self.logger.warning(...)
+                        # --- End REMOVED Block ---
 
                     except Exception as cpu_e:
-                        self.logger.warning(f"Could not get end CPU usage or delta for {self.func_name} ({final_uuid_short}): {cpu_e}")
+                        self.logger.warning(f"Could not get end CPU usage or calculate delta for {self.func_name} ({initial_uuid_short}): {cpu_e}")
                 else:
-                    self.logger.warning(f"No final log_uuid found in context for {self.func_name}, skipping CPU DB log.")
+                    # Log if delta couldn't be calculated because start failed
+                    self.logger.debug(f"Skipping CPU delta calculation for {self.func_name} ({initial_uuid_short}) as start measurement failed.")
 
-            return result
+
+            return result # Return the original function's result
         return wrapper

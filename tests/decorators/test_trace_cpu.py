@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock
 # Adjust if your test setup requires different import paths
 from decorators.trace_cpu import TraceCpu
 from decorators.trace_closer import TraceCloser # Needed for stacking test
-from decorators.logger_decorator import FunctionLogger # Needed for stacking test
+from decorators.trace_time import TraceTime # Needed for stacking test
 from decorators.context_vars import log_uuid_var, current_log_data
 
 # --- Fixtures ---

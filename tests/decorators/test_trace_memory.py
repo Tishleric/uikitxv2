@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock
 # Assuming 'src' is accessible in the path for imports
 from decorators.trace_memory import TraceMemory
 from decorators.trace_closer import TraceCloser # Needed for stacking test
-from decorators.logger_decorator import FunctionLogger # Needed for stacking test
+from decorators.trace_time import TraceTime # Needed for stacking test
 from decorators.trace_cpu import TraceCpu # <-- Added import
 from decorators.context_vars import log_uuid_var, current_log_data
 
