@@ -17,7 +17,7 @@
 ### Decorators
 
 - `src/decorators/context_vars.py` - Shared context variables for tracing and logging decorators.
-- `src/decorators/logger_decorator.py` - Decorator for detailed function logging with timing information.
+- `src/decorators/trace_time.py` - Decorator for detailed function logging with timing information.
 - `src/decorators/trace_closer.py` - Decorator for managing resource tracing and generating flow trace logs.
 - `src/decorators/trace_cpu.py` - Decorator for measuring CPU usage during function execution.
 - `src/decorators/trace_memory.py` - Decorator for measuring memory usage during function execution.
@@ -50,7 +50,7 @@
 ### Decorator Tests
 
 - `tests/decorators/conftest.py` - Shared fixtures for decorator testing including mock resources and functions.
-- `tests/decorators/test_logger_decorator.py` - Tests for the FunctionLogger decorator with various inputs and scenarios.
+- `tests/decorators/test_trace_time.py` - Tests for the TraceTime decorator with various inputs and scenarios.
 - `tests/decorators/test_trace_closer.py` - Tests for the TraceCloser decorator including context tracking and error handling.
 - `tests/decorators/test_trace_cpu.py` - Tests for the CPU usage tracking decorator with simulated and real measurements.
 - `tests/decorators/test_trace_memory.py` - Tests for the memory usage tracking decorator with mock and real memory allocation.

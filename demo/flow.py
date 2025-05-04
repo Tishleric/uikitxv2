@@ -26,7 +26,7 @@ try:
     from lumberjack.logging_config import setup_logging, shutdown_logging
     # Import the decorators in the standard order
     from decorators.trace_closer import TraceCloser
-    from decorators.logger_decorator import FunctionLogger
+    from decorators.trace_time import TraceTime
     from decorators.trace_cpu import TraceCpu
     from decorators.trace_memory import TraceMemory
     # Import context vars if needed (not directly used in this version but good practice)
@@ -65,7 +65,7 @@ atexit.register(shutdown_logging)
 @TraceCloser()
 @TraceMemory()
 @TraceCpu()
-@FunctionLogger(log_args=True, log_return=True)
+@TraceTime(log_args=True, log_return=True)
 def StartOfDay(trading_instrument: str):
     """
     Determines the initial state for the trading day for a given instrument.
@@ -106,7 +106,7 @@ def StartOfDay(trading_instrument: str):
 @TraceCloser()
 @TraceMemory()
 @TraceCpu()
-@FunctionLogger(log_args=True, log_return=True)
+@TraceTime(log_args=True, log_return=True)
 def HandoffToTradingTech(instrument: str, position_type: str, quantity: int):
     """
     Simulates sending a portion of the position to Trading Technologies (TT).
@@ -127,7 +127,7 @@ def HandoffToTradingTech(instrument: str, position_type: str, quantity: int):
 @TraceCloser()
 @TraceMemory()
 @TraceCpu()
-@FunctionLogger(log_args=True, log_return=True)
+@TraceTime(log_args=True, log_return=True)
 def ExecuteCMEDirectInternal(instrument: str, position_type: str, initial_quantity: int, tt_handed_off: int, initial_market_price: float):
     """
     Simulates internal execution within CME Direct for its portion of the position.
@@ -182,7 +182,7 @@ def ExecuteCMEDirectInternal(instrument: str, position_type: str, initial_quanti
 @TraceCloser()
 @TraceMemory()
 @TraceCpu()
-@FunctionLogger(log_args=True, log_return=True)
+@TraceTime(log_args=True, log_return=True)
 def ExecuteTTAlgoOnCME(instrument: str, tt_quantity: int, initial_market_price: float, position_type: str):
     """
     Simulates TT algo adjusting its quantity, executing on CME, calculating PnL,
@@ -230,7 +230,7 @@ def ExecuteTTAlgoOnCME(instrument: str, tt_quantity: int, initial_market_price: 
 @TraceCloser()
 @TraceMemory()
 @TraceCpu()
-@FunctionLogger(log_args=True, log_return=True)
+@TraceTime(log_args=True, log_return=True)
 def SendDataToActant(instrument: str, cme_exec_result: dict, cme_direct_exec_result: dict):
     """
     Aggregates results from CME (via TT) and CMEDirect internal execution
@@ -271,7 +271,7 @@ def SendDataToActant(instrument: str, cme_exec_result: dict, cme_direct_exec_res
 @TraceCloser()
 @TraceMemory()
 @TraceCpu()
-@FunctionLogger(log_args=True, log_return=True)
+@TraceTime(log_args=True, log_return=True)
 def RunActantAnalytics(instrument: str, aggregated_data: dict):
     """
     Simulates Actant running analytics on the aggregated end-of-day data.

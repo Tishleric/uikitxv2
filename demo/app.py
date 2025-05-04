@@ -9,7 +9,7 @@ import logging
 import atexit
 import numpy as np
 import sqlite3
-from decorators.logger_decorator import FunctionLogger
+from decorators.trace_time import TraceTime
 from decorators.trace_cpu import TraceCpu
 from decorators.trace_memory import TraceMemory
 from decorators.trace_closer import TraceCloser
@@ -210,7 +210,7 @@ logger.debug("Dash layout defined with black background and flex structure")
 @TraceCloser()
 @TraceMemory()
 @TraceCpu()
-@FunctionLogger(log_args=True, log_return=False)
+@TraceTime(log_args=True, log_return=False)
 def update_graph(n_clicks, selected_data):
     """Update graph based on selected data when Apply button is clicked"""
     if n_clicks is None:

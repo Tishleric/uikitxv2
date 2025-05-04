@@ -1,4 +1,4 @@
-# tests/decorators/test_logger_decorator.py
+# tests/decorators/test_trace_time.py
 
 import pytest
 import logging
@@ -7,7 +7,7 @@ import time
 from unittest.mock import patch
 
 # Assuming 'src' is accessible in the path for imports
-from decorators.logger_decorator import FunctionLogger
+from decorators.trace_time import TraceTime
 from decorators.context_vars import log_uuid_var, current_log_data # Import context vars
 
 # Use the shared fixture from tests/decorators/conftest.py
@@ -15,10 +15,10 @@ from decorators.context_vars import log_uuid_var, current_log_data # Import cont
 
 # --- Test Functions ---
 
-# test_logger_basic_logging remains the same
+# test_trace_time_basic_logging remains the same
 # ... (other tests remain the same) ...
 
-def test_logger_return_value_truncation(caplog, setup_logging_context):
+def test_trace_time_return_value_truncation(caplog, setup_logging_context):
     """Tests that long return values are truncated in debug logs."""
     test_uuid, _ = setup_logging_context
     caplog.set_level(logging.DEBUG)
@@ -28,7 +28,7 @@ def test_logger_return_value_truncation(caplog, setup_logging_context):
     expected_truncated_repr_internal = repr(long_string)[:200] + '...'
 
 
-    @FunctionLogger(log_args=False, log_return=True)
+    @TraceTime(log_args=False, log_return=True)
     def func_returning_long():
         return long_string
 
@@ -53,8 +53,8 @@ def test_logger_return_value_truncation(caplog, setup_logging_context):
     # Check that the full representation is NOT there
     assert repr(long_string) not in done_log_message
 
-# test_logger_exception_handling remains the same
-# test_logger_db_log_format remains the same
-# test_logger_no_context_uuid remains the same
+# test_trace_time_exception_handling remains the same
+# test_trace_time_db_log_format remains the same
+# test_trace_time_no_context_uuid remains the same
 
-# (Include the unchanged test functions here if providing the full file)
+# (Include the unchanged test functions here if providing the full file) 
