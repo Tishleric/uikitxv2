@@ -16,7 +16,16 @@ class _Option(TypedDict):
 
 
 class RadioButton(BaseComponent):
-    """Dark-theme wrapper around `dbc.RadioItems`."""
+    """Dark-theme wrapper around `dbc.RadioItems`.
+    
+    Args:
+        options: Sequence of option strings or dicts with 'label' and 'value' keys.
+        value: Initially selected value. Defaults to None.
+        inline: Whether to display radio buttons horizontally. Defaults to True.
+        id: Component ID. Auto-generated if None.
+        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
+        **radio_kwargs: Additional keyword arguments passed to the underlying dbc.RadioItems.
+    """
 
     def __init__(
         self,

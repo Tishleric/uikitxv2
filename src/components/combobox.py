@@ -17,7 +17,18 @@ class _Option(TypedDict):
 
 
 class ComboBox(BaseComponent):
-    """Dark-theme wrapper around `dcc.Dropdown` (single- or multi-select)."""
+    """Dark-theme wrapper around `dcc.Dropdown` for single or multi-selection.
+    
+    Args:
+        options: Sequence of option strings or dicts with 'label' and 'value' keys.
+        value: Initially selected value(s). Can be a single string or list of strings. Defaults to None.
+        multi: Enable multi-select mode. Defaults to False.
+        clearable: Allow clearing the selection. Defaults to True.
+        placeholder: Text to display when no option is selected. Defaults to None.
+        id: Component ID. Auto-generated if None.
+        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
+        **dropdown_kwargs: Additional keyword arguments passed to the underlying dcc.Dropdown.
+    """ 
 
     def __init__(
         self,

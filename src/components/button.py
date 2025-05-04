@@ -11,7 +11,14 @@ from utils.colour_palette import Theme, default_theme
 
 
 class Button(BaseComponent):
-    """One-liner dark-theme wrapper around `dbc.Button`."""
+    """Dark-theme wrapper around `dbc.Button`.
+    
+    Args:
+        label: Text label displayed on the button.
+        id: Component ID. Auto-generated if None.
+        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
+        **dbc_kwargs: Additional keyword arguments passed to the underlying dbc.Button.
+    """
 
     def __init__(
         self,

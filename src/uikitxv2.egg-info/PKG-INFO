@@ -4,9 +4,8 @@ Version: 0.1.0
 Requires-Python: >=3.12
 Requires-Dist: dash==3.0.4
 Requires-Dist: dash-bootstrap-components==1.6.0
+Requires-Dist: dash-table==5.0.0
 Requires-Dist: plotly==6.0.1
-Requires-Dist: sqlalchemy>=2
-Requires-Dist: pandas>=2
 Provides-Extra: dev
 Requires-Dist: ruff; extra == "dev"
 Requires-Dist: mypy; extra == "dev"
@@ -18,5 +17,6 @@ Requires-Dist: waitress>=3.0.2; extra == "dev"
 Requires-Dist: flask-compress>=1.17; extra == "dev"
 Requires-Dist: ansi2html>=1.9.2; extra == "dev"
 Requires-Dist: stringcase>=1.2.0; extra == "dev"
+Requires-Dist: chromedriver-binary; extra == "dev"
 Requires-Dist: plotly-stubs; extra == "dev"
 Requires-Dist: types-python-dateutil; extra == "dev"

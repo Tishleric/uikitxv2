@@ -8,6 +8,7 @@ Global pytest fixtures for the uikitxv2 test-suite.
 from __future__ import annotations
 
 import os
+
 from pathlib import Path
 
 import chromedriver_binary  # noqa: F401  – importing unpacks the wheel

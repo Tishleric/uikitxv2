@@ -16,7 +16,16 @@ class _Option(TypedDict):
 
 
 class ListBox(BaseComponent):
-    """Dark-theme multi-select list box built on `dcc.Checklist`."""
+    """Dark-theme multi-select list box built on `dcc.Checklist`.
+    
+    Args:
+        options: Sequence of option strings or dicts with 'label' and 'value' keys.
+        values: List of initially selected values. Defaults to None.
+        height_px: Height of the listbox in pixels. Defaults to 160.
+        id: Component ID. Auto-generated if None.
+        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
+        **check_kwargs: Additional keyword arguments passed to the underlying dcc.Checklist.
+    """
 
     def __init__(
         self,
