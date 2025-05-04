@@ -14,7 +14,17 @@ FigureLike = Union[go.Figure, Dict[str, Any]]
 
 
 class Graph(BaseComponent):
-    """Dark-theme wrapper around `dcc.Graph` with optional responsive config."""
+    """Dark-theme wrapper around `dcc.Graph` with plotly figure integration.
+    
+    Args:
+        figure: Plotly Figure object or figure dict to display.
+        responsive: Whether the graph should resize with its container. Defaults to True.
+        config: Optional plotly configuration dict. Defaults to None.
+        height_px: Fixed height in pixels. If None, height is determined by container. Defaults to None.
+        id: Component ID. Auto-generated if None.
+        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
+        **graph_kwargs: Additional keyword arguments passed to the underlying dcc.Graph.
+    """
 
     def __init__(
         self,

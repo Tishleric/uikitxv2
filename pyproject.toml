@@ -27,7 +27,7 @@ dev = [
     "flask-compress>=1.17",
     "ansi2html>=1.9.2",
     "stringcase>=1.2.0",
-    "chromedriver-binary==135.*",
+    "chromedriver-binary",
 
     # Type stubs
     "plotly-stubs",                # plotly 6 APIs

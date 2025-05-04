@@ -12,10 +12,17 @@ from utils.colour_palette import Theme, default_theme
 
 
 class Grid(BaseComponent):
-    """Bootstrap grid wrapper.
-
-    If *col_widths* is provided, each child gets the explicit width (must sum to *cols*).
-    Otherwise children share the space equally.
+    """Bootstrap grid wrapper for component layout.
+    
+    Args:
+        children: Sequence of child components to arrange in the grid.
+        col_widths: Optional sequence of column widths for each child. Must sum to cols value.
+            If not provided, children share space equally.
+        cols: Total number of grid columns. Must be between 1 and 12. Defaults to 12.
+        gap: Gap size between columns. Defaults to 2.
+        id: Component ID. Auto-generated if None.
+        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
+        **row_kwargs: Additional keyword arguments passed to the underlying dbc.Row.
     """
 
     def __init__(

@@ -1,8 +1,7 @@
 dash==3.0.4
 dash-bootstrap-components==1.6.0
+dash-table==5.0.0
 plotly==6.0.1
-sqlalchemy>=2
-pandas>=2
 
 [dev]
 ruff
@@ -15,5 +14,6 @@ waitress>=3.0.2
 flask-compress>=1.17
 ansi2html>=1.9.2
 stringcase>=1.2.0
+chromedriver-binary
 plotly-stubs
 types-python-dateutil
