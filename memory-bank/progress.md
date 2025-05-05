@@ -19,9 +19,11 @@
 - Improve test coverage for components
 - Enhance styling options for components
 
-## 2023-11-14 Codebase Pruning
+## 2023-11-14 Codebase Pruning (Reverted)
 
-### Completed
+**Note: This pruning was later reverted as decorators and logging functionality was reinstated**
+
+### Originally Completed (Later Reverted)
 - Removed all decorator-related code from core and decorators directories
 - Removed all database-related code and files
 - Removed examples directory and its contents
@@ -31,25 +33,13 @@
 - Cleaned up all cache directories (.mypy_cache, .pytest_cache, .ruff_cache, and all __pycache__ directories)
 - Removed empty files (__about__.py)
 
-### Remaining Structure
-- Components directory with all UI component wrappers
-- Core directory with BaseComponent class
-- Utils directory with color palette
-- Component tests
-- Memory Bank documentation
-
-### Next Steps
-- Consider adding more UI components as needed
-- Improve test coverage for components
-- Enhance styling options for components
-
 ## 2025-05-01 Decorator Test Suite Implementation
 
 ### Completed
 - Implemented comprehensive test suite for all decorator modules
 - Created test files:
   - `tests/decorators/conftest.py` with shared fixtures for decorator testing
-  - `tests/decorators/test_logger_decorator.py` for function logging decorator tests
+  - `tests/decorators/test_trace_time.py` for function logging decorator tests
   - `tests/decorators/test_trace_cpu.py` for CPU usage tracking decorator tests
   - `tests/decorators/test_trace_memory.py` for memory usage tracking decorator tests
   - `tests/decorators/test_trace_closer.py` for resource tracing decorator tests
@@ -63,3 +53,23 @@
 - Add integration tests to validate decorators working together
 - Consider adding test coverage measurement
 - Explore adding performance benchmarks for decorators
+
+## 2025-05-14 Lumberjack Test Suite Implementation
+
+### Completed
+- Implemented test suite for lumberjack logging modules
+- Created test files:
+  - `tests/lumberjack/test_logging_config.py` for logging configuration
+  - `tests/lumberjack/test_sqlite_handler.py` for SQLite database logging handler
+- Added DataTable component to the component library
+- Updated memory bank documentation to reflect current status:
+  - Added DataTable to code-index.md
+  - Added DataTable entries to io-schema.md
+  - Updated demo files in code-index.md
+  - Added decorator configuration entries to io-schema.md
+
+### Next Steps
+- Create integration tests for all decorators working together
+- Add performance benchmarks for the logging system
+- Consider adding more UI components as needed
+- Document common usage patterns in README.md and examples

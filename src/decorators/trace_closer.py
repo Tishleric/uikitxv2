@@ -101,48 +101,57 @@ class TraceCloser:
                         func_name = final_data.get('function_name', func.__name__)
                         end_time_utc = datetime.datetime.now(datetime.timezone.utc)
                         end_time_ny = end_time_utc.astimezone(NY_TZ)
-                        timestamp_str = end_time_ny.strftime('%m/%d/%y %H:%M:%S')
+                        timestamp_str = end_time_ny.strftime('%m/%d/%y %H:%M:%S') # Timestamp for display message
+                        timestamp_iso = end_time_utc.isoformat() # ISO format for potential DB use later
 
                         log_level = "INFO"
                         message = ""
+                        # --- NEW: Prepare metric values for payload ---
+                        metric_duration = None
+                        metric_cpu = None
+                        metric_memory = None
 
                         if 'error' in final_data:
                             log_level = "ERROR"
                             message = f"Error: {final_data['error']}"
                         else:
-                            # --- MODIFIED Message Building Logic ---
-                            duration = final_data.get('duration_s', 'N/A')
-                            memory = final_data.get('memory_delta_mb', 'N/A')
-                            cpu = final_data.get('cpu_delta', 'N/A')
+                            # --- Retrieve metrics from context for successful calls ---
+                            metric_duration = final_data.get('duration_s') # Keep as None if not found
+                            metric_cpu = final_data.get('cpu_delta')
+                            metric_memory = final_data.get('memory_delta_mb')
+                            # --- End Retrieve metrics ---
 
-                            duration_str = f"{duration:.3f}" if isinstance(duration, (int, float)) else str(duration)
-                            memory_str = f"{memory:.3f}" if isinstance(memory, (int, float)) else str(memory)
-                            cpu_str = f"{cpu:.2f}" if isinstance(cpu, (int, float)) else str(cpu)
+                            # --- Build the display message ---
+                            duration_str = f"{metric_duration:.3f}" if isinstance(metric_duration, (int, float)) else 'N/A'
+                            memory_str = f"{metric_memory:.3f}" if isinstance(metric_memory, (int, float)) else 'N/A'
+                            cpu_str = f"{metric_cpu:.2f}" if isinstance(metric_cpu, (int, float)) else 'N/A'
 
-                            # Start message with "Executed"
                             message_parts = ["Executed"]
-                            # Append parts conditionally
-                            if duration != 'N/A': message_parts.append(f"in {duration_str}s")
-                            if memory != 'N/A': message_parts.append(f"using {memory_str}mb memory delta")
-                            if cpu != 'N/A': message_parts.append(f"with {cpu_str}% CPU delta")
+                            if duration_str != 'N/A': message_parts.append(f"in {duration_str}s")
+                            if memory_str != 'N/A': message_parts.append(f"using {memory_str}mb delta")
+                            if cpu_str != 'N/A': message_parts.append(f"with {cpu_str}% delta")
 
-                            # Join the parts if more than just "Executed" is present
                             if len(message_parts) > 1:
                                 message = " ".join(message_parts) + "."
                             else:
-                                # Only "Executed" was added, use the default success message
-                                message = "Executed successfully (no timing/metrics)."
-                            # --- End MODIFIED Message Building Logic ---
+                                message = "Executed successfully (no metrics)."
+                            # --- End Build display message ---
 
 
                         # Payload for FLOW_TRACE (using final keys)
                         flow_trace_data = {
-                            "timestamp": timestamp_str,       # Key: timestamp
-                            "machine": self.machine,          # Key: machine
-                            "user": self.user,                # Key: user
-                            "level": log_level,               # Key: level
-                            "function": func_name,            # Key: function
-                            "message": message                # Key: message
+                            "timestamp": timestamp_str,       # Display timestamp
+                            "timestamp_iso": timestamp_iso,   # ISO timestamp for DB
+                            "machine": self.machine,
+                            "user": self.user,
+                            "level": log_level,
+                            "function": func_name,
+                            "message": message,
+                            # --- NEW: Add raw metrics to payload ---
+                            "metric_duration_s": metric_duration,
+                            "metric_cpu_delta": metric_cpu,
+                            "metric_memory_delta_mb": metric_memory,
+                            # --- End Add raw metrics ---
                         }
                         # --- End Payload ---
                         flow_trace_msg = f"{self.FLOW_TRACE_PREFIX}{json.dumps(flow_trace_data)}"
