@@ -4,6 +4,7 @@
 
 - `src/components/button.py` - Implementation of the Button component wrapper.
 - `src/components/combobox.py` - Implementation of the ComboBox (dropdown) component wrapper.
+- `src/components/datatable.py` - Implementation of the DataTable component wrapper for displaying tabular data.
 - `src/components/graph.py` - Implementation of the Graph component wrapper for Plotly figures.
 - `src/components/grid.py` - Implementation of the Grid layout component for arranging multiple UI components.
 - `src/components/listbox.py` - Implementation of the ListBox component wrapper for multi-selection.
@@ -24,6 +25,7 @@
 
 ### Lumberjack (Logging)
 
+- `src/lumberjack/__init__.py` - Package exports and initialization.
 - `src/lumberjack/logging_config.py` - Configures logging with console and SQLite handlers.
 - `src/lumberjack/sqlite_handler.py` - Custom logging handler that writes function execution details to SQLite.
 
@@ -35,12 +37,22 @@
 
 - `decorators_overview.md` - Markdown table summarizing available decorators, their purpose, and location.
 
+## Demo
+
+- `demo/app.py` - Dash application demonstrating the UI components.
+- `demo/flow.py` - Demo flow implementation using the decorators.
+- `demo/query_runner.py` - Query execution engine for the demo.
+- `demo/queries.yaml` - YAML configuration file with sample queries.
+- `demo/run_queries_demo.py` - Script to run the query demo.
+- `demo/test_decorators.py` - Demonstration of decorator usage.
+
 ## Test Suite (tests/)
 
 ### Component Tests
 
 - `tests/components/test_button_render.py` - Tests for Button component rendering.
 - `tests/components/test_combobox_render.py` - Tests for ComboBox component rendering.
+- `tests/components/test_datatable_render.py` - Tests for DataTable component rendering.
 - `tests/components/test_graph_render.py` - Tests for Graph component rendering.
 - `tests/components/test_grid_render.py` - Tests for Grid component rendering.
 - `tests/components/test_listbox_render.py` - Tests for ListBox component rendering.
@@ -54,3 +66,8 @@
 - `tests/decorators/test_trace_closer.py` - Tests for the TraceCloser decorator including context tracking and error handling.
 - `tests/decorators/test_trace_cpu.py` - Tests for the CPU usage tracking decorator with simulated and real measurements.
 - `tests/decorators/test_trace_memory.py` - Tests for the memory usage tracking decorator with mock and real memory allocation.
+
+### Lumberjack Tests
+
+- `tests/lumberjack/test_logging_config.py` - Tests for the logging configuration module.
+- `tests/lumberjack/test_sqlite_handler.py` - Tests for the SQLite logging handler.

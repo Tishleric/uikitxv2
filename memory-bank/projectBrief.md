@@ -5,80 +5,83 @@ uikitxv2/                              ← repo root
 ├── pyproject.toml                   ← build, deps, ruff+mypy+pytest cfg
 ├── README.md                        ← install, "why", quick-start
 ├── .gitignore
-├── .pre-commit-config.yaml          ← ruff ▸ mypy ▸ black ▸ pytest
+├── decorators_overview.md           ← summary of available decorators
 │
-├── src/                             ← **importable package lives here**
-│   └── uikitxv2/
+├── src/                             ← package source code
+│   ├── __init__.py
+│   │
+│   ├── core/                        ← ABCs & cross-cutting contracts
+│   │   ├── __init__.py
+│   │   └── base_component.py
+│   │
+│   ├── components/                  ← Dash/Plotly UI components
+│   │   ├── __init__.py
+│   │   ├── tabs.py
+│   │   ├── button.py
+│   │   ├── combobox.py
+│   │   ├── radiobutton.py
+│   │   ├── listbox.py
+│   │   ├── grid.py
+│   │   ├── graph.py
+│   │   └── datatable.py
+│   │
+│   ├── decorators/                  ← Logging & tracing decorators
+│   │   ├── __init__.py
+│   │   ├── context_vars.py
+│   │   ├── trace_time.py
+│   │   ├── trace_closer.py
+│   │   ├── trace_cpu.py
+│   │   └── trace_memory.py
+│   │
+│   ├── lumberjack/                  ← Logging configuration
+│   │   ├── __init__.py
+│   │   ├── logging_config.py
+│   │   └── sqlite_handler.py
+│   │
+│   └── utils/
 │       ├── __init__.py
-│       │
-│       ├── core/                    ← ABCs & cross-cutting contracts
-│       │   ├── base_component.py
-│       │   ├── base_decorator.py
-│       │   ├── logger_protocol.py
-│       │   └── errors.py
-│       │
-│       ├── components/              ← Dash/Plotly one-liners
-│       │   ├── __init__.py
-│       │   ├── tabs.py
-│       │   ├── button.py
-│       │   ├── combobox.py
-│       │   ├── radiobutton.py
-│       │   ├── listbox.py
-│       │   ├── grid.py
-│       │   └── graph.py
-│       │
-│       ├── decorators/              ← SQLite-logging wrappers
-│       │   ├── __init__.py
-│       │   ├── performance/
-│       │   │   ├── __init__.py
-│       │   │   ├── cpu.py           # trace_cpu
-│       │   │   ├── query.py         # trace_query_perf
-│       │   │   └── memory.py        # trace_memory
-│       │   │
-│       │   ├── data/
-│       │   │   ├── __init__.py
-│       │   │   └── calls.py         # trace_data_calls
-│       │   │
-│       │   └── movement/
-│       │       ├── __init__.py
-│       │       └── checkpoint.py    # checkpoint decorator
-│       │
-│       ├── db/                      ← thin persistence layer
-│       │   ├── __init__.py
-│       │   ├── models.py
-│       │   └── session.py
-│       │
-│       ├── utils/
-│       │   └── colour_palette.py
-│       │
-│       └── __about__.py             ← version, author, etc.
+│       └── colour_palette.py
 │
 ├── demo/                            ← runnable showcase
 │   ├── app.py                       # Dash app using wrapped components
-│   ├── mock_data.py                 # fake DF / random generator
-│   ├── expected_trace.json          # golden decorator output
-│   └── README.md                    # how to run & what to look for
+│   ├── flow.py                      # Demo flow implementation
+│   ├── query_runner.py              # Query execution engine
+│   ├── queries.yaml                 # Sample queries
+│   ├── run_queries_demo.py          # Demo runner script
+│   └── test_decorators.py           # Decorator usage demo
 │
-├── examples/                        ← **human-readable code snippets**
-│   ├── basic_usage.py               # < 25 LOC each
-│   ├── theme_override.py
-│   └── README.md                    # index of snippets
-│
-├── tests/                           ← unit + integration (outside package)
-│   ├── components/
-│   ├── decorators/
-│   ├── db/
-│   ├── demo/                        # compares SQLite rows ↔ expected_trace.json
-│   └── conftest.py
+├── tests/                           ← unit + integration tests
+│   ├── components/                  ← UI component tests
+│   │   ├── test_button_render.py
+│   │   ├── test_combobox_render.py
+│   │   ├── test_datatable_render.py
+│   │   ├── test_graph_render.py
+│   │   ├── test_grid_render.py
+│   │   ├── test_listbox_render.py
+│   │   ├── test_radiobutton_render.py
+│   │   └── test_tabs_render.py
+│   │
+│   ├── decorators/                  ← Decorator tests
+│   │   ├── conftest.py
+│   │   ├── test_trace_time.py
+│   │   ├── test_trace_closer.py
+│   │   ├── test_trace_cpu.py
+│   │   └── test_trace_memory.py
+│   │
+│   ├── lumberjack/                  ← Logging tests
+│   │   ├── test_logging_config.py
+│   │   └── test_sqlite_handler.py
+│   │
+│   └── conftest.py                  ← Shared test fixtures
 │
 └── memory-bank/                     ← Cursor's long-term memory
-    ├── projectbrief.md
+    ├── projectBrief.md
     ├── productContext.md
     ├── systemPatterns.md
     ├── techContext.md
     ├── activeContext.md
     ├── progress.md
-    ├── code-index.md               # ← moved here
+    ├── code-index.md
     ├── io-schema.md
     ├── notionSync.md
     ├── .cursorrules

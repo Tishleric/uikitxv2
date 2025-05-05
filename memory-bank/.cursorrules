@@ -1,0 +1,29 @@
+# UIKitXv2 Project Rules
+
+# Architectural Guidelines
+- Always create Abstract Base Classes or Protocols in core/ before implementing concrete classes
+- UI components must inherit from BaseComponent and implement render()
+- Decorators should use context variables from context_vars.py for sharing data
+- Decorators cannot import SQLAlchemy or sqlite3 directly
+- Each UI component gets its own file in components/
+- Keep utility files under 300 LOC; split when they grow too large
+
+# Documentation Practices
+- Update code-index.md immediately after adding, renaming, or deleting a file
+- Update io-schema.md when changing any public interface (inputs, outputs, etc.)
+- All public classes and functions must have Google-style docstrings
+- Use the PLAN mode before making changes that touch multiple files
+
+# Testing Standards
+- All tests must be placed in tests/ directory, never in src/
+- Component tests should verify rendering works properly
+- Decorator tests should verify proper logging and error handling
+- Use conftest.py for shared fixtures
+- All new code must pass mypy --strict and ruff before being considered complete
+
+# Code Style
+- Imports from within the package must use 'from uikitxv2...' format
+- No relative imports going outside the current directory
+- Avoid cyclic imports at all costs
+- Maximum line length is 120 characters
+- Keep commits small (<= 50 LOC) unless explicitly waived
