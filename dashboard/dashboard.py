@@ -185,18 +185,28 @@ logger.info("UI layout defined.")
     Input("num-options-selector", "value")
 )
 def update_option_blocks(selected_num_options_str: str | None):
-    if selected_num_options_str is None: num_active_options = 1
+    if selected_num_options_str is None:
+        num_active_options = 1
     else:
-        try: num_active_options = int(selected_num_options_str)
-        except (ValueError, TypeError): num_active_options = 1
-        if not 1 <= num_active_options <= 3: num_active_options = 1
+        try:
+            num_active_options = int(selected_num_options_str)
+        except (ValueError, TypeError):
+            num_active_options = 1
+        if not 1 <= num_active_options <= 3:
+            num_active_options = 1
 
+    logger.info(f"Updating dynamic area to show {num_active_options} options.")
     output_children = []
-    for i in range(num_active_options): 
-        option_block_container_obj = create_option_input_block(i) 
-        wrapper_div = html.Div(children=option_block_container_obj.render(), id=f"option-{i}-wrapper") 
+    # Always create all three options regardless of selection
+    for i in range(3):
+        option_block_instance = create_option_input_block(i)
+        display_style = {'display': 'block'} if i < num_active_options else {'display': 'none'}
+        wrapper_div = html.Div(
+            children=option_block_instance.render(),
+            id=f"option-{i}-wrapper",
+            style=display_style
+        )
         output_children.append(wrapper_div)
-    logger.info(f"Generating {len(output_children)} option input blocks.")
     return output_children
 
 
@@ -216,25 +226,55 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     all_option_field_values = args[:-1]
 
     logger.info(f"'Run Automation' clicked. Processing inputs...")
-    try: num_active_options = int(str(num_options_str))
+    try: 
+        num_active_options = int(str(num_options_str))
+        if not 1 <= num_active_options <= 3:
+            num_active_options = 1
     except (ValueError, TypeError):
-        logger.error(f"Invalid num options: {num_options_str}."); return [html.P("Invalid number of options.", style={'color': 'red'})]
+        logger.error(f"Invalid num options: {num_options_str}.")
+        return [html.P("Invalid number of options.", style={'color': 'red'})]
 
     ui_options_data = [] 
     fields_per_option = 5
+    
+    # Only process the number of options that are actually selected/active
     for i in range(num_active_options): 
-        start_idx = i * fields_per_option
-        prefix, strike, opt_type, qty_str, phase_str = all_option_field_values[start_idx : start_idx + fields_per_option]
-        if not all([prefix, strike, opt_type, qty_str is not None, phase_str]):
-            logger.warning(f"Opt {i+1} missing fields."); continue
         try:
-            qty_val, phase_val = int(str(qty_str)), int(str(phase_str))
-            if qty_val <= 0: logger.warning(f"Opt {i+1} non-positive qty."); continue
-        except (ValueError, TypeError): logger.error(f"Invalid qty/phase for Opt {i+1}."); continue
-        ui_options_data.append({'desc': f"{prefix} 10y note {strike} out {opt_type}", 'qty': qty_val, 'phase': phase_val, 'id': i})
+            start_idx = i * fields_per_option
+            # Safely get values, handling the case where they might not exist
+            if start_idx + fields_per_option <= len(all_option_field_values):
+                prefix, strike, opt_type, qty_str, phase_str = all_option_field_values[start_idx : start_idx + fields_per_option]
+                
+                # Check that all required fields have values
+                if not all([prefix, strike, opt_type, qty_str is not None, phase_str]):
+                    logger.warning(f"Option {i+1} missing fields. Skipping.")
+                    continue
+                    
+                try:
+                    qty_val = int(str(qty_str)) if qty_str is not None else 0
+                    phase_val = int(str(phase_str)) if phase_str is not None else 0
+                    if qty_val <= 0: 
+                        logger.warning(f"Option {i+1} non-positive qty. Skipping.")
+                        continue
+                except (ValueError, TypeError):
+                    logger.error(f"Invalid qty/phase for Option {i+1}. Skipping.")
+                    continue
+                    
+                ui_options_data.append({
+                    'desc': f"{prefix} 10y note {strike} out {opt_type}", 
+                    'qty': qty_val, 
+                    'phase': phase_val, 
+                    'id': i
+                })
+            else:
+                logger.warning(f"Option {i+1} data not found in state values. Skipping.")
+        except Exception as e:
+            logger.warning(f"Error processing Option {i+1}: {str(e)}. Skipping.")
+            continue
 
     if not ui_options_data:
-        logger.warning("No valid option data."); return [html.P("No valid option data.", style=text_style)]
+        logger.warning("No valid option data.")
+        return [html.P("No valid option data.", style=text_style)]
 
     list_of_option_dfs_from_pm = None 
     try:
