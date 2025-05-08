@@ -57,7 +57,7 @@ logger = logging.getLogger(__name__)
 assets_folder_path_absolute = os.path.abspath(os.path.join(project_root, 'assets'))
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    external_stylesheets=[dbc.themes.BOOTSTRAP], # dbc.themes.DARKLY or another theme
     assets_folder=assets_folder_path_absolute,
 )
 app.title = "Pricing Monkey Automation Dashboard"
@@ -83,7 +83,6 @@ RESULT_TABLE_COLUMNS = [
 ]
 
 def create_option_input_block(option_index: int) -> Container:
-    """Creates a UI block for a single option's input fields."""
     desc_prefix_id = f"option-{option_index}-desc-prefix"
     desc_strike_id = f"option-{option_index}-desc-strike"
     desc_type_id = f"option-{option_index}-desc-type"
@@ -135,25 +134,15 @@ update_sheet_button_rendered = Button(
 ).render()
 update_sheet_button_wrapper = html.Div(update_sheet_button_rendered, style={'marginTop': '25px', 'textAlign': 'center'})
 
-initial_empty_datatable_instance = DataTable(
-    id="results-datatable", 
-    data=[], 
-    columns=RESULT_TABLE_COLUMNS, 
-    theme=default_theme,
-    page_size=10, 
-    style_table={'minWidth': '100%', 'marginTop': '10px'}, 
-    style_header={'backgroundColor': default_theme.panel_bg, 'fontWeight': 'bold', 'color': default_theme.text_light}, 
-    style_cell={'backgroundColor': default_theme.base_bg, 'color': default_theme.text_light, 'textAlign': 'left', 'padding': '10px'},
-)
+# This area will be populated by the callback with dbc.Row and dbc.Col for side-by-side tables
+results_display_area_content = html.Div(id="results-display-area-content", children=[
+    # Placeholder for initial empty state or a message
+    html.P("Results will appear here.", style={'textAlign': 'center', 'color': default_theme.text_light, 'marginTop': '20px'})
+])
 
-results_display_area = html.Div(
-    id="results-display-area-content",
-    children=[initial_empty_datatable_instance.render()] 
-)
-
-results_grid_rendered = Grid(
+results_grid_rendered = Grid( # This Grid is essentially a styled html.Div
     id="results-grid-area", 
-    children=[results_display_area], 
+    children=[results_display_area_content], 
     style={'marginTop': '30px', 'width': '100%', 'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px'}
 ).render()
 
@@ -191,169 +180,148 @@ logger.info("UI layout defined.")
     Input("num-options-selector", "value")
 )
 def update_option_blocks(selected_num_options_str: str | None):
-    """Updates the number of visible option input blocks based on user selection."""
     if selected_num_options_str is None: num_active_options = 1
     else:
         try: num_active_options = int(selected_num_options_str)
         except (ValueError, TypeError): num_active_options = 1
         if not 1 <= num_active_options <= 3: num_active_options = 1
 
-    logger.info(f"Updating dynamic area to show {num_active_options} options.")
     output_children = []
     for i in range(3): 
         option_block_container_obj = create_option_input_block(i) 
         display_style = {'display': 'block'} if i < num_active_options else {'display': 'none'}
-        wrapper_div = html.Div(
-            children=option_block_container_obj.render(), 
-            id=f"option-{i}-wrapper", 
-            style=display_style
-        )
+        wrapper_div = html.Div(children=option_block_container_obj.render(), id=f"option-{i}-wrapper", style=display_style)
         output_children.append(wrapper_div)
     return output_children
 
 
 @app.callback(
-    Output("results-grid-area", "children"), 
+    Output("results-display-area-content", "children"), # MODIFIED: Output to the inner Div
     Input("update-sheet-button", "n_clicks"),
     [State(f"option-{i}-{field}", "value") for i in range(3) for field in ["desc-prefix", "desc-strike", "desc-type", "qty", "phase"]] +
     [State("num-options-selector", "value")],
     prevent_initial_call=True
 )
 def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
-    """Handles button click, calls automation, scales Greeks, and displays results."""
     if n_clicks is None or n_clicks == 0: raise PreventUpdate
 
     num_options_str = args[-1]
     all_option_field_values = args[:-1]
 
-    logger.info(f"'Run Pricing Monkey Automation' button clicked (n_clicks={n_clicks}). Processing inputs...")
+    logger.info(f"'Run Automation' clicked. Processing inputs...")
     try: num_active_options = int(str(num_options_str))
     except (ValueError, TypeError):
-        logger.error(f"Invalid number of options selected: {num_options_str}.")
-        error_message = html.P("Invalid number of options selected.", style={'color': 'red', 'textAlign': 'center', 'marginTop': '10px'})
-        empty_table = DataTable(id="results-datatable", data=[], columns=RESULT_TABLE_COLUMNS, theme=default_theme, page_size=10, style_table={'minWidth': '100%', 'marginTop': '10px'}, style_header={'backgroundColor': default_theme.panel_bg, 'fontWeight': 'bold', 'color': default_theme.text_light}).render()
-        return [html.Div([error_message, empty_table], id="results-display-area-content")]
+        logger.error(f"Invalid num options: {num_options_str}."); return [html.P("Invalid number of options.", style={'color': 'red'})]
 
     ui_options_data = [] 
     fields_per_option = 5
     for i in range(num_active_options):
         start_idx = i * fields_per_option
         prefix, strike, opt_type, qty_str, phase_str = all_option_field_values[start_idx : start_idx + fields_per_option]
-
         if not all([prefix, strike, opt_type, qty_str is not None, phase_str]):
-            logger.warning(f"Option {i+1} has missing fields. Skipping this option."); continue
+            logger.warning(f"Opt {i+1} missing fields."); continue
         try:
             qty_val, phase_val = int(str(qty_str)), int(str(phase_str))
-            if qty_val <= 0: logger.warning(f"Option {i+1} has non-positive quantity ({qty_val}). Skipping."); continue
-        except (ValueError, TypeError):
-            logger.error(f"Invalid quantity or phase for Option {i+1} (qty='{qty_str}', phase='{phase_str}'). Skipping."); continue
-        
-        trade_desc_string = f"{prefix} 10y note {strike} out {opt_type}"
-        ui_options_data.append({'desc': trade_desc_string, 'qty': qty_val, 'phase': phase_val, 'id': i})
+            if qty_val <= 0: logger.warning(f"Opt {i+1} non-positive qty."); continue
+        except (ValueError, TypeError): logger.error(f"Invalid qty/phase for Opt {i+1}."); continue
+        ui_options_data.append({'desc': f"{prefix} 10y note {strike} out {opt_type}", 'qty': qty_val, 'phase': phase_val, 'id': i})
 
     if not ui_options_data:
-        logger.warning("No valid option data collected from UI to process.")
-        message = html.P("No valid option data. Please check inputs for all active options.", style={'color': default_theme.text_light, 'textAlign': 'center', 'marginTop': '10px'})
-        empty_table = DataTable(id="results-datatable", data=[], columns=RESULT_TABLE_COLUMNS, theme=default_theme, page_size=10, style_table={'minWidth': '100%', 'marginTop': '10px'}, style_header={'backgroundColor': default_theme.panel_bg, 'fontWeight': 'bold', 'color': default_theme.text_light}).render()
-        return [html.Div([message, empty_table], id="results-display-area-content")] 
+        logger.warning("No valid option data."); return [html.P("No valid option data.", style=text_style)]
 
-    results_df_from_pm = None 
+    list_of_option_dfs_from_pm = None 
     try:
-        logger.info(f"Calling run_pm_automation with data for {len(ui_options_data)} options: {ui_options_data}")
-        results_df_from_pm = run_pm_automation(ui_options_data) 
+        logger.info(f"Calling run_pm_automation with: {ui_options_data}")
+        list_of_option_dfs_from_pm = run_pm_automation(ui_options_data) 
     except Exception as e:
-        logger.error(f"An exception occurred while calling or executing run_pm_automation: {e}", exc_info=True)
-        error_message_text = f"Error during automation execution: {str(e)[:200]}..." 
-        error_message = html.P(error_message_text, style={'color': 'red', 'textAlign': 'center', 'marginTop': '10px'})
-        empty_table = DataTable(id="results-datatable", data=[], columns=RESULT_TABLE_COLUMNS, theme=default_theme, page_size=10, style_table={'minWidth': '100%', 'marginTop': '10px'}, style_header={'backgroundColor': default_theme.panel_bg, 'fontWeight': 'bold', 'color': default_theme.text_light}).render()
-        return [html.Div([error_message, empty_table], id="results-display-area-content")]
+        logger.error(f"Error in run_pm_automation: {e}", exc_info=True)
+        return [html.P(f"Error during automation: {str(e)[:200]}...", style={'color': 'red'})]
 
-    output_content_for_grid_children = [] 
+    if not list_of_option_dfs_from_pm or not isinstance(list_of_option_dfs_from_pm, list):
+        logger.warning("No list of DFs from PM automation or incorrect type.")
+        return [html.P("No results from automation or an error (see logs).", style=text_style)]
 
-    if results_df_from_pm is not None and isinstance(results_df_from_pm, pd.DataFrame) and not results_df_from_pm.empty:
-        logger.info(f"PM Automation returned DataFrame. Shape: {results_df_from_pm.shape}, Columns: {results_df_from_pm.columns.tolist()}")
+    # --- MODIFIED: Display logic for multiple side-by-side tables ---
+    all_option_display_blocks = []
+    col_width = 12 // len(ui_options_data) if ui_options_data else 12 # Calculate column width for side-by-side
+
+    for i, option_input in enumerate(ui_options_data):
+        if i >= len(list_of_option_dfs_from_pm):
+            logger.warning(f"Missing DataFrame for option index {i}. Skipping display for this option.")
+            all_option_display_blocks.append(dbc.Col([html.P(f"No data for Option {i+1}", style=text_style)], width=col_width))
+            continue
+
+        current_option_df = list_of_option_dfs_from_pm[i]
+        if not isinstance(current_option_df, pd.DataFrame):
+            logger.warning(f"Item at index {i} is not a DataFrame. Skipping display for this option.")
+            all_option_display_blocks.append(dbc.Col([html.P(f"Invalid data for Option {i+1}", style=text_style)], width=col_width))
+            continue
+
+
+        option_display_elements = []
         
-        user_trade_amount_for_scaling = 0 # Default to 0 or handle error if no valid options
-        if ui_options_data: # Ensure there's at least one option's data to get the amount from
-            first_option_input_data = ui_options_data[0] 
-            desc_to_display = first_option_input_data['desc']
-            user_trade_amount_for_scaling = first_option_input_data['qty'] # This is the user-specified amount
+        desc_to_display = option_input['desc']
+        user_trade_amount_for_scaling = option_input['qty']
 
-            desc_html = html.H4(f"Trade Description: {desc_to_display}", style={"color": default_theme.text_light, "marginTop": "0px", "marginBottom": "5px"})
-            amount_html = html.H5(f"Trade Amount: {user_trade_amount_for_scaling}", style={"color": default_theme.text_light, "marginBottom": "15px"})
-            output_content_for_grid_children.extend([desc_html, amount_html])
+        desc_html = html.H4(f"Trade Description: {desc_to_display}", style={"color": default_theme.text_light, "marginTop": "0px", "marginBottom": "5px", "fontSize":"0.9rem"})
+        amount_html = html.H5(f"Trade Amount: {user_trade_amount_for_scaling}", style={"color": default_theme.text_light, "marginBottom": "15px", "fontSize":"0.8rem"})
+        option_display_elements.extend([desc_html, amount_html])
+
+        if current_option_df.empty:
+            logger.info(f"Data for Option {i+1} (Desc: {desc_to_display}) is empty. Displaying no data message.")
+            option_display_elements.append(html.P("No detailed results for this option.", style=text_style))
         else:
-             logger.error("No UI options data available to display description/amount, though PM automation returned data.")
-             message = html.P("Internal error: Missing option input data for display.", style={'color': 'red', 'textAlign': 'center', 'marginTop': '10px'})
-             output_content_for_grid_children.append(message)
-        
-        # --- MODIFICATION: Scale Greek values ---
-        if user_trade_amount_for_scaling > 0: # Proceed with scaling only if a valid trade amount is available
-            multiplier = user_trade_amount_for_scaling / 1000.0
-            logger.info(f"Scaling Greek values by multiplier: {multiplier} (User Amount: {user_trade_amount_for_scaling})")
+            logger.info(f"Processing Option {i+1} (Desc: {desc_to_display}), DF shape: {current_option_df.shape}")
             
-            for col_name in ['DV01 Gamma', 'Theta', 'Vega']:
-                if col_name in results_df_from_pm.columns:
-                    # Convert column to numeric, coercing errors to NaN. Then fill NaN with original for non-numeric strings.
-                    original_col = results_df_from_pm[col_name].copy() # Keep a copy for non-numeric restoration
-                    numeric_col = pd.to_numeric(results_df_from_pm[col_name], errors='coerce')
-                    
-                    # Apply multiplier
-                    scaled_col = numeric_col * multiplier
-                    
-                    # Restore original non-numeric values where conversion failed (NaN in numeric_col)
-                    results_df_from_pm[col_name] = scaled_col.fillna(original_col)
-                    logger.debug(f"Scaled column '{col_name}'. Preview of first 5: {results_df_from_pm[col_name].head().tolist()}")
+            # Scale Greek values for THIS option's DataFrame
+            if user_trade_amount_for_scaling > 0:
+                multiplier = user_trade_amount_for_scaling / 1000.0
+                logger.info(f"Scaling Option {i+1} Greeks by {multiplier}")
+                for col_name in ['DV01 Gamma', 'Theta', 'Vega']:
+                    if col_name in current_option_df.columns:
+                        original_col = current_option_df[col_name].copy()
+                        numeric_col = pd.to_numeric(current_option_df[col_name], errors='coerce')
+                        scaled_col = numeric_col * multiplier
+                        current_option_df[col_name] = scaled_col.fillna(original_col)
+            else:
+                logger.warning(f"User trade amount for Option {i+1} is 0. Greeks not scaled.")
 
-        else:
-            logger.warning("User trade amount for scaling is 0 or not available. Greeks will not be scaled.")
-        # --- END MODIFICATION ---
+            # Ensure all RESULT_TABLE_COLUMNS are present
+            for col_info in RESULT_TABLE_COLUMNS: 
+                if col_info['id'] not in current_option_df.columns:
+                    current_option_df[col_info['id']] = "N/A"
+            
+            # Format numerical columns (Greeks) for display
+            for col_name in ['DV01 Gamma', 'Theta', 'Vega']: 
+                if col_name in current_option_df.columns:
+                    current_option_df[col_name] = current_option_df[col_name].apply(
+                        lambda x: f"{x:.2f}" if pd.notna(x) and isinstance(x, (int, float)) else ("N/A" if pd.isna(x) else str(x))
+                    )
+            
+            ordered_column_ids = [col['id'] for col in RESULT_TABLE_COLUMNS]
+            current_option_df_for_ui = current_option_df[ordered_column_ids]
 
-        # Ensure all RESULT_TABLE_COLUMNS are present
-        for col_info in RESULT_TABLE_COLUMNS: 
-            if col_info['id'] not in results_df_from_pm.columns:
-                logger.warning(f"Column '{col_info['id']}' missing from PM results after scaling, adding as N/A.")
-                results_df_from_pm[col_info['id']] = "N/A"
+            table_for_option = DataTable(
+                id=f"results-datatable-option-{i}", # Unique ID for each table
+                data=current_option_df_for_ui.to_dict('records'), 
+                columns=RESULT_TABLE_COLUMNS, 
+                theme=default_theme, 
+                page_size=10, # Or adjust as needed, maybe more if side-by-side and short
+                style_table={'minWidth': '100%', 'marginTop': '10px'}, 
+                style_header={'backgroundColor': default_theme.panel_bg, 'fontWeight': 'bold', 'color': default_theme.text_light, 'fontSize':'0.75rem'}, 
+                style_cell={'backgroundColor': default_theme.base_bg, 'color': default_theme.text_light, 'textAlign': 'left', 'padding': '8px', 'fontSize':'0.7rem'},
+            ).render()
+            option_display_elements.append(table_for_option)
         
-        # Format numerical columns (Greeks) for display
-        for col_name in ['DV01 Gamma', 'Theta', 'Vega']: 
-            if col_name in results_df_from_pm.columns:
-                results_df_from_pm[col_name] = results_df_from_pm[col_name].apply(
-                    lambda x: f"{x:.2f}" if pd.notna(x) and isinstance(x, (int, float)) else ("N/A" if pd.isna(x) else str(x))
-                )
-        
-        ordered_column_ids = [col['id'] for col in RESULT_TABLE_COLUMNS]
-        # Ensure that results_df_from_pm contains all ordered_column_ids before trying to select them
-        # This should be guaranteed by the loop above that adds missing columns as "N/A"
-        results_df_for_ui_ordered = results_df_from_pm[ordered_column_ids]
+        # Add this option's block (desc, amount, table) to a Bootstrap column
+        # CORRECTED: Changed default_theme.secondary_alt to default_theme.secondary
+        all_option_display_blocks.append(dbc.Col(option_display_elements, width=col_width, style={'padding':'10px', 'border':f'1px solid {default_theme.secondary}', 'borderRadius':'5px', 'margin':'5px'}))
 
+    if not all_option_display_blocks: # Should not happen if ui_options_data was populated
+        return [html.P("No data to display.", style=text_style)]
 
-        logger.info(f"Displaying results. Columns for UI table: {results_df_for_ui_ordered.columns.tolist()}")
-        
-        final_table = DataTable(
-            id="results-datatable", 
-            data=results_df_for_ui_ordered.to_dict('records'), 
-            columns=RESULT_TABLE_COLUMNS, 
-            theme=default_theme, 
-            page_size=10, 
-            style_table={'minWidth': '100%', 'marginTop': '10px'}, 
-            style_header={'backgroundColor': default_theme.panel_bg, 'fontWeight': 'bold', 'color': default_theme.text_light}, 
-            style_cell={'backgroundColor': default_theme.base_bg, 'color': default_theme.text_light, 'textAlign': 'left', 'padding': '10px'},
-        ).render() 
-        output_content_for_grid_children.append(final_table)
-        
-        return [html.Div(output_content_for_grid_children, id="results-display-area-content")]
-
-    elif results_df_from_pm is not None and results_df_from_pm.empty:
-        logger.warning("PM Automation returned an empty DataFrame.")
-        message = html.P("Automation ran successfully but returned no data. Please check inputs or PM system.", style={'color': default_theme.text_light, 'textAlign': 'center', 'marginTop': '10px'})
-        empty_table = DataTable(id="results-datatable", data=[], columns=RESULT_TABLE_COLUMNS, theme=default_theme, page_size=10, style_table={'minWidth': '100%', 'marginTop': '10px'}, style_header={'backgroundColor': default_theme.panel_bg, 'fontWeight': 'bold', 'color': default_theme.text_light}).render()
-        return [html.Div([message, empty_table], id="results-display-area-content")]
-    else: 
-        logger.warning("No DataFrame returned from PM automation (it was None), likely an error during the process.")
-        message = html.P("Automation did not return results. Check logs for errors (e.g., Excel file access, Pricing Monkey interaction).", style={'color': default_theme.text_light, 'textAlign': 'center', 'marginTop': '10px'})
-        empty_table = DataTable(id="results-datatable", data=[], columns=RESULT_TABLE_COLUMNS, theme=default_theme, page_size=10, style_table={'minWidth': '100%', 'marginTop': '10px'}, style_header={'backgroundColor': default_theme.panel_bg, 'fontWeight': 'bold', 'color': default_theme.text_light}).render()
-        return [html.Div([message, empty_table], id="results-display-area-content")]
+    return [dbc.Row(all_option_display_blocks)] # Return a list containing one dbc.Row
+    # --- END MODIFIED DISPLAY LOGIC ---
 
 # --- End Callbacks ---
 
