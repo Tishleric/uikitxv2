@@ -1,7 +1,7 @@
 # uikitxv2/dashboard/dashboard.py
 
 import dash
-from dash import html, dcc, Input, Output, State # type: ignore
+from dash import html, dcc, Input, Output, State, MATCH, ALL # type: ignore # Added MATCH, ALL
 from dash.exceptions import PreventUpdate # type: ignore
 import dash_bootstrap_components as dbc # type: ignore
 import os
@@ -25,7 +25,7 @@ if project_root not in sys.path:
 try:
     from src.lumberjack.logging_config import setup_logging, shutdown_logging
     from src.utils.colour_palette import default_theme
-    # Ensure Tabs and Graph are imported along with other components
+    # ComboBox and Graph are already imported from your file.
     from src.components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph 
     print("Successfully imported uikitxv2 logging, theme, and UI components from 'src'.")
     from src.PricingMonkey.pMoneyAuto import run_pm_automation 
@@ -61,7 +61,7 @@ app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP], 
     assets_folder=assets_folder_path_absolute,
-    suppress_callback_exceptions=True # Keep suppression for dynamic input blocks
+    suppress_callback_exceptions=True 
 )
 app.title = "Pricing Monkey Automation Dashboard"
 # --- End App Init ---
@@ -74,10 +74,11 @@ input_style_dcc = {
     'borderRadius': '4px', 'boxSizing': 'border-box', 'minHeight': '38px',
 }
 desc_prefix_options = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"]
-desc_strike_options = ["0", "25", "50", "75", "100"] # Assuming these are relative strikes, actual strike values will be in the DataFrame
+desc_strike_options = ["0", "25", "50", "75", "100"] 
 desc_type_options = ["call", "put"]
 phase_options = ["1", "2", "3", "4", "5"]
 
+# RESULT_TABLE_COLUMNS is taken directly from your provided file and is NOT changed.
 RESULT_TABLE_COLUMNS = [
     {'name': 'Underlying', 'id': 'Underlying'},
     {'name': 'DV01 Gamma', 'id': 'DV01 Gamma'}, 
@@ -86,9 +87,22 @@ RESULT_TABLE_COLUMNS = [
 ]
 
 # Columns expected from pMoneyAuto for the graph
-# These should match the column names in the DataFrame returned by run_pm_automation
 STRIKE_COLUMN_NAME = "Strike" 
-IMPLIED_VOL_COLUMN_NAME = "Implied Vol (Daily BP)"
+# Default Y-axis for the graph (ensure this column exists in pMoneyAuto output)
+DEFAULT_Y_AXIS_COL = "Implied Vol (Daily BP)" 
+
+# Options for the Y-Axis ComboBox
+# 'value' must match the exact column name in the DataFrame from pMoneyAuto
+# 'label' is for display in the dropdown
+Y_AXIS_CHOICES = [
+    {"label": "Implied Vol", "value": "Implied Vol (Daily BP)"}, 
+    {"label": "Delta (%)", "value": "% Delta"}, # Label updated
+    {"label": "Vega", "value": "Vega"},
+    {"label": "Gamma", "value": "DV01 Gamma"}, 
+    {"label": "Theta", "value": "Theta"},
+]
+# Columns that need scaling by trade_amount for the graph.
+GRAPH_SCALABLE_GREEKS = ['DV01 Gamma', 'Theta', 'Vega']
 
 
 def create_option_input_block(option_index: int) -> Container:
@@ -128,6 +142,7 @@ def create_option_input_block(option_index: int) -> Container:
 # --- End UI Helpers ---
 
 # --- UI Layout Definition ---
+# This section remains the same as in your provided file
 logger.info("Defining UI layout...")
 num_options_question_text = html.P("How many options are you looking to have (1-3)?", style=text_style)
 num_options_selector_rendered = ComboBox(
@@ -168,7 +183,7 @@ pricing_monkey_tab_main_container_rendered = Container(
 
 main_tabs_rendered = Tabs(
     id="main-dashboard-tabs",
-    tabs=[("Pricing Monkey Setup", pricing_monkey_tab_main_container_rendered)], # This is how your Tabs component takes tabs
+    tabs=[("Pricing Monkey Setup", pricing_monkey_tab_main_container_rendered)], 
     theme=default_theme
 ).render()
 
@@ -201,12 +216,12 @@ def update_option_blocks(selected_num_options_str: str | None):
 
     logger.info(f"Updating dynamic area to show {num_active_options} options.")
     output_children = []
-    for i in range(3):
+    for i in range(3): 
         option_block_instance = create_option_input_block(i)
         display_style = {'display': 'block'} if i < num_active_options else {'display': 'none'}
         wrapper_div = html.Div(
             children=option_block_instance.render(),
-            id=f"option-{i}-wrapper",
+            id=f"option-{i}-wrapper", 
             style=display_style
         )
         output_children.append(wrapper_div)
@@ -229,15 +244,15 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     logger.info(f"'Run Automation' clicked. Processing inputs...")
     try: 
         num_active_options = int(str(num_options_str))
-        if not 1 <= num_active_options <= 3:
+        if not 1 <= num_active_options <= 3: 
             num_active_options = 1
     except (ValueError, TypeError):
         logger.error(f"Invalid num options: {num_options_str}.")
         return [html.P("Invalid number of options.", style={'color': 'red'})]
 
-    ui_options_data = [] 
-    fields_per_option = 5
+    ui_options_data_for_pm = [] 
     
+    fields_per_option = 5
     for i in range(num_active_options): 
         try:
             start_idx = i * fields_per_option
@@ -250,7 +265,7 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
                     
                 try:
                     qty_val = int(str(qty_str)) if qty_str is not None else 0
-                    phase_val = int(str(phase_str)) if phase_str is not None else 0
+                    phase_val = int(str(phase_str)) if phase_str is not None else 0 
                     if qty_val <= 0: 
                         logger.warning(f"Option {i+1} non-positive qty. Skipping.")
                         continue
@@ -258,26 +273,26 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
                     logger.error(f"Invalid qty/phase for Option {i+1}. Skipping.")
                     continue
                     
-                ui_options_data.append({
+                ui_options_data_for_pm.append({
                     'desc': f"{prefix} 10y note {strike_desc_part} out {opt_type}", 
                     'qty': qty_val, 
                     'phase': phase_val, 
-                    'id': i
+                    'id': i 
                 })
             else:
                 logger.warning(f"Option {i+1} data not found in state values. Skipping.")
         except Exception as e:
-            logger.warning(f"Error processing Option {i+1}: {str(e)}. Skipping.")
+            logger.warning(f"Error processing Option {i+1} input data: {str(e)}. Skipping.")
             continue
 
-    if not ui_options_data:
-        logger.warning("No valid option data.")
-        return [html.P("No valid option data.", style=text_style)]
+    if not ui_options_data_for_pm:
+        logger.warning("No valid option data to send to PM automation.")
+        return [html.P("No valid option data to process.", style=text_style)]
 
     list_of_option_dfs_from_pm = None 
     try:
-        logger.info(f"Calling run_pm_automation with: {ui_options_data}")
-        list_of_option_dfs_from_pm = run_pm_automation(ui_options_data) 
+        logger.info(f"Calling run_pm_automation with: {ui_options_data_for_pm}")
+        list_of_option_dfs_from_pm = run_pm_automation(ui_options_data_for_pm) 
     except Exception as e:
         logger.error(f"Error in run_pm_automation: {e}", exc_info=True)
         return [html.P(f"Error during automation: {str(e)[:200]}...", style={'color': 'red'})]
@@ -286,71 +301,62 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
         logger.warning("No list of DFs from PM automation or incorrect type.")
         return [html.P("No results from automation or an error (see logs).", style=text_style)]
 
-    tabs_data = [] 
+    tabs_content_list = [] 
 
-    for i, option_input in enumerate(ui_options_data):
-        if i >= len(list_of_option_dfs_from_pm):
-            logger.warning(f"Missing DataFrame for option index {i}. Skipping tab for this option.")
+    for option_data_sent_to_pm in ui_options_data_for_pm:
+        option_idx = option_data_sent_to_pm['id'] 
+
+        if option_idx >= len(list_of_option_dfs_from_pm):
+            logger.warning(f"Missing DataFrame from PM for original option index {option_idx}. Skipping tab.")
             continue
 
-        current_option_df = list_of_option_dfs_from_pm[i]
+        current_option_df = list_of_option_dfs_from_pm[option_idx] 
         if not isinstance(current_option_df, pd.DataFrame):
-            logger.warning(f"Item at index {i} is not a DataFrame. Skipping tab for this option.")
+            logger.warning(f"Item from PM at original index {option_idx} is not a DataFrame. Skipping tab.")
             continue
 
         tab_content_elements = [] 
         
-        desc_to_display = option_input['desc']
-        user_trade_amount_for_scaling = option_input['qty']
+        desc_to_display = option_data_sent_to_pm['desc']
+        user_trade_amount_for_scaling = option_data_sent_to_pm['qty']
 
         desc_html = html.H4(f"Trade Description: {desc_to_display}", style={"color": default_theme.text_light, "marginTop": "10px", "marginBottom": "5px", "fontSize":"0.9rem"})
         amount_html = html.H5(f"Trade Amount: {user_trade_amount_for_scaling}", style={"color": default_theme.text_light, "marginBottom": "15px", "fontSize":"0.8rem"})
         tab_content_elements.extend([desc_html, amount_html])
-
-        # --- GRAPH DATA PREPARATION AND FIGURE CREATION ---
-        graph_figure = go.Figure() # Initialize a figure
-
-        if current_option_df.empty:
-            logger.info(f"Data for Option {i+1} (Desc: {desc_to_display}) is empty. Displaying no data message in tab and graph.")
-            tab_content_elements.append(html.P("No detailed results for this option.", style=text_style))
-            graph_figure.update_layout(
-                title_text=f"Implied Vol vs. Strike (Option {i+1}) - No Data",
-                xaxis_title=STRIKE_COLUMN_NAME, 
-                yaxis_title=IMPLIED_VOL_COLUMN_NAME,
-                paper_bgcolor=default_theme.panel_bg,
-                plot_bgcolor=default_theme.base_bg,
-                font_color=default_theme.text_light,
-                height=300
-            )
-        else:
-            logger.info(f"Processing Option {i+1} (Desc: {desc_to_display}), DF shape: {current_option_df.shape} for tab content and graph.")
-            
-            # Prepare data for DataTable (scaling and formatting)
-            # This part remains as per your file for the table
-            df_for_table = current_option_df.copy()
+        
+        store_id = {"type": "option-data-store", "index": option_idx}
+        data_for_store = {
+            'df_json': current_option_df.to_json(orient='split', date_format='iso'),
+            'trade_amount': user_trade_amount_for_scaling 
+        }
+        tab_content_elements.append(dcc.Store(id=store_id, data=data_for_store))
+        
+        # --- DataTable Preparation (exactly as in user's provided file) ---
+        if not current_option_df.empty:
+            df_for_table_display = current_option_df.copy() 
             if user_trade_amount_for_scaling > 0:
                 multiplier = user_trade_amount_for_scaling / 1000.0
-                for col_name_scale in ['DV01 Gamma', 'Theta', 'Vega']: # Columns to scale for table
-                    if col_name_scale in df_for_table.columns:
-                        original_col_scale = df_for_table[col_name_scale].copy()
-                        numeric_col_scale = pd.to_numeric(df_for_table[col_name_scale], errors='coerce')
+                for col_name_scale in ['DV01 Gamma', 'Theta', 'Vega']: 
+                    if col_name_scale in df_for_table_display.columns:
+                        numeric_col_scale = pd.to_numeric(df_for_table_display[col_name_scale], errors='coerce')
                         scaled_col_data = numeric_col_scale * multiplier
-                        df_for_table[col_name_scale] = scaled_col_data.fillna(original_col_scale)
+                        df_for_table_display[col_name_scale] = scaled_col_data.where(pd.notnull(scaled_col_data), df_for_table_display[col_name_scale])
             
+            datatable_df_formatted = pd.DataFrame()
             for col_info_table in RESULT_TABLE_COLUMNS: 
-                if col_info_table['id'] not in df_for_table.columns: df_for_table[col_info_table['id']] = "N/A"
-            for col_name_format in ['DV01 Gamma', 'Theta', 'Vega']: 
-                if col_name_format in df_for_table.columns:
-                    df_for_table[col_name_format] = df_for_table[col_name_format].apply(
-                        lambda x_val: f"{x_val:.2f}" if pd.notna(x_val) and isinstance(x_val, (int, float)) else ("N/A" if pd.isna(x_val) else str(x_val))
-                    )
-            
-            ordered_column_ids_table = [col_table['id'] for col_table in RESULT_TABLE_COLUMNS]
-            current_option_df_for_ui_table = df_for_table[ordered_column_ids_table]
+                col_id = col_info_table['id']
+                if col_id in df_for_table_display.columns:
+                    datatable_df_formatted[col_id] = df_for_table_display[col_id]
+                    if col_id in ['DV01 Gamma', 'Theta', 'Vega']: 
+                        datatable_df_formatted[col_id] = datatable_df_formatted[col_id].apply(
+                            lambda x_val: f"{x_val:.2f}" if pd.notna(x_val) and isinstance(x_val, (int, float)) else ("N/A" if pd.isna(x_val) else str(x_val))
+                        )
+                else: 
+                    datatable_df_formatted[col_id] = "N/A"
 
             table_for_option = DataTable(
-                id=f"results-datatable-option-{i}", 
-                data=current_option_df_for_ui_table.to_dict('records'), 
+                id=f"results-datatable-option-{option_idx}", 
+                data=datatable_df_formatted.to_dict('records'), 
                 columns=RESULT_TABLE_COLUMNS, 
                 theme=default_theme, 
                 page_size=12, 
@@ -359,73 +365,177 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
                 style_cell={'backgroundColor': default_theme.base_bg, 'color': default_theme.text_light, 'textAlign': 'left', 'padding': '8px', 'fontSize':'0.7rem'},
             ).render()
             tab_content_elements.append(table_for_option)
+        else:
+            tab_content_elements.append(html.P("No detailed results for this option.", style=text_style))
+        # --- End DataTable Preparation ---
 
-            # Now, prepare data specifically for the graph from the original current_option_df
-            if STRIKE_COLUMN_NAME in current_option_df.columns and IMPLIED_VOL_COLUMN_NAME in current_option_df.columns:
-                strike_data = pd.to_numeric(current_option_df[STRIKE_COLUMN_NAME], errors='coerce')
-                implied_vol_data = pd.to_numeric(current_option_df[IMPLIED_VOL_COLUMN_NAME], errors='coerce')
+        # --- ComboBox for Y-Axis Selection ---
+        combobox_id = {"type": "y-axis-selector-combobox", "index": option_idx}
+        y_axis_combobox = ComboBox(
+            id=combobox_id,
+            options=Y_AXIS_CHOICES,
+            value=DEFAULT_Y_AXIS_COL, 
+            theme=default_theme,
+            clearable=False, 
+            style={'width': '100%', 'marginBottom': '10px', 'marginTop': '20px'} 
+        ).render()
+        tab_content_elements.append(html.P("Select Y-Axis for Graph:", style={**text_style, 'marginTop': '20px', 'marginBottom':'5px'}))
+        tab_content_elements.append(y_axis_combobox)
+        # --- End ComboBox ---
 
-                # Create a temporary DataFrame for plotting and drop rows where either strike or vol is NaN
-                plot_df = pd.DataFrame({
-                    'strike': strike_data,
-                    'iv': implied_vol_data
-                }).dropna()
+        # --- Initial Graph Population (uses raw current_option_df) ---
+        graph_figure_initial = go.Figure() 
+        initial_y_col_name = DEFAULT_Y_AXIS_COL
+        initial_y_col_label = next((item['label'] for item in Y_AXIS_CHOICES if item['value'] == initial_y_col_name), initial_y_col_name)
+        initial_y_axis_title = initial_y_col_label 
 
-                if not plot_df.empty:
-                    graph_figure.add_trace(go.Scatter(
-                        x=plot_df['strike'],
-                        y=plot_df['iv'],
-                        mode='lines+markers', # Or 'markers' or 'lines'
+        if not current_option_df.empty:
+            if STRIKE_COLUMN_NAME in current_option_df.columns and initial_y_col_name in current_option_df.columns:
+                strike_data_init = pd.to_numeric(current_option_df[STRIKE_COLUMN_NAME], errors='coerce')
+                # Get raw Y-axis data for initial plot
+                y_axis_data_init_raw = current_option_df[initial_y_col_name] # Keep as Series for now
+
+                y_axis_data_init_processed = pd.Series(dtype='float64') # Default to empty float series
+
+                if initial_y_col_name == "% Delta":
+                    # Expects strings like "0.7%", convert to numeric 0.7
+                    y_axis_data_init_processed = pd.to_numeric(y_axis_data_init_raw.astype(str).str.rstrip('%'), errors='coerce')
+                    initial_y_axis_title = f"{initial_y_col_label}" # Label already includes (%)
+                elif initial_y_col_name in GRAPH_SCALABLE_GREEKS:
+                    y_axis_data_init_numeric = pd.to_numeric(y_axis_data_init_raw, errors='coerce')
+                    if user_trade_amount_for_scaling > 0:
+                        y_axis_data_init_processed = (y_axis_data_init_numeric / 1000.0) * user_trade_amount_for_scaling
+                    else:
+                        y_axis_data_init_processed = y_axis_data_init_numeric # Use raw numeric if no scaling
+                else: # For "Implied Vol (Daily BP)" or other non-scaled, non-delta
+                    y_axis_data_init_processed = pd.to_numeric(y_axis_data_init_raw, errors='coerce')
+
+
+                plot_df_init = pd.DataFrame({'strike': strike_data_init, 'y_data': y_axis_data_init_processed}).dropna()
+
+                if not plot_df_init.empty:
+                    graph_figure_initial.add_trace(go.Scatter(
+                        x=plot_df_init['strike'], y=plot_df_init['y_data'], mode='lines+markers',
                         marker=dict(color=default_theme.primary, size=8, line=dict(color=default_theme.accent, width=1)),
                         line=dict(color=default_theme.accent, width=2)
                     ))
-                    graph_figure.update_layout(
-                        title_text=f"Implied Vol vs. Strike (Option {i+1})",
-                        xaxis_title=STRIKE_COLUMN_NAME,
-                        yaxis_title=IMPLIED_VOL_COLUMN_NAME,
-                    )
-                    logger.info(f"Graph for Option {i+1} populated with {len(plot_df)} points.")
+                    graph_figure_initial.update_layout(title_text=f"{initial_y_col_label} vs. {STRIKE_COLUMN_NAME} (Option {option_idx+1})")
                 else:
-                    logger.warning(f"No valid (Strike, Implied Vol) data points after cleaning for Option {i+1}.")
-                    graph_figure.update_layout(title_text=f"Implied Vol vs. Strike (Option {i+1}) - No Plottable Data")
-            else:
-                missing_graph_cols = []
-                if STRIKE_COLUMN_NAME not in current_option_df.columns: missing_graph_cols.append(STRIKE_COLUMN_NAME)
-                if IMPLIED_VOL_COLUMN_NAME not in current_option_df.columns: missing_graph_cols.append(IMPLIED_VOL_COLUMN_NAME)
-                logger.warning(f"Graph for Option {i+1} cannot be generated. Missing columns: {', '.join(missing_graph_cols)}")
-                graph_figure.update_layout(title_text=f"Implied Vol vs. Strike (Option {i+1}) - Required Columns Missing ({', '.join(missing_graph_cols)})")
-            
-            # Common layout updates for the graph (theme, height)
-            graph_figure.update_layout(
-                paper_bgcolor=default_theme.panel_bg,
-                plot_bgcolor=default_theme.base_bg,
-                font_color=default_theme.text_light,
-                xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
-                yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
-                height=350 # Slightly increased height
-            )
-
-        # --- END GRAPH DATA PREPARATION ---
+                    graph_figure_initial.update_layout(title_text=f"{initial_y_col_label} vs. {STRIKE_COLUMN_NAME} (Option {option_idx+1}) - No Plottable Data")
+            else: 
+                graph_figure_initial.update_layout(title_text=f"Initial Graph (Option {option_idx+1}) - Required Columns Missing")
+        else: 
+             graph_figure_initial.update_layout(title_text=f"Graph (Option {option_idx+1}) - No Data")
         
+        graph_figure_initial.update_layout(
+            xaxis_title=STRIKE_COLUMN_NAME, 
+            yaxis_title=initial_y_axis_title, 
+            paper_bgcolor=default_theme.panel_bg, plot_bgcolor=default_theme.base_bg,
+            font_color=default_theme.text_light,
+            xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+            yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+            height=350
+        )
+        # --- End Initial Graph Population ---
+        
+        graph_id = {"type": "results-graph", "index": option_idx} 
         graph_component = Graph(
-            id=f"results-graph-option-{i}",
-            figure=graph_figure, # Pass the populated or placeholder figure
+            id=graph_id, 
+            figure=graph_figure_initial, 
             theme=default_theme, 
-            style={'marginTop': '20px', 'border': f'1px solid {default_theme.secondary}', 'borderRadius': '5px'}
+            style={'marginTop': '5px', 'border': f'1px solid {default_theme.secondary}', 'borderRadius': '5px'}
         ).render()
         
-        tab_content_elements.append(html.Hr(style={'borderColor': default_theme.secondary, 'margin': '20px 0'})) 
         tab_content_elements.append(graph_component)
         
         tab_content = html.Div(tab_content_elements, style={'padding': '10px'}) 
-        tab_label = f"Option {i+1}"
-        tabs_data.append((tab_label, tab_content))
+        tab_label = f"Option {option_idx+1}" 
+        tabs_content_list.append((tab_label, tab_content))
 
-    if not tabs_data: 
+    if not tabs_content_list: 
         return [html.P("No data to display in tabs.", style=text_style)]
 
-    results_tabs_component = Tabs(id="results-tabs", tabs=tabs_data, theme=default_theme)
+    results_tabs_component = Tabs(id="results-tabs", tabs=tabs_content_list, theme=default_theme)
     return [results_tabs_component.render()]
+
+# --- New Callback to Update Graph based on ComboBox Selection ---
+@app.callback(
+    Output({"type": "results-graph", "index": MATCH}, "figure"),
+    Input({"type": "y-axis-selector-combobox", "index": MATCH}, "value"), 
+    State({"type": "option-data-store", "index": MATCH}, "data"), 
+    prevent_initial_call=True 
+)
+def update_graph_from_combobox(selected_y_column_value: str, stored_option_data: dict):
+    if not selected_y_column_value or not stored_option_data or 'df_json' not in stored_option_data or 'trade_amount' not in stored_option_data:
+        logger.warning("ComboBox callback triggered with no selection or incomplete stored data.")
+        raise PreventUpdate
+
+    try:
+        option_df = pd.read_json(stored_option_data['df_json'], orient='split')
+        trade_amount = stored_option_data['trade_amount'] 
+    except Exception as e:
+        logger.error(f"Error deserializing DataFrame/trade_amount from store: {e}")
+        raise PreventUpdate
+
+    fig = go.Figure()
+    selected_y_column_label = next((item['label'] for item in Y_AXIS_CHOICES if item['value'] == selected_y_column_value), selected_y_column_value)
+    y_axis_title_on_graph = selected_y_column_label # Use the label from Y_AXIS_CHOICES which might include (%)
+
+    if STRIKE_COLUMN_NAME in option_df.columns and selected_y_column_value in option_df.columns:
+        strike_data_numeric = pd.to_numeric(option_df[STRIKE_COLUMN_NAME], errors='coerce')
+        # Get raw Y-axis data as a Series first for consistent processing
+        y_axis_data_series_raw = option_df[selected_y_column_value] 
+
+        y_axis_data_processed_for_graph = pd.Series(dtype='float64') # Default to empty float series
+
+        if selected_y_column_value == "% Delta":
+            # Expects strings like "0.7%", convert to numeric 0.7 for plotting
+            # The label in Y_AXIS_CHOICES ("Delta (%)") already indicates the unit.
+            y_axis_data_processed_for_graph = pd.to_numeric(y_axis_data_series_raw.astype(str).str.rstrip('%'), errors='coerce')
+            # y_axis_title_on_graph is already "Delta (%)" from selected_y_column_label
+        elif selected_y_column_value in GRAPH_SCALABLE_GREEKS:
+            y_axis_data_numeric_raw = pd.to_numeric(y_axis_data_series_raw, errors='coerce')
+            if trade_amount > 0: 
+                y_axis_data_processed_for_graph = (y_axis_data_numeric_raw / 1000.0) * trade_amount
+            else: 
+                y_axis_data_processed_for_graph = y_axis_data_numeric_raw
+                logger.warning(f"Trade amount is {trade_amount} for scaling {selected_y_column_value}. Using raw numeric values for graph.")
+        else: # For "Implied Vol (Daily BP)" or other non-scaled, non-delta
+            y_axis_data_processed_for_graph = pd.to_numeric(y_axis_data_series_raw, errors='coerce')
+
+        plot_df = pd.DataFrame({'strike': strike_data_numeric, 'y_data': y_axis_data_processed_for_graph}).dropna()
+
+        if not plot_df.empty:
+            fig.add_trace(go.Scatter(
+                x=plot_df['strike'],
+                y=plot_df['y_data'],
+                mode='lines+markers',
+                marker=dict(color=default_theme.primary, size=8, line=dict(color=default_theme.accent, width=1)),
+                line=dict(color=default_theme.accent, width=2)
+            ))
+            fig.update_layout(
+                title_text=f"{selected_y_column_label} vs. {STRIKE_COLUMN_NAME}", # Use label which might include (%)
+                xaxis_title=STRIKE_COLUMN_NAME,
+                yaxis_title=y_axis_title_on_graph, 
+            )
+            logger.info(f"Graph updated with Y-axis: {selected_y_column_label}, {len(plot_df)} points.")
+        else:
+            fig.update_layout(title_text=f"{selected_y_column_label} vs. {STRIKE_COLUMN_NAME} - No Plottable Data")
+    else: 
+        missing_cols = []
+        if STRIKE_COLUMN_NAME not in option_df.columns: missing_cols.append(STRIKE_COLUMN_NAME)
+        if selected_y_column_value not in option_df.columns: missing_cols.append(selected_y_column_value)
+        fig.update_layout(title_text=f"Data Missing for Graph ({', '.join(missing_cols)})")
+
+    fig.update_layout(
+        paper_bgcolor=default_theme.panel_bg,
+        plot_bgcolor=default_theme.base_bg,
+        font_color=default_theme.text_light,
+        xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+        yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+        height=350
+    )
+    return fig
 
 # --- End Callbacks ---
 
