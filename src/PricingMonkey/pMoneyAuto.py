@@ -2,9 +2,11 @@
 pMoneyAuto - Multi-Option Workflow using openpyxl for Excel
 
 This version is adapted for integration with a dashboard.
-It accepts option data as an argument, processes them,
-returns a LIST of joined DataFrames, one for each input option,
-AND writes this list of DataFrames to "Sheet1" of the Excel file.
+It accepts option data as an argument, processes them, grabs 11 columns
+of results from Pricing Monkey, returns a LIST of joined DataFrames
+(containing input + 11 result columns), AND writes this list of
+modified DataFrames (scaled Greeks, user amount, numeric % Delta)
+to "Sheet1" after clearing, applying percentage format to the Delta column.
 """
 
 import time
@@ -16,9 +18,11 @@ import webbrowser
 import traceback
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string
-from openpyxl.utils.dataframe import dataframe_to_rows # For writing DFs to Excel
+from openpyxl.utils.dataframe import dataframe_to_rows 
+from openpyxl.styles import numbers # Import for number formatting
 from pywinauto.keyboard import send_keys
 import logging
+import re # Import regex for cleaning
 
 logger = logging.getLogger(__name__) 
 
@@ -28,10 +32,9 @@ SHEET_NAME_PM_SETUP = "Sheet2" # Sheet used for PM interaction
 PNL_SCENARIO_BUY_SHEET_NAME = "PnL Scenario - Buy"
 PRICING_MONKEY_URL_FOR_PASTE = "https://pricingmonkey.com/b/3580a62f-daf9-49bd-bf2e-01120ff59371"
 
-# New constants for Sheet1 output
 TARGET_SHEET_FOR_OUTPUT = "Sheet1"
 START_ROW_SHEET1 = 5
-ROW_OFFSET_PER_DF_SHEET1 = 15 # Start next DF 15 rows below the start of the previous one
+ROW_OFFSET_PER_DF_SHEET1 = 15 
 
 PHASE_CONFIGS = {
     1: {"excel_start_row": 3,  "excel_results_data_start_row": 3},
@@ -45,24 +48,23 @@ EXCEL_PM_RESULTS_MAX_ROW_FOR_CLEARING_UNUSED = 14
 PNL_VALUE_TARGET_START_ROW_SHEET2 = 3
 PNL_VALUE_TARGET_END_ROW_SHEET2 = 14
 
+# --- Column Mappings (Sheet2 setup remains the same) ---
 OPT1_USER_QTY_COL = "F"
 OPT1_PM_QTY_COL = "G"
 OPT1_PM_DESC_COL = "H"
 OPT1_PM_COPY_END_COL = "I"
 COL_OFFSET_FOR_SETUP_BLOCKS = 9
-
+# ... (OPT2, OPT3 definitions remain the same) ...
 OPT2_USER_QTY_COL = get_column_letter(column_index_from_string(OPT1_USER_QTY_COL) + COL_OFFSET_FOR_SETUP_BLOCKS)
 OPT2_PM_QTY_COL = get_column_letter(column_index_from_string(OPT1_PM_QTY_COL) + COL_OFFSET_FOR_SETUP_BLOCKS)
 OPT2_PM_DESC_COL = get_column_letter(column_index_from_string(OPT1_PM_DESC_COL) + COL_OFFSET_FOR_SETUP_BLOCKS)
 OPT2_PM_COPY_END_COL = get_column_letter(column_index_from_string(OPT1_PM_COPY_END_COL) + COL_OFFSET_FOR_SETUP_BLOCKS)
-
 OPT3_USER_QTY_COL = get_column_letter(column_index_from_string(OPT2_USER_QTY_COL) + COL_OFFSET_FOR_SETUP_BLOCKS)
 OPT3_PM_QTY_COL = get_column_letter(column_index_from_string(OPT2_PM_QTY_COL) + COL_OFFSET_FOR_SETUP_BLOCKS)
 OPT3_PM_DESC_COL = get_column_letter(column_index_from_string(OPT2_PM_DESC_COL) + COL_OFFSET_FOR_SETUP_BLOCKS)
 OPT3_PM_COPY_END_COL = get_column_letter(column_index_from_string(OPT2_PM_COPY_END_COL) + COL_OFFSET_FOR_SETUP_BLOCKS)
-
-OPT1_PM_RESULT_START_COL = "J"
-OPT1_PM_RESULT_END_COL = "L"
+OPT1_PM_RESULT_START_COL = "J" # Still used for Sheet2 pasting
+OPT1_PM_RESULT_END_COL = "L"   # Still used for Sheet2 pasting/cleanup
 OPT2_PM_RESULT_START_COL = "S"
 OPT2_PM_RESULT_END_COL = "U"
 OPT3_PM_RESULT_START_COL = "AB"
@@ -80,6 +82,15 @@ OPTION_COLUMN_MAP = [
 PNL_BUY_SOURCE_COL = 'U'
 PNL_BUY_SOURCE_ROWS = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26]
 
+# --- Define column names for the 11 columns from Pricing Monkey ---
+PM_RESULT_COLUMNS = [
+    'DV01 Gamma', 'Theta', 'Vega', 'Strike', 'Implied Vol (Daily BP)', 
+    '% Delta', 'Time Value', 'Intrinsic Value', 'DV01', 'NPV', 
+    'Sticky Delta Hedge Amount'
+]
+# Store the specific name of the delta column for easier reference
+DELTA_COLUMN_NAME = '% Delta' 
+
 KEY_PRESS_PAUSE = 0.01
 WAIT_FOR_BROWSER_TO_OPEN = 2.5
 WAIT_AFTER_BROWSER_NAVIGATION = 0.1
@@ -92,6 +103,7 @@ def check_file_exists(file_path):
     else: logger.error(f"Excel file not found at {file_path}."); return False
 
 def excel_setup_options_and_consolidate_for_pm_openpyxl(file_path, sheet_name_target, pnl_sheet_name_source, options_data_list):
+    # This function remains the same - prepares Sheet2
     logger.info(f"Preparing Excel Data for {len(options_data_list)} Option(s) on sheet '{sheet_name_target}'.")
     fixed_pm_quantity = 1000
     workbook = None
@@ -196,7 +208,7 @@ def excel_setup_options_and_consolidate_for_pm_openpyxl(file_path, sheet_name_ta
         if workbook: workbook.close()
 
 def browser_operations_and_copy(url_to_open, total_rows_pasted_to_pm):
-    # (Browser operations logic remains the same as previous version)
+    # Selects 11 columns
     try:
         logger.info(f"Opening URL: {url_to_open} ..."); webbrowser.open(url_to_open, new=2); time.sleep(WAIT_FOR_BROWSER_TO_OPEN)
         logger.debug("Navigating for paste: 8 TABs, 1 DOWN");
@@ -208,13 +220,13 @@ def browser_operations_and_copy(url_to_open, total_rows_pasted_to_pm):
         for _ in range(8): send_keys('{RIGHT}', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
         
         pm_down_arrow_count = total_rows_pasted_to_pm - 1 if total_rows_pasted_to_pm > 0 else 0
-        logger.debug(f"Selecting results: SHIFT + {pm_down_arrow_count} DOWN, then SHIFT + 2 RIGHT")
+        logger.debug(f"Selecting results: SHIFT + {pm_down_arrow_count} DOWN, then SHIFT + 10 RIGHT") 
         if pm_down_arrow_count > 0 : send_keys(f'+({{DOWN {pm_down_arrow_count}}})', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
-        send_keys(f'+({{RIGHT 2}})', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION) 
+        send_keys(f'+({{RIGHT 10}})', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION) 
         logger.debug("Copying results (Ctrl+C)..."); send_keys('^c', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_FOR_COPY_OPERATION)
 
         pm_clipboard_content = pyperclip.paste()
-        if pm_clipboard_content: pyperclip.copy(pm_clipboard_content); logger.info("PM results copied to clipboard.")
+        if pm_clipboard_content: pyperclip.copy(pm_clipboard_content); logger.info("PM results (11 columns) copied to clipboard.")
         else: logger.warning("Clipboard from PM was empty."); pyperclip.copy("")
         
         logger.debug("Closing browser tab (Ctrl+W)..."); send_keys('^w', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_FOR_BROWSER_CLOSE); 
@@ -224,7 +236,7 @@ def browser_operations_and_copy(url_to_open, total_rows_pasted_to_pm):
 
 
 def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_target, all_options_inputs_list, pm_data_from_clipboard, option_row_counts_for_pm_results):
-    # (This function remains largely the same as previous, focused on SHEET_NAME_PM_SETUP)
+    # Parses 11 columns, pastes first 3 back to Sheet2
     workbook = None
     df_pm_results = None
     try:
@@ -233,7 +245,7 @@ def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_ta
 
         logger.debug("Loading workbook for PM data distribution...")
         workbook = openpyxl.load_workbook(file_path)
-        sheet = workbook[sheet_name_target]
+        sheet = workbook[sheet_name_target] # This is Sheet2
 
         cleaned_lines = ['\t'.join(field.replace(',', '') for field in line.split('\t')) for line in pm_data_from_clipboard.splitlines()]
         cleaned_pm_data_for_df = "\n".join(cleaned_lines)
@@ -242,8 +254,15 @@ def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_ta
         logger.info(f"Parsed PM results from clipboard (Shape: {df_pm_results.shape})")
 
         if not df_pm_results.empty:
-            df_pm_results.columns = ["DV01 Gamma", "Theta", "Vega"] 
-            logger.debug(f"PM results DataFrame columns renamed. Head:\n{df_pm_results.head().to_string()}")
+            num_cols_read = df_pm_results.shape[1]
+            if num_cols_read == len(PM_RESULT_COLUMNS):
+                df_pm_results.columns = PM_RESULT_COLUMNS
+                logger.debug(f"PM results DataFrame columns renamed to: {PM_RESULT_COLUMNS}")
+            else:
+                logger.warning(f"Expected {len(PM_RESULT_COLUMNS)} columns from PM, but read {num_cols_read}. Using generic names.")
+                df_pm_results.columns = [f"PM_Col_{i}" for i in range(num_cols_read)]
+        
+        logger.debug(f"PM Results DataFrame head:\n{df_pm_results.head().to_string()}")
 
         current_row_index_in_pm_df = 0
         for idx, opt_data in enumerate(all_options_inputs_list):
@@ -252,8 +271,8 @@ def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_ta
             num_rows_for_this_option_results = option_row_counts_for_pm_results[idx] 
 
             cols_map = OPTION_COLUMN_MAP[option_id_from_input] 
-            target_paste_start_col_letter = cols_map['pm_result_start_col']
-            target_result_end_col_letter = cols_map['pm_result_end_col'] 
+            target_paste_start_col_letter = cols_map['pm_result_start_col'] 
+            target_result_end_col_letter = cols_map['pm_result_end_col']   
             target_data_paste_start_row = phase_config['excel_results_data_start_row']
             
             logger.info(f"Processing PM results for Input Option {opt_data['id'] + 1} (Phase {opt_data['phase']}) on sheet '{sheet_name_target}':")
@@ -263,17 +282,24 @@ def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_ta
                 current_row_index_in_pm_df += num_rows_for_this_option_results 
                 continue
 
-            df_slice = df_pm_results.iloc[current_row_index_in_pm_df : current_row_index_in_pm_df + num_rows_for_this_option_results]
-            if df_slice.empty: 
-                logger.warning(f"Slice for Option {option_id_from_input + 1} is empty."); 
+            cols_to_paste_sheet2 = min(3, df_pm_results.shape[1]) 
+            if cols_to_paste_sheet2 < 3:
+                 logger.warning(f"PM results have fewer than 3 columns ({cols_to_paste_sheet2}). Sheet2 paste might be incomplete.")
+
+            df_slice_for_sheet2 = df_pm_results.iloc[current_row_index_in_pm_df : current_row_index_in_pm_df + num_rows_for_this_option_results, :cols_to_paste_sheet2]
+            
+            if df_slice_for_sheet2.empty: 
+                logger.warning(f"Slice for Option {option_id_from_input + 1} (for Sheet2 paste) is empty."); 
                 current_row_index_in_pm_df += num_rows_for_this_option_results; continue
             
+            logger.debug(f"Pasting {df_slice_for_sheet2.shape[0]}x{df_slice_for_sheet2.shape[1]} slice to Sheet2 starting {target_paste_start_col_letter}{target_data_paste_start_row}")
             start_col_idx_paste = column_index_from_string(target_paste_start_col_letter)
-            for r_offset, pm_row_tuple in enumerate(df_slice.itertuples(index=False, name=None)):
+            for r_offset, pm_row_tuple in enumerate(df_slice_for_sheet2.itertuples(index=False, name=None)):
                 excel_row = target_data_paste_start_row + r_offset
                 for c_offset, cell_val in enumerate(pm_row_tuple):
                     try: numeric_cell_val = float(cell_val); sheet.cell(row=excel_row, column=start_col_idx_paste + c_offset, value=numeric_cell_val)
                     except (ValueError, TypeError): sheet.cell(row=excel_row, column=start_col_idx_paste + c_offset, value=cell_val) 
+            
             current_row_index_in_pm_df += num_rows_for_this_option_results
 
             if target_data_paste_start_row > 1: 
@@ -295,7 +321,8 @@ def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_ta
         logger.info(f"Saving Excel workbook after PM data distribution on '{sheet_name_target}'...")
         workbook.save(file_path)
         logger.info("Excel workbook saved.")
-        return df_pm_results
+        
+        return df_pm_results # Return the FULL 11-column DataFrame
 
     except Exception as e:
         logger.error(f"Error during Excel PM data distribution/cleanup for '{sheet_name_target}': {e}", exc_info=True); return None
@@ -304,13 +331,7 @@ def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_ta
 
 def write_dataframes_to_sheet1(file_path: str, list_of_dataframes: list, target_sheet_name: str, start_row: int, row_offset: int):
     """
-    Writes a list of DataFrames to a specified sheet in an Excel file, stacked vertically.
-    Args:
-        file_path (str): Path to the Excel file.
-        list_of_dataframes (list): List of Pandas DataFrames to write.
-        target_sheet_name (str): Name of the sheet to write to.
-        start_row (int): Starting row for the first DataFrame.
-        row_offset (int): Number of rows to offset for each subsequent DataFrame.
+    Writes a list of DataFrames to Sheet1, clearing first and applying % format.
     """
     if not list_of_dataframes:
         logger.info("No DataFrames provided to write to Sheet1.")
@@ -320,11 +341,16 @@ def write_dataframes_to_sheet1(file_path: str, list_of_dataframes: list, target_
     workbook = None
     try:
         workbook = openpyxl.load_workbook(file_path)
+        
         if target_sheet_name in workbook.sheetnames:
             sheet = workbook[target_sheet_name]
-            # Optional: Clear previous content if needed. For now, we overwrite.
-            # sheet.delete_rows(1, sheet.max_row) # Example: clear all rows
             logger.info(f"Using existing sheet: '{target_sheet_name}'.")
+            if sheet.max_row > 0:
+                logger.info(f"Clearing existing content from '{target_sheet_name}'...")
+                sheet.delete_rows(1, sheet.max_row + 1) # Use max_row + 1 to be safe
+                logger.info(f"Sheet '{target_sheet_name}' cleared.")
+            else:
+                 logger.info(f"Sheet '{target_sheet_name}' is already empty.")
         else:
             sheet = workbook.create_sheet(target_sheet_name)
             logger.info(f"Created new sheet: '{target_sheet_name}'.")
@@ -332,28 +358,33 @@ def write_dataframes_to_sheet1(file_path: str, list_of_dataframes: list, target_
         current_excel_row = start_row
         for i, df in enumerate(list_of_dataframes):
             if df.empty:
-                logger.warning(f"DataFrame at index {i} is empty. Skipping write for this DataFrame.")
-                # Optionally write a placeholder or just skip
-                # For now, we just advance the row counter as if it took space, to maintain spacing
-                # Or, we could choose not to advance if we want subsequent tables to be closer.
-                # Let's assume we want to keep the spacing consistent.
-                # current_excel_row += row_offset # This would create a gap even for an empty DF.
-                # Let's skip advancing if DF is empty, so next DF uses this slot.
+                logger.warning(f"DataFrame at index {i} is empty. Skipping write.")
                 continue 
 
             logger.info(f"Writing DataFrame {i+1} (Shape: {df.shape}) to '{target_sheet_name}' starting at row {current_excel_row}.")
             
-            # Write headers and data
-            # dataframe_to_rows writes header by default if index=False and header=True (which are defaults)
+            # Find the 1-based column index for '% Delta' if it exists
+            delta_col_idx = None
+            if DELTA_COLUMN_NAME in df.columns:
+                try:
+                    # Get the positional index (0-based) and add 1 for openpyxl
+                    delta_col_idx = df.columns.get_loc(DELTA_COLUMN_NAME) + 1 
+                    logger.debug(f"Found '{DELTA_COLUMN_NAME}' at column index {delta_col_idx} for formatting.")
+                except KeyError:
+                    logger.warning(f"Could not get location for column '{DELTA_COLUMN_NAME}'. Percentage formatting will not be applied.")
+
+            # Write headers and data using dataframe_to_rows
             rows = dataframe_to_rows(df, index=False, header=True)
-            for r_idx, row in enumerate(rows, start=0): # r_idx is 0-based from dataframe_to_rows
-                for c_idx, value in enumerate(row, start=1): # c_idx is 1-based for sheet.cell
-                    sheet.cell(row=current_excel_row + r_idx, column=c_idx, value=value)
             
-            # Advance the starting row for the next DataFrame
-            # Add number of rows written (len(df) for data + 1 for header)
-            # then add the fixed offset for spacing.
-            # More simply, just use the fixed row_offset.
+            for r_idx_offset, row_values in enumerate(rows, start=0): 
+                excel_row_num = current_excel_row + r_idx_offset
+                for c_idx_1based, value in enumerate(row_values, start=1): 
+                    cell = sheet.cell(row=excel_row_num, column=c_idx_1based, value=value)
+                    
+                    # Apply percentage format only to data rows (not header) in the delta column
+                    if r_idx_offset > 0 and delta_col_idx is not None and c_idx_1based == delta_col_idx:
+                        cell.number_format = numbers.FORMAT_PERCENTAGE_00 # Apply '0.00%' format
+            
             current_excel_row += row_offset
             
         workbook.save(file_path)
@@ -376,6 +407,7 @@ def run_pm_automation(options_data_from_dashboard: list):
     option_row_counts_for_slicing = [] 
 
     try:
+        # Step 1: Setup Sheet2, get consolidated DF (3 input cols) and row counts
         consolidated_df_for_pm, option_row_counts_for_slicing = excel_setup_options_and_consolidate_for_pm_openpyxl(
             FILE_PATH, SHEET_NAME_PM_SETUP, PNL_SCENARIO_BUY_SHEET_NAME, options_data_from_dashboard
         )
@@ -384,12 +416,14 @@ def run_pm_automation(options_data_from_dashboard: list):
         
         total_rows_for_pm_selection = len(consolidated_df_for_pm)
 
+        # Step 2: Browser interaction (now copies 11 columns)
         logger.info("Starting Browser Operations")
         browser_success = browser_operations_and_copy(PRICING_MONKEY_URL_FOR_PASTE, total_rows_for_pm_selection)
         if not browser_success: logger.error("Browser operations failed."); return None
         
         clipboard_content_from_pm = pyperclip.paste() 
 
+        # Step 3: Distribute first 3 PM results cols back to Sheet2, get full 11-col DF
         df_pm_results_full = excel_distribute_pm_data_and_final_cleanup_openpyxl(
             FILE_PATH, SHEET_NAME_PM_SETUP, options_data_from_dashboard, clipboard_content_from_pm, option_row_counts_for_slicing
         )
@@ -397,6 +431,7 @@ def run_pm_automation(options_data_from_dashboard: list):
         if df_pm_results_full is None:
             logger.error("Failed to process PM data into Excel or get PM results DataFrame."); return None
         
+        # Step 4: Join consolidated input (3 cols) and FULL PM results (11 cols)
         if len(consolidated_df_for_pm) != len(df_pm_results_full):
             logger.error(f"Row count mismatch! Input DF: {len(consolidated_df_for_pm)}, PM Results DF: {len(df_pm_results_full)}")
             return None
@@ -405,8 +440,9 @@ def run_pm_automation(options_data_from_dashboard: list):
         df_pm_results_full.reset_index(drop=True, inplace=True)
         
         joined_df_full = pd.concat([consolidated_df_for_pm, df_pm_results_full], axis=1)
-        logger.info(f"Successfully joined input data with PM results. Full joined shape: {joined_df_full.shape}")
+        logger.info(f"Successfully joined input data with full PM results. Joined shape: {joined_df_full.shape}")
 
+        # Step 5: Slice the joined DataFrame (14 cols) into a list, one DF per option
         list_of_option_dfs = []
         current_pos = 0
         for count in option_row_counts_for_slicing:
@@ -416,7 +452,7 @@ def run_pm_automation(options_data_from_dashboard: list):
                 logger.warning(f"Option contributed 0 rows. Appending empty DF slice.")
                 continue
 
-            option_df_slice = joined_df_full.iloc[current_pos : current_pos + count].copy()
+            option_df_slice = joined_df_full.iloc[current_pos : current_pos + count].copy() 
             list_of_option_dfs.append(option_df_slice)
             current_pos += count
         
@@ -426,14 +462,76 @@ def run_pm_automation(options_data_from_dashboard: list):
 
         logger.info(f"Successfully sliced joined_df into {len(list_of_option_dfs)} DataFrames for each option.")
         
-        # --- NEW: Write the list of DataFrames to Sheet1 ---
+        # Step 6: Modify the list of DFs before writing to Sheet1
+        modified_list_of_dfs_for_sheet1 = []
         if list_of_option_dfs:
-            write_dataframes_to_sheet1(FILE_PATH, list_of_option_dfs, TARGET_SHEET_FOR_OUTPUT, START_ROW_SHEET1, ROW_OFFSET_PER_DF_SHEET1)
-        else:
-            logger.warning("No option DataFrames to write to Sheet1.")
-        # --- END NEW ---
+            logger.info("Modifying DataFrames for Sheet1 output (scaling Greeks, setting user trade amount, cleaning Delta)...")
+            for i, df_opt in enumerate(list_of_option_dfs):
+                df_copy = df_opt.copy() 
 
-        return list_of_option_dfs
+                if df_copy.empty:
+                    logger.warning(f"Skipping modification for empty DataFrame at index {i}.")
+                    modified_list_of_dfs_for_sheet1.append(df_copy) 
+                    continue
+
+                if i < len(options_data_from_dashboard):
+                    option_input = options_data_from_dashboard[i]
+                    user_trade_amount = option_input['qty']
+                    
+                    if 'Trade Amount' in df_copy.columns:
+                        df_copy['Trade Amount'] = user_trade_amount
+                    else:
+                         logger.warning(f"'Trade Amount' column not found in DF for option {i+1}.")
+
+                    if user_trade_amount > 0:
+                        multiplier = user_trade_amount / 1000.0
+                        logger.debug(f"Scaling Greeks for option {i+1} DF by {multiplier}.")
+                        for col_name in ['DV01 Gamma', 'Theta', 'Vega', 'DV01', 'NPV', 'Sticky Delta Hedge Amount']: 
+                            if col_name in df_copy.columns:
+                                original_col = df_copy[col_name].copy()
+                                numeric_col = pd.to_numeric(df_copy[col_name], errors='coerce')
+                                scaled_col = numeric_col * multiplier
+                                df_copy[col_name] = scaled_col.fillna(original_col)
+                    else:
+                        logger.warning(f"User trade amount for option {i+1} is 0. Greeks not scaled for Sheet1 output.")
+                    
+                    # --- NEW: Clean % Delta column ---
+                    if DELTA_COLUMN_NAME in df_copy.columns:
+                        logger.debug(f"Cleaning '{DELTA_COLUMN_NAME}' for option {i+1} DF.")
+                        cleaned_delta = []
+                        for val in df_copy[DELTA_COLUMN_NAME]:
+                            if isinstance(val, str):
+                                # Remove % and whitespace, handle potential errors
+                                try:
+                                    # Use regex to find number, including potential negative sign
+                                    match = re.search(r'(-?[\d\.]+)', val)
+                                    if match:
+                                         num_str = match.group(1)
+                                         cleaned_delta.append(float(num_str) / 100.0)
+                                    else:
+                                         cleaned_delta.append(pd.NA) # Or None, or keep original string if preferred
+                                except (ValueError, TypeError):
+                                    cleaned_delta.append(pd.NA) 
+                            elif isinstance(val, (int, float)):
+                                cleaned_delta.append(float(val) / 100.0) # Assume it's already a percentage number
+                            else:
+                                cleaned_delta.append(pd.NA) # Handle other types like None
+                        df_copy[DELTA_COLUMN_NAME] = cleaned_delta
+                        logger.debug(f"Cleaned '{DELTA_COLUMN_NAME}' preview (first 5): {df_copy[DELTA_COLUMN_NAME].head().tolist()}")
+                    # --- END NEW ---
+
+                    modified_list_of_dfs_for_sheet1.append(df_copy)
+                else:
+                    logger.warning(f"Mismatch between DFs and input options at index {i}.")
+                    modified_list_of_dfs_for_sheet1.append(df_copy) 
+
+            # Step 7: Write the MODIFIED list of DataFrames (14 cols) to Sheet1
+            write_dataframes_to_sheet1(FILE_PATH, modified_list_of_dfs_for_sheet1, TARGET_SHEET_FOR_OUTPUT, START_ROW_SHEET1, ROW_OFFSET_PER_DF_SHEET1)
+        else:
+            logger.warning("No option DataFrames generated to write to Sheet1.")
+
+        # Step 8: Return the original (unmodified for Sheet1) list of DFs (14 cols) to the dashboard
+        return list_of_option_dfs 
 
     except Exception as e:
         logger.error(f"CRITICAL ERROR in run_pm_automation: {e}", exc_info=True); return None
@@ -442,10 +540,10 @@ def run_pm_automation(options_data_from_dashboard: list):
 
 
 if __name__ == "__main__":
+    # Standalone testing remains the same
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(name)s - %(funcName)s - %(message)s')
     logger.info("Running pMoneyAuto.py in STANDALONE mode for testing")
     
-    # (Standalone test input function remains the same as in pMoneyAuto_sliced_output)
     def get_all_user_inputs_for_standalone():
         num_options = int(input("How many options for standalone test (1-3)? ").strip())
         collected_options_data = []
@@ -464,17 +562,17 @@ if __name__ == "__main__":
     standalone_options_input = get_all_user_inputs_for_standalone()
     
     if standalone_options_input:
-        list_of_final_dataframes = run_pm_automation(standalone_options_input)
+        list_of_final_dataframes_returned = run_pm_automation(standalone_options_input) 
 
-        if list_of_final_dataframes:
-            logger.info(f"\n=== FINAL DATAFRAMES (from standalone run) - Count: {len(list_of_final_dataframes)} ===")
-            for i, df_opt in enumerate(list_of_final_dataframes):
-                logger.info(f"\n--- Option {i+1} DataFrame (Shape: {df_opt.shape}) ---")
-                logger.info(df_opt.to_string())
-            logger.info("Check Sheet1 in the Excel file for the output.")
+        if list_of_final_dataframes_returned:
+            logger.info(f"\n=== FINAL DATAFRAMES RETURNED (from standalone run) - Count: {len(list_of_final_dataframes_returned)} ===")
+            for i, df_opt in enumerate(list_of_final_dataframes_returned):
+                logger.info(f"\n--- Returned Option {i+1} DataFrame (Shape: {df_opt.shape}) ---")
+                logger.info(df_opt.to_string()) 
+            logger.info("Check Sheet1 in the Excel file for the modified/scaled output (14 columns).")
             logger.info("=====================================================")
         else:
-            logger.error("Standalone run completed, but no final list of DataFrames was produced.")
+            logger.error("Standalone run completed, but no final list of DataFrames was produced/returned.")
     else:
         logger.warning("No inputs provided for standalone run. Exiting.")
     
