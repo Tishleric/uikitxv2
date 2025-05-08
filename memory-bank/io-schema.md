@@ -20,3 +20,7 @@
 | TraceTime.include_result | Input | bool | True or False | @TraceTime(include_result=True) |
 | TraceCpu.sample_interval | Input | float | Positive float (seconds) | @TraceCpu(sample_interval=0.1) |
 | TraceMemory.measure_peak | Input | bool | True or False | @TraceMemory(measure_peak=True) |
+
+## Import Notes (May 5, 2025)
+- All components are imported directly: `from components import Button, ComboBox, etc.`
+- All decorators are imported directly: `from decorators import TraceTime, TraceCloser, etc.`

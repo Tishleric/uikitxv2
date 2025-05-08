@@ -51,6 +51,11 @@ utils/ ───────┘
 decorators/ ──► lumberjack/
 ```
 
+### Import Structure (Updated May 5, 2025)
+- Direct imports used throughout (e.g., `from components import Button`)
+- Flat package structure under `src/` directory
+- Package-level `__init__.py` re-exports components for easier imports
+
 ## Communication Patterns
 
 ### Event-Based

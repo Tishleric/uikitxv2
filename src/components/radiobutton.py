@@ -1,74 +1,45 @@
-from __future__ import annotations
+# uikitxv2/src/components/radiobutton.py
 
-import uuid
-from typing import Any, Mapping, Sequence, TypedDict, Union, cast
-
+from dash import dcc
 import dash_bootstrap_components as dbc
-from dash.development.base_component import Component
 
-from core.base_component import BaseComponent
-from utils.colour_palette import Theme, default_theme
-
-
-class _Option(TypedDict):
-    label: str
-    value: str
-
+# Corrected relative import: Go up one level (..) to src, then down to core
+from ..core.base_component import BaseComponent
+# Corrected relative import: Go up one level (..) to src, then down to utils
+from ..utils.colour_palette import default_theme # Only default_theme seems used here
 
 class RadioButton(BaseComponent):
-    """Dark-theme wrapper around `dbc.RadioItems`.
-    
-    Args:
-        options: Sequence of option strings or dicts with 'label' and 'value' keys.
-        value: Initially selected value. Defaults to None.
-        inline: Whether to display radio buttons horizontally. Defaults to True.
-        id: Component ID. Auto-generated if None.
-        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
-        **radio_kwargs: Additional keyword arguments passed to the underlying dbc.RadioItems.
     """
-
-    def __init__(
-        self,
-        options: Sequence[Union[str, Mapping[str, str]]],
-        *,
-        value: str | None = None,
-        inline: bool = True,
-        id: str | None = None,
-        theme: Theme = default_theme,
-        **radio_kwargs: Any,
-    ) -> None:
-        if not options:
-            raise ValueError("RadioButton requires a non-empty options list.")
-
-        norm: list[_Option] = []
-        for o in options:
-            if isinstance(o, str):
-                norm.append({"label": o, "value": o})
-            else:
-                if "label" not in o or "value" not in o:
-                    raise KeyError("Each option dict needs 'label' and 'value'.")
-                norm.append({"label": o["label"], "value": o["value"]})
-        self._options = norm
-
+    A wrapper for dcc.RadioItems with theme integration.
+    """
+    def __init__(self, id, options=None, value=None, theme=None, style=None, inline=False, labelStyle=None, inputStyle=None, className=""):
+        super().__init__(id, theme)
+        self.options = options if options is not None else []
         self.value = value
+        self.style = style if style is not None else {} # Style for the outer container
         self.inline = inline
-        self.id = id or f"radio-{uuid.uuid4().hex[:8]}"
-        self.theme = theme
-        self.kwargs = radio_kwargs
+        self.labelStyle = labelStyle if labelStyle is not None else {}
+        self.inputStyle = inputStyle if inputStyle is not None else {}
+        self.className = className
+        # Ensure options are in the correct format {'label': ..., 'value': ...}
+        if self.options and isinstance(self.options[0], str):
+             self.options = [{'label': opt, 'value': opt} for opt in self.options]
 
-    # -------------------------------------------------------------- #
-    def render(self) -> Component:
-        style: dict[str, str] = {
-            "color": self.theme.text_light,
-        }
-        radios = dbc.RadioItems(
+    def render(self):
+        # Define default styles based on theme
+        default_label_style = {'color': self.theme.text_light, 'paddingRight': '10px', 'display': 'inline-block', **self.labelStyle}
+        default_input_style = {'marginRight': '5px', **self.inputStyle} # Style for the radio input itself
+        default_container_style = {**self.style} # Style for the overall div
+
+        return dcc.RadioItems(
             id=self.id,
-            options=self._options,
+            options=self.options,
             value=self.value,
+            style=default_container_style,
+            inputStyle=default_input_style,
+            labelStyle=default_label_style,
             inline=self.inline,
-            input_checked_style={"backgroundColor": self.theme.primary},
-            label_checked_style={"color": self.theme.primary},
-            style=style,
-            **self.kwargs,
+            className=self.className
+            # persistence=True, persistence_type='local' # Optional persistence
         )
-        return cast(Component, radios)
+

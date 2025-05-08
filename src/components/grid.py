@@ -1,78 +1,73 @@
-from __future__ import annotations
-
-import math
-import uuid
-from typing import Any, List, Sequence, cast
+# uikitxv2/src/components/grid.py
 
 import dash_bootstrap_components as dbc
-from dash.development.base_component import Component
+from dash import html
+from dash.development.base_component import Component as DashBaseComponent
 
-from core.base_component import BaseComponent
-from utils.colour_palette import Theme, default_theme
-
+# Corrected relative import: Go up one level (..) to src, then down to core
+from ..core.base_component import BaseComponent
+# Corrected relative import: Go up one level (..) to src, then down to utils
+from ..utils.colour_palette import default_theme # Only default_theme seems used here
 
 class Grid(BaseComponent):
-    """Bootstrap grid wrapper for component layout.
-    
-    Args:
-        children: Sequence of child components to arrange in the grid.
-        col_widths: Optional sequence of column widths for each child. Must sum to cols value.
-            If not provided, children share space equally.
-        cols: Total number of grid columns. Must be between 1 and 12. Defaults to 12.
-        gap: Gap size between columns. Defaults to 2.
-        id: Component ID. Auto-generated if None.
-        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
-        **row_kwargs: Additional keyword arguments passed to the underlying dbc.Row.
     """
+    A wrapper for creating a grid layout using dbc.Row and dbc.Col.
+    Children should be a list of components or tuples (component, width_dict).
+    width_dict example: {'xs': 12, 'md': 6, 'lg': 4}
+    """
+    def __init__(self, id, children=None, theme=None, style=None, className=""):
+        super().__init__(id, theme)
+        self.children = children if children is not None else []
+        self.style = style if style is not None else {}
+        self.className = className
 
-    def __init__(
-        self,
-        children: Sequence[BaseComponent],
-        *,
-        col_widths: Sequence[int] | None = None,   # NEW
-        cols: int = 12,
-        gap: int = 2,
-        id: str | None = None,
-        theme: Theme = default_theme,
-        **row_kwargs: Any,
-    ) -> None:
-        if not children:
-            raise ValueError("Grid requires at least one child component.")
-        if not (1 <= cols <= 12):
-            raise ValueError("cols must be between 1 and 12.")
-        if col_widths is not None:
-            if len(col_widths) != len(children):
-                raise ValueError("col_widths length must match children length.")
-            if sum(col_widths) != cols:
-                raise ValueError("sum(col_widths) must equal cols.")
-            if any(w < 1 or w > cols for w in col_widths):
-                raise ValueError("each width must be in 1..cols")
-            self._widths: List[int] = list(col_widths)
-        else:
-            n = len(children)
-            even = max(1, math.floor(cols / n))
-            self._widths = [even] * n
+    def _build_cols(self):
+        """Builds dbc.Col components from children."""
+        cols = []
+        children_to_process = self.children
+        if not isinstance(children_to_process, (list, tuple)):
+             children_to_process = [children_to_process]
 
-        self.children = list(children)
-        self.cols = cols
-        self.gap = gap
-        self.id = id or f"grid-{uuid.uuid4().hex[:8]}"
-        self.theme = theme
-        self.kwargs = row_kwargs
+        for child_item in children_to_process:
+            child_component = None
+            width_args = {} # Default: Col will auto-size
 
-    # -------------------------------------------------------------- #
-    def _build_cols(self) -> list[dbc.Col]:  
-        return [
-            dbc.Col(child.render(), width=w)
-            for child, w in zip(self.children, self._widths, strict=True)
-        ]
+            if isinstance(child_item, tuple) and len(child_item) == 2:
+                child_component = child_item[0]
+                if isinstance(child_item[1], dict):
+                    # Assumes dict specifies widths like {'xs': 12, 'md': 6}
+                    width_args = child_item[1]
+                elif isinstance(child_item[1], int):
+                    # Assumes int is the default width (applied to all sizes unless overridden)
+                    width_args = {'width': child_item[1]} # Use 'width' key for default span
+            else:
+                # Assume the item is just the component, let Col auto-size
+                child_component = child_item
 
-    def render(self) -> Component:
-        row = dbc.Row(
-            self._build_cols(),
+            rendered_child = None
+            # Check if it's one of our custom components or needs rendering
+            if isinstance(child_component, BaseComponent) or \
+               (hasattr(child_component, 'render') and callable(child_component.render) and \
+               not isinstance(child_component, (DashBaseComponent, dict, str))):
+                rendered_child = child_component.render()
+            else:
+                # Assume it's already a Dash component, dict, string, etc.
+                rendered_child = child_component
+
+            if rendered_child is not None:
+                 cols.append(dbc.Col(rendered_child, **width_args)) # Pass width dict as kwargs
+
+        return cols
+
+    def render(self):
+        # Apply theme defaults if not overridden by style prop
+        # Example: default_style = {'padding': '10px 0'}
+        # final_style = {**default_style, **self.style}
+
+        return dbc.Row(
+            children=self._build_cols(),
             id=self.id,
-            className=f"g-{self.gap}",
-            style={"backgroundColor": self.theme.panel_bg},
-            **self.kwargs,
+            style=self.style, # Use self.style directly
+            className=self.className
         )
-        return cast(Component, row)
+

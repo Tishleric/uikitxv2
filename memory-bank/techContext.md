@@ -30,11 +30,12 @@ The UI component library is built as a wrapper around Dash/Plotly components, pr
 - Structured logging format
 
 ## Constraints & Guardrails
-- No direct imports from SQLAlchemy or sqlite3 in decorators
+- Decorators cannot directly import SQLAlchemy or sqlite3
 - All components inherit from BaseComponent
 - Strict typing throughout the codebase
 - No cyclic imports
 - All public interfaces must be documented
+- Direct imports used instead of namespace imports
 
 ## Development Environment
 - Python 3.12+ virtual environment
@@ -46,3 +47,8 @@ The UI component library is built as a wrapper around Dash/Plotly components, pr
 - Integration tests for decorators
 - Mock objects for external dependencies
 - Comprehensive coverage of error cases
+
+## Package Structure (Updated May 5, 2025)
+- Flat structure under `src/` directory
+- Direct imports (e.g., `from components import Button`)
+- Package-level re-exports in `__init__.py`

@@ -1,87 +1,52 @@
-from __future__ import annotations
+# uikitxv2/src/components/combobox.py
 
+from dash import dcc
 import uuid
-from typing import Any, Mapping, Sequence, TypedDict, Union, cast
 
-import dash.dcc as dcc
-from dash.development.base_component import Component
-
-from core.base_component import BaseComponent
-from utils.colour_palette import Theme, default_theme
-
-
-class _Option(TypedDict):
-    """Shape Dash expects for each dropdown option."""
-    label: str
-    value: str
-
+# Corrected relative import: Go up one level (..) to src, then down to core
+from ..core.base_component import BaseComponent
+# Corrected relative import: Go up one level (..) to src, then down to utils
+# Import the correct style function for ComboBox
+from ..utils.colour_palette import default_theme, get_combobox_default_style
 
 class ComboBox(BaseComponent):
-    """Dark-theme wrapper around `dcc.Dropdown` for single or multi-selection.
-    
-    Args:
-        options: Sequence of option strings or dicts with 'label' and 'value' keys.
-        value: Initially selected value(s). Can be a single string or list of strings. Defaults to None.
-        multi: Enable multi-select mode. Defaults to False.
-        clearable: Allow clearing the selection. Defaults to True.
-        placeholder: Text to display when no option is selected. Defaults to None.
-        id: Component ID. Auto-generated if None.
-        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
-        **dropdown_kwargs: Additional keyword arguments passed to the underlying dcc.Dropdown.
-    """ 
-
-    def __init__(
-        self,
-        options: Sequence[Union[str, Mapping[str, str]]],
-        *,
-        value: Union[str, list[str], None] = None,
-        multi: bool = False,
-        clearable: bool = True,
-        placeholder: str | None = None,
-        id: str | None = None,
-        theme: Theme = default_theme,
-        **dropdown_kwargs: Any,
-    ) -> None:
-        if not options:
-            raise ValueError("ComboBox requires a non-empty options list.")
-
-        # Normalise options → list[_Option]; validate mapping inputs.
-        norm: list[_Option] = []
-        for o in options:
-            if isinstance(o, str):
-                norm.append({"label": o, "value": o})
-            else:
-                if "label" not in o or "value" not in o:
-                    raise KeyError(
-                        "ComboBox option dicts need both 'label' and 'value'."
-                    )
-                norm.append({"label": o["label"], "value": o["value"]})
-        self._options = norm
-
+    """
+    A wrapper for dcc.Dropdown styled as a ComboBox, integrated with the theme system.
+    """
+    def __init__(self, id, options=None, value=None, placeholder=None, theme=None, style=None, clearable=True, searchable=True, multi=False, className=""):
+        super().__init__(id, theme)
+        self.options = options if options is not None else []
         self.value = value
-        self.multi = multi
-        self.clearable = clearable
         self.placeholder = placeholder
-        self.id = id or f"combo-{uuid.uuid4().hex[:8]}"
-        self.theme = theme
-        self.kwargs = dropdown_kwargs
+        self.style = style if style is not None else {}
+        self.clearable = clearable
+        self.searchable = searchable
+        self.multi = multi
+        self.className = className
+        # Ensure options are in the correct format {'label': ..., 'value': ...}
+        if self.options and isinstance(self.options[0], str):
+             self.options = [{'label': opt, 'value': opt} for opt in self.options]
 
-    # ------------------------------------------------------------------ #
-    def render(self) -> Component:
-        style: dict[str, str] = {
-            "backgroundColor": self.theme.panel_bg,
-            "color": self.theme.text_light,
-            "borderRadius": "4px",
-        }
 
-        dd = dcc.Dropdown(
+    def render(self):
+        # Get default styles using the correct function from colour_palette
+        default_style = get_combobox_default_style(self.theme)
+
+        # Merge default styles with instance-specific styles
+        # Note: The style returned by get_combobox_default_style might apply
+        # directly to the dcc.Dropdown's style prop or might need adjustment
+        # depending on how dcc.Dropdown applies styles vs its container.
+        # Assuming it applies to the container for now.
+        final_style = {**default_style, **self.style}
+
+        return dcc.Dropdown(
             id=self.id,
-            options=cast(Any, self._options),  # silence Dash's outdated stub
+            options=self.options,
             value=self.value,
-            multi=self.multi,
-            clearable=self.clearable,
             placeholder=self.placeholder,
-            style=style,
-            **self.kwargs,
+            clearable=self.clearable,
+            searchable=self.searchable,
+            multi=self.multi,
+            style=final_style, # Apply merged style to the outer div
+            className=f"custom-combobox {self.className}"
         )
-        return cast(Component, dd)

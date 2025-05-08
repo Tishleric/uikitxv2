@@ -1,8 +1,23 @@
-from __future__ import annotations
+# src/utils/colour_palette.py
 
+from __future__ import annotations
+from typing import Any, List, Dict
 from dataclasses import dataclass
 
-__all__ = ["Theme", "default_theme"]
+__all__ = [
+    "Theme",
+    "default_theme",
+    "get_combobox_default_style",
+    "get_button_default_style",
+    "get_container_default_style",
+    "get_datatable_default_styles",
+    "get_graph_figure_layout_defaults",
+    "get_graph_wrapper_default_style",
+    "get_grid_default_style",
+    "get_listbox_default_styles",
+    "get_radiobutton_default_styles",
+    "get_tabs_default_styles", # Added Tabs styles function
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,3 +45,102 @@ default_theme = Theme(
     danger="#FF5555",
     success="#4CE675",
 )
+
+# --- Component Default Style Functions ---
+
+def get_combobox_default_style(theme: Theme) -> dict[str, Any]:
+    return {"backgroundColor": theme.panel_bg, "color": theme.text_light, "borderRadius": "4px"}
+
+def get_button_default_style(theme: Theme) -> dict[str, Any]:
+    return {"backgroundColor": theme.primary, "borderColor": theme.primary, "color": theme.text_light, "borderRadius": "4px", "fontFamily": "Inter, sans-serif", "fontSize": "15px", "padding": "0.375rem 0.75rem", "borderWidth": "1px", "borderStyle": "solid", "textDecoration": "none", "display": "inline-block", "fontWeight": "400", "lineHeight": "1.5", "textAlign": "center", "verticalAlign": "middle", "cursor": "pointer", "userSelect": "none"}
+
+def get_container_default_style(theme: Theme) -> dict[str, Any]:
+    return {}
+
+def get_datatable_default_styles(theme: Theme) -> Dict[str, Any]:
+    return {
+        "style_table": {"overflowX": "auto", "width": "100%", "minWidth": "100%"},
+        "style_header": {"backgroundColor": theme.panel_bg, "color": theme.primary, "fontWeight": "bold", "border": f"1px solid {theme.secondary}", "textAlign": "left", "padding": "10px"},
+        "style_cell": {"backgroundColor": theme.panel_bg, "color": theme.text_light, "border": f"1px solid {theme.secondary}", "padding": "8px", "textAlign": "left", "whiteSpace": "normal", "height": "auto", "minWidth": "100px", "width": "auto", "maxWidth": "300px", "overflow": "hidden", "textOverflow": "ellipsis", "fontFamily": "Inter, sans-serif"},
+        "style_data": {},
+        "style_data_conditional": [{'if': {'row_index': 'odd'}, 'backgroundColor': theme.base_bg}],
+        "style_filter": {"backgroundColor": theme.base_bg, "color": theme.text_light, "border": f"1px solid {theme.secondary}", "padding": "5px"},
+        "page_action": "native", "page_size": 15, "sort_action": "native", "filter_action": "native", "style_as_list_view": True,
+    }
+
+def get_graph_figure_layout_defaults(theme: Theme) -> dict[str, Any]:
+    return {"paper_bgcolor": theme.panel_bg, "plot_bgcolor": theme.panel_bg, "font": {"color": theme.text_light, "family": "Inter, sans-serif"}}
+
+def get_graph_wrapper_default_style(theme: Theme) -> dict[str, Any]:
+    return {}
+
+def get_grid_default_style(theme: Theme) -> dict[str, Any]:
+    return {"backgroundColor": theme.panel_bg}
+
+def get_listbox_default_styles(theme: Theme, height_px: int = 160) -> dict[str, Any]:
+    return {
+        "style": {"backgroundColor": theme.panel_bg, "color": theme.text_light, "borderRadius": "4px", "border": f"1px solid {theme.secondary}", "overflowY": "auto", "height": f"{height_px}px", "padding": "4px", "fontFamily": "Inter, sans-serif"},
+        "inputStyle": {"marginRight": "8px", "cursor": "pointer"},
+        "labelStyle": {"display": "block", "cursor": "pointer", "padding": "2px 0", "color": theme.text_light}
+    }
+
+def get_radiobutton_default_styles(theme: Theme) -> dict[str, Any]:
+    return {
+        "style": {"color": theme.text_light, "fontFamily": "Inter, sans-serif"},
+        "input_checked_style": {"backgroundColor": theme.primary, "borderColor": theme.primary},
+        "label_checked_style": {"color": theme.primary, "fontWeight": "bold"},
+        "inputStyle": {"marginRight": "5px", "cursor": "pointer"},
+        "labelStyle": {"marginRight": "15px", "cursor": "pointer"}
+    }
+
+def get_tabs_default_styles(theme: Theme) -> dict[str, Any]:
+    """
+    Returns a dictionary containing default style properties for Tabs (dbc.Tabs and dbc.Tab).
+    """
+    return {
+        # Styles for the main dbc.Tabs container
+        "main_tabs_style": {
+            "borderBottom": f"1px solid {theme.primary}",
+            "marginBottom": "1rem", # Space below the row of tabs
+            "fontFamily": "Inter, sans-serif",
+        },
+        # Styles for individual dbc.Tab components
+        "tab_style": { # Style for the inactive tab *container* (<li>)
+            "backgroundColor": theme.panel_bg,
+            "padding": "0.5rem 1rem",
+            "border": f"1px solid {theme.secondary}",
+            "borderBottom": "none", # Critical for tab appearance
+            "marginRight": "2px",
+            "borderRadius": "4px 4px 0 0", # Rounded top corners
+        },
+        "active_tab_style": { # Style for the active tab *container* (<li>)
+            "backgroundColor": theme.panel_bg, # Often same as inactive, or slightly lighter/different
+            "fontWeight": "bold", # Handled by active_label_style for text, but can be here too
+            "padding": "0.5rem 1rem",
+            "border": f"1px solid {theme.primary}", # Highlight with primary color
+            "borderBottom": f"1px solid {theme.panel_bg}", # Make bottom border match panel to "connect"
+            "marginRight": "2px",
+            "borderRadius": "4px 4px 0 0",
+            "position": "relative", # For z-index or pseudo-elements if needed
+            "zIndex": "1", # Ensure active tab is "on top" of the bottom border
+        },
+        "label_style": { # Style specifically for the inactive tab *label* (<a> link inside <li>)
+            "color": theme.text_subtle, # More subtle color for inactive tabs
+            "textDecoration": "none",
+        },
+        "active_label_style": { # Style specifically for the active tab *label* (<a> link inside <li>)
+            "color": theme.primary, # Primary theme color for active label text
+            "fontWeight": "bold",
+            "textDecoration": "none",
+        },
+        # Style for the content area of the active tab (the panel below the tabs)
+        # Note: dbc.Tab content is styled by the component placed inside it,
+        # but if dbc.Tabs itself adds a wrapper for content, this could be useful.
+        # Often, the content area takes its background from the page or a surrounding container.
+        # "content_style": {
+        #     "padding": "1rem",
+        #     "border": f"1px solid {theme.primary}",
+        #     "borderTop": "none",
+        #     "backgroundColor": theme.panel_bg,
+        # }
+    }

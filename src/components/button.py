@@ -1,51 +1,36 @@
-from __future__ import annotations
-
-import uuid
-from typing import Any, cast
+# uikitxv2/src/components/button.py
 
 import dash_bootstrap_components as dbc
-from dash.development.base_component import Component
+from dash import html
 
-from core.base_component import BaseComponent
-from utils.colour_palette import Theme, default_theme
-
+# Corrected relative import: Go up one level (..) to src, then down to core
+from ..core.base_component import BaseComponent
+# Corrected relative import: Go up one level (..) to src, then down to utils
+from ..utils.colour_palette import default_theme, get_button_default_style
 
 class Button(BaseComponent):
-    """Dark-theme wrapper around `dbc.Button`.
-    
-    Args:
-        label: Text label displayed on the button.
-        id: Component ID. Auto-generated if None.
-        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
-        **dbc_kwargs: Additional keyword arguments passed to the underlying dbc.Button.
     """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        id: str | None = None,
-        theme: Theme = default_theme,
-        **dbc_kwargs: Any,          # ← explicit type
-    ) -> None:
+    A wrapper for dbc.Button that integrates with the theme system.
+    """
+    def __init__(self, id, label="Button", theme=None, style=None, n_clicks=0, className=""):
+        super().__init__(id, theme)
         self.label = label
-        self.id = id or f"btn-{uuid.uuid4().hex[:8]}"
-        self.theme = theme
-        self.kwargs = dbc_kwargs
+        self.style = style if style is not None else {}
+        self.n_clicks = n_clicks
+        self.className = className
 
-    def render(self) -> Component:
-        btn = dbc.Button(
+    def render(self):
+        # Get default styles based on the theme
+        default_style = get_button_default_style(self.theme)
+
+        # Merge default styles with instance-specific styles
+        final_style = {**default_style, **self.style}
+
+        return dbc.Button(
             self.label,
             id=self.id,
-            color="primary",
-            style={
-                "backgroundColor": self.theme.primary,
-                "borderColor": self.theme.primary,
-                "borderRadius": "4px",
-                "color": self.theme.text_light,
-                "fontFamily": "Inter, sans-serif",
-                "fontSize": "15px",
-            },
-            **self.kwargs,
+            n_clicks=self.n_clicks,
+            style=final_style,
+            className=self.className
         )
-        return cast(Component, btn)   # ← makes mypy happy
+

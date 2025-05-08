@@ -1,0 +1,194 @@
+/* assets/custom_styles.css */
+
+/* 1. Define CSS Variables from your theme for consistency */
+:root {
+    --base-bg: #000000;
+    --panel-bg: #121212;
+    --primary: #18F0C3; /* Your main theme green */
+    --secondary: #8F8F8F;
+    --accent: #F01899;
+    --text-light: #E5E5E5;
+    --text-subtle: #9A9A9A;
+    --border-color: var(--secondary);
+    --primary-rgb: 24, 240, 195; /* RGB for #18F0C3 */
+}
+
+/* 2. General Body & Font Styling */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--base-bg);
+    color: var(--text-light);
+}
+
+.dash-input, .dash-dropdown {
+    font-family: 'Inter', sans-serif;
+}
+
+/* 3. Styling for dcc.Dropdown (ComboBox) */
+
+/* Main visible part of the collapsed dropdown */
+.Select-control {
+    background-color: var(--panel-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    padding: 0 !important; /* Padding will be handled by .Select-value-container */
+    display: flex !important; /* Still use flex for vertical alignment of text */
+    align-items: center !important;
+    min-height: 38px;
+    cursor: pointer;
+    position: relative !important; /* Crucial for absolute positioning of children */
+}
+
+/* Container for the placeholder or selected value(s) */
+.Select-value-container {
+    flex-grow: 1 !important; /* Take up available space */
+    display: flex !important;
+    align-items: center !important;
+    padding-left: 12px !important;
+    /* Add padding-right to make space for the absolutely positioned icons */
+    /* Approx 30px for arrow + 30px for clear = 60px. Adjust as needed. */
+    padding-right: 60px !important;
+    overflow: hidden;
+    min-width: 0; /* Helps with flex calculations and text overflow */
+}
+
+/* Placeholder text within the ComboBox input field */
+.Select-placeholder {
+    color: var(--text-subtle) !important;
+    line-height: 36px !important; /* Aligns with min-height 38px & 1px borders */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Style for the selected value displayed in the collapsed dropdown */
+.Select-value,
+.Select-value-label {
+    color: var(--text-light) !important;
+    line-height: 36px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    border: none !important;
+    box-shadow: none !important;
+    z-index: 1; /* Ensure text is above any potential background artifacts */
+}
+.Select-value > div,
+.Select-value > span,
+.Select-value-label > div,
+.Select-value-label > span {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: transparent !important;
+}
+.Select-value::before,
+.Select-value::after {
+    display: none !important;
+}
+
+/* Clear 'x' icon zone - Positioned absolutely */
+.Select-clear-zone {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    right: 30px; /* Position to the left of the arrow (approx arrow width + padding) */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 4px !important; /* Minimal padding for the zone itself */
+    z-index: 2; /* Above text */
+}
+
+/* The 'x' character itself */
+.Select-clear {
+    color: var(--text-subtle) !important;
+    font-size: 1.3em !important;
+    line-height: 1 !important;
+    cursor: pointer;
+}
+.Select-clear:hover {
+    color: var(--text-light) !important;
+}
+
+/* Arrow icon zone and arrow - Positioned absolutely */
+.Select-arrow-zone {
+    position: absolute !important;
+    top: 0;
+    bottom: 0;
+    right: 0; /* All the way to the right */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 8px !important; /* Padding for the arrow */
+    z-index: 2; /* Above text */
+}
+.Select-arrow {
+    border-color: var(--text-subtle) transparent transparent !important;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 5px 5px 0 5px;
+}
+.is-open .Select-arrow {
+    border-color: transparent transparent var(--text-subtle) !important;
+    border-width: 0 5px 5px 5px;
+}
+
+/* The outer container of the dropdown menu when it's open */
+.Select-menu-outer {
+    background-color: var(--panel-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    z-index: 1001 !important; /* Higher than the control's indicators */
+    margin-top: 2px !important;
+}
+
+/* Individual options within the dropdown menu */
+.Select-option, .VirtualizedSelectOption {
+    background-color: var(--panel-bg) !important;
+    color: var(--text-light) !important;
+    padding: 8px 12px !important;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Hovered/focused option in the dropdown menu */
+.Select-option.is-focused, .VirtualizedSelectFocusedOption {
+    background-color: var(--accent) !important;
+    color: var(--text-light) !important;
+}
+
+
+/* 4. Styling for dcc.Input (Trade Quantity) */
+input[type="text"]::placeholder,
+input[type="number"]::placeholder {
+    color: var(--text-subtle) !important;
+    opacity: 1 !important;
+}
+input[type="text"],
+input[type="number"] {
+    color: var(--text-light) !important;
+    background-color: var(--panel-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+    padding: 0px 12px !important;
+    line-height: 36px !important;
+    min-height: 38px;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+/* 5. Focus Styling for Inputs and Dropdowns (ComboBox) */
+input:focus,
+.Select.is-focused .Select-control,
+.Select--focused .Select-control {
+    outline: none !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25) !important;
+}
+.form-control:focus, .form-select:focus, .btn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25) !important;
+    border-color: var(--primary) !important;
+}

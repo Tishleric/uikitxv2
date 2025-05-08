@@ -22,8 +22,10 @@
 - All new code must pass mypy --strict and ruff before being considered complete
 
 # Code Style
-- Imports from within the package must use 'from uikitxv2...' format
+- Direct imports are used throughout the codebase (e.g., `from components import Button`)
 - No relative imports going outside the current directory
 - Avoid cyclic imports at all costs
 - Maximum line length is 120 characters
 - Keep commits small (<= 50 LOC) unless explicitly waived
+
+# Updated May 5, 2025
