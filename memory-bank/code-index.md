@@ -71,3 +71,7 @@
 
 - `tests/lumberjack/test_logging_config.py` - Tests for the logging configuration module.
 - `tests/lumberjack/test_sqlite_handler.py` - Tests for the SQLite logging handler.
+
+## Import Structure Note
+
+- As of May 5, 2025: The package uses direct imports (e.g., `from components import *`) rather than namespace imports (e.g., `from uikitxv2.components import *`).

@@ -8,7 +8,7 @@ uikitxv2/                              ← repo root
 ├── decorators_overview.md           ← summary of available decorators
 │
 ├── src/                             ← package source code
-│   ├── __init__.py
+│   ├── __init__.py                  ← package exports/re-exports
 │   │
 │   ├── core/                        ← ABCs & cross-cutting contracts
 │   │   ├── __init__.py
@@ -86,3 +86,7 @@ uikitxv2/                              ← repo root
     ├── notionSync.md
     ├── .cursorrules
     └── PRDeez/                     # user stories / acceptance
+
+## Structure Update (May 5, 2025)
+The package now uses a flat structure under `src/` without the uikitxv2 subdirectory. 
+All imports in the codebase use direct imports (e.g., `from components import Button`) rather than namespace imports.

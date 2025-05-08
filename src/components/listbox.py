@@ -1,79 +1,49 @@
-from __future__ import annotations
+# uikitxv2/src/components/listbox.py
 
-import uuid
-from typing import Any, Mapping, Sequence, TypedDict, Union, cast
+from dash import dcc
 
-import dash.dcc as dcc
-from dash.development.base_component import Component
-
-from core.base_component import BaseComponent
-from utils.colour_palette import Theme, default_theme
-
-
-class _Option(TypedDict):
-    label: str
-    value: str
-
+# Corrected relative import: Go up one level (..) to src, then down to core
+from ..core.base_component import BaseComponent
+# Corrected relative import: Go up one level (..) to src, then down to utils
+# Import the correct style function for ListBox
+from ..utils.colour_palette import default_theme, get_listbox_default_styles
 
 class ListBox(BaseComponent):
-    """Dark-theme multi-select list box built on `dcc.Checklist`.
-    
-    Args:
-        options: Sequence of option strings or dicts with 'label' and 'value' keys.
-        values: List of initially selected values. Defaults to None.
-        height_px: Height of the listbox in pixels. Defaults to 160.
-        id: Component ID. Auto-generated if None.
-        theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
-        **check_kwargs: Additional keyword arguments passed to the underlying dcc.Checklist.
     """
+    A wrapper for dcc.Dropdown styled as a ListBox (multi-select often implied).
+    """
+    def __init__(self, id, options=None, value=None, theme=None, style=None, multi=True, className=""):
+        super().__init__(id, theme)
+        self.options = options if options is not None else []
+        self.value = value if value is not None else [] # Default to empty list for multi
+        self.style = style if style is not None else {}
+        self.multi = multi
+        self.className = className
+        # Ensure options are in the correct format {'label': ..., 'value': ...}
+        if self.options and isinstance(self.options[0], str):
+             self.options = [{'label': opt, 'value': opt} for opt in self.options]
 
-    def __init__(
-        self,
-        options: Sequence[Union[str, Mapping[str, str]]],
-        *,
-        values: list[str] | None = None,
-        height_px: int = 160,
-        id: str | None = None,
-        theme: Theme = default_theme,
-        **check_kwargs: Any,
-    ) -> None:
-        if not options:
-            raise ValueError("ListBox requires a non-empty options list.")
+    def render(self):
+        # Get default styles using the correct function from colour_palette
+        # This function returns a dict containing potentially 'style', 'inputStyle', 'labelStyle'
+        default_styles_dict = get_listbox_default_styles(self.theme)
 
-        norm: list[_Option] = []
-        for o in options:
-            if isinstance(o, str):
-                norm.append({"label": o, "value": o})
-            else:
-                if "label" not in o or "value" not in o:
-                    raise KeyError("Option dicts need both 'label' and 'value'.")
-                norm.append({"label": o["label"], "value": o["value"]})
-        self._options = norm
+        # Merge instance-specific style with the default 'style' from the dict
+        final_outer_style = {**default_styles_dict.get('style', {}), **self.style}
 
-        self.values = values
-        self.height_px = height_px
-        self.id = id or f"listbox-{uuid.uuid4().hex[:8]}"
-        self.theme = theme
-        self.kwargs = check_kwargs
+        # Use other styles if provided by the function (e.g., inputStyle, labelStyle)
+        # Note: dcc.Dropdown doesn't directly use inputStyle/labelStyle like dcc.Checklist might.
+        # We apply the main 'style' to the dcc.Dropdown container.
+        # If specific styling for options is needed, CSS might be required.
 
-    # ------------------------------------------------------------------ #
-    def render(self) -> Component:
-        style: dict[str, str | int] = {
-            "backgroundColor": self.theme.panel_bg,
-            "color": self.theme.text_light,
-            "borderRadius": "4px",
-            "overflowY": "auto",
-            "height": f"{self.height_px}px",
-            "padding": "4px",
-        }
-
-        checklist = dcc.Checklist(
+        return dcc.Dropdown(
             id=self.id,
-            options=cast(Any, self._options),  
-            value=self.values,
-            style=style,
-            inputStyle={"marginRight": "6px"},
-            labelStyle={"display": "block", "cursor": "pointer"},
-            **self.kwargs,
+            options=self.options,
+            value=self.value,
+            multi=self.multi,
+            clearable=False,
+            searchable=False,
+            style=final_outer_style, # Apply merged style to the outer container
+            className=f"custom-listbox {self.className}"
         )
-        return cast(Component, checklist)
+

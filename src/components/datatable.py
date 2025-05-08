@@ -1,138 +1,68 @@
-from __future__ import annotations
-
-import uuid
-from typing import Any, Dict, List, Optional, cast
-
+# uikitxv2/src/components/datatable.py
 
 from dash import dash_table
-from dash.development.base_component import Component
+import pandas as pd
 
-# Correct imports based on your project structure
-from core.base_component import BaseComponent
-from utils.colour_palette import Theme, default_theme
-
+# Corrected relative import: Go up one level (..) to src, then down to core
+from ..core.base_component import BaseComponent
+# Corrected relative import: Go up one level (..) to src, then down to utils
+from ..utils.colour_palette import default_theme
 
 class DataTable(BaseComponent):
     """
-    Dark-theme wrapper around `dash_table.DataTable`.
-
-    Applies styling based on the provided theme object.
+    A wrapper for dash_table.DataTable with theme integration.
     """
-
-    def __init__(
-        self,
-        *,
-        data: Optional[List[Dict[str, Any]]] = None,
-        columns: Optional[List[Dict[str, Any]]] = None,
-        id: Optional[str] = None,
-        theme: Theme = default_theme, # Accept theme object
-        page_size: int = 15,
-        sort_action: str = "native", # Enable sorting by default
-        filter_action: str = "native", # Enable filtering by default
-        page_action: str = "native", # Enable pagination by default
-        style_as_list_view: bool = True, # Use list view style by default
-        **dt_kwargs: Any, # Capture other DataTable arguments
-    ) -> None:
-        """
-        Initializes the DataTable wrapper.
-
-        Args:
-            data: Data for the table (list of dicts). Defaults to an empty list.
-            columns: Column definitions (list of dicts with 'name' and 'id'). Defaults to an empty list.
-            id: Component ID. Auto-generated if None.
-            theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
-            page_size: Number of rows per page for pagination. Defaults to 15.
-            sort_action: Enables sorting ('native', 'custom', 'none'). Defaults to 'native'.
-            filter_action: Enables filtering ('native', 'custom', 'none'). Defaults to 'native'.
-            page_action: Enables pagination ('native', 'custom', 'none'). Defaults to 'native'.
-            style_as_list_view: Removes vertical grid lines. Defaults to True.
-            **dt_kwargs: Additional keyword arguments passed directly to dash_table.DataTable.
-                         These will override theme defaults if they conflict (e.g., providing custom style_cell).
-        """
+    def __init__(self, id, data=None, columns=None, theme=None, style_table=None, style_cell=None, style_header=None, style_data_conditional=None, page_size=10, className=""):
+        # Note: className is accepted here but NOT passed to dash_table.DataTable below
+        super().__init__(id, theme)
         self.data = data if data is not None else []
         self.columns = columns if columns is not None else []
-        self.id = id or f"datatable-{uuid.uuid4().hex[:8]}"
-        self.theme = theme # Store the theme object
-        # Store other defaults
+        self.style_table = style_table if style_table is not None else {}
+        self.style_cell = style_cell if style_cell is not None else {}
+        self.style_header = style_header if style_header is not None else {}
+        self.style_data_conditional = style_data_conditional if style_data_conditional is not None else []
         self.page_size = page_size
-        self.sort_action = sort_action
-        self.filter_action = filter_action
-        self.page_action = page_action
-        self.style_as_list_view = style_as_list_view
-        # Store user-provided keyword arguments
-        self.kwargs = dt_kwargs
+        self.className = className # Store it, but don't pass it directly to dash_table
 
-    def _get_theme_styling(self) -> Dict[str, Any]:
-        """Generates style dictionary based on the self.theme object."""
-        # Define base styles using the theme
-        styling_args = {
-            "style_table": {
-                "overflowX": "auto",
-                "width": "100%",
-                "minWidth": "100%",
-            },
-            "style_header": {
-                "backgroundColor": self.theme.panel_bg, # Use theme
-                "color": self.theme.primary,          # Use theme
-                "fontWeight": "bold",
-                "border": f"1px solid {self.theme.secondary}", # Use theme
-                "textAlign": "left",
-            },
-            "style_cell": { # Default for all cells
-                "backgroundColor": self.theme.panel_bg, # Use theme
-                "color": self.theme.text_light,       # Use theme
-                "border": f"1px solid {self.theme.secondary}", # Use theme
-                "padding": "8px",
-                "textAlign": "left",
-                "whiteSpace": "normal",
-                "height": "auto",
-                "minWidth": "100px",
-                "width": "auto",
-                "maxWidth": "300px",
-                "overflow": "hidden",
-                "textOverflow": "ellipsis",
-            },
-            "style_data": { # Styles specific to data cells (can override style_cell)
-                 # Inherits most from style_cell, add specifics if needed
-                 # e.g., 'border': f"1px solid {self.theme.accent}"
-            },
-             "style_data_conditional": [ # Example: Striped rows using theme colors
-                {
-                    'if': {'row_index': 'odd'},
-                    'backgroundColor': self.theme.base_bg, # Use theme for alternating rows
-                }
-            ],
-            "style_filter": { # Input fields for filtering
-                 "backgroundColor": self.theme.base_bg, # Use theme
-                 "color": self.theme.text_light,       # Use theme
-                 "border": f"1px solid {self.theme.secondary}", # Use theme
-            },
-             # Include other defaults passed in __init__
-             "page_action": self.page_action,
-             "page_size": self.page_size,
-             "sort_action": self.sort_action,
-             "filter_action": self.filter_action,
-             "style_as_list_view": self.style_as_list_view,
+        # Basic validation or processing if needed
+        if isinstance(self.data, pd.DataFrame):
+            self.data = self.data.to_dict('records')
+        if not self.columns and self.data:
+            sample_record = self.data[0]
+            self.columns = [{"name": i, "id": i} for i in sample_record.keys()]
+
+    def render(self):
+        # Define default styles based on theme
+        default_style_table = {'overflowX': 'auto', 'minWidth': '100%', **self.style_table}
+        default_style_cell = {
+            'padding': '10px', 'textAlign': 'left', 'backgroundColor': self.theme.base_bg,
+            'color': self.theme.text_light, 'border': f'1px solid {self.theme.secondary}',
+            'fontFamily': 'Inter, sans-serif', 'fontSize': '0.9rem',
+            **self.style_cell
         }
-        return styling_args
+        default_style_header = {
+            'backgroundColor': self.theme.panel_bg, 'fontWeight': 'bold',
+            'color': self.theme.text_light, 'border': f'1px solid {self.theme.secondary}',
+            **self.style_header
+        }
+        default_style_data_conditional = [
+            {'if': {'row_index': 'odd'}, 'backgroundColor': self.theme.panel_bg},
+            *self.style_data_conditional
+        ]
 
-    def render(self) -> Component:
-        """Renders the dash_table.DataTable component with theme styles."""
-        theme_styling = self._get_theme_styling()
+        # If you need to use self.className, wrap the DataTable in an html.Div:
+        # return html.Div(className=self.className, children=[ dash_table.DataTable(...) ])
+        # For now, just remove className from the DataTable call:
 
-        # Combine theme styles and user kwargs. User kwargs take precedence.
-        merged_kwargs = {**theme_styling, **self.kwargs}
-
-        # Ensure required args 'columns' and 'data' are present, using instance attributes if not in kwargs
-        if "columns" not in merged_kwargs:
-            merged_kwargs["columns"] = self.columns
-        if "data" not in merged_kwargs:
-            merged_kwargs["data"] = self.data
-
-        # Create the DataTable instance
-        dt = dash_table.DataTable(
+        return dash_table.DataTable(
             id=self.id,
-            **merged_kwargs, # Pass the merged arguments
+            columns=self.columns,
+            data=self.data,
+            page_size=self.page_size,
+            style_table=default_style_table,
+            style_cell=default_style_cell,
+            style_header=default_style_header,
+            style_data_conditional=default_style_data_conditional
+            # className=self.className # REMOVED: This argument is not allowed
         )
-        return cast(Component, dt)
 

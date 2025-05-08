@@ -1,127 +1,93 @@
-# src/components/tabs.py
-
-from __future__ import annotations
-
-import uuid
-from typing import Any, List, Sequence, Tuple, cast
-import logging
-from dash import html # Import html for error handling if needed
+# uikitxv2/src/components/tabs.py
 
 import dash_bootstrap_components as dbc
-from dash.development.base_component import Component
+from dash import html
+from dash.development.base_component import Component as DashBaseComponent
 
-# Assuming these imports are correct based on your structure
-from core.base_component import BaseComponent
-from utils.colour_palette import Theme, default_theme
-
+# Corrected relative import: Go up one level (..) to src, then down to core
+from ..core.base_component import BaseComponent
+# Corrected relative import: Go up one level (..) to src, then down to utils
+from ..utils.colour_palette import default_theme
 
 class Tabs(BaseComponent):
-    """Dark-theme wrapper around `dbc.Tabs` and `dbc.Tab`."""
+    """
+    A wrapper for dbc.Tabs and dbc.Tab with theme integration.
+    Expects 'tabs' prop to be a list of tuples: [('Tab Label 1', content1), ('Tab Label 2', content2)]
+    Content can be a BaseComponent instance or any Dash-compatible component layout.
+    """
+    def __init__(self, id, tabs=None, active_tab=None, theme=None, style=None, className=""):
+        super().__init__(id, theme)
+        self.tabs_data = tabs if tabs is not None else []
+        self.active_tab = active_tab
+        self.style = style if style is not None else {}
+        self.className = className
 
-    def __init__(
-        self,
-        tabs: Sequence[Tuple[str, BaseComponent]],  # (label, wrapped component)
-        *,
-        active_tab_index: int = 0,
-        id: str | None = None,
-        theme: Theme = default_theme,
-        **dbc_kwargs: Any, # Keep kwargs
-    ) -> None:
-        """
-        Initializes the Tabs wrapper.
+    def _create_tabs(self):
+        """Creates dbc.Tab components from the tabs_data."""
+        dbc_tabs = []
+        for i, (label, content) in enumerate(self.tabs_data):
+            tab_id = f"{self.id}-tab-{i}"
 
-        Args:
-            tabs: Sequence of (label, uikitxv2_component) tuples.
-            active_tab_index: Index of the initially active tab. Defaults to 0.
-            id: Component ID. Auto-generated if None.
-            theme: Colour theme object. Defaults to uikitxv2.utils.default_theme.
-            **dbc_kwargs: Additional keyword arguments passed to the underlying dbc.Tabs.
-        """
-        if not tabs:
-            raise ValueError("Tabs wrapper requires at least one tab.")
-        if not (0 <= active_tab_index < len(tabs)):
-            raise IndexError("active_tab_index out of range.")
+            rendered_content = None
+            # Check if content is one of our custom components or needs rendering
+            if isinstance(content, BaseComponent) or \
+               (hasattr(content, 'render') and callable(content.render) and \
+               not isinstance(content, (DashBaseComponent, dict, str))):
+                 rendered_content = content.render()
+            else:
+                 # Assume content is already a Dash component layout (dict, Dash component, string, etc.)
+                 rendered_content = content
 
-        self.tabs = list(tabs)
-        self.active_tab_index = active_tab_index
-        self.id = id or f"tabs-{uuid.uuid4().hex[:8]}"
-        self.theme = theme
-        self.kwargs = dbc_kwargs # Store kwargs
+            # Define styles based on theme - using existing attributes from default_theme
+            tab_style = {
+                "backgroundColor": self.theme.panel_bg,
+                "padding": "0.5rem 1rem",
+                "border": f"1px solid {self.theme.secondary}", # Fixed: Use secondary
+                "borderBottom": "none",
+                "marginRight": "2px",
+                "borderRadius": "4px 4px 0 0",
+            }
+            active_tab_style = {
+                "backgroundColor": self.theme.panel_bg,
+                "padding": "0.5rem 1rem",
+                "border": f"1px solid {self.theme.primary}", # Use primary for active border
+                "borderBottom": f"1px solid {self.theme.panel_bg}", # Make bottom border blend with panel
+                "marginRight": "2px",
+                "borderRadius": "4px 4px 0 0",
+                "position": "relative",
+                "zIndex": "1", # Ensure active tab is visually on top
+            }
+            label_style = {"color": self.theme.text_subtle, "textDecoration": "none"} # Style for inactive label text
+            active_label_style = {"color": self.theme.primary, "fontWeight": "bold", "textDecoration": "none"} # Style for active label text
 
-    # --------------------------------------------------------------------- #
-    # Helpers
-    # --------------------------------------------------------------------- #
-    def _build_tab_children(self) -> List[dbc.Tab]:
-        """Builds the list of dbc.Tab components for the dbc.Tabs."""
-        children: list[dbc.Tab] = []
-        for idx, (label, wrapped_component) in enumerate(self.tabs):
-            tab_id = f"{self.id}-tab-{idx}"
-            # Ensure the wrapped component has a render method
-            try:
-                rendered_content = wrapped_component.render()
-            except AttributeError:
-                logging.error(f"Component for tab '{label}' does not have a .render() method.")
-                rendered_content = html.Div(f"Error: Content for tab '{label}' cannot be rendered.")
-
-            children.append(
+            dbc_tabs.append(
                 dbc.Tab(
-                    rendered_content,          # children (positional)
-                    label=label,               # tab label text
-                    id=tab_id,                 # unique id for the tab itself
-                    tab_id=tab_id,             # id used for switching active tab
-
-                    # Style for the inactive tab *container* (<li>)
-                    tab_style={
-                        "backgroundColor": self.theme.panel_bg,
-                        # "color" removed - use label_style
-                        "padding": "0.5rem 1rem", # Basic padding
-                        "border": f"1px solid {self.theme.secondary}",
-                        "borderBottom": "none",
-                        "marginRight": "2px", # Add small space between tabs
-                    },
-                    # Style for the active tab *container* (<li>)
-                    active_tab_style={
-                        "backgroundColor": self.theme.panel_bg,
-                        # "color" removed - use active_label_style
-                        "fontWeight": "bold",
-                        "padding": "0.5rem 1rem",
-                        "border": f"1px solid {self.theme.primary}",
-                        "borderBottom": "none",
-                        "marginRight": "2px",
-                    },
-                    # --- Style specifically for the inactive tab *label* (<a>) ---
-                    label_style={
-                        "color": self.theme.text_light, # Use light text for inactive label
-                    },
-                    # --- Style specifically for the active tab *label* (<a>) ---
-                    active_label_style={
-                        "color": self.theme.primary, # Use primary theme color for active label
-                    }
+                    children=rendered_content,
+                    label=label,
+                    tab_id=tab_id,
+                    # Apply themed styles using dbc.Tab specific props
+                    tab_style=tab_style,
+                    active_tab_style=active_tab_style,
+                    label_style=label_style,
+                    active_label_style=active_label_style
                 )
             )
-        return children
+        return dbc_tabs
 
-    # --------------------------------------------------------------------- #
-    # Public API
-    # --------------------------------------------------------------------- #
-    def render(self) -> Component:
-        """Renders the underlying dbc.Tabs component."""
-        child_tabs = self._build_tab_children()
-        # Determine the correct active tab identifier (use tab_id)
-        active_tab_identifier = child_tabs[self.active_tab_index].tab_id if child_tabs else None
+    def render(self):
+        # Determine the default active tab if not specified
+        active_tab_id = self.active_tab
+        if active_tab_id is None and self.tabs_data:
+            active_tab_id = f"{self.id}-tab-0" # Default to the first tab
 
-        # Instantiate the dbc.Tabs component
-        tabs_component = dbc.Tabs(
-            child_tabs, # Pass the generated list of dbc.Tab components
-            id=self.id, # Assign the main ID to the Tabs container
-            active_tab=active_tab_identifier, # Set the initially active tab using tab_id
-            className="card-header-tabs", # Use Bootstrap class for potential styling integration
-            **self.kwargs, # Pass any remaining kwargs
-            # Add a border below the tab row for visual separation
-            style={
-                 "borderBottom": f"1px solid {self.theme.primary}",
-                 "marginBottom": "1rem", # Add space below tabs
-            }
+        # Apply theme styles to the main Tabs container if desired
+        # final_style = {'borderBottom': f'2px solid {self.theme.primary}', **self.style}
+
+        return dbc.Tabs(
+            id=self.id,
+            children=self._create_tabs(),
+            active_tab=active_tab_id,
+            style=self.style, # Use self.style directly for the outer container
+            className=f"custom-tabs {self.className}" # Add class for potential CSS targeting
         )
-        # Cast to generic Component type for compatibility
-        return cast(Component, tabs_component)
+
