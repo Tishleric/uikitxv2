@@ -283,22 +283,28 @@ def process_clipboard_data(clipboard_content):
             except Exception as e:
                 logger.warning(f"Error converting %Delta column to float: {str(e)}")
         
-        # Attempt to convert numeric columns
-        numeric_cols = []
-        for col in df.columns:
-            if col != '%Delta':  # Skip %Delta as we already processed it
+        # Ensure all numeric columns are properly converted, even if they have commas
+        numeric_columns = ['Strike', 'Implied Vol (Daily BP)', 'DV01 Gamma', 'Theta', 'Vega']
+        for col in numeric_columns:
+            if col in df.columns:
                 try:
-                    df[col] = pd.to_numeric(df[col])
-                    numeric_cols.append(col)
-                except (ValueError, TypeError):
-                    # Keep as string if conversion fails
-                    pass
+                    # First, check if we need to remove commas
+                    if df[col].dtype == 'object':
+                        # Remove commas and convert to numeric
+                        df[col] = df[col].astype(str).str.replace(',', '').str.strip()
+                        logger.debug(f"Removed commas from {col} column")
+                    
+                    # Convert to numeric (handles remaining formatting issues)
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                    logger.debug(f"Successfully converted {col} to numeric type: {df[col].dtype}")
+                except Exception as e:
+                    logger.warning(f"Error converting {col} to numeric: {str(e)}")
         
-        if '%Delta' in df.columns and df['%Delta'].dtype.kind in 'fc':  # Check if float or complex
-            numeric_cols.append('%Delta')
-            
-        logger.debug(f"Converted {len(numeric_cols)} columns to numeric type: {', '.join(numeric_cols) if numeric_cols else 'none'}")
-                
+        # Log column data types after conversion
+        logger.debug("Column data types after conversion:")
+        for col in df.columns:
+            logger.debug(f"Column '{col}': {df[col].dtype}")
+        
         return df
         
     except Exception as e:
