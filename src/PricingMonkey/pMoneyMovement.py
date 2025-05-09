@@ -19,8 +19,12 @@ PRICING_MONKEY_MOVEMENT_URL = "https://pricingmonkey.com/b/6feae2cb-9a47-4359-94
 
 # Selection Configuration
 NUM_TABS = 9
-NUM_ROWS_TO_SELECT = 69
+NUM_ROWS_TO_SELECT = 210  # Changed from 69 to 210 (3 scenarios × 70 rows)
 NUM_COLUMNS_TO_SELECT = 7
+
+# Treasury Math Constants
+TICKS_PER_POINT = 32  # 32/32nds in a full point
+BASIS_POINTS_INCREMENT = 2  # 1bp = 2/32nds
 
 # Column Headers (as shown in screenshot)
 COLUMN_HEADERS = [
@@ -39,12 +43,94 @@ KEY_PRESS_PAUSE = 0.01
 WAIT_FOR_BROWSER_TO_OPEN = 2.5
 WAIT_AFTER_NAVIGATION = 0.05
 WAIT_FOR_COPY_OPERATION = 0.2
-WAIT_FOR_CELL_RENDERING = 7.0  # New longer wait for cells to render
+WAIT_FOR_CELL_RENDERING = 10.0  # Increased from 7.0 to 10.0 seconds for cells to render
 WAIT_FOR_BROWSER_CLOSE = 0.5
+WAIT_FOR_UNDERLYING_CELL = 7.0  # Increased from 4.0 to 7.0 seconds
 
 class PMMovementError(Exception):
     """Custom exception for Pricing Monkey Movement operations."""
     pass
+
+def parse_treasury_price(price_str):
+    """
+    Parse a Treasury price string in the format "105-20.00" into its components.
+    
+    Args:
+        price_str (str): Treasury price string (e.g., "105-20.00")
+        
+    Returns:
+        tuple: (whole_number, ticks, decimal)
+    """
+    try:
+        # Handle potential whitespace
+        price_str = price_str.strip()
+        
+        # Split main components
+        whole_part, fractional_part = price_str.split('-')
+        whole_number = int(whole_part)
+        
+        # Handle the decimal part if present
+        if '.' in fractional_part:
+            ticks_part, decimal_part = fractional_part.split('.')
+            ticks = int(ticks_part)
+            decimal = int(decimal_part) if decimal_part else 0
+        else:
+            ticks = int(fractional_part)
+            decimal = 0
+            
+        return (whole_number, ticks, decimal)
+    except Exception as e:
+        logger.error(f"Error parsing Treasury price '{price_str}': {str(e)}")
+        # Return a default placeholder value
+        return (100, 0, 0)
+
+def format_treasury_price(whole, ticks, decimal=0):
+    """
+    Format components into a Treasury price string.
+    
+    Args:
+        whole (int): Whole number part
+        ticks (int): Tick/32nds part
+        decimal (int): Decimal part
+        
+    Returns:
+        str: Formatted price string (e.g., "105-20.00")
+    """
+    if decimal > 0:
+        return f"{whole}-{ticks:02d}.{decimal:02d}"
+    else:
+        return f"{whole}-{ticks:02d}"
+
+def adjust_treasury_price(price_str, basis_points):
+    """
+    Adjust a Treasury price by a specified number of basis points.
+    
+    Args:
+        price_str (str): Treasury price string (e.g., "105-20.00")
+        basis_points (int): Number of basis points to adjust (+/-)
+        
+    Returns:
+        str: Adjusted price string
+    """
+    whole, ticks, decimal = parse_treasury_price(price_str)
+    
+    # Calculate tick adjustment (1bp = 2 ticks)
+    tick_adjustment = basis_points * BASIS_POINTS_INCREMENT
+    
+    # Apply adjustment
+    new_ticks = ticks + tick_adjustment
+    
+    # Handle rollovers
+    while new_ticks >= TICKS_PER_POINT:
+        new_ticks -= TICKS_PER_POINT
+        whole += 1
+        
+    # Handle underflows
+    while new_ticks < 0:
+        new_ticks += TICKS_PER_POINT
+        whole -= 1
+    
+    return format_treasury_price(whole, int(new_ticks), decimal)
 
 def split_dataframe_by_expiry(df):
     """
@@ -93,44 +179,132 @@ def split_dataframe_by_expiry(df):
     
     return result
 
+def split_dataframe_by_expiry_and_underlying(df):
+    """
+    Splits the market movement DataFrame into separate DataFrames by both expiry and underlying value.
+    
+    Args:
+        df (pd.DataFrame): The complete market movement DataFrame
+        
+    Returns:
+        dict: Nested dictionary with structure {underlying: {expiry: dataframe}}
+    """
+    if df.empty or 'Trade Description' not in df.columns or 'Underlying' not in df.columns:
+        logger.warning("Cannot split DataFrame: empty or missing required columns")
+        return {'base': {'1st': df}}  # Return original DataFrame as fallback
+    
+    # Extract expiry from Trade Description column
+    def extract_expiry(desc):
+        if not isinstance(desc, str):
+            return None
+        words = desc.split()
+        if len(words) > 0:
+            # First word should be the expiry (1st, 2nd, etc.)
+            return words[0]
+        return None
+    
+    # Add expiry column
+    df['expiry'] = df['Trade Description'].apply(extract_expiry)
+    
+    # Get unique expiries
+    expiries = sorted(df['expiry'].dropna().unique())
+    logger.info(f"Found {len(expiries)} unique expiries: {', '.join(expiries)}")
+    
+    # Get unique underlying values
+    unique_underlyings = df['Underlying'].unique()
+    logger.info(f"Found {len(unique_underlyings)} unique underlying values")
+    
+    # Access stored underlying values for naming
+    base_underlying = getattr(df, 'current_underlying', 'base')
+    plus_1bp_underlying = getattr(df, 'plus_1bp', '+1bp')
+    minus_1bp_underlying = getattr(df, 'minus_1bp', '-1bp')
+    
+    # Create mapping of actual values to friendly names
+    underlying_names = {}
+    for val in unique_underlyings:
+        if val == base_underlying:
+            underlying_names[val] = 'base'
+        elif val == plus_1bp_underlying:
+            underlying_names[val] = '+1bp'
+        elif val == minus_1bp_underlying:
+            underlying_names[val] = '-1bp'
+        else:
+            underlying_names[val] = f'unknown-{val}'
+    
+    # Create nested dictionary structure
+    result = {}
+    for underlying_val, friendly_name in underlying_names.items():
+        underlying_df = df[df['Underlying'] == underlying_val].copy()
+        
+        # Initialize inner dictionary for this underlying
+        result[friendly_name] = {}
+        
+        # Split by expiry for this underlying
+        for expiry in expiries:
+            expiry_df = underlying_df[underlying_df['expiry'] == expiry].copy()
+            expiry_df = expiry_df.drop(columns=['expiry'])  # Remove temporary column
+            
+            # Sort by Strike value to ensure correct line plotting
+            if 'Strike' in expiry_df.columns:
+                expiry_df = expiry_df.sort_values(by='Strike')
+                logger.debug(f"Sorted DataFrame for {friendly_name} / {expiry} by Strike values")
+            
+            result[friendly_name][expiry] = expiry_df
+            logger.debug(f"Created DataFrame for {friendly_name} / {expiry} with {len(expiry_df)} rows")
+    
+    # Log summary of created dataframes
+    total_dfs = sum(len(inner_dict) for inner_dict in result.values())
+    logger.info(f"Split data into {len(result)} underlying values × {len(expiries)} expiries = {total_dfs} total DataFrames")
+    
+    return result
+
 def get_market_movement_data_df():
     """
-    Convenience function that returns the market movement data as a dictionary of DataFrames by expiry,
-    without saving to CSV. Useful for direct integration with the dashboard.
+    Convenience function that returns the market movement data as a nested dictionary of DataFrames 
+    by both underlying and expiry, without saving to CSV. Useful for direct integration with the dashboard.
     
     Returns:
-        dict: Dictionary with expiry names (1st, 2nd, etc.) as keys and DataFrames as values
+        dict: Nested dictionary with structure {underlying: {expiry: dataframe}}
         
     Raises:
         PMMovementError: If data retrieval fails
     """
     try:
         df = get_market_movement_data(save_to_csv=False)
-        expiry_dfs = split_dataframe_by_expiry(df)
+        result = split_dataframe_by_expiry_and_underlying(df)
         
         # Print DataFrames for debugging when called from dashboard
         print("\n=== MARKET MOVEMENT DATA (called from dashboard) ===")
-        for expiry, expiry_df in sorted(expiry_dfs.items()):
-            print(f"\n=== {expiry} EXPIRY ({'empty' if expiry_df.empty else f'{len(expiry_df)} rows'}) ===")
-            if not expiry_df.empty:
-                print(expiry_df.head(3).to_string())
-                print("...")
-                if len(expiry_df) > 3:
-                    print(expiry_df.tail(2).to_string())
-                print(f"[{len(expiry_df)} rows total]")
         
-        return expiry_dfs
+        # Count total rows
+        total_rows = 0
+        for underlying, expiry_dict in result.items():
+            for expiry, df in expiry_dict.items():
+                total_rows += len(df)
+        
+        print(f"Retrieved {total_rows} total rows across {len(result)} underlying values")
+        
+        # Print sample of data
+        for underlying, expiry_dict in result.items():
+            print(f"\n=== {underlying.upper()} UNDERLYING ===")
+            for expiry, df in sorted(expiry_dict.items()):
+                print(f"  -- {expiry} EXPIRY ({'empty' if df.empty else f'{len(df)} rows'})")
+                if not df.empty:
+                    print(df.head(2).to_string())
+                    print("  ...")
+        
+        return result
     except PMMovementError as e:
         logger.error(f"Failed to get market movement data: {str(e)}")
         # Return an empty dictionary with the same structure
-        return {'1st': pd.DataFrame(columns=COLUMN_HEADERS)}
+        return {'base': {'1st': pd.DataFrame(columns=COLUMN_HEADERS)}}
 
 def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMNS_TO_SELECT, save_to_csv=True):
     """
     Main function to retrieve market movement data from Pricing Monkey.
     
     Args:
-        num_rows: Number of rows to select (default: 70)
+        num_rows: Number of rows to select (default: 210)
         num_columns: Number of columns to select (default: 7)
         save_to_csv: Whether to save the data to a CSV file (default: True)
     
@@ -160,11 +334,82 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
         send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
         logger.debug("DOWN arrow press complete")
         
-        # Step 4: Select data with SHIFT+DOWN multiple times
-        logger.debug(f"Selecting data: SHIFT + DOWN × {num_rows}")
-        logger.debug(f"Sending key sequence: '+{{DOWN {num_rows}}}'")
-        send_keys('+{DOWN ' + str(num_rows) + '}', pause=KEY_PRESS_PAUSE)
-        logger.debug("SHIFT + DOWN selection complete")
+        # New Step: Move to Underlying cell and read current value
+        logger.debug("Moving to underlying cell")
+        send_keys('{RIGHT}', pause=KEY_PRESS_PAUSE)
+        logger.debug(f"Waiting {WAIT_FOR_UNDERLYING_CELL} seconds for underlying cell to be ready")
+        time.sleep(WAIT_FOR_UNDERLYING_CELL)  # Increased wait time before copying underlying value
+        
+        # Copy the underlying value
+        logger.debug("Copying current underlying value")
+        send_keys('^c', pause=WAIT_FOR_COPY_OPERATION)
+        time.sleep(WAIT_FOR_COPY_OPERATION)
+        
+        # Get the current underlying value
+        current_underlying = pyperclip.paste().strip()
+        logger.info(f"Current underlying value: {current_underlying}")
+        
+        # Move back to the first cell
+        logger.debug("Moving back to first cell")
+        send_keys('{LEFT}', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_AFTER_NAVIGATION)
+        
+        # Calculate +1bp and -1bp values
+        plus_1bp = adjust_treasury_price(current_underlying, 1)
+        minus_1bp = adjust_treasury_price(current_underlying, -1)
+        logger.info(f"Underlying scenarios: Base={current_underlying}, +1bp={plus_1bp}, -1bp={minus_1bp}")
+        
+        # Prepare data for pasting: 70 rows of the +1bp value
+        logger.debug("Preparing +1bp data for pasting")
+        plus_1bp_data = [plus_1bp] * 70  # 70 rows of the +1bp value
+        plus_1bp_clipboard = '\n'.join(plus_1bp_data)
+        
+        # Paste the +1bp data
+        logger.debug("Moving to underlying column")
+        send_keys('{RIGHT}', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_AFTER_NAVIGATION)
+        
+        # Navigate down 70 rows before the first paste
+        logger.debug("Moving down 70 rows before first paste")
+        for i in range(70):
+            send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
+        
+        # Paste the +1bp data
+        logger.debug("Pasting +1bp data")
+        pyperclip.copy(plus_1bp_clipboard)
+        time.sleep(WAIT_FOR_COPY_OPERATION)
+        send_keys('^v', pause=WAIT_FOR_COPY_OPERATION)
+        time.sleep(WAIT_FOR_COPY_OPERATION)
+        
+        # Navigate down 70 rows to prepare for second paste
+        logger.debug("Moving down 70 rows for second paste")
+        for i in range(70):
+            send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
+        
+        # Prepare data for pasting: 70 rows of the -1bp value
+        logger.debug("Preparing -1bp data for pasting")
+        minus_1bp_data = [minus_1bp] * 70  # 70 rows of the -1bp value
+        minus_1bp_clipboard = '\n'.join(minus_1bp_data)
+        
+        # Paste the -1bp data
+        logger.debug("Pasting -1bp data")
+        pyperclip.copy(minus_1bp_clipboard)
+        time.sleep(WAIT_FOR_COPY_OPERATION)
+        send_keys('^v', pause=WAIT_FOR_COPY_OPERATION)
+        time.sleep(WAIT_FOR_COPY_OPERATION)
+        
+        # Navigate to the bottom: 69 more rows down and 1 left
+        logger.debug("Navigating to bottom position for selection")
+        for i in range(69):
+            send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
+        send_keys('{LEFT}', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_AFTER_NAVIGATION)
+        
+        # Select all 210 rows from bottom (3 scenarios × 70 rows each)
+        logger.debug(f"Selecting all data: SHIFT + UP × {num_rows}")
+        logger.debug(f"Sending key sequence: '+{{UP {num_rows}}}'")
+        send_keys('+{UP ' + str(num_rows) + '}', pause=KEY_PRESS_PAUSE)
+        logger.debug("SHIFT + UP selection complete")
         
         # Step 5: Extend selection with SHIFT+RIGHT
         logger.debug(f"Extending selection: SHIFT + RIGHT × {num_columns}")
@@ -210,15 +455,11 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
             csv_path = 'market_movement_data.csv'
             df.to_csv(csv_path, index=False)
             logger.info(f"Data saved to {csv_path} for reference")
-            
-        # Display a preview of the data
-        logger.info("\nFirst 5 rows of market movement data:")
-        logger.info(df.head())
         
-        # Show column data types
-        logger.info("\nColumn data types:")
-        for col in df.columns:
-            logger.info(f"Column '{col}': {df[col].dtype}")
+        # Store the current, +1bp and -1bp values for later grouping
+        df.current_underlying = current_underlying
+        df.plus_1bp = plus_1bp
+        df.minus_1bp = minus_1bp
         
         return df
         
@@ -435,21 +676,22 @@ if __name__ == "__main__":
             for col in movement_data.columns:
                 logger.info(f"Column '{col}': {movement_data[col].dtype}")
             
-            # Split by expiry and print each dataframe
-            logger.info("\nSplitting data by expiry...")
-            expiry_dfs = split_dataframe_by_expiry(movement_data)
-            logger.info(f"Split into {len(expiry_dfs)} expiry dataframes")
+            # Split by both expiry and underlying and print each dataframe
+            logger.info("\nSplitting data by expiry and underlying...")
+            result = split_dataframe_by_expiry_and_underlying(movement_data)
             
-            # Print first few rows of each expiry dataframe
-            for expiry, df in expiry_dfs.items():
-                logger.info(f"\n{expiry} expiry data ({len(df)} rows):")
-                print(f"=== {expiry} EXPIRY ({'empty' if df.empty else f'{len(df)} rows'}) ===")
-                if not df.empty:
-                    print(df.head(3).to_string())
-                    print("...")
-                    if len(df) > 3:
-                        print(df.tail(2).to_string())
-                    print(f"[{len(df)} rows total]")
+            # Count total DataFrames
+            total_dfs = sum(len(inner_dict) for inner_dict in result.values())
+            logger.info(f"Split into {len(result)} underlying values with {total_dfs} total DataFrames")
+            
+            # Print sample of data
+            for underlying, expiry_dict in result.items():
+                logger.info(f"\n=== {underlying.upper()} UNDERLYING ===")
+                for expiry, df in sorted(expiry_dict.items()):
+                    logger.info(f"  -- {expiry} EXPIRY ({'empty' if df.empty else f'{len(df)} rows'})")
+                    if not df.empty and len(df) > 0:
+                        print(df.head(1).to_string())
+                        print("  ...")
                 
         else:
             logger.warning("Retrieved empty DataFrame")
