@@ -12,6 +12,7 @@ import pandas as pd
 import traceback
 import plotly.graph_objects as go 
 import json
+from io import StringIO
 
 # --- Adjust Python path ---
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -709,7 +710,7 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
         try:
             # Convert stored JSON data back to dictionary of DataFrames
             data_json_dict = json.loads(stored_data)
-            data_dict = {expiry: pd.read_json(df_json, orient='split') 
+            data_dict = {expiry: pd.read_json(StringIO(df_json), orient='split') 
                         for expiry, df_json in data_json_dict.items()}
             
             fig = create_analysis_graph(data_dict, selected_y_axis)
