@@ -1,7 +1,7 @@
 # uikitxv2/dashboard/dashboard.py
 
 import dash
-from dash import html, dcc, Input, Output, State, MATCH, ALL # type: ignore # Added MATCH, ALL
+from dash import html, dcc, Input, Output, State, MATCH, ALL, callback_context # type: ignore # Added callback_context
 from dash.exceptions import PreventUpdate # type: ignore
 import dash_bootstrap_components as dbc # type: ignore
 import os
@@ -29,7 +29,8 @@ try:
     from src.components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph 
     print("Successfully imported uikitxv2 logging, theme, and UI components from 'src'.")
     from src.PricingMonkey.pMoneyAuto import run_pm_automation 
-    print("Successfully imported run_pm_automation from 'src.PricingMonkey.pMoneyAuto'.")
+    from src.PricingMonkey.pMoneyMovement import get_market_movement_data_df
+    print("Successfully imported PM modules from 'src.PricingMonkey'.")
 except ImportError as e:
     print(f"Error importing from 'src' package: {e}")
     print(f"Current sys.path: {sys.path}")
@@ -142,7 +143,6 @@ def create_option_input_block(option_index: int) -> Container:
 # --- End UI Helpers ---
 
 # --- UI Layout Definition ---
-# This section remains the same as in your provided file
 logger.info("Defining UI layout...")
 num_options_question_text = html.P("How many options are you looking to have (1-3)?", style=text_style)
 num_options_selector_rendered = ComboBox(
@@ -169,7 +169,6 @@ results_grid_rendered = Grid(
     style={'marginTop': '30px', 'width': '100%', 'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px'}
 ).render()
 
-
 pricing_monkey_tab_main_container_rendered = Container(
     id="pm-tab-main-container",
     children=[
@@ -181,9 +180,88 @@ pricing_monkey_tab_main_container_rendered = Container(
     ]
 ).render()
 
+# Create the Analysis tab content
+analysis_tab_content = Container(
+    id="analysis-tab-container",
+    children=[
+        # Store component to hold market movement data
+        dcc.Store(id="market-movement-data-store"),
+        
+        html.H4("Analysis Configuration", style={"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}),
+        html.Div([
+            html.Div([
+                html.P("Y-axis:", style=text_style),
+                ComboBox(
+                    id="analysis-y-axis-selector",
+                    options=[
+                        {"label": "Implied Vol", "value": "Implied Vol (Daily BP)"},
+                        {"label": "Delta (%)", "value": "%Delta"},
+                        {"label": "Vega", "value": "Vega"},
+                        {"label": "Gamma", "value": "DV01 Gamma"},
+                        {"label": "Theta", "value": "Theta"},
+                    ],
+                    value="Implied Vol (Daily BP)",
+                    theme=default_theme,
+                    style={'width': '100%'}
+                ).render()
+            ], style={'flex': '1', 'marginRight': '15px'}),
+            
+            html.Div([
+                html.P("Market Movement +/-:", style=text_style),
+                dcc.Input(
+                    id="analysis-market-movement-input",
+                    type="number",
+                    placeholder="e.g. 10 for +10bps",
+                    style=input_style_dcc
+                )
+            ], style={'flex': '1', 'marginRight': '15px'}),
+            
+            html.Div([
+                html.P("\u00A0", style=text_style), # Non-breaking space to align button with inputs
+                Button(
+                    label="Refresh Data",
+                    id="analysis-refresh-button",
+                    theme=default_theme,
+                    n_clicks=0
+                ).render()
+            ], style={'flex': '0 0 auto', 'alignSelf': 'flex-end', 'marginBottom': '5px'})
+        ], style={'display': 'flex', 'marginBottom': '20px', 'alignItems': 'flex-end'}),
+        
+        # Empty graph area with consistent styling
+        Grid(
+            id="analysis-graph-container",
+            children=[
+                Graph(
+                    id="analysis-graph",
+                    figure={
+                        'data': [],
+                        'layout': go.Layout(
+                            xaxis_title="Strike",
+                            yaxis_title="Selected Metric",
+                            plot_bgcolor=default_theme.base_bg,
+                            paper_bgcolor=default_theme.panel_bg,
+                            font_color=default_theme.text_light,
+                            xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                            yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                            margin=dict(l=60, r=20, t=40, b=50)
+                        )
+                    },
+                    theme=default_theme,
+                    style={'height': '400px', 'width': '100%'}
+                ).render()
+            ],
+            style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px'}
+        ).render()
+    ],
+    style={'padding': '15px'}
+).render()
+
 main_tabs_rendered = Tabs(
     id="main-dashboard-tabs",
-    tabs=[("Pricing Monkey Setup", pricing_monkey_tab_main_container_rendered)], 
+    tabs=[
+        ("Pricing Monkey Setup", pricing_monkey_tab_main_container_rendered),
+        ("Analysis", analysis_tab_content)
+    ], 
     theme=default_theme
 ).render()
 
@@ -430,7 +508,8 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
         graph_figure_initial.update_layout(
             xaxis_title=STRIKE_COLUMN_NAME, 
             yaxis_title=initial_y_axis_title, 
-            paper_bgcolor=default_theme.panel_bg, plot_bgcolor=default_theme.base_bg,
+            paper_bgcolor=default_theme.panel_bg, 
+            plot_bgcolor=default_theme.base_bg,
             font_color=default_theme.text_light,
             xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
             yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
@@ -490,7 +569,7 @@ def update_graph_from_combobox(selected_y_column_value: str, stored_option_data:
 
         if selected_y_column_value == "% Delta":
             # Expects strings like "0.7%", convert to numeric 0.7 for plotting
-            # The label in Y_AXIS_CHOICES ("Delta (%)") already indicates the unit.
+            # The label in Y_AXIS_CHOICES ("Delta (%)" already indicates the unit.
             y_axis_data_processed_for_graph = pd.to_numeric(y_axis_data_series_raw.astype(str).str.rstrip('%'), errors='coerce')
             # y_axis_title_on_graph is already "Delta (%)" from selected_y_column_label
         elif selected_y_column_value in GRAPH_SCALABLE_GREEKS:
@@ -535,6 +614,154 @@ def update_graph_from_combobox(selected_y_column_value: str, stored_option_data:
         yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
         height=350
     )
+    return fig
+
+# --- Analysis Tab Callbacks ---
+@app.callback(
+    Output("market-movement-data-store", "data"),
+    Output("analysis-graph", "figure"),
+    Input("analysis-refresh-button", "n_clicks"),
+    Input("analysis-y-axis-selector", "value"),
+    State("market-movement-data-store", "data"),
+    prevent_initial_call=True
+)
+def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
+    """Unified callback to handle all Analysis tab interactions"""
+    # Determine which input triggered the callback
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+    
+    # Default values
+    data_json = stored_data
+    fig = go.Figure()
+    
+    # Handle refresh button click
+    if trigger_id == "analysis-refresh-button" and refresh_clicks:
+        logger.info("Refresh Data button clicked. Fetching market movement data...")
+        try:
+            # Get market movement data
+            df = get_market_movement_data_df()
+            
+            if df.empty:
+                logger.warning("Retrieved empty DataFrame from market movement data")
+                # Create empty figure with message
+                fig.update_layout(
+                    title="No market data available",
+                    xaxis_title="Strike",
+                    yaxis_title="Selected Metric",
+                    annotations=[dict(text="No data available. Please try again.", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)],
+                    paper_bgcolor=default_theme.panel_bg,
+                    plot_bgcolor=default_theme.base_bg,
+                    font_color=default_theme.text_light,
+                    xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                    yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
+                )
+                return None, fig
+            
+            logger.info(f"Successfully retrieved market data with shape: {df.shape}")
+            # Use current y-axis selection or default
+            y_axis = selected_y_axis or "Implied Vol (Daily BP)"
+            fig = create_analysis_graph(df, y_axis)
+            data_json = df.to_json(date_format='iso', orient='split')
+            
+        except Exception as e:
+            logger.error(f"Error fetching market movement data: {str(e)}", exc_info=True)
+            # Create error figure
+            fig.update_layout(
+                title="Error fetching data",
+                xaxis_title="Strike",
+                yaxis_title="Selected Metric",
+                annotations=[dict(text=f"Error: {str(e)[:100]}...", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)],
+                paper_bgcolor=default_theme.panel_bg,
+                plot_bgcolor=default_theme.base_bg,
+                font_color=default_theme.text_light,
+                xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
+            )
+            return None, fig
+    
+    # Handle y-axis selection change
+    elif trigger_id == "analysis-y-axis-selector" and selected_y_axis and stored_data:
+        try:
+            df = pd.read_json(stored_data, orient='split')
+            fig = create_analysis_graph(df, selected_y_axis)
+        except Exception as e:
+            logger.error(f"Error updating analysis graph: {str(e)}", exc_info=True)
+            fig.update_layout(
+                title="Error updating graph",
+                xaxis_title="Strike",
+                yaxis_title=selected_y_axis,
+                annotations=[dict(text=f"Error: {str(e)[:100]}...", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)],
+                paper_bgcolor=default_theme.panel_bg,
+                plot_bgcolor=default_theme.base_bg,
+                font_color=default_theme.text_light,
+                xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
+            )
+    
+    return data_json, fig
+
+def create_analysis_graph(df, y_axis_column):
+    """Helper function to create the analysis graph figure"""
+    fig = go.Figure()
+    
+    # Check if both Strike and the selected Y-axis column exist
+    if "Strike" in df.columns and y_axis_column in df.columns:
+        # Get appropriate label for the y-axis based on predefined options
+        y_axis_options = [
+            {"label": "Implied Vol", "value": "Implied Vol (Daily BP)"},
+            {"label": "Delta (%)", "value": "%Delta"},
+            {"label": "Vega", "value": "Vega"},
+            {"label": "Gamma", "value": "DV01 Gamma"},
+            {"label": "Theta", "value": "Theta"},
+        ]
+        y_axis_label = next((item["label"] for item in y_axis_options if item["value"] == y_axis_column), y_axis_column)
+        
+        # Get the data for plotting
+        x_data = df["Strike"]
+        y_data = df[y_axis_column]
+        
+        # Add the scatter trace to the figure
+        fig.add_trace(go.Scatter(
+            x=x_data,
+            y=y_data,
+            mode='lines+markers',
+            marker=dict(color=default_theme.primary, size=8, line=dict(color=default_theme.accent, width=1)),
+            line=dict(color=default_theme.accent, width=2)
+        ))
+        
+        # Update layout
+        fig.update_layout(
+            title=f"{y_axis_label} vs Strike",
+            xaxis_title="Strike",
+            yaxis_title=y_axis_label,
+            paper_bgcolor=default_theme.panel_bg,
+            plot_bgcolor=default_theme.base_bg,
+            font_color=default_theme.text_light,
+            xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+            yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+            height=400
+        )
+    else:
+        # Create an empty figure with a message if columns are missing
+        missing_cols = []
+        if "Strike" not in df.columns:
+            missing_cols.append("Strike")
+        if y_axis_column not in df.columns:
+            missing_cols.append(y_axis_column)
+            
+        fig.update_layout(
+            title=f"Data columns missing: {', '.join(missing_cols)}",
+            xaxis_title="Strike",
+            yaxis_title=y_axis_column,
+            paper_bgcolor=default_theme.panel_bg,
+            plot_bgcolor=default_theme.base_bg,
+            font_color=default_theme.text_light,
+            xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+            yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+            height=400
+        )
+    
     return fig
 
 # --- End Callbacks ---
