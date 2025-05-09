@@ -11,6 +11,7 @@ import atexit
 import pandas as pd
 import traceback
 import plotly.graph_objects as go 
+import json
 
 # --- Adjust Python path ---
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -78,6 +79,19 @@ desc_prefix_options = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"]
 desc_strike_options = ["0", "25", "50", "75", "100"] 
 desc_type_options = ["call", "put"]
 phase_options = ["1", "2", "3", "4", "5"]
+
+# Color scheme for different expiries
+EXPIRY_COLORS = {
+    "1st": "#00CC96",  # Teal/green
+    "2nd": "#636EFA",  # Blue
+    "3rd": "#EF553B",  # Red
+    "4th": "#AB63FA",  # Purple
+    "5th": "#FFA15A",  # Orange
+    "6th": "#19D3F3",  # Light blue
+    "7th": "#FF6692",  # Pink
+    # Fallbacks for any other categories
+    "other": "#FECB52"  # Yellow
+}
 
 # RESULT_TABLE_COLUMNS is taken directly from your provided file and is NOT changed.
 RESULT_TABLE_COLUMNS = [
@@ -639,11 +653,11 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
     if trigger_id == "analysis-refresh-button" and refresh_clicks:
         logger.info("Refresh Data button clicked. Fetching market movement data...")
         try:
-            # Get market movement data
-            df = get_market_movement_data_df()
+            # Get market movement data (dictionary of DataFrames by expiry)
+            data_dict = get_market_movement_data_df()
             
-            if df.empty:
-                logger.warning("Retrieved empty DataFrame from market movement data")
+            if not data_dict:
+                logger.warning("Retrieved empty data dictionary from market movement data")
                 # Create empty figure with message
                 fig.update_layout(
                     title="No market data available",
@@ -658,11 +672,21 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
                 )
                 return None, fig
             
-            logger.info(f"Successfully retrieved market data with shape: {df.shape}")
+            # Count total rows across all DataFrames
+            total_rows = sum(len(df) for df in data_dict.values())
+            logger.info(f"Successfully retrieved market data: {len(data_dict)} expiries, {total_rows} total rows")
+            
             # Use current y-axis selection or default
             y_axis = selected_y_axis or "Implied Vol (Daily BP)"
-            fig = create_analysis_graph(df, y_axis)
-            data_json = df.to_json(date_format='iso', orient='split')
+            fig = create_analysis_graph(data_dict, y_axis)
+            
+            # Store data dictionary as JSON in the dcc.Store
+            # Convert each DataFrame to JSON and store in a dictionary
+            data_json_dict = {expiry: df.to_json(date_format='iso', orient='split') 
+                             for expiry, df in data_dict.items()}
+            
+            # Store the dictionary structure as JSON
+            data_json = json.dumps(data_json_dict)
             
         except Exception as e:
             logger.error(f"Error fetching market movement data: {str(e)}", exc_info=True)
@@ -683,8 +707,12 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
     # Handle y-axis selection change
     elif trigger_id == "analysis-y-axis-selector" and selected_y_axis and stored_data:
         try:
-            df = pd.read_json(stored_data, orient='split')
-            fig = create_analysis_graph(df, selected_y_axis)
+            # Convert stored JSON data back to dictionary of DataFrames
+            data_json_dict = json.loads(stored_data)
+            data_dict = {expiry: pd.read_json(df_json, orient='split') 
+                        for expiry, df_json in data_json_dict.items()}
+            
+            fig = create_analysis_graph(data_dict, selected_y_axis)
         except Exception as e:
             logger.error(f"Error updating analysis graph: {str(e)}", exc_info=True)
             fig.update_layout(
@@ -701,40 +729,86 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
     
     return data_json, fig
 
-def create_analysis_graph(df, y_axis_column):
-    """Helper function to create the analysis graph figure"""
+def create_analysis_graph(data_dict, y_axis_column):
+    """
+    Helper function to create the analysis graph figure with multiple series from different expiries
+    
+    Args:
+        data_dict (dict): Dictionary with expiry names as keys and DataFrames as values
+        y_axis_column (str): Column name to use for the Y-axis
+        
+    Returns:
+        go.Figure: Plotly figure object with all series
+    """
     fig = go.Figure()
     
-    # Check if both Strike and the selected Y-axis column exist
-    if "Strike" in df.columns and y_axis_column in df.columns:
-        # Get appropriate label for the y-axis based on predefined options
-        y_axis_options = [
-            {"label": "Implied Vol", "value": "Implied Vol (Daily BP)"},
-            {"label": "Delta (%)", "value": "%Delta"},
-            {"label": "Vega", "value": "Vega"},
-            {"label": "Gamma", "value": "DV01 Gamma"},
-            {"label": "Theta", "value": "Theta"},
-        ]
-        y_axis_label = next((item["label"] for item in y_axis_options if item["value"] == y_axis_column), y_axis_column)
+    # Get appropriate label for the y-axis based on predefined options
+    y_axis_options = [
+        {"label": "Implied Vol", "value": "Implied Vol (Daily BP)"},
+        {"label": "Delta (%)", "value": "%Delta"},
+        {"label": "Vega", "value": "Vega"},
+        {"label": "Gamma", "value": "DV01 Gamma"},
+        {"label": "Theta", "value": "Theta"},
+    ]
+    y_axis_label = next((item["label"] for item in y_axis_options if item["value"] == y_axis_column), y_axis_column)
+    
+    # Check if we have any valid data
+    if not data_dict:
+        fig.update_layout(
+            title="No data available",
+            xaxis_title="Strike",
+            yaxis_title=y_axis_label,
+            annotations=[dict(text="No data available", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)],
+            paper_bgcolor=default_theme.panel_bg,
+            plot_bgcolor=default_theme.base_bg,
+            font_color=default_theme.text_light,
+            xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+            yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+            height=400
+        )
+        return fig
+    
+    # Track if any data was actually plotted
+    data_plotted = False
+    
+    # Plot each expiry series
+    for expiry, df in sorted(data_dict.items()):
+        # Skip if DataFrame is empty or missing required columns
+        if df.empty or "Strike" not in df.columns or y_axis_column not in df.columns:
+            logger.debug(f"Skipping expiry {expiry}: Missing data or required columns")
+            continue
+        
+        # Get color for this expiry (fallback to 'other' if not in color map)
+        color = EXPIRY_COLORS.get(expiry, EXPIRY_COLORS["other"])
         
         # Get the data for plotting
         x_data = df["Strike"]
         y_data = df[y_axis_column]
+        
+        # Skip series with all NaN values
+        if y_data.isna().all():
+            logger.debug(f"Skipping expiry {expiry}: All NaN values for {y_axis_column}")
+            continue
         
         # Add the scatter trace to the figure
         fig.add_trace(go.Scatter(
             x=x_data,
             y=y_data,
             mode='lines+markers',
-            marker=dict(color=default_theme.primary, size=8, line=dict(color=default_theme.accent, width=1)),
-            line=dict(color=default_theme.accent, width=2)
+            name=expiry,  # Use expiry as the series name in legend
+            marker=dict(color=color, size=8),
+            line=dict(color=color, width=2)
         ))
         
-        # Update layout
+        data_plotted = True
+    
+    # If no data was plotted, show a message
+    if not data_plotted:
         fig.update_layout(
-            title=f"{y_axis_label} vs Strike",
+            title="No plottable data for selected metric",
             xaxis_title="Strike",
             yaxis_title=y_axis_label,
+            annotations=[dict(text=f"No data available for {y_axis_label}", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)],
             paper_bgcolor=default_theme.panel_bg,
             plot_bgcolor=default_theme.base_bg,
             font_color=default_theme.text_light,
@@ -742,25 +816,29 @@ def create_analysis_graph(df, y_axis_column):
             yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
             height=400
         )
-    else:
-        # Create an empty figure with a message if columns are missing
-        missing_cols = []
-        if "Strike" not in df.columns:
-            missing_cols.append("Strike")
-        if y_axis_column not in df.columns:
-            missing_cols.append(y_axis_column)
-            
-        fig.update_layout(
-            title=f"Data columns missing: {', '.join(missing_cols)}",
-            xaxis_title="Strike",
-            yaxis_title=y_axis_column,
-            paper_bgcolor=default_theme.panel_bg,
-            plot_bgcolor=default_theme.base_bg,
-            font_color=default_theme.text_light,
-            xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
-            yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
-            height=400
+        return fig
+    
+    # Update layout with proper titles and styling
+    fig.update_layout(
+        title=f"{y_axis_label} vs Strike",
+        xaxis_title="Strike",
+        yaxis_title=y_axis_label,
+        paper_bgcolor=default_theme.panel_bg,
+        plot_bgcolor=default_theme.base_bg,
+        font_color=default_theme.text_light,
+        xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+        yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+        height=400,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+            bgcolor=default_theme.panel_bg,
+            font=dict(color=default_theme.text_light)
         )
+    )
     
     return fig
 
