@@ -253,7 +253,7 @@ analysis_tab_content = Container(
                 html.P("Underlying:", style=text_style),
                 ComboBox(
                     id="analysis-underlying-selector",
-                    options=[],  # Empty for now
+                    options=[],  # Will be populated by callback
                     placeholder="Select underlying",
                     theme=default_theme,
                     style={'width': '100%'}
@@ -654,12 +654,15 @@ def update_graph_from_combobox(selected_y_column_value: str, stored_option_data:
 @app.callback(
     Output("market-movement-data-store", "data"),
     Output("analysis-graph", "figure"),
+    Output("analysis-underlying-selector", "options"),
+    Output("analysis-underlying-selector", "value"),
     Input("analysis-refresh-button", "n_clicks"),
     Input("analysis-y-axis-selector", "value"),
+    Input("analysis-underlying-selector", "value"),
     State("market-movement-data-store", "data"),
     prevent_initial_call=True
 )
-def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
+def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_underlying, stored_data):
     """Unified callback to handle all Analysis tab interactions"""
     # Determine which input triggered the callback
     ctx = dash.callback_context
@@ -668,6 +671,8 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
     # Default values
     data_json = stored_data
     fig = go.Figure()
+    underlying_options = []
+    underlying_value = selected_underlying
     
     # Apply default styling to empty figure
     fig.update_layout(
@@ -685,7 +690,7 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
     if trigger_id == "analysis-refresh-button" and refresh_clicks:
         logger.info("Refresh Data button clicked. Fetching market movement data...")
         try:
-            # Get market movement data (dictionary of DataFrames by expiry)
+            # Get market movement data (nested dictionary by underlying and expiry)
             data_dict = get_market_movement_data_df()
             
             if not data_dict:
@@ -702,20 +707,55 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
                     xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
                     yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
                 )
-                return None, fig
+                return None, fig, [], None
+            
+            # Create dropdown options for underlying values
+            underlying_options = []
+            for underlying_key, expiry_dict in data_dict.items():
+                # Get first non-empty dataframe to extract actual underlying value
+                actual_value = None
+                for expiry, df in expiry_dict.items():
+                    if not df.empty and 'Underlying' in df.columns and len(df) > 0:
+                        actual_value = df['Underlying'].iloc[0]
+                        break
+                
+                # Create display label based on underlying type and actual value
+                if underlying_key == 'base':
+                    display_label = f"Base ({actual_value})"
+                elif underlying_key == '+1bp':
+                    display_label = f"+1bp ({actual_value})"
+                elif underlying_key == '-1bp':
+                    display_label = f"-1bp ({actual_value})"
+                else:
+                    display_label = underlying_key
+                
+                underlying_options.append({"label": display_label, "value": underlying_key})
+            
+            # Set initial underlying selection if none exists
+            if not selected_underlying and underlying_options:
+                underlying_value = underlying_options[0]["value"]
             
             # Count total rows across all DataFrames
-            total_rows = sum(len(df) for df in data_dict.values())
-            logger.info(f"Successfully retrieved market data: {len(data_dict)} expiries, {total_rows} total rows")
+            total_rows = 0
+            for underlying, expiry_dict in data_dict.items():
+                for expiry, df in expiry_dict.items():
+                    total_rows += len(df)
+            logger.info(f"Successfully retrieved market data: {len(data_dict)} underlyings, {total_rows} total rows")
             
             # Use current y-axis selection or default
             y_axis = selected_y_axis or "Implied Vol (Daily BP)"
-            fig = create_analysis_graph(data_dict, y_axis)
+            
+            # Create graph with selected or default underlying
+            underlying_to_use = underlying_value if underlying_value in data_dict else list(data_dict.keys())[0]
+            fig = create_analysis_graph(data_dict, y_axis, underlying_to_use)
             
             # Store data dictionary as JSON in the dcc.Store
-            # Convert each DataFrame to JSON and store in a dictionary
-            data_json_dict = {expiry: df.to_json(date_format='iso', orient='split') 
-                             for expiry, df in data_dict.items()}
+            # Convert each DataFrame in each underlying group to JSON and store in a nested dictionary
+            data_json_dict = {}
+            for underlying, expiry_dict in data_dict.items():
+                data_json_dict[underlying] = {}
+                for expiry, df in expiry_dict.items():
+                    data_json_dict[underlying][expiry] = df.to_json(date_format='iso', orient='split')
             
             # Store the dictionary structure as JSON
             data_json = json.dumps(data_json_dict)
@@ -734,12 +774,12 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
                 xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
                 yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
             )
-            return None, fig
+            return None, fig, [], None
     
-    # Handle y-axis selection change
-    elif trigger_id == "analysis-y-axis-selector" and stored_data:
+    # Handle y-axis or underlying selection change
+    elif (trigger_id == "analysis-y-axis-selector" or trigger_id == "analysis-underlying-selector") and stored_data:
         try:
-            # Check if y-axis is deselected (our edge case)
+            # Check if y-axis is deselected (edge case)
             if not selected_y_axis:
                 # Create an empty figure but preserve styling
                 fig = go.Figure()
@@ -755,18 +795,50 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
                     height=400
                 )
             else:
-                # Normal case - proceed with existing logic
+                # Parse the stored data JSON
                 data_json_dict = json.loads(stored_data)
-                data_dict = {expiry: pd.read_json(StringIO(df_json), orient='split') 
-                            for expiry, df_json in data_json_dict.items()}
                 
-                fig = create_analysis_graph(data_dict, selected_y_axis)
+                # Reconstruct nested dictionary with DataFrames
+                data_dict = {}
+                for underlying, expiry_dict in data_json_dict.items():
+                    data_dict[underlying] = {}
+                    for expiry, df_json in expiry_dict.items():
+                        data_dict[underlying][expiry] = pd.read_json(StringIO(df_json), orient='split')
+                
+                # Extract underlying options
+                underlying_options = []
+                for underlying_key, expiry_dict in data_dict.items():
+                    # Get first non-empty dataframe to extract actual underlying value
+                    actual_value = None
+                    for expiry, df in expiry_dict.items():
+                        if not df.empty and 'Underlying' in df.columns and len(df) > 0:
+                            actual_value = df['Underlying'].iloc[0]
+                            break
+                    
+                    # Create display label
+                    if underlying_key == 'base':
+                        display_label = f"Base ({actual_value})"
+                    elif underlying_key == '+1bp':
+                        display_label = f"+1bp ({actual_value})"
+                    elif underlying_key == '-1bp':
+                        display_label = f"-1bp ({actual_value})"
+                    else:
+                        display_label = underlying_key
+                    
+                    underlying_options.append({"label": display_label, "value": underlying_key})
+                
+                # Handle case where selected underlying doesn't exist in data
+                if not selected_underlying or selected_underlying not in data_dict:
+                    underlying_value = list(data_dict.keys())[0] if data_dict else None
+                
+                # Create graph with filtered data based on selected underlying
+                fig = create_analysis_graph(data_dict, selected_y_axis, underlying_value)
         except Exception as e:
             logger.error(f"Error updating analysis graph: {str(e)}", exc_info=True)
             fig.update_layout(
                 title="Error updating graph",
                 xaxis_title="Strike",
-                yaxis_title=selected_y_axis,
+                yaxis_title=selected_y_axis or "Selected Metric",
                 annotations=[dict(text=f"Error: {str(e)[:100]}...", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)],
                 paper_bgcolor=default_theme.panel_bg,
                 plot_bgcolor=default_theme.base_bg,
@@ -775,15 +847,17 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
                 yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
             )
     
-    return data_json, fig
+    return data_json, fig, underlying_options, underlying_value
 
-def create_analysis_graph(data_dict, y_axis_column):
+def create_analysis_graph(data_dict, y_axis_column, underlying_key='base'):
     """
     Helper function to create the analysis graph figure with multiple series from different expiries
+    for a selected underlying value.
     
     Args:
-        data_dict (dict): Dictionary with expiry names as keys and DataFrames as values
+        data_dict (dict): Nested dictionary with structure {underlying: {expiry: dataframe}}
         y_axis_column (str): Column name to use for the Y-axis
+        underlying_key (str): Key of the underlying value to plot (e.g., 'base', '+1bp', '-1bp')
         
     Returns:
         go.Figure: Plotly figure object with all series
@@ -800,10 +874,10 @@ def create_analysis_graph(data_dict, y_axis_column):
     ]
     y_axis_label = next((item["label"] for item in y_axis_options if item["value"] == y_axis_column), y_axis_column)
     
-    # Check if we have any valid data
-    if not data_dict:
+    # Check if we have any valid data for the selected underlying
+    if not data_dict or underlying_key not in data_dict:
         fig.update_layout(
-            title="No data available",
+            title="No data available for selected underlying",
             xaxis_title="Strike",
             yaxis_title=y_axis_label,
             annotations=[dict(text="No data available", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)],
@@ -816,14 +890,17 @@ def create_analysis_graph(data_dict, y_axis_column):
         )
         return fig
     
+    # Get the expiry dictionary for the selected underlying
+    expiry_dict = data_dict[underlying_key]
+    
     # Track if any data was actually plotted
     data_plotted = False
     
-    # Plot each expiry series
-    for expiry, df in sorted(data_dict.items()):
+    # Plot each expiry series for the selected underlying
+    for expiry, df in sorted(expiry_dict.items()):
         # Skip if DataFrame is empty or missing required columns
         if df.empty or "Strike" not in df.columns or y_axis_column not in df.columns:
-            logger.debug(f"Skipping expiry {expiry}: Missing data or required columns")
+            logger.debug(f"Skipping {underlying_key}/{expiry}: Missing data or required columns")
             continue
         
         # Get color for this expiry (fallback to 'other' if not in color map)
@@ -847,7 +924,7 @@ def create_analysis_graph(data_dict, y_axis_column):
         
         # Skip series with all NaN values
         if y_data.isna().all():
-            logger.debug(f"Skipping expiry {expiry}: All NaN values for {y_axis_column}")
+            logger.debug(f"Skipping {underlying_key}/{expiry}: All NaN values for {y_axis_column}")
             continue
         
         # Add the scatter trace to the figure
@@ -867,7 +944,7 @@ def create_analysis_graph(data_dict, y_axis_column):
     # If no data was plotted, show a message
     if not data_plotted:
         fig.update_layout(
-            title="No plottable data for selected metric",
+            title=f"No plottable data for selected metric and underlying",
             xaxis_title="Strike",
             yaxis_title=y_axis_label,
             annotations=[dict(text=f"No data available for {y_axis_label}", showarrow=False, xref="paper", yref="paper", x=0.5, y=0.5)],
@@ -881,16 +958,23 @@ def create_analysis_graph(data_dict, y_axis_column):
         return fig
     
     # Get underlying from first available DataFrame
-    underlying = None
-    for expiry, df in sorted(data_dict.items()):
-        if not df.empty and 'Underlying' in df.columns and len(df['Underlying']) > 0:
-            underlying = df['Underlying'].iloc[0]
+    underlying_value = None
+    for expiry, df in expiry_dict.items():
+        if not df.empty and 'Underlying' in df.columns and len(df) > 0:
+            underlying_value = df['Underlying'].iloc[0]
             break
     
-    # Create title with underlying if available
+    # Get friendly name for the underlying key
+    underlying_display = {
+        'base': 'Base',
+        '+1bp': '+1bp',
+        '-1bp': '-1bp'
+    }.get(underlying_key, underlying_key)
+    
+    # Create title with underlying info
     title = f"{y_axis_label} vs Strike"
-    if underlying:
-        title += f" - {underlying}"
+    if underlying_value:
+        title += f" - {underlying_display} ({underlying_value})"
     
     # Update layout with proper titles and styling
     fig.update_layout(
