@@ -19,7 +19,7 @@ PRICING_MONKEY_MOVEMENT_URL = "https://pricingmonkey.com/b/6feae2cb-9a47-4359-94
 
 # Selection Configuration
 NUM_TABS = 9
-NUM_ROWS_TO_SELECT = 70
+NUM_ROWS_TO_SELECT = 69
 NUM_COLUMNS_TO_SELECT = 7
 
 # Column Headers (as shown in screenshot)
