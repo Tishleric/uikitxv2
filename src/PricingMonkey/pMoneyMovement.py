@@ -82,6 +82,12 @@ def split_dataframe_by_expiry(df):
     for expiry in expiries:
         expiry_df = df[df['expiry'] == expiry].copy()
         expiry_df = expiry_df.drop(columns=['expiry'])  # Remove temporary column
+        
+        # Sort by Strike value to ensure correct line plotting
+        if 'Strike' in expiry_df.columns:
+            expiry_df = expiry_df.sort_values(by='Strike')
+            logger.debug(f"Sorted DataFrame for expiry '{expiry}' by Strike values")
+        
         result[expiry] = expiry_df
         logger.debug(f"Created DataFrame for expiry '{expiry}' with {len(expiry_df)} rows")
     
@@ -100,7 +106,20 @@ def get_market_movement_data_df():
     """
     try:
         df = get_market_movement_data(save_to_csv=False)
-        return split_dataframe_by_expiry(df)
+        expiry_dfs = split_dataframe_by_expiry(df)
+        
+        # Print DataFrames for debugging when called from dashboard
+        print("\n=== MARKET MOVEMENT DATA (called from dashboard) ===")
+        for expiry, expiry_df in sorted(expiry_dfs.items()):
+            print(f"\n=== {expiry} EXPIRY ({'empty' if expiry_df.empty else f'{len(expiry_df)} rows'}) ===")
+            if not expiry_df.empty:
+                print(expiry_df.head(3).to_string())
+                print("...")
+                if len(expiry_df) > 3:
+                    print(expiry_df.tail(2).to_string())
+                print(f"[{len(expiry_df)} rows total]")
+        
+        return expiry_dfs
     except PMMovementError as e:
         logger.error(f"Failed to get market movement data: {str(e)}")
         # Return an empty dictionary with the same structure
@@ -409,6 +428,23 @@ if __name__ == "__main__":
             logger.info("\nColumn data types:")
             for col in movement_data.columns:
                 logger.info(f"Column '{col}': {movement_data[col].dtype}")
+            
+            # Split by expiry and print each dataframe
+            logger.info("\nSplitting data by expiry...")
+            expiry_dfs = split_dataframe_by_expiry(movement_data)
+            logger.info(f"Split into {len(expiry_dfs)} expiry dataframes")
+            
+            # Print first few rows of each expiry dataframe
+            for expiry, df in expiry_dfs.items():
+                logger.info(f"\n{expiry} expiry data ({len(df)} rows):")
+                print(f"=== {expiry} EXPIRY ({'empty' if df.empty else f'{len(df)} rows'}) ===")
+                if not df.empty:
+                    print(df.head(3).to_string())
+                    print("...")
+                    if len(df) > 3:
+                        print(df.tail(2).to_string())
+                    print(f"[{len(df)} rows total]")
+                
         else:
             logger.warning("Retrieved empty DataFrame")
             
