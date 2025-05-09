@@ -46,23 +46,65 @@ class PMMovementError(Exception):
     """Custom exception for Pricing Monkey Movement operations."""
     pass
 
+def split_dataframe_by_expiry(df):
+    """
+    Splits the market movement DataFrame into separate DataFrames by expiry (1st, 2nd, etc.)
+    
+    Args:
+        df (pd.DataFrame): The complete market movement DataFrame
+        
+    Returns:
+        dict: Dictionary with keys as expiry names (1st, 2nd, etc.) and values as filtered DataFrames
+    """
+    if df.empty or 'Trade Description' not in df.columns:
+        logger.warning("Cannot split DataFrame: empty or missing 'Trade Description' column")
+        return {'1st': df}  # Return original DataFrame as fallback
+    
+    # Extract expiry from Trade Description column
+    def extract_expiry(desc):
+        if not isinstance(desc, str):
+            return None
+        words = desc.split()
+        if len(words) > 0:
+            # First word should be the expiry (1st, 2nd, etc.)
+            return words[0]
+        return None
+    
+    # Add expiry column
+    df['expiry'] = df['Trade Description'].apply(extract_expiry)
+    
+    # Get unique expiries
+    expiries = df['expiry'].dropna().unique()
+    logger.info(f"Found {len(expiries)} unique expiries: {', '.join(expiries)}")
+    
+    # Create dictionary of DataFrames by expiry
+    result = {}
+    for expiry in expiries:
+        expiry_df = df[df['expiry'] == expiry].copy()
+        expiry_df = expiry_df.drop(columns=['expiry'])  # Remove temporary column
+        result[expiry] = expiry_df
+        logger.debug(f"Created DataFrame for expiry '{expiry}' with {len(expiry_df)} rows")
+    
+    return result
+
 def get_market_movement_data_df():
     """
-    Convenience function that returns the market movement data as a DataFrame
+    Convenience function that returns the market movement data as a dictionary of DataFrames by expiry,
     without saving to CSV. Useful for direct integration with the dashboard.
     
     Returns:
-        pd.DataFrame: DataFrame containing market movement data
+        dict: Dictionary with expiry names (1st, 2nd, etc.) as keys and DataFrames as values
         
     Raises:
         PMMovementError: If data retrieval fails
     """
     try:
-        return get_market_movement_data(save_to_csv=False)
+        df = get_market_movement_data(save_to_csv=False)
+        return split_dataframe_by_expiry(df)
     except PMMovementError as e:
         logger.error(f"Failed to get market movement data: {str(e)}")
-        # Return an empty DataFrame with the same columns
-        return pd.DataFrame(columns=COLUMN_HEADERS)
+        # Return an empty dictionary with the same structure
+        return {'1st': pd.DataFrame(columns=COLUMN_HEADERS)}
 
 def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMNS_TO_SELECT, save_to_csv=True):
     """
