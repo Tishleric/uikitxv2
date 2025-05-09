@@ -669,6 +669,18 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
     data_json = stored_data
     fig = go.Figure()
     
+    # Apply default styling to empty figure
+    fig.update_layout(
+        xaxis_title="Strike",
+        yaxis_title="Selected Metric",
+        paper_bgcolor=default_theme.panel_bg,
+        plot_bgcolor=default_theme.base_bg,
+        font_color=default_theme.text_light,
+        xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+        yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+        height=400
+    )
+    
     # Handle refresh button click
     if trigger_id == "analysis-refresh-button" and refresh_clicks:
         logger.info("Refresh Data button clicked. Fetching market movement data...")
@@ -725,14 +737,30 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, stored_data):
             return None, fig
     
     # Handle y-axis selection change
-    elif trigger_id == "analysis-y-axis-selector" and selected_y_axis and stored_data:
+    elif trigger_id == "analysis-y-axis-selector" and stored_data:
         try:
-            # Convert stored JSON data back to dictionary of DataFrames
-            data_json_dict = json.loads(stored_data)
-            data_dict = {expiry: pd.read_json(StringIO(df_json), orient='split') 
-                        for expiry, df_json in data_json_dict.items()}
-            
-            fig = create_analysis_graph(data_dict, selected_y_axis)
+            # Check if y-axis is deselected (our edge case)
+            if not selected_y_axis:
+                # Create an empty figure but preserve styling
+                fig = go.Figure()
+                fig.update_layout(
+                    title="Select a metric for the Y-axis",
+                    xaxis_title="Strike",
+                    yaxis_title="Selected Metric",
+                    paper_bgcolor=default_theme.panel_bg,
+                    plot_bgcolor=default_theme.base_bg,
+                    font_color=default_theme.text_light,
+                    xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                    yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                    height=400
+                )
+            else:
+                # Normal case - proceed with existing logic
+                data_json_dict = json.loads(stored_data)
+                data_dict = {expiry: pd.read_json(StringIO(df_json), orient='split') 
+                            for expiry, df_json in data_json_dict.items()}
+                
+                fig = create_analysis_graph(data_dict, selected_y_axis)
         except Exception as e:
             logger.error(f"Error updating analysis graph: {str(e)}", exc_info=True)
             fig.update_layout(
