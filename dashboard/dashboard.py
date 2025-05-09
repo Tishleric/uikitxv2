@@ -203,7 +203,34 @@ analysis_tab_content = Container(
         dcc.Store(id="market-movement-data-store"),
         
         html.H4("Analysis Configuration", style={"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}),
+        
+        # Top row - Market Movement (centered)
         html.Div([
+            # Group controls in a single centered container
+            html.Div([
+                html.P("Market Movement +/-:", style=text_style),
+                dcc.Input(
+                    id="analysis-market-movement-input",
+                    type="number",
+                    placeholder="e.g. 10 for +10bps",
+                    style=input_style_dcc
+                )
+            ], style={'marginRight': '15px', 'display': 'inline-block'}),
+            
+            html.Div([
+                html.P("\u00A0", style=text_style),  # Non-breaking space to align button
+                Button(
+                    label="Refresh Data",
+                    id="analysis-refresh-button",
+                    theme=default_theme,
+                    n_clicks=0
+                ).render()
+            ], style={'display': 'inline-block', 'verticalAlign': 'bottom', 'marginBottom': '5px'})
+        ], style={'display': 'flex', 'marginBottom': '20px', 'justifyContent': 'center', 'alignItems': 'flex-end'}),
+        
+        # Bottom row - Y-axis on left, Underlying on right
+        html.Div([
+            # Y-axis selection (left)
             html.Div([
                 html.P("Y-axis:", style=text_style),
                 ComboBox(
@@ -221,25 +248,17 @@ analysis_tab_content = Container(
                 ).render()
             ], style={'flex': '1', 'marginRight': '15px'}),
             
+            # Underlying selection (right)
             html.Div([
-                html.P("Market Movement +/-:", style=text_style),
-                dcc.Input(
-                    id="analysis-market-movement-input",
-                    type="number",
-                    placeholder="e.g. 10 for +10bps",
-                    style=input_style_dcc
-                )
-            ], style={'flex': '1', 'marginRight': '15px'}),
-            
-            html.Div([
-                html.P("\u00A0", style=text_style), # Non-breaking space to align button with inputs
-                Button(
-                    label="Refresh Data",
-                    id="analysis-refresh-button",
+                html.P("Underlying:", style=text_style),
+                ComboBox(
+                    id="analysis-underlying-selector",
+                    options=[],  # Empty for now
+                    placeholder="Select underlying",
                     theme=default_theme,
-                    n_clicks=0
+                    style={'width': '100%'}
                 ).render()
-            ], style={'flex': '0 0 auto', 'alignSelf': 'flex-end', 'marginBottom': '5px'})
+            ], style={'flex': '1'})
         ], style={'display': 'flex', 'marginBottom': '20px', 'alignItems': 'flex-end'}),
         
         # Empty graph area with consistent styling
@@ -786,6 +805,18 @@ def create_analysis_graph(data_dict, y_axis_column):
         x_data = df["Strike"]
         y_data = df[y_axis_column]
         
+        # Get Trade Description data for hover tooltips
+        if "Trade Description" in df.columns:
+            trade_desc = df["Trade Description"]
+            # Create custom hover text
+            hovertemplate = "<b>%{customdata}</b><br>" + \
+                           f"Strike: %{{x}}<br>" + \
+                           f"{y_axis_label}: %{{y}}<br>" + \
+                           "<extra></extra>"  # Hide secondary box
+        else:
+            trade_desc = None
+            hovertemplate = None
+        
         # Skip series with all NaN values
         if y_data.isna().all():
             logger.debug(f"Skipping expiry {expiry}: All NaN values for {y_axis_column}")
@@ -797,6 +828,8 @@ def create_analysis_graph(data_dict, y_axis_column):
             y=y_data,
             mode='lines+markers',
             name=expiry,  # Use expiry as the series name in legend
+            customdata=trade_desc,  # Add trade description as custom data
+            hovertemplate=hovertemplate,  # Use custom hover template
             marker=dict(color=color, size=8),
             line=dict(color=color, width=2)
         ))
@@ -819,9 +852,21 @@ def create_analysis_graph(data_dict, y_axis_column):
         )
         return fig
     
+    # Get underlying from first available DataFrame
+    underlying = None
+    for expiry, df in sorted(data_dict.items()):
+        if not df.empty and 'Underlying' in df.columns and len(df['Underlying']) > 0:
+            underlying = df['Underlying'].iloc[0]
+            break
+    
+    # Create title with underlying if available
+    title = f"{y_axis_label} vs Strike"
+    if underlying:
+        title += f" - {underlying}"
+    
     # Update layout with proper titles and styling
     fig.update_layout(
-        title=f"{y_axis_label} vs Strike",
+        title=title,
         xaxis_title="Strike",
         yaxis_title=y_axis_label,
         paper_bgcolor=default_theme.panel_bg,
