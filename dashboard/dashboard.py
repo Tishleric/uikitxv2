@@ -31,7 +31,7 @@ try:
     from src.components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph 
     print("Successfully imported uikitxv2 logging, theme, and UI components from 'src'.")
     from src.PricingMonkey.pMoneyAuto import run_pm_automation 
-    from src.PricingMonkey.pMoneyMovement import get_market_movement_data_df
+    from src.PricingMonkey.pMoneyMovement import get_market_movement_data_df, SCENARIOS
     print("Successfully imported PM modules from 'src.PricingMonkey'.")
 except ImportError as e:
     print(f"Error importing from 'src' package: {e}")
@@ -247,7 +247,7 @@ analysis_tab_content = Container(
             ], style={'flex': '1'})
         ], style={'display': 'flex', 'marginBottom': '20px', 'alignItems': 'flex-end'}),
         
-        # Empty graph area with consistent styling
+        # Graph area with consistent styling
         Grid(
             id="analysis-graph-container",
             children=[
@@ -268,6 +268,44 @@ analysis_tab_content = Container(
                     },
                     theme=default_theme,
                     style={'height': '400px', 'width': '100%'}
+                ).render()
+            ],
+            style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px', 'marginBottom': '20px'}
+        ).render(),
+        
+        # New DataTable below the graph
+        html.H5("Data Table", style={"color": default_theme.primary, "marginTop": "20px", "marginBottom": "10px", "textAlign": "center"}),
+        Grid(
+            id="analysis-table-container",
+            children=[
+                DataTable(
+                    id="analysis-data-table",
+                    data=[],  # Will be populated by callback
+                    columns=[{"name": "Strike", "id": "Strike"}],  # Will be populated by callback
+                    theme=default_theme,
+                    style_table={'overflowX': 'auto', 'width': '100%'},
+                    style_header={
+                        'backgroundColor': default_theme.primary,
+                        'color': default_theme.text_light,
+                        'fontWeight': 'bold',
+                        'textAlign': 'center',
+                        'padding': '8px'
+                    },
+                    style_cell={
+                        'backgroundColor': default_theme.base_bg,
+                        'color': default_theme.text_light,
+                        'textAlign': 'center',
+                        'padding': '8px',
+                        'fontFamily': 'Inter, sans-serif',
+                        'fontSize': '0.8rem'
+                    },
+                    style_data_conditional=[
+                        {
+                            'if': {'column_id': 'Strike'},
+                            'fontWeight': 'bold',
+                            'backgroundColor': default_theme.panel_bg,
+                        }
+                    ]
                 ).render()
             ],
             style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px'}
@@ -642,6 +680,8 @@ def update_graph_from_combobox(selected_y_column_value: str, stored_option_data:
     Output("analysis-graph", "figure"),
     Output("analysis-underlying-selector", "options"),
     Output("analysis-underlying-selector", "value"),
+    Output("analysis-data-table", "data"),
+    Output("analysis-data-table", "columns"),
     Input("analysis-refresh-button", "n_clicks"),
     Input("analysis-y-axis-selector", "value"),
     Input("analysis-underlying-selector", "value"),
@@ -659,6 +699,8 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
     fig = go.Figure()
     underlying_options = []
     underlying_value = selected_underlying
+    table_data = []
+    table_columns = [{"name": "Strike", "id": "Strike"}]
     
     # Apply default styling to empty figure
     fig.update_layout(
@@ -693,16 +735,11 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                     xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
                     yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
                 )
-                return None, fig, [], None
+                return None, fig, [], None, [], table_columns
             
             # Access the data and metadata from the result dictionary
             data_dict = result_dict['data']
             metadata = result_dict['metadata']
-            
-            # Get underlying values from metadata
-            base_underlying_values = metadata.get('base_underlying_values', [])
-            plus_1bp_values = metadata.get('plus_1bp_values', [])
-            minus_1bp_values = metadata.get('minus_1bp_values', [])
             
             # Create dropdown options for underlying values
             underlying_options = []
@@ -723,10 +760,11 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                     value_display = f"{unique_values[0]} → {unique_values[-1]}"
                     return {"label": f"{display_name} ({value_display})", "value": key}
             
-            # Add options for each underlying type
-            underlying_options.append(format_underlying_option('base', base_underlying_values, 'Base'))
-            underlying_options.append(format_underlying_option('+1bp', plus_1bp_values, '+1bp'))
-            underlying_options.append(format_underlying_option('-1bp', minus_1bp_values, '-1bp'))
+            # Add options for each scenario
+            for scenario_key, scenario_info in SCENARIOS.items():
+                display_name = scenario_info['display_name']
+                values = metadata.get(scenario_key, [])
+                underlying_options.append(format_underlying_option(scenario_key, values, display_name))
             
             # Set initial underlying selection if none exists
             if not selected_underlying and underlying_options:
@@ -744,10 +782,15 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
             
             # Create graph with selected or default underlying
             underlying_to_use = underlying_value if underlying_value in data_dict else list(data_dict.keys())[0]
-            fig = create_analysis_graph(data_dict, y_axis, underlying_to_use, 
-                                       base_values=base_underlying_values,
-                                       plus_1bp_values=plus_1bp_values,
-                                       minus_1bp_values=minus_1bp_values)
+            
+            # Extract values for each scenario for graph title
+            scenario_values = {key: metadata.get(key, []) for key in SCENARIOS.keys()}
+            
+            # Create the graph
+            fig = create_analysis_graph(data_dict, y_axis, underlying_to_use, scenario_values)
+            
+            # Prepare data for the table
+            table_data, table_columns = prepare_table_data(data_dict, underlying_to_use, y_axis)
             
             # Store data dictionary as JSON in the dcc.Store
             # Convert each DataFrame in each underlying group to JSON and store in a nested dictionary
@@ -778,7 +821,7 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                 xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
                 yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
             )
-            return None, fig, [], None
+            return None, fig, [], None, [], table_columns
     
     # Handle y-axis or underlying selection change
     elif (trigger_id == "analysis-y-axis-selector" or trigger_id == "analysis-underlying-selector") and stored_data:
@@ -813,11 +856,7 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                         new_data_json_dict['metadata'] = data_json_dict['metadata']
                     else:
                         # Create empty metadata
-                        new_data_json_dict['metadata'] = {
-                            'base_underlying_values': [],
-                            'plus_1bp_values': [],
-                            'minus_1bp_values': []
-                        }
+                        new_data_json_dict['metadata'] = {key: [] for key in SCENARIOS.keys()}
                     
                     # Move data to data field
                     for key, value in data_json_dict.items():
@@ -836,10 +875,8 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                     for expiry, df_json in expiry_dict.items():
                         data_dict[underlying][expiry] = pd.read_json(StringIO(df_json), orient='split')
                 
-                # Get underlying values for display
-                base_underlying_values = metadata.get('base_underlying_values', [])
-                plus_1bp_values = metadata.get('plus_1bp_values', [])
-                minus_1bp_values = metadata.get('minus_1bp_values', [])
+                # Create dropdown options for underlying values
+                underlying_options = []
                 
                 # Function to detect and format contract transitions
                 def format_underlying_option(key, values, display_name):
@@ -857,21 +894,24 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                         value_display = f"{unique_values[0]} → {unique_values[-1]}"
                         return {"label": f"{display_name} ({value_display})", "value": key}
                 
-                # Create dropdown options for underlying values
-                underlying_options = []
-                underlying_options.append(format_underlying_option('base', base_underlying_values, 'Base'))
-                underlying_options.append(format_underlying_option('+1bp', plus_1bp_values, '+1bp'))
-                underlying_options.append(format_underlying_option('-1bp', minus_1bp_values, '-1bp'))
+                # Add options for each scenario
+                for scenario_key, scenario_info in SCENARIOS.items():
+                    display_name = scenario_info['display_name']
+                    values = metadata.get(scenario_key, [])
+                    underlying_options.append(format_underlying_option(scenario_key, values, display_name))
                 
                 # Handle case where selected underlying doesn't exist in data
                 if not selected_underlying or selected_underlying not in data_dict:
                     underlying_value = list(data_dict.keys())[0] if data_dict else None
                 
+                # Extract values for each scenario for graph title
+                scenario_values = {key: metadata.get(key, []) for key in SCENARIOS.keys()}
+                
                 # Create graph with filtered data based on selected underlying
-                fig = create_analysis_graph(data_dict, selected_y_axis, underlying_value,
-                                          base_values=base_underlying_values,
-                                          plus_1bp_values=plus_1bp_values,
-                                          minus_1bp_values=minus_1bp_values)
+                fig = create_analysis_graph(data_dict, selected_y_axis, underlying_value, scenario_values)
+                
+                # Prepare data for the table
+                table_data, table_columns = prepare_table_data(data_dict, underlying_value, selected_y_axis)
         except Exception as e:
             logger.error(f"Error updating analysis graph: {str(e)}", exc_info=True)
             fig.update_layout(
@@ -886,9 +926,9 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                 yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
             )
     
-    return data_json, fig, underlying_options, underlying_value
+    return data_json, fig, underlying_options, underlying_value, table_data, table_columns
 
-def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', base_values=None, plus_1bp_values=None, minus_1bp_values=None):
+def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scenario_values=None):
     """
     Helper function to create the analysis graph figure with multiple series from different expiries
     for a selected underlying value.
@@ -896,10 +936,8 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', base_
     Args:
         data_dict (dict): Nested dictionary with structure {underlying: {expiry: dataframe}}
         y_axis_column (str): Column name to use for the Y-axis
-        underlying_key (str): Key of the underlying value to plot (e.g., 'base', '+1bp', '-1bp')
-        base_values (list): Optional list of base underlying values for title display
-        plus_1bp_values (list): Optional list of +1bp underlying values for title display
-        minus_1bp_values (list): Optional list of -1bp underlying values for title display
+        underlying_key (str): Key of the underlying value to plot (e.g., 'base', '-4bp', '-8bp', etc.)
+        scenario_values (dict): Dictionary containing scenario values for graph title
         
     Returns:
         go.Figure: Plotly figure object with all series
@@ -999,21 +1037,11 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', base_
         )
         return fig
     
-    # Get appropriate underlying values for title display
-    underlying_values = []
-    if underlying_key == 'base' and base_values:
-        underlying_values = base_values
-    elif underlying_key == '+1bp' and plus_1bp_values:
-        underlying_values = plus_1bp_values
-    elif underlying_key == '-1bp' and minus_1bp_values:
-        underlying_values = minus_1bp_values
+    # Get display name for the underlying scenario
+    scenario_display = SCENARIOS.get(underlying_key, {}).get('display_name', underlying_key)
     
-    # Get friendly name for the underlying key
-    underlying_display = {
-        'base': 'Base',
-        '+1bp': '+1bp',
-        '-1bp': '-1bp'
-    }.get(underlying_key, underlying_key)
+    # Get underlying values for this specific scenario
+    underlying_values = scenario_values.get(underlying_key, []) if scenario_values else []
     
     # Create title with underlying info
     title = f"{y_axis_label} vs Strike"
@@ -1023,14 +1051,17 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', base_
         unique_values = list(set(underlying_values))
         if len(unique_values) == 1:
             # Single contract
-            title += f" - {underlying_display} ({unique_values[0]})"
-        else:
+            title += f" - {scenario_display} ({unique_values[0]})"
+        elif len(unique_values) > 1:
             # Contract transition
             contracts_display = f"{unique_values[0]} → {unique_values[-1]}"
-            title += f" - {underlying_display} ({contracts_display})"
+            title += f" - {scenario_display} ({contracts_display})"
+        else:
+            # No unique values
+            title += f" - {scenario_display}"
     else:
         # Fallback if no underlying values available
-        title += f" - {underlying_display}"
+        title += f" - {scenario_display}"
     
     # Update layout with proper titles and styling
     fig.update_layout(
@@ -1055,6 +1086,78 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', base_
     )
     
     return fig
+
+def prepare_table_data(data_dict, underlying_key, y_axis_column):
+    """
+    Transform nested dictionary data to a flat format suitable for DataTable display.
+    
+    Args:
+        data_dict (dict): Nested dictionary with structure {underlying: {expiry: dataframe}}
+        underlying_key (str): Key of the underlying value to use
+        y_axis_column (str): Column name to extract for table values
+        
+    Returns:
+        tuple: (data_records, columns) where:
+            - data_records is a list of dicts for DataTable's data prop
+            - columns is a list of column definitions for DataTable's columns prop
+    """
+    # Check if we have valid data
+    if not data_dict or underlying_key not in data_dict:
+        # Return empty data and basic columns if no data
+        columns = [
+            {"name": "Strike", "id": "Strike"},
+        ] + [{"name": f"{expiry}", "id": f"{expiry}"} for expiry in ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"]]
+        return [], columns
+    
+    # Get data for the selected underlying
+    expiry_dict = data_dict[underlying_key]
+    
+    # Collect all unique strikes across all expiries
+    all_strikes = set()
+    for expiry, df in expiry_dict.items():
+        if not df.empty and "Strike" in df.columns:
+            all_strikes.update(df["Strike"].dropna().unique())
+    
+    # Sort strikes in ascending order
+    all_strikes = sorted(all_strikes)
+    
+    # Create a record for each strike with values from each expiry
+    data_records = []
+    for strike in all_strikes:
+        record = {"Strike": strike}
+        
+        # Get value for each expiry
+        for expiry, df in expiry_dict.items():
+            if not df.empty and "Strike" in df.columns and y_axis_column in df.columns:
+                # Find row with matching strike
+                strike_row = df[df["Strike"] == strike]
+                if not strike_row.empty:
+                    value = strike_row[y_axis_column].iloc[0]
+                    
+                    # Format the value based on type
+                    if pd.isna(value):
+                        record[expiry] = "-"
+                    elif isinstance(value, (int, float)):
+                        # Format with 2 decimal places for most values
+                        if abs(value) < 0.01:
+                            record[expiry] = f"{value:.4f}"
+                        else:
+                            record[expiry] = f"{value:.2f}"
+                    else:
+                        record[expiry] = str(value)
+                else:
+                    record[expiry] = "-"
+            else:
+                record[expiry] = "-"
+        
+        data_records.append(record)
+    
+    # Define columns for the DataTable
+    columns = [
+        {"name": "Strike", "id": "Strike"},
+    ] + [{"name": f"{expiry}", "id": f"{expiry}"} for expiry in ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"]]
+    
+    return data_records, columns
 
 # --- End Callbacks ---
 

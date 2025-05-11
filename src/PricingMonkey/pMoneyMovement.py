@@ -19,12 +19,21 @@ PRICING_MONKEY_MOVEMENT_URL = "https://pricingmonkey.com/b/6feae2cb-9a47-4359-94
 
 # Selection Configuration
 NUM_TABS = 9
-NUM_ROWS_TO_SELECT = 210  # Changed from 69 to 210 (3 scenarios × 70 rows)
+NUM_ROWS_TO_SELECT = 350  # Changed from 210 to 350 (5 scenarios × 70 rows)
 NUM_COLUMNS_TO_SELECT = 7
 
 # Treasury Math Constants
 TICKS_PER_POINT = 32  # 32/32nds in a full point
 BASIS_POINTS_INCREMENT = 2  # 1bp = 2/32nds
+
+# Scenario labels for underlying categories
+SCENARIOS = {
+    'base': {'display_name': 'Base', 'bp_adjustment': 0},
+    '-4bp': {'display_name': '-4bp', 'bp_adjustment': -4},
+    '-8bp': {'display_name': '-8bp', 'bp_adjustment': -8},
+    '-12bp': {'display_name': '-12bp', 'bp_adjustment': -12},
+    '-16bp': {'display_name': '-16bp', 'bp_adjustment': -16}
+}
 
 # Column Headers (as shown in screenshot)
 COLUMN_HEADERS = [
@@ -43,7 +52,7 @@ KEY_PRESS_PAUSE = 0.01
 WAIT_FOR_BROWSER_TO_OPEN = 2.5
 WAIT_AFTER_NAVIGATION = 0.05
 WAIT_FOR_COPY_OPERATION = 0.2
-WAIT_FOR_CELL_RENDERING = 10.0  # Increased from 7.0 to 10.0 seconds for cells to render
+WAIT_FOR_CELL_RENDERING = 20.0  # Increased from 10.0 to 20.0 seconds for cells to render
 WAIT_FOR_BROWSER_CLOSE = 0.5
 WAIT_FOR_UNDERLYING_CELL = 15.0  # Increased from 7.0 to 15.0 seconds
 
@@ -216,7 +225,7 @@ def split_dataframe_by_expiry(df):
 def split_dataframe_by_expiry_and_underlying(df):
     """
     Splits the market movement DataFrame into separate DataFrames by both expiry and underlying value.
-    Uses row indices to determine the underlying category (base, +1bp, -1bp).
+    Uses row indices to determine the underlying category (base, -4bp, -8bp, -12bp, -16bp).
     
     Args:
         df (pd.DataFrame): The complete market movement DataFrame
@@ -229,11 +238,7 @@ def split_dataframe_by_expiry_and_underlying(df):
         # Return minimal structure with metadata
         return {
             'data': {'base': {'1st': df}},
-            'metadata': {
-                'base_underlying_values': [],
-                'plus_1bp_values': [],
-                'minus_1bp_values': []
-            }
+            'metadata': {key: [] for key in SCENARIOS.keys()}
         }
     
     # Extract expiry from Trade Description column
@@ -253,75 +258,64 @@ def split_dataframe_by_expiry_and_underlying(df):
     expiries = sorted(df['expiry'].dropna().unique())
     logger.info(f"Found {len(expiries)} unique expiries: {', '.join(expiries)}")
     
-    # Get underlying values from the dataframe attributes (set during data collection)
-    base_underlying_values = []
-    plus_1bp_values = []
-    minus_1bp_values = []
+    # Get scenario values from the dataframe attributes if they exist
+    scenario_values = {key: [] for key in SCENARIOS.keys()}
     
     # Try to get values from dataframe attributes if they exist
-    if hasattr(df, 'base_underlying_values'):
-        base_underlying_values = df.base_underlying_values
-    if hasattr(df, 'plus_1bp_values'):
-        plus_1bp_values = df.plus_1bp_values
-    if hasattr(df, 'minus_1bp_values'):
-        minus_1bp_values = df.minus_1bp_values
+    for scenario_key in SCENARIOS.keys():
+        attr_name = f"{scenario_key}_values"
+        if hasattr(df, attr_name):
+            scenario_values[scenario_key] = getattr(df, attr_name)
     
-    # If we don't have the values stored, try to extract them from the dataframe
-    if not base_underlying_values:
-        logger.warning("No stored underlying values, will extract from DataFrame rows")
+    # If we don't have the values stored, extract them from the dataframe
+    if not any(scenario_values.values()):
+        logger.warning("No stored scenario values, will extract from DataFrame rows")
         
         # Extract approximate ranges based on row indices
         total_rows = len(df)
-        first_third = df.iloc[:total_rows//3] if total_rows > 0 else df
-        second_third = df.iloc[total_rows//3:2*total_rows//3] if total_rows > 2 else df
-        last_third = df.iloc[2*total_rows//3:] if total_rows > 2 else df
+        rows_per_scenario = total_rows // len(SCENARIOS)
         
-        # Extract unique underlying values from each third
+        # Extract unique underlying values from each section
         if 'Underlying' in df.columns:
-            base_underlying_values = first_third['Underlying'].unique().tolist() if not first_third.empty else []
-            plus_1bp_values = second_third['Underlying'].unique().tolist() if not second_third.empty else []
-            minus_1bp_values = last_third['Underlying'].unique().tolist() if not last_third.empty else []
+            for i, scenario_key in enumerate(SCENARIOS.keys()):
+                start_idx = i * rows_per_scenario
+                end_idx = (i + 1) * rows_per_scenario
+                if end_idx <= total_rows:
+                    scenario_df = df.iloc[start_idx:end_idx]
+                    scenario_values[scenario_key] = scenario_df['Underlying'].unique().tolist() if not scenario_df.empty else []
     
     # Split DataFrame by row ranges
     total_rows = len(df)
-    rows_per_category = total_rows // 3
+    rows_per_scenario = total_rows // len(SCENARIOS)
     
-    # Base rows (first third)
-    base_rows = df.iloc[:rows_per_category].copy() if total_rows > 0 else df
-    # +1bp rows (second third)
-    plus_1bp_rows = df.iloc[rows_per_category:2*rows_per_category].copy() if total_rows > 2 else df
-    # -1bp rows (last third)
-    minus_1bp_rows = df.iloc[2*rows_per_category:].copy() if total_rows > 2 else df
+    # Create dataframe slices for each scenario
+    scenario_dfs = {}
+    for i, scenario_key in enumerate(SCENARIOS.keys()):
+        start_idx = i * rows_per_scenario
+        end_idx = (i + 1) * rows_per_scenario
+        if end_idx <= total_rows:
+            scenario_dfs[scenario_key] = df.iloc[start_idx:end_idx].copy()
+        else:
+            # Handle case where we've reached the end of the dataframe
+            scenario_dfs[scenario_key] = df.iloc[start_idx:].copy()
     
     # Create final result structure
     final_result = {
-        'data': {
-            'base': {},
-            '+1bp': {},
-            '-1bp': {}
-        },
-        'metadata': {
-            'base_underlying_values': base_underlying_values,
-            'plus_1bp_values': plus_1bp_values,
-            'minus_1bp_values': minus_1bp_values
-        }
+        'data': {key: {} for key in SCENARIOS.keys()},
+        'metadata': {key: vals for key, vals in scenario_values.items()}
     }
     
-    # Process each category and expiry
-    for category, category_df in [
-        ('base', base_rows), 
-        ('+1bp', plus_1bp_rows), 
-        ('-1bp', minus_1bp_rows)
-    ]:
+    # Process each scenario and expiry
+    for scenario_key, scenario_df in scenario_dfs.items():
         # Skip if empty
-        if category_df.empty:
+        if scenario_df.empty:
             continue
             
-        # Split this category by expiry
+        # Split this scenario by expiry
         for expiry in expiries:
-            expiry_df = category_df[category_df['expiry'] == expiry].copy()
+            expiry_df = scenario_df[scenario_df['expiry'] == expiry].copy()
             
-            # Skip if this expiry is empty for this category
+            # Skip if this expiry is empty for this scenario
             if expiry_df.empty:
                 continue
                 
@@ -331,11 +325,11 @@ def split_dataframe_by_expiry_and_underlying(df):
             # Sort by Strike value for correct line plotting
             if 'Strike' in expiry_df.columns:
                 expiry_df = expiry_df.sort_values(by='Strike')
-                logger.debug(f"Sorted DataFrame for {category}/{expiry} by Strike values")
+                logger.debug(f"Sorted DataFrame for {scenario_key}/{expiry} by Strike values")
             
             # Store in the result structure
-            final_result['data'][category][expiry] = expiry_df
-            logger.debug(f"Created DataFrame for {category}/{expiry} with {len(expiry_df)} rows")
+            final_result['data'][scenario_key][expiry] = expiry_df
+            logger.debug(f"Created DataFrame for {scenario_key}/{expiry} with {len(expiry_df)} rows")
     
     # Count total DataFrames for logging
     total_dfs = sum(len(expiry_dict) for expiry_dict in final_result['data'].values())
@@ -389,7 +383,7 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
     Main function to retrieve market movement data from Pricing Monkey.
     
     Args:
-        num_rows: Number of rows to select (default: 210)
+        num_rows: Number of rows to select (default: 350)
         num_columns: Number of columns to select (default: 7)
         save_to_csv: Whether to save the data to a CSV file (default: True)
     
@@ -445,53 +439,47 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
             if len(base_underlying_values) > 60:
                 logger.info(f"Last few base values: {base_underlying_values[-10:]}")
         
-        # Generate +1bp and -1bp versions for each base value
-        plus_1bp_values = [adjust_treasury_price(val, 1) for val in base_underlying_values]
-        minus_1bp_values = [adjust_treasury_price(val, -1) for val in base_underlying_values]
+        # Generate scenario values for each base value
+        scenario_values = {}
+        for scenario_key, scenario_info in SCENARIOS.items():
+            if scenario_key == 'base':
+                scenario_values[scenario_key] = base_underlying_values
+                continue
+                
+            bp_adjustment = scenario_info['bp_adjustment']
+            scenario_values[scenario_key] = [adjust_treasury_price(val, bp_adjustment) for val in base_underlying_values]
+            logger.info(f"Generated {scenario_key} values with {bp_adjustment}bp adjustment")
         
-        logger.info(f"Generated corresponding +1bp and -1bp values for all base values")
+        # Process each scenario in sequence after the base one
+        scenario_keys = list(SCENARIOS.keys())
         
-        # Move down 70 times to reach the second section
-        logger.debug("Moving down 70 more times to reach +1bp section")
-        for i in range(70):
-            send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
-        time.sleep(WAIT_AFTER_NAVIGATION)
+        # For each scenario beyond the base
+        for i, scenario_key in enumerate(scenario_keys[1:], 1):
+            # Move down 70 times to reach the next section
+            logger.debug(f"Moving down 70 more times to reach {scenario_key} section")
+            for _ in range(70):
+                send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
+            time.sleep(WAIT_AFTER_NAVIGATION)
+            
+            # Prepare clipboard data for scenario values
+            logger.debug(f"Preparing {scenario_key} data for pasting")
+            scenario_clipboard = '\n'.join(scenario_values[scenario_key])
+            
+            # Paste the scenario data
+            logger.debug(f"Pasting {scenario_key} data")
+            pyperclip.copy(scenario_clipboard)
+            time.sleep(WAIT_FOR_COPY_OPERATION)
+            send_keys('^v', pause=WAIT_FOR_COPY_OPERATION)
+            time.sleep(WAIT_FOR_COPY_OPERATION)
         
-        # Prepare clipboard data for +1bp values
-        logger.debug("Preparing +1bp data for pasting")
-        plus_1bp_clipboard = '\n'.join(plus_1bp_values)
-        
-        # Paste the +1bp data
-        logger.debug("Pasting +1bp data")
-        pyperclip.copy(plus_1bp_clipboard)
-        time.sleep(WAIT_FOR_COPY_OPERATION)
-        send_keys('^v', pause=WAIT_FOR_COPY_OPERATION)
-        time.sleep(WAIT_FOR_COPY_OPERATION)
-        
-        # Navigate down 70 rows to prepare for second paste
-        logger.debug("Moving down 70 rows for second paste")
-        for i in range(70):
-            send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
-        
-        # Prepare data for pasting: -1bp values
-        logger.debug("Preparing -1bp data for pasting")
-        minus_1bp_clipboard = '\n'.join(minus_1bp_values)
-        
-        # Paste the -1bp data
-        logger.debug("Pasting -1bp data")
-        pyperclip.copy(minus_1bp_clipboard)
-        time.sleep(WAIT_FOR_COPY_OPERATION)
-        send_keys('^v', pause=WAIT_FOR_COPY_OPERATION)
-        time.sleep(WAIT_FOR_COPY_OPERATION)
-        
-        # Navigate to the bottom: 69 more rows down and 1 left
+        # Navigate to the bottom: move to the last row + left once
         logger.debug("Navigating to bottom position for selection")
-        for i in range(69):
+        for i in range(69):  # Navigate to the last row
             send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
         send_keys('{LEFT}', pause=KEY_PRESS_PAUSE)
         time.sleep(WAIT_AFTER_NAVIGATION)
         
-        # Select all 210 rows from bottom (3 scenarios × 70 rows each)
+        # Select all 350 rows from bottom (5 scenarios × 70 rows each)
         logger.debug(f"Selecting all data: SHIFT + UP × {num_rows}")
         logger.debug(f"Sending key sequence: '+{{UP {num_rows}}}'")
         send_keys('+{UP ' + str(num_rows) + '}', pause=KEY_PRESS_PAUSE)
@@ -542,10 +530,9 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
             df.to_csv(csv_path, index=False)
             logger.info(f"Data saved to {csv_path} for reference")
         
-        # Store the base, +1bp and -1bp values for later grouping
-        df.base_underlying_values = base_underlying_values
-        df.plus_1bp_values = plus_1bp_values
-        df.minus_1bp_values = minus_1bp_values
+        # Store the scenario values for later grouping
+        for scenario_key, values in scenario_values.items():
+            setattr(df, f"{scenario_key}_values", values)
         
         return df
         
