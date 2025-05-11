@@ -19,7 +19,7 @@ PRICING_MONKEY_MOVEMENT_URL = "https://pricingmonkey.com/b/6feae2cb-9a47-4359-94
 
 # Selection Configuration
 NUM_TABS = 9
-NUM_ROWS_TO_SELECT = 350  # Changed from 210 to 350 (5 scenarios × 70 rows)
+NUM_ROWS_TO_SELECT = 420  # Changed from 350 to 420 (6 scenarios × 70 rows)
 NUM_COLUMNS_TO_SELECT = 7
 
 # Treasury Math Constants
@@ -32,7 +32,8 @@ SCENARIOS = {
     '-4bp': {'display_name': '-4bp', 'bp_adjustment': -4},
     '-8bp': {'display_name': '-8bp', 'bp_adjustment': -8},
     '-12bp': {'display_name': '-12bp', 'bp_adjustment': -12},
-    '-16bp': {'display_name': '-16bp', 'bp_adjustment': -16}
+    '-16bp': {'display_name': '-16bp', 'bp_adjustment': -16},
+    '-64bp': {'display_name': '-64bp', 'bp_adjustment': -64}
 }
 
 # Column Headers (as shown in screenshot)
@@ -383,7 +384,7 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
     Main function to retrieve market movement data from Pricing Monkey.
     
     Args:
-        num_rows: Number of rows to select (default: 350)
+        num_rows: Number of rows to select (default: 420)
         num_columns: Number of columns to select (default: 7)
         save_to_csv: Whether to save the data to a CSV file (default: True)
     
@@ -479,7 +480,7 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
         send_keys('{LEFT}', pause=KEY_PRESS_PAUSE)
         time.sleep(WAIT_AFTER_NAVIGATION)
         
-        # Select all 350 rows from bottom (5 scenarios × 70 rows each)
+        # Select all 420 rows from bottom (6 scenarios × 70 rows each)
         logger.debug(f"Selecting all data: SHIFT + UP × {num_rows}")
         logger.debug(f"Sending key sequence: '+{{UP {num_rows}}}'")
         send_keys('+{UP ' + str(num_rows) + '}', pause=KEY_PRESS_PAUSE)
