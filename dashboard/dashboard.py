@@ -247,69 +247,110 @@ analysis_tab_content = Container(
             ], style={'flex': '1'})
         ], style={'display': 'flex', 'marginBottom': '20px', 'alignItems': 'flex-end'}),
         
-        # Graph area with consistent styling
-        Grid(
-            id="analysis-graph-container",
-            children=[
-                Graph(
-                    id="analysis-graph",
-                    figure={
-                        'data': [],
-                        'layout': go.Layout(
-                            xaxis_title="Strike",
-                            yaxis_title="Selected Metric",
-                            plot_bgcolor=default_theme.base_bg,
-                            paper_bgcolor=default_theme.panel_bg,
-                            font_color=default_theme.text_light,
-                            xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
-                            yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
-                            margin=dict(l=60, r=20, t=40, b=50)
-                        )
-                    },
+        # View Toggle Buttons
+        html.Div([
+            html.P("View Mode:", style={"color": default_theme.text_light, "marginRight": "10px", "marginBottom": "0"}),
+            html.Div([
+                Button(
+                    label="Graph",
+                    id="view-toggle-graph",
                     theme=default_theme,
-                    style={'height': '400px', 'width': '100%'}
+                    n_clicks=1,  # Default selected
+                    style={
+                        'borderTopRightRadius': '0',
+                        'borderBottomRightRadius': '0',
+                        'borderRight': 'none',
+                        'backgroundColor': default_theme.primary  # Start with this selected
+                    }
+                ).render(),
+                Button(
+                    label="Table",
+                    id="view-toggle-table",
+                    theme=default_theme,
+                    n_clicks=0,
+                    style={
+                        'borderTopLeftRadius': '0', 
+                        'borderBottomLeftRadius': '0',
+                        'backgroundColor': default_theme.panel_bg  # Start with this unselected
+                    }
                 ).render()
-            ],
-            style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px', 'marginBottom': '20px'}
-        ).render(),
+            ], style={"display": "flex"})
+        ], style={"display": "flex", "alignItems": "center", "justifyContent": "center", "marginBottom": "20px"}),
         
-        # New DataTable below the graph
-        html.H5("Data Table", style={"color": default_theme.primary, "marginTop": "20px", "marginBottom": "10px", "textAlign": "center"}),
-        Grid(
-            id="analysis-table-container",
+        # Graph container
+        html.Div(
+            id="graph-view-container",
             children=[
-                DataTable(
-                    id="analysis-data-table",
-                    data=[],  # Will be populated by callback
-                    columns=[{"name": "Strike", "id": "Strike"}],  # Will be populated by callback
-                    theme=default_theme,
-                    style_table={'overflowX': 'auto', 'width': '100%'},
-                    style_header={
-                        'backgroundColor': default_theme.primary,
-                        'color': default_theme.text_light,
-                        'fontWeight': 'bold',
-                        'textAlign': 'center',
-                        'padding': '8px'
-                    },
-                    style_cell={
-                        'backgroundColor': default_theme.base_bg,
-                        'color': default_theme.text_light,
-                        'textAlign': 'center',
-                        'padding': '8px',
-                        'fontFamily': 'Inter, sans-serif',
-                        'fontSize': '0.8rem'
-                    },
-                    style_data_conditional=[
-                        {
-                            'if': {'column_id': 'Strike'},
-                            'fontWeight': 'bold',
-                            'backgroundColor': default_theme.panel_bg,
-                        }
-                    ]
+                Grid(
+                    id="analysis-graph-container",
+                    children=[
+                        Graph(
+                            id="analysis-graph",
+                            figure={
+                                'data': [],
+                                'layout': go.Layout(
+                                    xaxis_title="Strike",
+                                    yaxis_title="Selected Metric",
+                                    plot_bgcolor=default_theme.base_bg,
+                                    paper_bgcolor=default_theme.panel_bg,
+                                    font_color=default_theme.text_light,
+                                    xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                                    yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                                    margin=dict(l=60, r=20, t=40, b=50)
+                                )
+                            },
+                            theme=default_theme,
+                            style={'height': '400px', 'width': '100%'}
+                        ).render()
+                    ],
+                    style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px'}
                 ).render()
             ],
-            style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px'}
-        ).render()
+            style={'display': 'block'}  # Initially visible
+        ),
+        
+        # Table container
+        html.Div(
+            id="table-view-container",
+            children=[
+                Grid(
+                    id="analysis-table-container",
+                    children=[
+                        DataTable(
+                            id="analysis-data-table",
+                            data=[],  # Will be populated by callback
+                            columns=[{"name": "Strike", "id": "Strike"}],  # Will be populated by callback
+                            theme=default_theme,
+                            style_table={'overflowX': 'auto', 'width': '100%'},
+                            style_header={
+                                'backgroundColor': default_theme.primary,
+                                'color': default_theme.text_light,
+                                'fontWeight': 'bold',
+                                'textAlign': 'center',
+                                'padding': '8px'
+                            },
+                            style_cell={
+                                'backgroundColor': default_theme.base_bg,
+                                'color': default_theme.text_light,
+                                'textAlign': 'center',
+                                'padding': '8px',
+                                'fontFamily': 'Inter, sans-serif',
+                                'fontSize': '0.8rem'
+                            },
+                            style_data_conditional=[
+                                {
+                                    'if': {'column_id': 'Strike'},
+                                    'fontWeight': 'bold',
+                                    'backgroundColor': default_theme.panel_bg,
+                                }
+                            ]
+                        ).render()
+                    ],
+                    style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px'}
+                ).render()
+            ],
+            style={'display': 'none'}  # Initially hidden
+        )
     ],
     style={'padding': '15px'}
 ).render()
@@ -1158,6 +1199,41 @@ def prepare_table_data(data_dict, underlying_key, y_axis_column):
     ] + [{"name": f"{expiry}", "id": f"{expiry}"} for expiry in ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th"]]
     
     return data_records, columns
+
+# Callback to toggle between Graph and Table views
+@app.callback(
+    [Output("graph-view-container", "style"),
+     Output("table-view-container", "style"),
+     Output("view-toggle-graph", "style"),
+     Output("view-toggle-table", "style")],
+    [Input("view-toggle-graph", "n_clicks"),
+     Input("view-toggle-table", "n_clicks")],
+    prevent_initial_call=True
+)
+def toggle_view(graph_clicks, table_clicks):
+    # Determine which button was clicked last
+    ctx = dash.callback_context
+    if not ctx.triggered:
+        # Default to graph view on page load
+        return {'display': 'block'}, {'display': 'none'}, \
+               {'borderTopRightRadius': '0', 'borderBottomRightRadius': '0', 'borderRight': 'none', 
+                'backgroundColor': default_theme.primary}, \
+               {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.panel_bg}
+    
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if triggered_id == "view-toggle-graph":
+        # Switch to Graph view
+        return {'display': 'block'}, {'display': 'none'}, \
+               {'borderTopRightRadius': '0', 'borderBottomRightRadius': '0', 'borderRight': 'none', 
+                'backgroundColor': default_theme.primary}, \
+               {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.panel_bg}
+    else:
+        # Switch to Table view
+        return {'display': 'none'}, {'display': 'block'}, \
+               {'borderTopRightRadius': '0', 'borderBottomRightRadius': '0', 'borderRight': 'none', 
+                'backgroundColor': default_theme.panel_bg}, \
+               {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.primary}
 
 # --- End Callbacks ---
 
