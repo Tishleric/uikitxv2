@@ -204,29 +204,15 @@ analysis_tab_content = Container(
         
         html.H4("Analysis Configuration", style={"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}),
         
-        # Top row - Market Movement (centered)
+        # Center the Refresh Data button
         html.Div([
-            # Group controls in a single centered container
-            html.Div([
-                html.P("Market Movement +/-:", style=text_style),
-                dcc.Input(
-                    id="analysis-market-movement-input",
-                    type="number",
-                    placeholder="e.g. 10 for +10bps",
-                    style=input_style_dcc
-                )
-            ], style={'marginRight': '15px', 'display': 'inline-block'}),
-            
-            html.Div([
-                html.P("\u00A0", style=text_style),  # Non-breaking space to align button
-                Button(
-                    label="Refresh Data",
-                    id="analysis-refresh-button",
-                    theme=default_theme,
-                    n_clicks=0
-                ).render()
-            ], style={'display': 'inline-block', 'verticalAlign': 'bottom', 'marginBottom': '5px'})
-        ], style={'display': 'flex', 'marginBottom': '20px', 'justifyContent': 'center', 'alignItems': 'flex-end'}),
+            Button(
+                label="Refresh Data",
+                id="analysis-refresh-button",
+                theme=default_theme,
+                n_clicks=0
+            ).render()
+        ], style={'display': 'flex', 'justifyContent': 'center', 'marginBottom': '20px'}),
         
         # Bottom row - Y-axis on left, Underlying on right
         html.Div([
