@@ -691,9 +691,9 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
         logger.info("Refresh Data button clicked. Fetching market movement data...")
         try:
             # Get market movement data (nested dictionary by underlying and expiry)
-            data_dict = get_market_movement_data_df()
+            result_dict = get_market_movement_data_df()
             
-            if not data_dict:
+            if not result_dict or 'data' not in result_dict:
                 logger.warning("Retrieved empty data dictionary from market movement data")
                 # Create empty figure with message
                 fig.update_layout(
@@ -709,27 +709,38 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                 )
                 return None, fig, [], None
             
+            # Access the data and metadata from the result dictionary
+            data_dict = result_dict['data']
+            metadata = result_dict['metadata']
+            
+            # Get underlying values from metadata
+            base_underlying_values = metadata.get('base_underlying_values', [])
+            plus_1bp_values = metadata.get('plus_1bp_values', [])
+            minus_1bp_values = metadata.get('minus_1bp_values', [])
+            
             # Create dropdown options for underlying values
             underlying_options = []
-            for underlying_key, expiry_dict in data_dict.items():
-                # Get first non-empty dataframe to extract actual underlying value
-                actual_value = None
-                for expiry, df in expiry_dict.items():
-                    if not df.empty and 'Underlying' in df.columns and len(df) > 0:
-                        actual_value = df['Underlying'].iloc[0]
-                        break
+            
+            # Function to detect and format contract transitions
+            def format_underlying_option(key, values, display_name):
+                if not values:
+                    # Fallback if no values were collected
+                    return {"label": display_name, "value": key}
                 
-                # Create display label based on underlying type and actual value
-                if underlying_key == 'base':
-                    display_label = f"Base ({actual_value})"
-                elif underlying_key == '+1bp':
-                    display_label = f"+1bp ({actual_value})"
-                elif underlying_key == '-1bp':
-                    display_label = f"-1bp ({actual_value})"
+                # Check for contract transitions (different underlying values)
+                unique_values = list(set(values))
+                if len(unique_values) == 1:
+                    # Single contract type
+                    return {"label": f"{display_name} ({unique_values[0]})", "value": key}
                 else:
-                    display_label = underlying_key
-                
-                underlying_options.append({"label": display_label, "value": underlying_key})
+                    # Multiple contract types (transition)
+                    value_display = f"{unique_values[0]} → {unique_values[-1]}"
+                    return {"label": f"{display_name} ({value_display})", "value": key}
+            
+            # Add options for each underlying type
+            underlying_options.append(format_underlying_option('base', base_underlying_values, 'Base'))
+            underlying_options.append(format_underlying_option('+1bp', plus_1bp_values, '+1bp'))
+            underlying_options.append(format_underlying_option('-1bp', minus_1bp_values, '-1bp'))
             
             # Set initial underlying selection if none exists
             if not selected_underlying and underlying_options:
@@ -747,15 +758,22 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
             
             # Create graph with selected or default underlying
             underlying_to_use = underlying_value if underlying_value in data_dict else list(data_dict.keys())[0]
-            fig = create_analysis_graph(data_dict, y_axis, underlying_to_use)
+            fig = create_analysis_graph(data_dict, y_axis, underlying_to_use, 
+                                       base_values=base_underlying_values,
+                                       plus_1bp_values=plus_1bp_values,
+                                       minus_1bp_values=minus_1bp_values)
             
             # Store data dictionary as JSON in the dcc.Store
             # Convert each DataFrame in each underlying group to JSON and store in a nested dictionary
-            data_json_dict = {}
+            data_json_dict = {
+                'data': {},
+                'metadata': metadata
+            }
+            
             for underlying, expiry_dict in data_dict.items():
-                data_json_dict[underlying] = {}
+                data_json_dict['data'][underlying] = {}
                 for expiry, df in expiry_dict.items():
-                    data_json_dict[underlying][expiry] = df.to_json(date_format='iso', orient='split')
+                    data_json_dict['data'][underlying][expiry] = df.to_json(date_format='iso', orient='split')
             
             # Store the dictionary structure as JSON
             data_json = json.dumps(data_json_dict)
@@ -798,41 +816,76 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                 # Parse the stored data JSON
                 data_json_dict = json.loads(stored_data)
                 
-                # Reconstruct nested dictionary with DataFrames
+                # Make sure data_json_dict has the expected structure
+                if 'data' not in data_json_dict:
+                    # Legacy format, restructure it
+                    logger.warning("Legacy format detected in stored data, restructuring")
+                    new_data_json_dict = {'data': {}, 'metadata': {}}
+                    
+                    # Extract metadata if it exists
+                    if 'metadata' in data_json_dict:
+                        new_data_json_dict['metadata'] = data_json_dict['metadata']
+                    else:
+                        # Create empty metadata
+                        new_data_json_dict['metadata'] = {
+                            'base_underlying_values': [],
+                            'plus_1bp_values': [],
+                            'minus_1bp_values': []
+                        }
+                    
+                    # Move data to data field
+                    for key, value in data_json_dict.items():
+                        if key != 'metadata':
+                            new_data_json_dict['data'][key] = value
+                    
+                    data_json_dict = new_data_json_dict
+                
+                # Get data and metadata
                 data_dict = {}
-                for underlying, expiry_dict in data_json_dict.items():
+                metadata = data_json_dict.get('metadata', {})
+                
+                # Parse the data from JSON strings back to DataFrames
+                for underlying, expiry_dict in data_json_dict['data'].items():
                     data_dict[underlying] = {}
                     for expiry, df_json in expiry_dict.items():
                         data_dict[underlying][expiry] = pd.read_json(StringIO(df_json), orient='split')
                 
-                # Extract underlying options
-                underlying_options = []
-                for underlying_key, expiry_dict in data_dict.items():
-                    # Get first non-empty dataframe to extract actual underlying value
-                    actual_value = None
-                    for expiry, df in expiry_dict.items():
-                        if not df.empty and 'Underlying' in df.columns and len(df) > 0:
-                            actual_value = df['Underlying'].iloc[0]
-                            break
+                # Get underlying values for display
+                base_underlying_values = metadata.get('base_underlying_values', [])
+                plus_1bp_values = metadata.get('plus_1bp_values', [])
+                minus_1bp_values = metadata.get('minus_1bp_values', [])
+                
+                # Function to detect and format contract transitions
+                def format_underlying_option(key, values, display_name):
+                    if not values:
+                        # Fallback if no values were collected
+                        return {"label": display_name, "value": key}
                     
-                    # Create display label
-                    if underlying_key == 'base':
-                        display_label = f"Base ({actual_value})"
-                    elif underlying_key == '+1bp':
-                        display_label = f"+1bp ({actual_value})"
-                    elif underlying_key == '-1bp':
-                        display_label = f"-1bp ({actual_value})"
+                    # Check for contract transitions (different underlying values)
+                    unique_values = list(set(values))
+                    if len(unique_values) == 1:
+                        # Single contract type
+                        return {"label": f"{display_name} ({unique_values[0]})", "value": key}
                     else:
-                        display_label = underlying_key
-                    
-                    underlying_options.append({"label": display_label, "value": underlying_key})
+                        # Multiple contract types (transition)
+                        value_display = f"{unique_values[0]} → {unique_values[-1]}"
+                        return {"label": f"{display_name} ({value_display})", "value": key}
+                
+                # Create dropdown options for underlying values
+                underlying_options = []
+                underlying_options.append(format_underlying_option('base', base_underlying_values, 'Base'))
+                underlying_options.append(format_underlying_option('+1bp', plus_1bp_values, '+1bp'))
+                underlying_options.append(format_underlying_option('-1bp', minus_1bp_values, '-1bp'))
                 
                 # Handle case where selected underlying doesn't exist in data
                 if not selected_underlying or selected_underlying not in data_dict:
                     underlying_value = list(data_dict.keys())[0] if data_dict else None
                 
                 # Create graph with filtered data based on selected underlying
-                fig = create_analysis_graph(data_dict, selected_y_axis, underlying_value)
+                fig = create_analysis_graph(data_dict, selected_y_axis, underlying_value,
+                                          base_values=base_underlying_values,
+                                          plus_1bp_values=plus_1bp_values,
+                                          minus_1bp_values=minus_1bp_values)
         except Exception as e:
             logger.error(f"Error updating analysis graph: {str(e)}", exc_info=True)
             fig.update_layout(
@@ -849,7 +902,7 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
     
     return data_json, fig, underlying_options, underlying_value
 
-def create_analysis_graph(data_dict, y_axis_column, underlying_key='base'):
+def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', base_values=None, plus_1bp_values=None, minus_1bp_values=None):
     """
     Helper function to create the analysis graph figure with multiple series from different expiries
     for a selected underlying value.
@@ -858,6 +911,9 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base'):
         data_dict (dict): Nested dictionary with structure {underlying: {expiry: dataframe}}
         y_axis_column (str): Column name to use for the Y-axis
         underlying_key (str): Key of the underlying value to plot (e.g., 'base', '+1bp', '-1bp')
+        base_values (list): Optional list of base underlying values for title display
+        plus_1bp_values (list): Optional list of +1bp underlying values for title display
+        minus_1bp_values (list): Optional list of -1bp underlying values for title display
         
     Returns:
         go.Figure: Plotly figure object with all series
@@ -957,12 +1013,14 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base'):
         )
         return fig
     
-    # Get underlying from first available DataFrame
-    underlying_value = None
-    for expiry, df in expiry_dict.items():
-        if not df.empty and 'Underlying' in df.columns and len(df) > 0:
-            underlying_value = df['Underlying'].iloc[0]
-            break
+    # Get appropriate underlying values for title display
+    underlying_values = []
+    if underlying_key == 'base' and base_values:
+        underlying_values = base_values
+    elif underlying_key == '+1bp' and plus_1bp_values:
+        underlying_values = plus_1bp_values
+    elif underlying_key == '-1bp' and minus_1bp_values:
+        underlying_values = minus_1bp_values
     
     # Get friendly name for the underlying key
     underlying_display = {
@@ -973,8 +1031,20 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base'):
     
     # Create title with underlying info
     title = f"{y_axis_label} vs Strike"
-    if underlying_value:
-        title += f" - {underlying_display} ({underlying_value})"
+    
+    # Add underlying information to title
+    if underlying_values:
+        unique_values = list(set(underlying_values))
+        if len(unique_values) == 1:
+            # Single contract
+            title += f" - {underlying_display} ({unique_values[0]})"
+        else:
+            # Contract transition
+            contracts_display = f"{unique_values[0]} → {unique_values[-1]}"
+            title += f" - {underlying_display} ({contracts_display})"
+    else:
+        # Fallback if no underlying values available
+        title += f" - {underlying_display}"
     
     # Update layout with proper titles and styling
     fig.update_layout(

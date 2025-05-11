@@ -45,7 +45,7 @@ WAIT_AFTER_NAVIGATION = 0.05
 WAIT_FOR_COPY_OPERATION = 0.2
 WAIT_FOR_CELL_RENDERING = 10.0  # Increased from 7.0 to 10.0 seconds for cells to render
 WAIT_FOR_BROWSER_CLOSE = 0.5
-WAIT_FOR_UNDERLYING_CELL = 7.0  # Increased from 4.0 to 7.0 seconds
+WAIT_FOR_UNDERLYING_CELL = 15.0  # Increased from 7.0 to 15.0 seconds
 
 class PMMovementError(Exception):
     """Custom exception for Pricing Monkey Movement operations."""
@@ -65,6 +65,9 @@ def parse_treasury_price(price_str):
         # Handle potential whitespace
         price_str = price_str.strip()
         
+        # Remove any trailing \r from clipboard content
+        price_str = price_str.rstrip('\r')
+        
         # Split main components
         whole_part, fractional_part = price_str.split('-')
         whole_number = int(whole_part)
@@ -73,7 +76,17 @@ def parse_treasury_price(price_str):
         if '.' in fractional_part:
             ticks_part, decimal_part = fractional_part.split('.')
             ticks = int(ticks_part)
-            decimal = int(decimal_part) if decimal_part else 0
+            
+            # Convert decimal_part to the proper fraction, preserving true decimal values
+            # For .5, keep it as 5 (meaning half a tick)
+            # For .05, keep it as 5 (from a differently formatted string)
+            # For other decimals, convert appropriately
+            if decimal_part == '5':
+                decimal = 5
+            elif decimal_part == '05':
+                decimal = 5
+            else:
+                decimal = int(decimal_part) if decimal_part else 0
         else:
             ticks = int(fractional_part)
             decimal = 0
@@ -96,9 +109,14 @@ def format_treasury_price(whole, ticks, decimal=0):
     Returns:
         str: Formatted price string (e.g., "105-20.00")
     """
-    if decimal > 0:
+    if decimal == 5:
+        # For half ticks, use .5 format
+        return f"{whole}-{ticks:02d}.5"
+    elif decimal > 0:
+        # For other decimals, use standard format
         return f"{whole}-{ticks:02d}.{decimal:02d}"
     else:
+        # No decimal part
         return f"{whole}-{ticks:02d}"
 
 def adjust_treasury_price(price_str, basis_points):
@@ -117,20 +135,36 @@ def adjust_treasury_price(price_str, basis_points):
     # Calculate tick adjustment (1bp = 2 ticks)
     tick_adjustment = basis_points * BASIS_POINTS_INCREMENT
     
-    # Apply adjustment
-    new_ticks = ticks + tick_adjustment
+    # Convert to total ticks including decimal part for precise calculation
+    total_ticks = ticks
+    if decimal == 5:
+        total_ticks += 0.5
+    
+    # Apply adjustment to total ticks
+    new_total_ticks = total_ticks + tick_adjustment
+    
+    # Calculate new whole number and ticks
+    new_whole = whole
     
     # Handle rollovers
-    while new_ticks >= TICKS_PER_POINT:
-        new_ticks -= TICKS_PER_POINT
-        whole += 1
+    while new_total_ticks >= TICKS_PER_POINT:
+        new_total_ticks -= TICKS_PER_POINT
+        new_whole += 1
         
     # Handle underflows
-    while new_ticks < 0:
-        new_ticks += TICKS_PER_POINT
-        whole -= 1
+    while new_total_ticks < 0:
+        new_total_ticks += TICKS_PER_POINT
+        new_whole -= 1
     
-    return format_treasury_price(whole, int(new_ticks), decimal)
+    # Extract integer and decimal parts
+    new_ticks = int(new_total_ticks)
+    new_decimal = 0
+    
+    # Check if there's a fractional part to represent as .5
+    if new_total_ticks - new_ticks >= 0.4:  # Use 0.4 as threshold to account for float precision issues
+        new_decimal = 5
+    
+    return format_treasury_price(new_whole, new_ticks, new_decimal)
 
 def split_dataframe_by_expiry(df):
     """
@@ -182,6 +216,7 @@ def split_dataframe_by_expiry(df):
 def split_dataframe_by_expiry_and_underlying(df):
     """
     Splits the market movement DataFrame into separate DataFrames by both expiry and underlying value.
+    Uses row indices to determine the underlying category (base, +1bp, -1bp).
     
     Args:
         df (pd.DataFrame): The complete market movement DataFrame
@@ -189,9 +224,17 @@ def split_dataframe_by_expiry_and_underlying(df):
     Returns:
         dict: Nested dictionary with structure {underlying: {expiry: dataframe}}
     """
-    if df.empty or 'Trade Description' not in df.columns or 'Underlying' not in df.columns:
+    if df.empty or 'Trade Description' not in df.columns:
         logger.warning("Cannot split DataFrame: empty or missing required columns")
-        return {'base': {'1st': df}}  # Return original DataFrame as fallback
+        # Return minimal structure with metadata
+        return {
+            'data': {'base': {'1st': df}},
+            'metadata': {
+                'base_underlying_values': [],
+                'plus_1bp_values': [],
+                'minus_1bp_values': []
+            }
+        }
     
     # Extract expiry from Trade Description column
     def extract_expiry(desc):
@@ -210,53 +253,95 @@ def split_dataframe_by_expiry_and_underlying(df):
     expiries = sorted(df['expiry'].dropna().unique())
     logger.info(f"Found {len(expiries)} unique expiries: {', '.join(expiries)}")
     
-    # Get unique underlying values
-    unique_underlyings = df['Underlying'].unique()
-    logger.info(f"Found {len(unique_underlyings)} unique underlying values")
+    # Get underlying values from the dataframe attributes (set during data collection)
+    base_underlying_values = []
+    plus_1bp_values = []
+    minus_1bp_values = []
     
-    # Access stored underlying values for naming
-    base_underlying = getattr(df, 'current_underlying', 'base')
-    plus_1bp_underlying = getattr(df, 'plus_1bp', '+1bp')
-    minus_1bp_underlying = getattr(df, 'minus_1bp', '-1bp')
+    # Try to get values from dataframe attributes if they exist
+    if hasattr(df, 'base_underlying_values'):
+        base_underlying_values = df.base_underlying_values
+    if hasattr(df, 'plus_1bp_values'):
+        plus_1bp_values = df.plus_1bp_values
+    if hasattr(df, 'minus_1bp_values'):
+        minus_1bp_values = df.minus_1bp_values
     
-    # Create mapping of actual values to friendly names
-    underlying_names = {}
-    for val in unique_underlyings:
-        if val == base_underlying:
-            underlying_names[val] = 'base'
-        elif val == plus_1bp_underlying:
-            underlying_names[val] = '+1bp'
-        elif val == minus_1bp_underlying:
-            underlying_names[val] = '-1bp'
-        else:
-            underlying_names[val] = f'unknown-{val}'
-    
-    # Create nested dictionary structure
-    result = {}
-    for underlying_val, friendly_name in underlying_names.items():
-        underlying_df = df[df['Underlying'] == underlying_val].copy()
+    # If we don't have the values stored, try to extract them from the dataframe
+    if not base_underlying_values:
+        logger.warning("No stored underlying values, will extract from DataFrame rows")
         
-        # Initialize inner dictionary for this underlying
-        result[friendly_name] = {}
+        # Extract approximate ranges based on row indices
+        total_rows = len(df)
+        first_third = df.iloc[:total_rows//3] if total_rows > 0 else df
+        second_third = df.iloc[total_rows//3:2*total_rows//3] if total_rows > 2 else df
+        last_third = df.iloc[2*total_rows//3:] if total_rows > 2 else df
         
-        # Split by expiry for this underlying
-        for expiry in expiries:
-            expiry_df = underlying_df[underlying_df['expiry'] == expiry].copy()
-            expiry_df = expiry_df.drop(columns=['expiry'])  # Remove temporary column
+        # Extract unique underlying values from each third
+        if 'Underlying' in df.columns:
+            base_underlying_values = first_third['Underlying'].unique().tolist() if not first_third.empty else []
+            plus_1bp_values = second_third['Underlying'].unique().tolist() if not second_third.empty else []
+            minus_1bp_values = last_third['Underlying'].unique().tolist() if not last_third.empty else []
+    
+    # Split DataFrame by row ranges
+    total_rows = len(df)
+    rows_per_category = total_rows // 3
+    
+    # Base rows (first third)
+    base_rows = df.iloc[:rows_per_category].copy() if total_rows > 0 else df
+    # +1bp rows (second third)
+    plus_1bp_rows = df.iloc[rows_per_category:2*rows_per_category].copy() if total_rows > 2 else df
+    # -1bp rows (last third)
+    minus_1bp_rows = df.iloc[2*rows_per_category:].copy() if total_rows > 2 else df
+    
+    # Create final result structure
+    final_result = {
+        'data': {
+            'base': {},
+            '+1bp': {},
+            '-1bp': {}
+        },
+        'metadata': {
+            'base_underlying_values': base_underlying_values,
+            'plus_1bp_values': plus_1bp_values,
+            'minus_1bp_values': minus_1bp_values
+        }
+    }
+    
+    # Process each category and expiry
+    for category, category_df in [
+        ('base', base_rows), 
+        ('+1bp', plus_1bp_rows), 
+        ('-1bp', minus_1bp_rows)
+    ]:
+        # Skip if empty
+        if category_df.empty:
+            continue
             
-            # Sort by Strike value to ensure correct line plotting
+        # Split this category by expiry
+        for expiry in expiries:
+            expiry_df = category_df[category_df['expiry'] == expiry].copy()
+            
+            # Skip if this expiry is empty for this category
+            if expiry_df.empty:
+                continue
+                
+            # Remove temporary column
+            expiry_df = expiry_df.drop(columns=['expiry'])
+            
+            # Sort by Strike value for correct line plotting
             if 'Strike' in expiry_df.columns:
                 expiry_df = expiry_df.sort_values(by='Strike')
-                logger.debug(f"Sorted DataFrame for {friendly_name} / {expiry} by Strike values")
+                logger.debug(f"Sorted DataFrame for {category}/{expiry} by Strike values")
             
-            result[friendly_name][expiry] = expiry_df
-            logger.debug(f"Created DataFrame for {friendly_name} / {expiry} with {len(expiry_df)} rows")
+            # Store in the result structure
+            final_result['data'][category][expiry] = expiry_df
+            logger.debug(f"Created DataFrame for {category}/{expiry} with {len(expiry_df)} rows")
     
-    # Log summary of created dataframes
-    total_dfs = sum(len(inner_dict) for inner_dict in result.values())
-    logger.info(f"Split data into {len(result)} underlying values × {len(expiries)} expiries = {total_dfs} total DataFrames")
+    # Count total DataFrames for logging
+    total_dfs = sum(len(expiry_dict) for expiry_dict in final_result['data'].values())
+    logger.info(f"Split data into {len(final_result['data'])} underlying groups with {total_dfs} total DataFrames")
     
-    return result
+    return final_result
 
 def get_market_movement_data_df():
     """
@@ -278,14 +363,14 @@ def get_market_movement_data_df():
         
         # Count total rows
         total_rows = 0
-        for underlying, expiry_dict in result.items():
+        for underlying, expiry_dict in result['data'].items():
             for expiry, df in expiry_dict.items():
                 total_rows += len(df)
         
-        print(f"Retrieved {total_rows} total rows across {len(result)} underlying values")
+        print(f"Retrieved {total_rows} total rows across {len(result['data'])} underlying values")
         
         # Print sample of data
-        for underlying, expiry_dict in result.items():
+        for underlying, expiry_dict in result['data'].items():
             print(f"\n=== {underlying.upper()} UNDERLYING ===")
             for expiry, df in sorted(expiry_dict.items()):
                 print(f"  -- {expiry} EXPIRY ({'empty' if df.empty else f'{len(df)} rows'})")
@@ -297,7 +382,7 @@ def get_market_movement_data_df():
     except PMMovementError as e:
         logger.error(f"Failed to get market movement data: {str(e)}")
         # Return an empty dictionary with the same structure
-        return {'base': {'1st': pd.DataFrame(columns=COLUMN_HEADERS)}}
+        return {'data': {'base': {'1st': pd.DataFrame(columns=COLUMN_HEADERS)}}, 'metadata': {'base_underlying_values': [], 'plus_1bp_values': [], 'minus_1bp_values': []}}
 
 def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMNS_TO_SELECT, save_to_csv=True):
     """
@@ -334,45 +419,47 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
         send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
         logger.debug("DOWN arrow press complete")
         
-        # New Step: Move to Underlying cell and read current value
-        logger.debug("Moving to underlying cell")
+        # New Step: Move to Underlying column and select all base values at once
+        logger.debug("Moving to underlying column")
         send_keys('{RIGHT}', pause=KEY_PRESS_PAUSE)
         logger.debug(f"Waiting {WAIT_FOR_UNDERLYING_CELL} seconds for underlying cell to be ready")
-        time.sleep(WAIT_FOR_UNDERLYING_CELL)  # Increased wait time before copying underlying value
+        time.sleep(WAIT_FOR_UNDERLYING_CELL)
         
-        # Copy the underlying value
-        logger.debug("Copying current underlying value")
+        # Select all 70 base underlying values
+        logger.debug("Selecting all 70 base underlying values")
+        send_keys('+{DOWN 69}', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_AFTER_NAVIGATION)
+        
+        # Copy the selected values
+        logger.debug("Copying base underlying values")
         send_keys('^c', pause=WAIT_FOR_COPY_OPERATION)
         time.sleep(WAIT_FOR_COPY_OPERATION)
         
-        # Get the current underlying value
-        current_underlying = pyperclip.paste().strip()
-        logger.info(f"Current underlying value: {current_underlying}")
+        # Parse the multiline clipboard content
+        base_underlying_values = pyperclip.paste().strip().split('\n')
+        logger.info(f"Collected {len(base_underlying_values)} base underlying values")
         
-        # Move back to the first cell
-        logger.debug("Moving back to first cell")
-        send_keys('{LEFT}', pause=KEY_PRESS_PAUSE)
-        time.sleep(WAIT_AFTER_NAVIGATION)
+        # Log some sample values to verify
+        if len(base_underlying_values) > 0:
+            logger.info(f"First base value: {base_underlying_values[0]}")
+            if len(base_underlying_values) > 60:
+                logger.info(f"Last few base values: {base_underlying_values[-10:]}")
         
-        # Calculate +1bp and -1bp values
-        plus_1bp = adjust_treasury_price(current_underlying, 1)
-        minus_1bp = adjust_treasury_price(current_underlying, -1)
-        logger.info(f"Underlying scenarios: Base={current_underlying}, +1bp={plus_1bp}, -1bp={minus_1bp}")
+        # Generate +1bp and -1bp versions for each base value
+        plus_1bp_values = [adjust_treasury_price(val, 1) for val in base_underlying_values]
+        minus_1bp_values = [adjust_treasury_price(val, -1) for val in base_underlying_values]
         
-        # Prepare data for pasting: 70 rows of the +1bp value
-        logger.debug("Preparing +1bp data for pasting")
-        plus_1bp_data = [plus_1bp] * 70  # 70 rows of the +1bp value
-        plus_1bp_clipboard = '\n'.join(plus_1bp_data)
+        logger.info(f"Generated corresponding +1bp and -1bp values for all base values")
         
-        # Paste the +1bp data
-        logger.debug("Moving to underlying column")
-        send_keys('{RIGHT}', pause=KEY_PRESS_PAUSE)
-        time.sleep(WAIT_AFTER_NAVIGATION)
-        
-        # Navigate down 70 rows before the first paste
-        logger.debug("Moving down 70 rows before first paste")
+        # Move down 70 times to reach the second section
+        logger.debug("Moving down 70 more times to reach +1bp section")
         for i in range(70):
             send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_AFTER_NAVIGATION)
+        
+        # Prepare clipboard data for +1bp values
+        logger.debug("Preparing +1bp data for pasting")
+        plus_1bp_clipboard = '\n'.join(plus_1bp_values)
         
         # Paste the +1bp data
         logger.debug("Pasting +1bp data")
@@ -386,10 +473,9 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
         for i in range(70):
             send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
         
-        # Prepare data for pasting: 70 rows of the -1bp value
+        # Prepare data for pasting: -1bp values
         logger.debug("Preparing -1bp data for pasting")
-        minus_1bp_data = [minus_1bp] * 70  # 70 rows of the -1bp value
-        minus_1bp_clipboard = '\n'.join(minus_1bp_data)
+        minus_1bp_clipboard = '\n'.join(minus_1bp_values)
         
         # Paste the -1bp data
         logger.debug("Pasting -1bp data")
@@ -456,10 +542,10 @@ def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMN
             df.to_csv(csv_path, index=False)
             logger.info(f"Data saved to {csv_path} for reference")
         
-        # Store the current, +1bp and -1bp values for later grouping
-        df.current_underlying = current_underlying
-        df.plus_1bp = plus_1bp
-        df.minus_1bp = minus_1bp
+        # Store the base, +1bp and -1bp values for later grouping
+        df.base_underlying_values = base_underlying_values
+        df.plus_1bp_values = plus_1bp_values
+        df.minus_1bp_values = minus_1bp_values
         
         return df
         
@@ -681,11 +767,11 @@ if __name__ == "__main__":
             result = split_dataframe_by_expiry_and_underlying(movement_data)
             
             # Count total DataFrames
-            total_dfs = sum(len(inner_dict) for inner_dict in result.values())
-            logger.info(f"Split into {len(result)} underlying values with {total_dfs} total DataFrames")
+            total_dfs = sum(len(inner_dict) for inner_dict in result['data'].values())
+            logger.info(f"Split into {len(result['data'])} underlying groups with {total_dfs} total DataFrames")
             
             # Print sample of data
-            for underlying, expiry_dict in result.items():
+            for underlying, expiry_dict in result['data'].items():
                 logger.info(f"\n=== {underlying.upper()} UNDERLYING ===")
                 for expiry, df in sorted(expiry_dict.items()):
                     logger.info(f"  -- {expiry} EXPIRY ({'empty' if df.empty else f'{len(df)} rows'})")
