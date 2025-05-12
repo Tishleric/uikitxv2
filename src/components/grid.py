@@ -16,28 +16,13 @@ class Grid(BaseComponent):
     width_dict example: {'xs': 12, 'md': 6, 'lg': 4}
     """
     def __init__(self, id, children=None, theme=None, style=None, className=""):
-        """
-        Initialize a Grid component.
-        
-        Args:
-            id (str): The component's ID, required for Dash callbacks.
-            children (list, optional): List of components or (component, width_dict) tuples. Defaults to None.
-            theme (Any, optional): Theme object for styling. Defaults to None.
-            style (dict, optional): Additional CSS styles to apply. Defaults to None.
-            className (str, optional): Additional CSS classes. Defaults to "".
-        """
         super().__init__(id, theme)
         self.children = children if children is not None else []
         self.style = style if style is not None else {}
         self.className = className
 
     def _build_cols(self):
-        """
-        Builds dbc.Col components from children.
-        
-        Returns:
-            list: List of dbc.Col components with appropriate width configurations.
-        """
+        """Builds dbc.Col components from children."""
         cols = []
         children_to_process = self.children
         if not isinstance(children_to_process, (list, tuple)):
@@ -75,12 +60,6 @@ class Grid(BaseComponent):
         return cols
 
     def render(self):
-        """
-        Render the Grid component.
-        
-        Returns:
-            dbc.Row: A Dash Bootstrap Component row with properly configured columns.
-        """
         # Apply theme defaults if not overridden by style prop
         # Example: default_style = {'padding': '10px 0'}
         # final_style = {**default_style, **self.style}

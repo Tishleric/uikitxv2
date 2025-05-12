@@ -1,9 +1,9 @@
 # uikitxv2/dashboard/dashboard.py
 
 import dash
-from dash import html, dcc, Input, Output, State, MATCH, ALL, callback_context
-from dash.exceptions import PreventUpdate
-import dash_bootstrap_components as dbc
+from dash import html, dcc, Input, Output, State, MATCH, ALL, callback_context # type: ignore # Added callback_context
+from dash.exceptions import PreventUpdate # type: ignore
+import dash_bootstrap_components as dbc # type: ignore
 import os
 import sys
 import logging
@@ -14,16 +14,20 @@ import plotly.graph_objects as go
 import json
 from io import StringIO
 
+# --- Adjust Python path ---
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_script_dir) 
 
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
     print(f"Added '{project_root}' to sys.path for package 'src'")
+# --- End Path ---
 
+# --- Imports ---
 try:
     from src.lumberjack.logging_config import setup_logging, shutdown_logging
     from src.utils.colour_palette import default_theme
+    # ComboBox and Graph are already imported from your file.
     from src.components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph 
     print("Successfully imported uikitxv2 logging, theme, and UI components from 'src'.")
     from src.PricingMonkey.pMoneyAuto import run_pm_automation 
@@ -39,7 +43,9 @@ except Exception as e_global:
     print(f"A non-ImportError occurred during the import phase: {e_global}")
     traceback.print_exc()
     sys.exit(1)
+# --- End Imports ---
 
+# --- Logging ---
 logs_dir = os.path.join(project_root, 'logs')
 LOG_DB_PATH = os.path.join(logs_dir, 'main_dashboard_logs.db')
 os.makedirs(logs_dir, exist_ok=True)
@@ -50,7 +56,9 @@ if not logger_root.handlers:
     )
     atexit.register(shutdown_logging)
 logger = logging.getLogger(__name__)
+# --- End Logging ---
 
+# --- Initialize Dash App ---
 assets_folder_path_absolute = os.path.abspath(os.path.join(project_root, 'assets'))
 app = dash.Dash(
     __name__,
@@ -59,7 +67,9 @@ app = dash.Dash(
     suppress_callback_exceptions=True 
 )
 app.title = "Pricing Monkey Automation Dashboard"
+# --- End App Init ---
 
+# --- UI Constants & Helpers ---
 text_style = {"color": default_theme.text_light, "marginBottom": "5px", "marginTop": "15px"}
 input_style_dcc = {
     'width': '100%', 'fontSize': '1rem', 'color': default_theme.text_light,
@@ -71,17 +81,20 @@ desc_strike_options = ["0", "25", "50", "75", "100"]
 desc_type_options = ["call", "put"]
 phase_options = ["1", "2", "3", "4", "5"]
 
+# Color scheme for different expiries
 EXPIRY_COLORS = {
-    "1st": "#00CC96",
-    "2nd": "#636EFA",
-    "3rd": "#EF553B",
-    "4th": "#AB63FA",
-    "5th": "#FFA15A",
-    "6th": "#19D3F3",
-    "7th": "#FF6692",
-    "other": "#FECB52"
+    "1st": "#00CC96",  # Teal/green
+    "2nd": "#636EFA",  # Blue
+    "3rd": "#EF553B",  # Red
+    "4th": "#AB63FA",  # Purple
+    "5th": "#FFA15A",  # Orange
+    "6th": "#19D3F3",  # Light blue
+    "7th": "#FF6692",  # Pink
+    # Fallbacks for any other categories
+    "other": "#FECB52"  # Yellow
 }
 
+# RESULT_TABLE_COLUMNS is taken directly from your provided file and is NOT changed.
 RESULT_TABLE_COLUMNS = [
     {'name': 'Underlying', 'id': 'Underlying'},
     {'name': 'DV01 Gamma', 'id': 'DV01 Gamma'}, 
@@ -89,19 +102,27 @@ RESULT_TABLE_COLUMNS = [
     {'name': 'Vega', 'id': 'Vega'},
 ]
 
+# Columns expected from pMoneyAuto for the graph
 STRIKE_COLUMN_NAME = "Strike" 
+# Default Y-axis for the graph (ensure this column exists in pMoneyAuto output)
 DEFAULT_Y_AXIS_COL = "Implied Vol (Daily BP)" 
 
+# Options for the Y-Axis ComboBox
+# 'value' must match the exact column name in the DataFrame from pMoneyAuto
+# 'label' is for display in the dropdown
 Y_AXIS_CHOICES = [
     {"label": "Implied Vol", "value": "Implied Vol (Daily BP)"}, 
-    {"label": "Delta (%)", "value": "% Delta"},
+    {"label": "Delta (%)", "value": "% Delta"}, # Label updated
     {"label": "Vega", "value": "Vega"},
     {"label": "Gamma", "value": "DV01 Gamma"}, 
     {"label": "Theta", "value": "Theta"},
 ]
+# Columns that need scaling by trade_amount for the graph.
 GRAPH_SCALABLE_GREEKS = ['DV01 Gamma', 'Theta', 'Vega']
 
+
 def create_option_input_block(option_index: int) -> Container:
+    # This function remains the same as in your provided file
     desc_prefix_id = f"option-{option_index}-desc-prefix"
     desc_strike_id = f"option-{option_index}-desc-strike"
     desc_type_id = f"option-{option_index}-desc-type"
@@ -133,7 +154,8 @@ def create_option_input_block(option_index: int) -> Container:
         ],
         style={'padding': '15px', 'border': f'1px solid {default_theme.secondary}', 'borderRadius': '5px', 'marginBottom': '15px', 'backgroundColor': default_theme.panel_bg}
     )
-    return option_container_content_instance
+    return option_container_content_instance 
+# --- End UI Helpers ---
 
 # --- UI Layout Definition ---
 logger.info("Defining UI layout...")
@@ -358,6 +380,7 @@ logger.info("UI layout defined.")
     Input("num-options-selector", "value")
 )
 def update_option_blocks(selected_num_options_str: str | None):
+    # This function remains the same as in your provided file
     if selected_num_options_str is None:
         num_active_options = 1
     else:
@@ -891,7 +914,21 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                 for underlying, expiry_dict in data_json_dict['data'].items():
                     data_dict[underlying] = {}
                     for expiry, df_json in expiry_dict.items():
-                        data_dict[underlying][expiry] = pd.read_json(StringIO(df_json), orient='split')
+                        df = pd.read_json(StringIO(df_json), orient='split')
+                        
+                        # Ensure numeric columns are properly typed after JSON deserialization
+                        numeric_columns = ["Strike", "Implied Vol (Daily BP)", "DV01 Gamma", "Theta", "Vega"]
+                        if "%Delta" in df.columns:
+                            # Special handling for Delta column
+                            df["%Delta"] = pd.to_numeric(df["%Delta"].astype(str).str.replace('%', ''), errors='coerce')
+                            numeric_columns.append("%Delta")
+                            
+                        # Convert other numeric columns
+                        for col in numeric_columns:
+                            if col in df.columns:
+                                df[col] = pd.to_numeric(df[col], errors='coerce')
+                        
+                        data_dict[underlying][expiry] = df
                 
                 # Create dropdown options for underlying values
                 underlying_options = []
@@ -1007,6 +1044,14 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scena
         # Get the data for plotting
         x_data = df["Strike"]
         y_data = df[y_axis_column]
+        
+        # Ensure numeric conversion for all numeric columns, especially %Delta
+        if y_axis_column == "%Delta":
+            # Handle percentage values by removing % if present and converting to numeric
+            y_data = pd.to_numeric(y_data.astype(str).str.replace('%', ''), errors='coerce')
+        elif y_axis_column in ["Strike", "Implied Vol (Daily BP)", "DV01 Gamma", "Theta", "Vega"]:
+            # Also ensure other numeric columns are properly converted
+            y_data = pd.to_numeric(y_data, errors='coerce')
         
         # Get Trade Description data for hover tooltips
         if "Trade Description" in df.columns:
@@ -1156,13 +1201,26 @@ def prepare_table_data(data_dict, underlying_key, y_axis_column):
                     if pd.isna(value):
                         record[expiry] = "-"
                     elif isinstance(value, (int, float)):
-                        # Format with 2 decimal places for most values
-                        if abs(value) < 0.01:
+                        # For Delta column, show as percentage
+                        if y_axis_column == "%Delta":
+                            record[expiry] = f"{value*100:.2f}%"
+                        # Format with appropriate decimal places based on magnitude
+                        elif abs(value) < 0.01:
                             record[expiry] = f"{value:.4f}"
                         else:
                             record[expiry] = f"{value:.2f}"
                     else:
-                        record[expiry] = str(value)
+                        # Try to convert string to number if possible
+                        try:
+                            num_value = float(str(value).replace('%', ''))
+                            if y_axis_column == "%Delta":
+                                record[expiry] = f"{num_value:.2f}%"
+                            elif abs(num_value) < 0.01:
+                                record[expiry] = f"{num_value:.4f}"
+                            else:
+                                record[expiry] = f"{num_value:.2f}"
+                        except (ValueError, TypeError):
+                            record[expiry] = str(value)
                 else:
                     record[expiry] = "-"
             else:

@@ -13,20 +13,6 @@ class RadioButton(BaseComponent):
     A wrapper for dcc.RadioItems with theme integration.
     """
     def __init__(self, id, options=None, value=None, theme=None, style=None, inline=False, labelStyle=None, inputStyle=None, className=""):
-        """
-        Initialize a RadioButton component.
-        
-        Args:
-            id (str): The component's ID, required for Dash callbacks.
-            options (list, optional): List of options to display. Defaults to None.
-            value (Any, optional): Currently selected value. Defaults to None.
-            theme (Any, optional): Theme object for styling. Defaults to None.
-            style (dict, optional): Additional CSS styles for the container. Defaults to None.
-            inline (bool, optional): Whether to display options horizontally. Defaults to False.
-            labelStyle (dict, optional): Styles to apply to option labels. Defaults to None.
-            inputStyle (dict, optional): Styles to apply to radio inputs. Defaults to None.
-            className (str, optional): Additional CSS classes. Defaults to "".
-        """
         super().__init__(id, theme)
         self.options = options if options is not None else []
         self.value = value
@@ -40,12 +26,6 @@ class RadioButton(BaseComponent):
              self.options = [{'label': opt, 'value': opt} for opt in self.options]
 
     def render(self):
-        """
-        Render the RadioButton component.
-        
-        Returns:
-            dcc.RadioItems: A Dash Core Component radio group with applied styling.
-        """
         # Define default styles based on theme
         default_label_style = {'color': self.theme.text_light, 'paddingRight': '10px', 'display': 'inline-block', **self.labelStyle}
         default_input_style = {'marginRight': '5px', **self.inputStyle} # Style for the radio input itself
