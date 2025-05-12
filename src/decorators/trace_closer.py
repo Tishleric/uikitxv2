@@ -18,11 +18,24 @@ from .context_vars import log_uuid_var, current_log_data
 NY_TZ = ZoneInfo("America/New_York")
 
 class TraceCloser:
+    """
+    Outermost decorator that initializes and finalizes trace context for function calls.
+    
+    This decorator should be the outermost decorator in the stack. It sets up the
+    initial context for the function call, including generating a UUID for tracking,
+    and handles finalizing logs when the function completes. It captures machine and
+    user information, combines all metrics collected by other decorators, and produces
+    a final flow trace log.
+    
+    Recommended decorator order: TraceCloser(outermost) -> TraceMemory -> TraceCpu -> TraceTime(innermost)
+    """
+    
     FLOW_TRACE_PREFIX = "FLOW_TRACE:"
 
     def __init__(self):
         """
         Initializes the decorator and retrieves machine/user IDs.
+        
         Uses standard library functions compatible with Windows.
         Allows overrides via environment variables MACHINE_ID and USER_ID.
         Stores values using the keys 'machine' and 'user'.
@@ -52,8 +65,33 @@ class TraceCloser:
 
 
     def __call__(self, func):
+        """
+        Make the class callable as a decorator.
+        
+        Args:
+            func (callable): The function to be decorated.
+            
+        Returns:
+            callable: The wrapped function with tracing setup and finalization.
+        """
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            """
+            Wrapper function that manages trace context for the decorated function.
+            
+            Sets up trace context before function execution, captures metrics during
+            execution, and finalizes logs after execution completes or if an exception occurs.
+            
+            Args:
+                *args: Variable positional arguments passed to the wrapped function.
+                **kwargs: Variable keyword arguments passed to the wrapped function.
+                
+            Returns:
+                Any: The return value from the wrapped function.
+                
+            Raises:
+                Exception: Re-raises any exception from the wrapped function.
+            """
             existing_uuid = log_uuid_var.get()
             uuid_token = None
             data_token = None
@@ -128,8 +166,8 @@ class TraceCloser:
 
                             message_parts = ["Executed"]
                             if duration_str != 'N/A': message_parts.append(f"in {duration_str}s")
-                            if memory_str != 'N/A': message_parts.append(f"using {memory_str}mb delta")
-                            if cpu_str != 'N/A': message_parts.append(f"with {cpu_str}% delta")
+                            if memory_str != 'N/A': message_parts.append(f"using {memory_str}mb memory delta")
+                            if cpu_str != 'N/A': message_parts.append(f"with {cpu_str}% cpu delta")
 
                             if len(message_parts) > 1:
                                 message = " ".join(message_parts) + "."

@@ -12,17 +12,48 @@ from ..utils.colour_palette import default_theme # Only default_theme seems used
 class Grid(BaseComponent):
     """
     A wrapper for creating a grid layout using dbc.Row and dbc.Col.
-    Children should be a list of components or tuples (component, width_dict).
-    width_dict example: {'xs': 12, 'md': 6, 'lg': 4}
+    
+    This component creates a responsive grid layout using Dash Bootstrap Components.
+    Children can be passed as components or as tuples with components and width specifications.
+    
+    Example:
+        grid = Grid(
+            id="grid-layout",
+            children=[
+                Button("button1", "Click Me"),
+                (Graph("graph1"), {"xs": 12, "md": 6}),
+                (DataTable("table1"), {"width": 6})
+            ]
+        )
     """
     def __init__(self, id, children=None, theme=None, style=None, className=""):
+        """
+        Initialize a Grid component.
+        
+        Args:
+            id (str): The component's unique identifier.
+            children (list, optional): List of child components or tuples (component, width_dict).
+                Width dict can be like {'xs': 12, 'md': 6, 'lg': 4} or just a number.
+                Defaults to None (empty list).
+            theme (dict, optional): Theme configuration. Defaults to None.
+            style (dict, optional): Additional CSS styles to apply. Defaults to None.
+            className (str, optional): Additional CSS class names. Defaults to "".
+        """
         super().__init__(id, theme)
         self.children = children if children is not None else []
         self.style = style if style is not None else {}
         self.className = className
 
     def _build_cols(self):
-        """Builds dbc.Col components from children."""
+        """
+        Builds dbc.Col components from children.
+        
+        This internal method processes the children list and creates column components
+        with appropriate width settings.
+        
+        Returns:
+            list: List of dbc.Col components with rendered children.
+        """
         cols = []
         children_to_process = self.children
         if not isinstance(children_to_process, (list, tuple)):
@@ -60,6 +91,16 @@ class Grid(BaseComponent):
         return cols
 
     def render(self):
+        """
+        Render the grid component.
+        
+        Creates a responsive grid layout with the provided children using
+        Bootstrap's row and column system.
+        
+        Returns:
+            dash_bootstrap_components.Row: The rendered Dash Bootstrap row component
+            containing the columns with child components.
+        """
         # Apply theme defaults if not overridden by style prop
         # Example: default_style = {'padding': '10px 0'}
         # final_style = {**default_style, **self.style}
