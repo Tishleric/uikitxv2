@@ -36,42 +36,8 @@
 ## Documentation & Configuration
 
 - `decorators_overview.md` - Markdown table summarizing available decorators, their purpose, and location.
+- `memory-bank/dashboard_functions.md` - Comprehensive list of all functions in dashboard.py and their applied decorators.
 
 ## Demo
 
-- `demo/app.py` - Dash application demonstrating the UI components.
-- `demo/flow.py` - Demo flow implementation using the decorators.
-- `demo/query_runner.py` - Query execution engine for the demo.
-- `demo/queries.yaml` - YAML configuration file with sample queries.
-- `demo/run_queries_demo.py` - Script to run the query demo.
-- `demo/test_decorators.py` - Demonstration of decorator usage.
-
-## Test Suite (tests/)
-
-### Component Tests
-
-- `tests/components/test_button_render.py` - Tests for Button component rendering.
-- `tests/components/test_combobox_render.py` - Tests for ComboBox component rendering.
-- `tests/components/test_datatable_render.py` - Tests for DataTable component rendering.
-- `tests/components/test_graph_render.py` - Tests for Graph component rendering.
-- `tests/components/test_grid_render.py` - Tests for Grid component rendering.
-- `tests/components/test_listbox_render.py` - Tests for ListBox component rendering.
-- `tests/components/test_radiobutton_render.py` - Tests for RadioButton component rendering.
-- `tests/components/test_tabs_render.py` - Tests for Tabs component rendering.
-
-### Decorator Tests
-
-- `tests/decorators/conftest.py` - Shared fixtures for decorator testing including mock resources and functions.
-- `tests/decorators/test_trace_time.py` - Tests for the TraceTime decorator with various inputs and scenarios.
-- `tests/decorators/test_trace_closer.py` - Tests for the TraceCloser decorator including context tracking and error handling.
-- `tests/decorators/test_trace_cpu.py` - Tests for the CPU usage tracking decorator with simulated and real measurements.
-- `tests/decorators/test_trace_memory.py` - Tests for the memory usage tracking decorator with mock and real memory allocation.
-
-### Lumberjack Tests
-
-- `tests/lumberjack/test_logging_config.py` - Tests for the logging configuration module.
-- `tests/lumberjack/test_sqlite_handler.py` - Tests for the SQLite logging handler.
-
-## Import Structure Note
-
-- As of May 5, 2025: The package uses direct imports (e.g., `from components import *`) rather than namespace imports (e.g., `from uikitxv2.components import *`).
+- `demo/app.py`
