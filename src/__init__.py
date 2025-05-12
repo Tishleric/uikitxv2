@@ -1,3 +1,10 @@
+"""
+UIKitXv2: A modular UI component framework for Dash applications.
+
+This package provides themed UI components, decorators for performance tracking,
+logging utilities, and other helpers for building Dash applications.
+"""
+
 # uikitxv2/src/__init__.py
 
 # Use explicit relative imports for sub-packages/modules within 'src'

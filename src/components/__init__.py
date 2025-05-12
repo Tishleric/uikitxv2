@@ -1,3 +1,10 @@
+"""
+UI components module for UIKitXv2.
+
+This module provides reusable, themed UI components built on Dash and Dash Bootstrap Components.
+Each component wraps a Dash component with consistent theming and enhanced functionality.
+"""
+
 from __future__ import annotations
 
 from .button import Button

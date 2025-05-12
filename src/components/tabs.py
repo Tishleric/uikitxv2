@@ -16,6 +16,17 @@ class Tabs(BaseComponent):
     Content can be a BaseComponent instance or any Dash-compatible component layout.
     """
     def __init__(self, id, tabs=None, active_tab=None, theme=None, style=None, className=""):
+        """
+        Initialize a Tabs component.
+        
+        Args:
+            id (str): The component's ID, required for Dash callbacks.
+            tabs (list, optional): List of tuples (label, content) defining each tab. Defaults to None.
+            active_tab (str, optional): ID of the initially active tab. Defaults to None.
+            theme (Any, optional): Theme object for styling. Defaults to None.
+            style (dict, optional): Additional CSS styles to apply. Defaults to None.
+            className (str, optional): Additional CSS classes. Defaults to "".
+        """
         super().__init__(id, theme)
         self.tabs_data = tabs if tabs is not None else []
         self.active_tab = active_tab
@@ -23,7 +34,12 @@ class Tabs(BaseComponent):
         self.className = className
 
     def _create_tabs(self):
-        """Creates dbc.Tab components from the tabs_data."""
+        """
+        Creates dbc.Tab components from the tabs_data.
+        
+        Returns:
+            list: List of dbc.Tab components with proper styling.
+        """
         dbc_tabs = []
         for i, (label, content) in enumerate(self.tabs_data):
             tab_id = f"{self.id}-tab-{i}"
@@ -75,6 +91,12 @@ class Tabs(BaseComponent):
         return dbc_tabs
 
     def render(self):
+        """
+        Render the Tabs component.
+        
+        Returns:
+            dbc.Tabs: A Dash Bootstrap Component tabs container with applied styling.
+        """
         # Determine the default active tab if not specified
         active_tab_id = self.active_tab
         if active_tab_id is None and self.tabs_data:
