@@ -13,9 +13,8 @@ import math
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # Get the parent directory (uikitxv2/)
 project_root = os.path.dirname(current_dir)
-# Construct the path to the src directory
+# Add src directory to sys.path
 src_path = os.path.join(project_root, 'src')
-# Add src path to the beginning of sys.path if it's not already there
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 # --- End Path Adjustment ---

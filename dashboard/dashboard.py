@@ -28,11 +28,17 @@ try:
     from src.lumberjack.logging_config import setup_logging, shutdown_logging
     from src.utils.colour_palette import default_theme
     # ComboBox and Graph are already imported from your file.
-    from src.components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph 
+    from src.components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph, RadioButton
     print("Successfully imported uikitxv2 logging, theme, and UI components from 'src'.")
     from src.PricingMonkey.pMoneyAuto import run_pm_automation 
     from src.PricingMonkey.pMoneyMovement import get_market_movement_data_df, SCENARIOS
     print("Successfully imported PM modules from 'src.PricingMonkey'.")
+    # Import decorator functions
+    from src.decorators.trace_closer import TraceCloser
+    from src.decorators.trace_cpu import TraceCpu
+    from src.decorators.trace_time import TraceTime
+    from src.decorators.trace_memory import TraceMemory
+    print("Successfully imported tracing decorators.")
 except ImportError as e:
     print(f"Error importing from 'src' package: {e}")
     print(f"Current sys.path: {sys.path}")
@@ -50,12 +56,66 @@ logs_dir = os.path.join(project_root, 'logs')
 LOG_DB_PATH = os.path.join(logs_dir, 'main_dashboard_logs.db')
 os.makedirs(logs_dir, exist_ok=True)
 logger_root = logging.getLogger()
-if not logger_root.handlers: 
-    console_handler, db_handler = setup_logging(
-        db_path=LOG_DB_PATH, log_level_console=logging.DEBUG, log_level_db=logging.INFO, log_level_main=logging.DEBUG
+
+# Wrapper function to trace logging setup
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
+def setup_logging_traced():
+    """Wrapper to trace the execution time of setup_logging."""
+    return setup_logging(
+        db_path=LOG_DB_PATH, 
+        log_level_console=logging.DEBUG, 
+        log_level_db=logging.INFO, 
+        log_level_main=logging.DEBUG
     )
-    atexit.register(shutdown_logging)
+
+# Wrapper function to trace logging shutdown
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
+def shutdown_logging_traced():
+    """Wrapper to trace the execution time of shutdown_logging."""
+    return shutdown_logging()
+
+if not logger_root.handlers: 
+    console_handler, db_handler = setup_logging_traced()
+    atexit.register(shutdown_logging_traced)
 logger = logging.getLogger(__name__)
+
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
+def verify_log_database():
+    """Verify that the logging database tables exist and can be accessed."""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(LOG_DB_PATH)
+        cursor = conn.cursor()
+        
+        # Check if the tables exist
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='flowTrace'")
+        flow_trace_exists = cursor.fetchone() is not None
+        
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='AveragePerformance'")
+        avg_perf_exists = cursor.fetchone() is not None
+        
+        if flow_trace_exists and avg_perf_exists:
+            logger.info("Log database verified: Both tables exist.")
+        else:
+            missing_tables = []
+            if not flow_trace_exists:
+                missing_tables.append("flowTrace")
+            if not avg_perf_exists:
+                missing_tables.append("AveragePerformance")
+            logger.warning(f"Log database tables missing: {', '.join(missing_tables)}. They will be created on first log write.")
+        
+        cursor.close()
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"Error verifying log database: {e}", exc_info=True)
+        return False
+
+# Verify the log database on startup
+verify_log_database()
 # --- End Logging ---
 
 # --- Initialize Dash App ---
@@ -355,11 +415,222 @@ analysis_tab_content = Container(
     style={'padding': '15px'}
 ).render()
 
+# --- Logs Database Utilities ---
+@TraceCloser()
+@TraceTime(log_args=True, log_return=False)
+def query_flow_trace_logs(limit=100):
+    """
+    Query the flowTrace table from the SQLite log database.
+    
+    Args:
+        limit: Maximum number of rows to return, defaults to 100
+        
+    Returns:
+        List of dictionaries suitable for DataTable
+    """
+    try:
+        import sqlite3
+        conn = sqlite3.connect(LOG_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Query for the most recent logs, ordered by timestamp (newest first)
+        query = """
+        SELECT id, timestamp, machine, user, level, function, message 
+        FROM flowTrace 
+        ORDER BY id DESC 
+        LIMIT ?
+        """
+        cursor.execute(query, (limit,))
+        
+        # Convert to list of dictionaries
+        results = []
+        for row in cursor.fetchall():
+            results.append(dict(row))
+        
+        cursor.close()
+        conn.close()
+        return results
+    except Exception as e:
+        logger.error(f"Error querying flow trace logs: {e}", exc_info=True)
+        return []
+
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
+def query_performance_metrics():
+    """
+    Query the AveragePerformance table from the SQLite log database.
+    
+    Returns:
+        List of dictionaries suitable for DataTable
+    """
+    try:
+        import sqlite3
+        conn = sqlite3.connect(LOG_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Query all performance metrics, ordered by function name
+        query = """
+        SELECT function_name, call_count, error_count, 
+               avg_duration_s, avg_cpu_delta, avg_memory_delta_mb, 
+               last_updated
+        FROM AveragePerformance 
+        ORDER BY call_count DESC
+        """
+        cursor.execute(query)
+        
+        # Convert to list of dictionaries
+        results = []
+        for row in cursor.fetchall():
+            # Format numeric values for display
+            row_dict = dict(row)
+            if row_dict.get('avg_duration_s') is not None:
+                row_dict['avg_duration_s'] = f"{row_dict['avg_duration_s']:.3f}"
+            if row_dict.get('avg_cpu_delta') is not None:
+                row_dict['avg_cpu_delta'] = f"{row_dict['avg_cpu_delta']:.2f}"
+            if row_dict.get('avg_memory_delta_mb') is not None:
+                row_dict['avg_memory_delta_mb'] = f"{row_dict['avg_memory_delta_mb']:.2f}"
+            results.append(row_dict)
+        
+        cursor.close()
+        conn.close()
+        return results
+    except Exception as e:
+        logger.error(f"Error querying performance metrics: {e}", exc_info=True)
+        return []
+
+# Define function to create the logs tab content
+def create_logs_tab():
+    """Creates the Logs tab with flow trace and performance data tables."""
+    
+    # Define empty table configurations
+    flow_trace_columns = [
+        {"name": "Timestamp", "id": "timestamp"},
+        {"name": "Function", "id": "function"},
+        {"name": "Level", "id": "level"},
+        {"name": "Message", "id": "message"},
+        {"name": "Machine", "id": "machine"},
+        {"name": "User", "id": "user"}
+    ]
+    
+    performance_columns = [
+        {"name": "Function", "id": "function_name"},
+        {"name": "Call Count", "id": "call_count"},
+        {"name": "Error Count", "id": "error_count"},
+        {"name": "Avg Duration (s)", "id": "avg_duration_s"},
+        {"name": "Avg CPU Delta (%)", "id": "avg_cpu_delta"},
+        {"name": "Avg Memory Delta (MB)", "id": "avg_memory_delta_mb"},
+        {"name": "Last Updated", "id": "last_updated"}
+    ]
+    
+    # Create the refresh button
+    refresh_button = Button(
+        id="logs-refresh-button",
+        label="Refresh Logs",
+        theme=default_theme,
+        n_clicks=0
+    )
+    
+    # Create empty DataTable components
+    flow_trace_table = DataTable(
+        id="flow-trace-table",
+        columns=flow_trace_columns,
+        data=[],  # Empty data
+        theme=default_theme,
+        style_data_conditional=[
+            {
+                'if': {'filter_query': '{level} = "ERROR"'},
+                'backgroundColor': default_theme.danger,
+                'color': default_theme.text_light
+            }
+        ]
+    )
+    
+    performance_table = DataTable(
+        id="performance-metrics-table",
+        columns=performance_columns,
+        data=[],  # Empty data
+        theme=default_theme
+    )
+    
+    # Create Grid layout for the controls (toggle buttons and refresh button)
+    controls_grid = Grid(
+        id="logs-controls-grid",
+        children=[
+            html.Div([
+                # View Toggle Buttons similar to Analysis tab
+                html.Div([
+                    html.P("View Mode:", style={"color": default_theme.text_light, "marginRight": "10px", "marginBottom": "0"}),
+                    html.Div([
+                        Button(
+                            label="Flow Trace",
+                            id="logs-toggle-flow",
+                            theme=default_theme,
+                            n_clicks=1,  # Default selected
+                            style={
+                                'borderTopRightRadius': '0',
+                                'borderBottomRightRadius': '0',
+                                'borderRight': 'none',
+                                'backgroundColor': default_theme.primary  # Start with this selected
+                            }
+                        ).render(),
+                        Button(
+                            label="Performance",
+                            id="logs-toggle-performance",
+                            theme=default_theme,
+                            n_clicks=0,
+                            style={
+                                'borderTopLeftRadius': '0', 
+                                'borderBottomLeftRadius': '0',
+                                'backgroundColor': default_theme.panel_bg  # Start with this unselected
+                            }
+                        ).render()
+                    ], style={"display": "flex"})
+                ], style={"display": "flex", "alignItems": "center", "flex": "1"}),
+                
+                # Refresh button on the right
+                html.Div(style={"textAlign": "right", "marginLeft": "20px"}, children=[
+                    refresh_button.render()
+                ])
+            ], style={"display": "flex", "width": "100%", "justifyContent": "space-between", "alignItems": "center"})
+        ],
+        style={"marginBottom": "15px", "backgroundColor": default_theme.panel_bg, "padding": "15px", "borderRadius": "5px"}
+    )
+    
+    # Create the Grid layouts for the tables
+    flow_trace_grid = Grid(
+        id="flow-trace-grid",
+        children=[flow_trace_table.render()],
+        style={"backgroundColor": default_theme.panel_bg, "padding": "15px", "borderRadius": "5px", "display": "block"}
+    )
+    
+    performance_grid = Grid(
+        id="performance-metrics-grid",
+        children=[performance_table.render()],
+        style={"backgroundColor": default_theme.panel_bg, "padding": "15px", "borderRadius": "5px", "display": "none"}
+    )
+    
+    # Wrap it all in a Container
+    logs_container = Container(
+        id="logs-tab-container",
+        children=[
+            html.H4("Application Logs", style={"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}),
+            controls_grid.render(),
+            flow_trace_grid.render(),
+            performance_grid.render()
+        ],
+        style={"padding": "15px"}
+    )
+    
+    return logs_container.render()
+
 main_tabs_rendered = Tabs(
     id="main-dashboard-tabs",
     tabs=[
         ("Pricing Monkey Setup", pricing_monkey_tab_main_container_rendered),
-        ("Analysis", analysis_tab_content)
+        ("Analysis", analysis_tab_content),
+        ("Logs", create_logs_tab())
     ], 
     theme=default_theme
 ).render()
@@ -379,6 +650,8 @@ logger.info("UI layout defined.")
     Output("dynamic-options-area", "children"),
     Input("num-options-selector", "value")
 )
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
 def update_option_blocks(selected_num_options_str: str | None):
     # This function remains the same as in your provided file
     if selected_num_options_str is None:
@@ -412,6 +685,11 @@ def update_option_blocks(selected_num_options_str: str | None):
     [State("num-options-selector", "value")],
     prevent_initial_call=True
 )
+# This is a key user action we want to trace for performance monitoring
+@TraceCloser()
+@TraceCpu()
+@TraceMemory()
+@TraceTime(log_args=False, log_return=False)
 def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     if n_clicks is None or n_clicks == 0: raise PreventUpdate
 
@@ -469,7 +747,7 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     list_of_option_dfs_from_pm = None 
     try:
         logger.info(f"Calling run_pm_automation with: {ui_options_data_for_pm}")
-        list_of_option_dfs_from_pm = run_pm_automation(ui_options_data_for_pm) 
+        list_of_option_dfs_from_pm = run_pm_automation_traced(ui_options_data_for_pm) 
     except Exception as e:
         logger.error(f"Error in run_pm_automation: {e}", exc_info=True)
         return [html.P(f"Error during automation: {str(e)[:200]}...", style={'color': 'red'})]
@@ -643,6 +921,8 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     State({"type": "option-data-store", "index": MATCH}, "data"), 
     prevent_initial_call=True 
 )
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
 def update_graph_from_combobox(selected_y_column_value: str, stored_option_data: dict):
     if not selected_y_column_value or not stored_option_data or 'df_json' not in stored_option_data or 'trade_amount' not in stored_option_data:
         logger.warning("ComboBox callback triggered with no selection or incomplete stored data.")
@@ -729,6 +1009,10 @@ def update_graph_from_combobox(selected_y_column_value: str, stored_option_data:
     State("market-movement-data-store", "data"),
     prevent_initial_call=True
 )
+@TraceCloser()
+@TraceCpu()
+@TraceMemory()
+@TraceTime(log_args=False, log_return=False)
 def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_underlying, stored_data):
     """Unified callback to handle all Analysis tab interactions"""
     # Determine which input triggered the callback
@@ -760,7 +1044,7 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
         logger.info("Refresh Data button clicked. Fetching market movement data...")
         try:
             # Get market movement data (nested dictionary by underlying and expiry)
-            result_dict = get_market_movement_data_df()
+            result_dict = get_market_movement_data_df_traced()
             
             if not result_dict or 'data' not in result_dict:
                 logger.warning("Retrieved empty data dictionary from market movement data")
@@ -862,7 +1146,6 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                 xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
                 yaxis=dict(showgrid=True, gridcolor=default_theme.secondary)
             )
-            return None, fig, [], None, [], table_columns
     
     # Handle y-axis or underlying selection change
     elif (trigger_id == "analysis-y-axis-selector" or trigger_id == "analysis-underlying-selector") and stored_data:
@@ -957,7 +1240,7 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
                 
                 # Handle case where selected underlying doesn't exist in data
                 if not selected_underlying or selected_underlying not in data_dict:
-                    underlying_value = list(data_dict.keys())[0] if data_dict else None
+                    underlying_value = list(data_dict.keys())[0]
                 
                 # Extract values for each scenario for graph title
                 scenario_values = {key: metadata.get(key, []) for key in SCENARIOS.keys()}
@@ -983,6 +1266,10 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
     
     return data_json, fig, underlying_options, underlying_value, table_data, table_columns
 
+@TraceCloser()
+@TraceCpu()
+@TraceMemory()
+@TraceTime(log_args=False, log_return=False)
 def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scenario_values=None):
     """
     Helper function to create the analysis graph figure with multiple series from different expiries
@@ -1150,6 +1437,10 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scena
     
     return fig
 
+@TraceCloser()
+@TraceCpu()
+@TraceMemory()
+@TraceTime(log_args=False, log_return=False)
 def prepare_table_data(data_dict, underlying_key, y_axis_column):
     """
     Transform nested dictionary data to a flat format suitable for DataTable display.
@@ -1245,6 +1536,8 @@ def prepare_table_data(data_dict, underlying_key, y_axis_column):
      Input("view-toggle-table", "n_clicks")],
     prevent_initial_call=True
 )
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
 def toggle_view(graph_clicks, table_clicks):
     # Determine which button was clicked last
     ctx = dash.callback_context
@@ -1270,8 +1563,121 @@ def toggle_view(graph_clicks, table_clicks):
                 'backgroundColor': default_theme.panel_bg}, \
                {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.primary}
 
+# --- Logs Tab Callbacks ---
+@app.callback(
+    [Output("flow-trace-grid", "style"),
+     Output("performance-metrics-grid", "style"),
+     Output("logs-toggle-flow", "style"),
+     Output("logs-toggle-performance", "style")],
+    [Input("logs-toggle-flow", "n_clicks"),
+     Input("logs-toggle-performance", "n_clicks")],
+    prevent_initial_call=False
+)
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
+def toggle_logs_tables(flow_clicks, performance_clicks):
+    """Toggle visibility between Flow Trace and Performance tables."""
+    # Set basic styles
+    flow_trace_style = {"backgroundColor": default_theme.panel_bg, "padding": "15px", "borderRadius": "5px"}
+    performance_style = {"backgroundColor": default_theme.panel_bg, "padding": "15px", "borderRadius": "5px"}
+    
+    # Button style bases
+    flow_btn_style = {
+        'borderTopRightRadius': '0',
+        'borderBottomRightRadius': '0',
+        'borderRight': 'none'
+    }
+    perf_btn_style = {
+        'borderTopLeftRadius': '0', 
+        'borderBottomLeftRadius': '0'
+    }
+    
+    # Determine which button was clicked last
+    ctx = dash.callback_context
+    
+    # Default to flow trace view on first load or if no clear trigger
+    if not ctx.triggered or flow_clicks is None or performance_clicks is None:
+        flow_trace_style["display"] = "block"
+        performance_style["display"] = "none"
+        flow_btn_style["backgroundColor"] = default_theme.primary
+        perf_btn_style["backgroundColor"] = default_theme.panel_bg
+        return flow_trace_style, performance_style, flow_btn_style, perf_btn_style
+    
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if triggered_id == "logs-toggle-flow":
+        # Show Flow Trace
+        flow_trace_style["display"] = "block"
+        performance_style["display"] = "none"
+        flow_btn_style["backgroundColor"] = default_theme.primary  # Active
+        perf_btn_style["backgroundColor"] = default_theme.panel_bg  # Inactive
+    else:  # logs-toggle-performance
+        # Show Performance
+        flow_trace_style["display"] = "none"
+        performance_style["display"] = "block"
+        flow_btn_style["backgroundColor"] = default_theme.panel_bg  # Inactive
+        perf_btn_style["backgroundColor"] = default_theme.primary   # Active
+    
+    return flow_trace_style, performance_style, flow_btn_style, perf_btn_style
+
+
+@app.callback(
+    [Output("flow-trace-table", "data"),
+     Output("performance-metrics-table", "data")],
+    [Input("logs-refresh-button", "n_clicks")],
+    prevent_initial_call=True
+)
+@TraceCloser()
+@TraceCpu()
+@TraceMemory()
+@TraceTime(log_args=True, log_return=False)
+def refresh_log_data(n_clicks):
+    """
+    Refresh log data by querying the SQLite database.
+    Updates both tables' data when the Refresh Logs button is clicked.
+    """
+    # Return empty lists instead of raising PreventUpdate
+    if n_clicks is None:
+        return [], []
+    
+    try:
+        # Query both tables
+        flow_trace_data = query_flow_trace_logs(limit=100)
+        performance_data = query_performance_metrics()
+        
+        logger.info(f"Refreshed log data: {len(flow_trace_data)} flow trace records, {len(performance_data)} performance records")
+        
+        return flow_trace_data, performance_data
+    except Exception as e:
+        logger.error(f"Error refreshing log data: {e}", exc_info=True)
+        return [], []
+
+# --- Add Wrapped External Functions ---
+@TraceCloser()
+@TraceCpu()
+@TraceMemory()
+@TraceTime(log_args=True, log_return=False)
+def run_pm_automation_traced(ui_options_data_for_pm):
+    """Traced wrapper for run_pm_automation."""
+    return run_pm_automation(ui_options_data_for_pm)
+
+@TraceCloser()
+@TraceCpu()
+@TraceMemory()
+@TraceTime(log_args=False, log_return=False)
+def get_market_movement_data_df_traced():
+    """Traced wrapper for get_market_movement_data_df."""
+    return get_market_movement_data_df()
+
+# --- End Function Wrappers ---
+
 # --- End Callbacks ---
 
 if __name__ == "__main__":
+    # Comprehensive logger configuration:
+    # - All user interactions are traced with @TraceCloser, @TraceCpu, @TraceTime
+    # - All data processing functions include full tracing
+    # - All INFO/ERROR/WARNING logs are sent to the database tables
+    # - External functions are wrapped with traced versions
     logger.info("Starting Dashboard...")
     app.run(debug=True, port=8052, use_reloader=False)
