@@ -208,31 +208,60 @@ def excel_setup_options_and_consolidate_for_pm_openpyxl(file_path, sheet_name_ta
         if workbook: workbook.close()
 
 def browser_operations_and_copy(url_to_open, total_rows_pasted_to_pm):
-    # Selects 11 columns
     try:
-        logger.info(f"Opening URL: {url_to_open} ..."); webbrowser.open(url_to_open, new=2); time.sleep(WAIT_FOR_BROWSER_TO_OPEN)
-        logger.debug("Navigating for paste: 8 TABs, 1 DOWN");
-        for _ in range(8): send_keys('{TAB}', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
-        send_keys('{DOWN}', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
-        logger.debug("Pasting data (Ctrl+V)..."); send_keys('^v', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_PASTE); 
+        logger.info(f"Opening URL: {url_to_open} ...")
+        webbrowser.open(url_to_open, new=2)
+        time.sleep(WAIT_FOR_BROWSER_TO_OPEN)
+        
+        logger.debug("Navigating for paste: 8 TABs, 1 DOWN")
+        for _ in range(8): 
+            send_keys('{TAB}', pause=KEY_PRESS_PAUSE)
+            time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
+        
+        send_keys('{DOWN}', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
+        
+        logger.debug("Pasting data (Ctrl+V)...")
+        send_keys('^v', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_AFTER_BROWSER_PASTE)
         logger.info("Paste complete.")
-        logger.debug("Navigating for copy: 8 RIGHT arrows");
-        for _ in range(8): send_keys('{RIGHT}', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
+        
+        logger.debug("Navigating for copy: 8 RIGHT arrows")
+        for _ in range(8): 
+            send_keys('{RIGHT}', pause=KEY_PRESS_PAUSE)
+            time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
         
         pm_down_arrow_count = total_rows_pasted_to_pm - 1 if total_rows_pasted_to_pm > 0 else 0
-        logger.debug(f"Selecting results: SHIFT + {pm_down_arrow_count} DOWN, then SHIFT + 10 RIGHT") 
-        if pm_down_arrow_count > 0 : send_keys(f'+({{DOWN {pm_down_arrow_count}}})', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
-        send_keys(f'+({{RIGHT 10}})', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_AFTER_BROWSER_NAVIGATION) 
-        logger.debug("Copying results (Ctrl+C)..."); send_keys('^c', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_FOR_COPY_OPERATION)
+        logger.debug(f"Selecting results: SHIFT + {pm_down_arrow_count} DOWN, then SHIFT + 10 RIGHT")
+        
+        if pm_down_arrow_count > 0:
+            send_keys(f'+({{DOWN {pm_down_arrow_count}}})', pause=KEY_PRESS_PAUSE)
+            time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
+        
+        send_keys(f'+({{RIGHT 10}})', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_AFTER_BROWSER_NAVIGATION)
+        
+        logger.debug("Copying results (Ctrl+C)...")
+        send_keys('^c', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_FOR_COPY_OPERATION)
 
         pm_clipboard_content = pyperclip.paste()
-        if pm_clipboard_content: pyperclip.copy(pm_clipboard_content); logger.info("PM results (11 columns) copied to clipboard.")
-        else: logger.warning("Clipboard from PM was empty."); pyperclip.copy("")
+        if pm_clipboard_content: 
+            pyperclip.copy(pm_clipboard_content)
+            logger.info("PM results (11 columns) copied to clipboard.")
+        else: 
+            logger.warning("Clipboard from PM was empty.")
+            pyperclip.copy("")
         
-        logger.debug("Closing browser tab (Ctrl+W)..."); send_keys('^w', pause=KEY_PRESS_PAUSE); time.sleep(WAIT_FOR_BROWSER_CLOSE); 
+        logger.debug("Closing browser tab (Ctrl+W)...")
+        send_keys('^w', pause=KEY_PRESS_PAUSE)
+        time.sleep(WAIT_FOR_BROWSER_CLOSE)
         logger.info("Browser close command sent.")
+        
         return True
-    except Exception as e: logger.error(f"Error during browser ops: {e}", exc_info=True); return False
+    except Exception as e: 
+        logger.error(f"Error during browser ops: {e}", exc_info=True)
+        return False
 
 
 def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_target, all_options_inputs_list, pm_data_from_clipboard, option_row_counts_for_pm_results):

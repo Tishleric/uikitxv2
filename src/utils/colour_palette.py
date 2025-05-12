@@ -16,12 +16,26 @@ __all__ = [
     "get_grid_default_style",
     "get_listbox_default_styles",
     "get_radiobutton_default_styles",
-    "get_tabs_default_styles", # Added Tabs styles function
+    "get_tabs_default_styles",
 ]
 
 
 @dataclass(frozen=True, slots=True)
 class Theme:
+    """
+    Defines the color palette and theme values for UI components.
+    
+    Attributes:
+        base_bg (str): Base background color
+        panel_bg (str): Panel/secondary background color
+        primary (str): Primary accent color
+        secondary (str): Secondary color for borders and subtle elements
+        accent (str): Highlight accent color
+        text_light (str): Main text color
+        text_subtle (str): Subdued text color
+        danger (str): Color for error/danger states
+        success (str): Color for success states
+    """
     base_bg: str
     panel_bg: str
     primary: str
@@ -33,7 +47,7 @@ class Theme:
     success: str
 
 
-# “Black Cat Dark” palette
+# "Black Cat Dark" palette
 default_theme = Theme(
     base_bg="#000000",
     panel_bg="#121212",
@@ -46,18 +60,52 @@ default_theme = Theme(
     success="#4CE675",
 )
 
-# --- Component Default Style Functions ---
-
 def get_combobox_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styles for ComboBox components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary of CSS styles
+    """
     return {"backgroundColor": theme.panel_bg, "color": theme.text_light, "borderRadius": "4px"}
 
 def get_button_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styles for Button components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary of CSS styles
+    """
     return {"backgroundColor": theme.primary, "borderColor": theme.primary, "color": theme.text_light, "borderRadius": "4px", "fontFamily": "Inter, sans-serif", "fontSize": "15px", "padding": "0.375rem 0.75rem", "borderWidth": "1px", "borderStyle": "solid", "textDecoration": "none", "display": "inline-block", "fontWeight": "400", "lineHeight": "1.5", "textAlign": "center", "verticalAlign": "middle", "cursor": "pointer", "userSelect": "none"}
 
 def get_container_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styles for Container components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary of CSS styles
+    """
     return {}
 
 def get_datatable_default_styles(theme: Theme) -> Dict[str, Any]:
+    """
+    Get default styles for DataTable components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary of CSS styles for different DataTable elements
+    """
     return {
         "style_table": {"overflowX": "auto", "width": "100%", "minWidth": "100%"},
         "style_header": {"backgroundColor": theme.panel_bg, "color": theme.primary, "fontWeight": "bold", "border": f"1px solid {theme.secondary}", "textAlign": "left", "padding": "10px"},
@@ -69,15 +117,52 @@ def get_datatable_default_styles(theme: Theme) -> Dict[str, Any]:
     }
 
 def get_graph_figure_layout_defaults(theme: Theme) -> dict[str, Any]:
+    """
+    Get default layout settings for Graph figure components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary of Plotly figure layout properties
+    """
     return {"paper_bgcolor": theme.panel_bg, "plot_bgcolor": theme.panel_bg, "font": {"color": theme.text_light, "family": "Inter, sans-serif"}}
 
 def get_graph_wrapper_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styles for Graph wrapper components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary of CSS styles
+    """
     return {}
 
 def get_grid_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styles for Grid components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary of CSS styles
+    """
     return {"backgroundColor": theme.panel_bg}
 
 def get_listbox_default_styles(theme: Theme, height_px: int = 160) -> dict[str, Any]:
+    """
+    Get default styles for ListBox components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        height_px (int, optional): Height of the listbox in pixels. Defaults to 160.
+        
+    Returns:
+        dict: Dictionary containing style dictionaries for different ListBox elements
+    """
     return {
         "style": {"backgroundColor": theme.panel_bg, "color": theme.text_light, "borderRadius": "4px", "border": f"1px solid {theme.secondary}", "overflowY": "auto", "height": f"{height_px}px", "padding": "4px", "fontFamily": "Inter, sans-serif"},
         "inputStyle": {"marginRight": "8px", "cursor": "pointer"},
@@ -85,6 +170,15 @@ def get_listbox_default_styles(theme: Theme, height_px: int = 160) -> dict[str, 
     }
 
 def get_radiobutton_default_styles(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styles for RadioButton components.
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary containing style dictionaries for different RadioButton elements
+    """
     return {
         "style": {"color": theme.text_light, "fontFamily": "Inter, sans-serif"},
         "input_checked_style": {"backgroundColor": theme.primary, "borderColor": theme.primary},
@@ -96,51 +190,45 @@ def get_radiobutton_default_styles(theme: Theme) -> dict[str, Any]:
 def get_tabs_default_styles(theme: Theme) -> dict[str, Any]:
     """
     Returns a dictionary containing default style properties for Tabs (dbc.Tabs and dbc.Tab).
+    
+    Args:
+        theme (Theme): Theme object to use for styling
+        
+    Returns:
+        dict: Dictionary containing style dictionaries for different Tabs elements
     """
     return {
-        # Styles for the main dbc.Tabs container
         "main_tabs_style": {
             "borderBottom": f"1px solid {theme.primary}",
-            "marginBottom": "1rem", # Space below the row of tabs
+            "marginBottom": "1rem",
             "fontFamily": "Inter, sans-serif",
         },
-        # Styles for individual dbc.Tab components
-        "tab_style": { # Style for the inactive tab *container* (<li>)
+        "tab_style": {
             "backgroundColor": theme.panel_bg,
             "padding": "0.5rem 1rem",
             "border": f"1px solid {theme.secondary}",
-            "borderBottom": "none", # Critical for tab appearance
-            "marginRight": "2px",
-            "borderRadius": "4px 4px 0 0", # Rounded top corners
-        },
-        "active_tab_style": { # Style for the active tab *container* (<li>)
-            "backgroundColor": theme.panel_bg, # Often same as inactive, or slightly lighter/different
-            "fontWeight": "bold", # Handled by active_label_style for text, but can be here too
-            "padding": "0.5rem 1rem",
-            "border": f"1px solid {theme.primary}", # Highlight with primary color
-            "borderBottom": f"1px solid {theme.panel_bg}", # Make bottom border match panel to "connect"
+            "borderBottom": "none",
             "marginRight": "2px",
             "borderRadius": "4px 4px 0 0",
-            "position": "relative", # For z-index or pseudo-elements if needed
-            "zIndex": "1", # Ensure active tab is "on top" of the bottom border
         },
-        "label_style": { # Style specifically for the inactive tab *label* (<a> link inside <li>)
-            "color": theme.text_subtle, # More subtle color for inactive tabs
+        "active_tab_style": {
+            "backgroundColor": theme.panel_bg,
+            "fontWeight": "bold",
+            "padding": "0.5rem 1rem",
+            "border": f"1px solid {theme.primary}",
+            "borderBottom": f"1px solid {theme.panel_bg}",
+            "marginRight": "2px",
+            "borderRadius": "4px 4px 0 0",
+            "position": "relative",
+            "zIndex": "1",
+        },
+        "label_style": {
+            "color": theme.text_subtle,
             "textDecoration": "none",
         },
-        "active_label_style": { # Style specifically for the active tab *label* (<a> link inside <li>)
-            "color": theme.primary, # Primary theme color for active label text
+        "active_label_style": {
+            "color": theme.primary,
             "fontWeight": "bold",
             "textDecoration": "none",
         },
-        # Style for the content area of the active tab (the panel below the tabs)
-        # Note: dbc.Tab content is styled by the component placed inside it,
-        # but if dbc.Tabs itself adds a wrapper for content, this could be useful.
-        # Often, the content area takes its background from the page or a surrounding container.
-        # "content_style": {
-        #     "padding": "1rem",
-        #     "border": f"1px solid {theme.primary}",
-        #     "borderTop": "none",
-        #     "backgroundColor": theme.panel_bg,
-        # }
     }

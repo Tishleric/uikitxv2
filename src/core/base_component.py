@@ -24,28 +24,17 @@ class BaseComponent(ABC):
             theme (Any, optional): A theme object (like the one from colour_palette).
                                    Defaults to default_theme if None.
         """
-        # --- DIAGNOSTIC PRINT (Optional, can remove later) ---
-        # print(f"--- BaseComponent.__init__ called for ID: {id} ---")
-        # -------------------------------------------------------
-
         if id is None:
-            # IDs are crucial for Dash, so enforce their presence.
             raise ValueError("Component ID cannot be None.")
         self.id = id
-        # Assign the provided theme or use the default theme if none is given.
         self.theme = theme if theme is not None else default_theme
 
-        # --- DIAGNOSTIC PRINT (Optional, can remove later) ---
-        # print(f"--- BaseComponent.__init__ finished for ID: {id} ---")
-        # -------------------------------------------------------
-
-
     @abstractmethod
-    def render(self) -> Any:  # Dash Component, but keep generic to avoid heavy import
+    def render(self) -> Any:
         """
         Abstract method that must be implemented by subclasses.
         Should return a Dash component (e.g., dcc.Input, dbc.Button, html.Div)
         or a dictionary representing one, ready to be included in app.layout.
         """
-        pass # Subclasses must provide their rendering logic
+        pass
 

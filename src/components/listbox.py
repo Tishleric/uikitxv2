@@ -13,6 +13,18 @@ class ListBox(BaseComponent):
     A wrapper for dcc.Dropdown styled as a ListBox (multi-select often implied).
     """
     def __init__(self, id, options=None, value=None, theme=None, style=None, multi=True, className=""):
+        """
+        Initialize a ListBox component.
+        
+        Args:
+            id (str): The component's ID, required for Dash callbacks.
+            options (list, optional): List of options to display. Defaults to None.
+            value (Any, optional): Currently selected value(s). Defaults to None.
+            theme (Any, optional): Theme object for styling. Defaults to None.
+            style (dict, optional): Additional CSS styles to apply. Defaults to None.
+            multi (bool, optional): Whether multiple selections are allowed. Defaults to True.
+            className (str, optional): Additional CSS classes. Defaults to "".
+        """
         super().__init__(id, theme)
         self.options = options if options is not None else []
         self.value = value if value is not None else [] # Default to empty list for multi
@@ -24,6 +36,12 @@ class ListBox(BaseComponent):
              self.options = [{'label': opt, 'value': opt} for opt in self.options]
 
     def render(self):
+        """
+        Render the ListBox component.
+        
+        Returns:
+            dcc.Dropdown: A Dash Core Component dropdown configured as a listbox with applied styling.
+        """
         # Get default styles using the correct function from colour_palette
         # This function returns a dict containing potentially 'style', 'inputStyle', 'labelStyle'
         default_styles_dict = get_listbox_default_styles(self.theme)

@@ -5,7 +5,7 @@ import sqlite3
 import time
 import json
 import os
-import datetime # Keep for potential internal logging
+import datetime
 
 class SQLiteHandler(logging.Handler):
     """
@@ -31,11 +31,9 @@ class SQLiteHandler(logging.Handler):
                 os.makedirs(db_dir)
 
             self.conn = sqlite3.connect(self.db_filename, check_same_thread=False)
-            # Use Row factory for easier access in emit
             self.conn.row_factory = sqlite3.Row
             self.cursor = self.conn.cursor()
 
-            # --- Create flowTrace table ---
             create_flow_trace_table_sql = """
             CREATE TABLE IF NOT EXISTS flowTrace (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +51,6 @@ class SQLiteHandler(logging.Handler):
             self.cursor.execute(create_flow_trace_table_sql)
             self.cursor.execute(create_flow_trace_index_sql)
 
-            # --- Create AveragePerformance table (Revised Schema) ---
             create_avg_perf_table_sql = """
             CREATE TABLE IF NOT EXISTS AveragePerformance (
                 function_name TEXT PRIMARY KEY,
@@ -70,7 +67,6 @@ class SQLiteHandler(logging.Handler):
             """
             self.cursor.execute(create_avg_perf_table_sql)
             self.cursor.execute(create_avg_perf_index_sql)
-            # --- End Create AveragePerformance ---
 
             self.conn.commit()
 
@@ -97,27 +93,24 @@ class SQLiteHandler(logging.Handler):
         msg = record.getMessage()
 
         if not msg.startswith(flow_trace_prefix):
-            return # Ignore messages not matching the prefix
+            return
 
         try:
             json_str = msg[len(flow_trace_prefix):]
             log_data = json.loads(json_str)
 
-            # --- Extract common data ---
-            display_timestamp = log_data.get('timestamp') # For flowTrace table
-            iso_timestamp = log_data.get('timestamp_iso') # For AveragePerformance update
+            display_timestamp = log_data.get('timestamp')
+            iso_timestamp = log_data.get('timestamp_iso')
             machine = log_data.get('machine', 'N/A')
             user = log_data.get('user', 'N/A')
             level = log_data.get('level')
             function_name = log_data.get('function')
             message = log_data.get('message')
 
-            # Basic validation
             if not all([display_timestamp, iso_timestamp, level, function_name, message]):
                  print(f"Warning: Missing required common data in FLOW_TRACE record: {log_data}")
                  return
 
-            # --- Insert into flowTrace table ---
             insert_flow_sql = """
             INSERT INTO flowTrace (timestamp, machine, user, level, function, message)
             VALUES (?, ?, ?, ?, ?, ?);
@@ -126,14 +119,13 @@ class SQLiteHandler(logging.Handler):
                 display_timestamp, machine, user, level, function_name, message
             ))
 
-            # --- Update AveragePerformance table ---
             self._update_average_performance(function_name, level, iso_timestamp, log_data)
 
-            self.conn.commit() # Commit both inserts/updates
+            self.conn.commit()
 
         except json.JSONDecodeError:
             print(f"Error decoding JSON from log message: {msg}")
-            if self.conn: self.conn.rollback() # Rollback if JSON fails
+            if self.conn: self.conn.rollback()
         except sqlite3.Error as e:
             if self.conn and "Cannot operate on a closed database" not in str(e):
                  print(f"Error during database operation for log: {e}")
@@ -153,27 +145,22 @@ class SQLiteHandler(logging.Handler):
         if self.cursor is None or self.conn is None:
              return
 
-        # Fetch existing record
         self.cursor.execute("SELECT * FROM AveragePerformance WHERE function_name = ?", (function_name,))
         existing_row = self.cursor.fetchone()
 
         if level == "INFO":
-            # Extract metrics for INFO level
             metric_duration = log_data.get('metric_duration_s')
             metric_cpu = log_data.get('metric_cpu_delta')
             metric_memory = log_data.get('metric_memory_delta_mb')
 
-            # Convert None metrics to 0.0 for calculation
             current_duration = float(metric_duration) if metric_duration is not None else 0.0
             current_cpu = float(metric_cpu) if metric_cpu is not None else 0.0
             current_memory = float(metric_memory) if metric_memory is not None else 0.0
 
             if existing_row:
-                # Update existing row
                 old_count = existing_row['call_count']
                 new_count = old_count + 1
 
-                # Calculate new averages using the formula: new_avg = (old_avg * old_count + new_value) / new_count
                 new_avg_duration = (existing_row['avg_duration_s'] * old_count + current_duration) / new_count
                 new_avg_cpu = (existing_row['avg_cpu_delta'] * old_count + current_cpu) / new_count
                 new_avg_memory = (existing_row['avg_memory_delta_mb'] * old_count + current_memory) / new_count
@@ -196,7 +183,6 @@ class SQLiteHandler(logging.Handler):
                     function_name
                 ))
             else:
-                # Insert new row
                 insert_sql = """
                 INSERT INTO AveragePerformance (
                     function_name, call_count, error_count,
@@ -206,7 +192,7 @@ class SQLiteHandler(logging.Handler):
                 """
                 self.cursor.execute(insert_sql, (
                     function_name,
-                    current_duration, # First call, average is just the current value
+                    current_duration,
                     current_cpu,
                     current_memory,
                     iso_timestamp
@@ -214,7 +200,6 @@ class SQLiteHandler(logging.Handler):
 
         elif level == "ERROR":
             if existing_row:
-                # Update existing row
                 new_error_count = existing_row['error_count'] + 1
                 update_sql = """
                 UPDATE AveragePerformance SET
@@ -224,7 +209,6 @@ class SQLiteHandler(logging.Handler):
                 """
                 self.cursor.execute(update_sql, (new_error_count, iso_timestamp, function_name))
             else:
-                # Insert new row
                 insert_sql = """
                 INSERT INTO AveragePerformance (
                     function_name, call_count, error_count,
@@ -234,23 +218,18 @@ class SQLiteHandler(logging.Handler):
                 """
                 self.cursor.execute(insert_sql, (function_name, iso_timestamp))
 
-        # else: level is neither INFO nor ERROR - do nothing for AveragePerformance
-
 
     def close(self):
         """Safely closes the database connection."""
         if self.conn:
             try:
-                # Check if connection is usable before trying to close cursor/connection
-                self.conn.execute("SELECT 1") # Simple check
+                self.conn.execute("SELECT 1")
                 if self.cursor:
                     self.cursor.close()
                     self.cursor = None
                 self.conn.close()
                 self.conn = None
             except (sqlite3.ProgrammingError, sqlite3.OperationalError) as e:
-                 # Handle cases where connection might already be closed or unusable
-                 # print(f"Info: Connection already closed or unusable during close(): {e}")
                  self.conn = None
                  self.cursor = None
             except Exception as e:
