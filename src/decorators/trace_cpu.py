@@ -11,18 +11,51 @@ from .context_vars import log_uuid_var, current_log_data
 # ---
 
 class TraceCpu:
+    """
+    Function decorator that tracks CPU usage before and after function execution.
+    
+    This decorator captures the CPU percentage before calling the decorated function,
+    measures it again after execution, and calculates the delta. The CPU delta is
+    stored in the shared context for other decorators to access.
+    """
+    
     # DB_LOG_PREFIX = "CPU_TRACE_LOG:" # REMOVED - No longer emitting DB log directly
 
     def __init__(self):
+        """
+        Initialize the TraceCpu decorator.
+        
+        Sets up initial state for function name and logger that will be populated
+        during decoration.
+        """
         self.logger = None
         self.func_name = None
 
     def __call__(self, func):
+        """
+        Make the class callable as a decorator.
+        
+        Args:
+            func (callable): The function to be decorated.
+            
+        Returns:
+            callable: The wrapped function with CPU usage tracking.
+        """
         self.logger = logging.getLogger(func.__module__)
         self.func_name = func.__name__
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            """
+            Wrapper function that adds CPU usage tracking.
+            
+            Args:
+                *args: Variable positional arguments passed to the wrapped function.
+                **kwargs: Variable keyword arguments passed to the wrapped function.
+                
+            Returns:
+                Any: The return value from the wrapped function.
+            """
             initial_log_uuid = log_uuid_var.get()
             initial_uuid_short = initial_log_uuid[:8] if initial_log_uuid else "NO_UUID"
             data_dict = current_log_data.get()

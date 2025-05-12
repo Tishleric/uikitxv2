@@ -149,7 +149,29 @@ class SQLiteHandler(logging.Handler):
                 pass
 
     def _update_average_performance(self, function_name: str, level: str, iso_timestamp: str, log_data: dict):
-        """Helper method to handle updates to the AveragePerformance table."""
+        """
+        Helper method to update the AveragePerformance table with function metrics.
+        
+        This method maintains running averages of performance metrics for each function.
+        For INFO level logs, it updates call count and calculates new averages for 
+        duration, CPU usage, and memory usage. For ERROR level logs, it increments
+        the error counter.
+        
+        Args:
+            function_name (str): Name of the function being logged.
+            level (str): Log level ('INFO' or 'ERROR').
+            iso_timestamp (str): ISO 8601 timestamp of the log event.
+            log_data (dict): Dictionary containing metrics extracted from the log record.
+                Expected keys for INFO level:
+                - metric_duration_s: Execution time in seconds
+                - metric_cpu_delta: CPU usage percentage delta
+                - metric_memory_delta_mb: Memory usage delta in MB
+                
+        Note:
+            - For the first call to a function, initial averages are set to the current metrics.
+            - For subsequent calls, a weighted average formula is used:
+              new_avg = (old_avg * old_count + new_value) / new_count
+        """
         if self.cursor is None or self.conn is None:
              return
 

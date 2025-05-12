@@ -40,4 +40,8 @@
 
 ## Demo
 
-- `demo/app.py`
+- `demo/app.py` - Demo application showcasing component usage.
+
+## Dashboard
+
+- `dashboard/dashboard.py` - Main dashboard application with pricing monkey automation interface, analysis visualization, and logs view. Includes functions for flow trace logs querying, performance metrics querying, and emptying log tables.

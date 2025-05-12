@@ -17,19 +17,52 @@ except psutil.NoSuchProcess:
     CURRENT_PROCESS = None
 
 class TraceMemory:
+    """
+    Function decorator that tracks memory usage before and after function execution.
+    
+    This decorator captures the memory usage (RSS) before calling the decorated function,
+    measures it again after execution, and calculates the delta in megabytes. The memory
+    delta is stored in the shared context for other decorators to access.
+    """
+    
     # DB_LOG_PREFIX = "MEMORY_TRACE_LOG:" # REMOVED - No longer emitting DB log directly
     BYTES_TO_MB = 1 / (1024 * 1024)
 
     def __init__(self):
+        """
+        Initialize the TraceMemory decorator.
+        
+        Sets up initial state for function name and logger that will be populated
+        during decoration.
+        """
         self.logger = None
         self.func_name = None
 
     def __call__(self, func):
+        """
+        Make the class callable as a decorator.
+        
+        Args:
+            func (callable): The function to be decorated.
+            
+        Returns:
+            callable: The wrapped function with memory usage tracking.
+        """
         self.logger = logging.getLogger(func.__module__)
         self.func_name = func.__name__
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            """
+            Wrapper function that adds memory usage tracking.
+            
+            Args:
+                *args: Variable positional arguments passed to the wrapped function.
+                **kwargs: Variable keyword arguments passed to the wrapped function.
+                
+            Returns:
+                Any: The return value from the wrapped function.
+            """
             if CURRENT_PROCESS is None:
                  self.logger.warning(f"Could not get process handle for {self.func_name}, skipping memory trace.")
                  return func(*args, **kwargs)

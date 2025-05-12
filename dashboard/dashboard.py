@@ -532,6 +532,15 @@ def create_logs_tab():
         n_clicks=0
     )
     
+    # Create the empty table button with danger styling
+    empty_table_button = Button(
+        id="logs-empty-button",
+        label="Empty Table",
+        theme=default_theme,
+        style={"backgroundColor": default_theme.danger, "borderColor": default_theme.danger},
+        n_clicks=0
+    )
+    
     # Create empty DataTable components
     flow_trace_table = DataTable(
         id="flow-trace-table",
@@ -589,9 +598,12 @@ def create_logs_tab():
                     ], style={"display": "flex"})
                 ], style={"display": "flex", "alignItems": "center", "flex": "1"}),
                 
-                # Refresh button on the right
+                # Refresh and Empty buttons on the right
                 html.Div(style={"textAlign": "right", "marginLeft": "20px"}, children=[
-                    refresh_button.render()
+                    html.Div(style={"display": "flex", "gap": "10px"}, children=[
+                        refresh_button.render(),
+                        empty_table_button.render()
+                    ])
                 ])
             ], style={"display": "flex", "width": "100%", "justifyContent": "space-between", "alignItems": "center"})
         ],
@@ -1672,6 +1684,68 @@ def get_market_movement_data_df_traced():
 # --- End Function Wrappers ---
 
 # --- End Callbacks ---
+
+@TraceCloser()
+@TraceTime(log_args=True, log_return=False)
+def empty_log_tables():
+    """
+    Empty the flowTrace and AveragePerformance tables in the SQLite log database.
+    """
+    try:
+        import sqlite3
+        conn = sqlite3.connect(LOG_DB_PATH)
+        cursor = conn.cursor()
+        
+        # Delete all rows from the flowTrace table
+        cursor.execute("DELETE FROM flowTrace")
+        
+        # Delete all rows from the AveragePerformance table
+        cursor.execute("DELETE FROM AveragePerformance")
+        
+        # Commit the changes
+        conn.commit()
+        
+        # Get the number of deleted rows (for logging purposes)
+        cursor.execute("SELECT changes()")
+        deleted_rows = cursor.fetchone()[0]
+        
+        cursor.close()
+        conn.close()
+        logger.info(f"Emptied log tables: {deleted_rows} rows deleted")
+        return True
+    except Exception as e:
+        logger.error(f"Error emptying log tables: {e}", exc_info=True)
+        return False
+
+@app.callback(
+    [Output("logs-empty-button", "n_clicks"),
+     Output("logs-refresh-button", "n_clicks")],
+    Input("logs-empty-button", "n_clicks"),
+    prevent_initial_call=True
+)
+@TraceCloser()
+@TraceCpu()
+@TraceMemory()
+@TraceTime(log_args=True, log_return=False)
+def empty_logs(n_clicks):
+    """
+    Empty the logs database tables when the Empty Table button is clicked.
+    Resets the n_clicks to avoid retriggering and increments the refresh button's n_clicks
+    to trigger a refresh of the tables.
+    """
+    if n_clicks is None or n_clicks == 0:
+        raise PreventUpdate
+    
+    success = empty_log_tables()
+    
+    if success:
+        logger.info("Successfully emptied log tables")
+    else:
+        logger.error("Failed to empty log tables")
+    
+    # Return 0 to reset the empty button n_clicks counter and
+    # an incremented value for the refresh button to trigger refresh
+    return 0, n_clicks
 
 if __name__ == "__main__":
     # Comprehensive logger configuration:

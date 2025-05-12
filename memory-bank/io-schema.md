@@ -21,6 +21,8 @@
 | TraceCpu.sample_interval | Input | float | Positive float (seconds) | @TraceCpu(sample_interval=0.1) |
 | TraceMemory.measure_peak | Input | bool | True or False | @TraceMemory(measure_peak=True) |
 | PricingMonkey.%Delta | Internal | float | Decimal value (0.0-1.0) | Raw delta values in decimal form (0.125 = 12.5%) |
+| empty_log_tables | Internal | function | N/A | Empties flowTrace and AveragePerformance tables |
+| logs-empty-button | Output | int | 0 | Reset n_clicks counter after emptying log tables |
 
 ## Import Notes (May 5, 2025)
 - All components are imported directly: `from components import Button, ComboBox, etc.`

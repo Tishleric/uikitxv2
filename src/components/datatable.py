@@ -11,8 +11,29 @@ from ..utils.colour_palette import default_theme
 class DataTable(BaseComponent):
     """
     A wrapper for dash_table.DataTable with theme integration.
+    
+    This component creates a styled data table using Dash's DataTable component,
+    with automatic theming support. It handles both dict-based data and pandas DataFrames.
     """
     def __init__(self, id, data=None, columns=None, theme=None, style_table=None, style_cell=None, style_header=None, style_data_conditional=None, page_size=10, className=""):
+        """
+        Initialize a DataTable component.
+        
+        Args:
+            id (str): The component's unique identifier.
+            data (list or DataFrame, optional): Data to display in the table. Can be a list of dicts
+                or a pandas DataFrame. Defaults to None (empty list).
+            columns (list, optional): Column definitions. If None and data is provided, 
+                will be auto-generated from data keys. Defaults to None.
+            theme (dict, optional): Theme configuration. Defaults to None.
+            style_table (dict, optional): Styles for the table container. Defaults to None.
+            style_cell (dict, optional): Styles for all cells. Defaults to None.
+            style_header (dict, optional): Styles for header cells. Defaults to None.
+            style_data_conditional (list, optional): Conditional styling rules. Defaults to None.
+            page_size (int, optional): Number of rows per page. Defaults to 10.
+            className (str, optional): Additional CSS class names. Not directly used by dash_table.
+                Defaults to "".
+        """
         # Note: className is accepted here but NOT passed to dash_table.DataTable below
         super().__init__(id, theme)
         self.data = data if data is not None else []
@@ -32,6 +53,15 @@ class DataTable(BaseComponent):
             self.columns = [{"name": i, "id": i} for i in sample_record.keys()]
 
     def render(self):
+        """
+        Render the data table component.
+        
+        Creates a styled data table with pagination, applying theme-based styles
+        to the table container, cells, and headers.
+        
+        Returns:
+            dash_table.DataTable: The rendered Dash DataTable component.
+        """
         # Define default styles based on theme
         default_style_table = {'overflowX': 'auto', 'minWidth': '100%', **self.style_table}
         default_style_cell = {

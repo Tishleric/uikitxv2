@@ -16,20 +16,57 @@ from .context_vars import log_uuid_var, current_log_data
 NY_TZ = ZoneInfo("America/New_York")
 
 class TraceTime:
+    """
+    Function decorator that logs execution time and optionally function arguments and return values.
+    
+    This decorator tracks the start and end time of a function call, calculates duration,
+    logs execution information, and stores timing data in the shared context for other
+    decorators to access.
+    """
+    
     # DB_LOG_PREFIX = "FUNC_EXEC_LOG:" # REMOVED - No longer emitting DB log directly
 
     def __init__(self, log_args=True, log_return=True):
+        """
+        Initialize the TraceTime decorator.
+        
+        Args:
+            log_args (bool, optional): Whether to log function arguments. Defaults to True.
+            log_return (bool, optional): Whether to log function return values. Defaults to True.
+        """
         self.log_args = log_args
         self.log_return = log_return
         self.logger = None
         self.func_name = None
 
     def __call__(self, func):
+        """
+        Make the class callable as a decorator.
+        
+        Args:
+            func (callable): The function to be decorated.
+            
+        Returns:
+            callable: The wrapped function with timing instrumentation.
+        """
         self.logger = logging.getLogger(func.__module__)
         self.func_name = func.__name__
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            """
+            Wrapper function that adds timing instrumentation.
+            
+            Args:
+                *args: Variable positional arguments passed to the wrapped function.
+                **kwargs: Variable keyword arguments passed to the wrapped function.
+                
+            Returns:
+                Any: The return value from the wrapped function.
+                
+            Raises:
+                Exception: Re-raises any exception from the wrapped function.
+            """
             current_log_uuid = log_uuid_var.get()
             uuid_short = current_log_uuid[:8] if current_log_uuid else "NO_UUID"
             data_dict = current_log_data.get()

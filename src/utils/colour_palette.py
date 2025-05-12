@@ -22,18 +22,42 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class Theme:
+    """
+    Defines a color theme for UI components.
+    
+    This frozen dataclass represents a consistent color scheme that can be
+    applied across all UI components. It defines colors for backgrounds,
+    text, and interactive elements.
+    """
     base_bg: str
+    """Background color for the main application background."""
+    
     panel_bg: str
+    """Background color for panels and component containers."""
+    
     primary: str
+    """Primary brand/accent color for important UI elements."""
+    
     secondary: str
+    """Secondary color for less prominent UI elements."""
+    
     accent: str
+    """Accent color for highlighting specific elements."""
+    
     text_light: str
+    """Light text color for normal content."""
+    
     text_subtle: str
+    """Subtle/muted text color for less important content."""
+    
     danger: str
+    """Color for indicating errors or dangerous actions."""
+    
     success: str
+    """Color for indicating success or completion."""
 
 
-# “Black Cat Dark” palette
+# "Black Cat Dark" palette
 default_theme = Theme(
     base_bg="#000000",
     panel_bg="#121212",
@@ -49,15 +73,52 @@ default_theme = Theme(
 # --- Component Default Style Functions ---
 
 def get_combobox_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styling for ComboBox components.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary of CSS style properties.
+    """
     return {"backgroundColor": theme.panel_bg, "color": theme.text_light, "borderRadius": "4px"}
 
 def get_button_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styling for Button components.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary of CSS style properties.
+    """
     return {"backgroundColor": theme.primary, "borderColor": theme.primary, "color": theme.text_light, "borderRadius": "4px", "fontFamily": "Inter, sans-serif", "fontSize": "15px", "padding": "0.375rem 0.75rem", "borderWidth": "1px", "borderStyle": "solid", "textDecoration": "none", "display": "inline-block", "fontWeight": "400", "lineHeight": "1.5", "textAlign": "center", "verticalAlign": "middle", "cursor": "pointer", "userSelect": "none"}
 
 def get_container_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styling for Container components.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary of CSS style properties.
+    """
     return {}
 
 def get_datatable_default_styles(theme: Theme) -> Dict[str, Any]:
+    """
+    Get default styling for DataTable components.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing style settings for different 
+        parts of the DataTable (table, header, cells, etc.).
+    """
     return {
         "style_table": {"overflowX": "auto", "width": "100%", "minWidth": "100%"},
         "style_header": {"backgroundColor": theme.panel_bg, "color": theme.primary, "fontWeight": "bold", "border": f"1px solid {theme.secondary}", "textAlign": "left", "padding": "10px"},
@@ -69,15 +130,53 @@ def get_datatable_default_styles(theme: Theme) -> Dict[str, Any]:
     }
 
 def get_graph_figure_layout_defaults(theme: Theme) -> dict[str, Any]:
+    """
+    Get default Plotly figure layout settings with theme colors.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary of Plotly layout properties.
+    """
     return {"paper_bgcolor": theme.panel_bg, "plot_bgcolor": theme.panel_bg, "font": {"color": theme.text_light, "family": "Inter, sans-serif"}}
 
 def get_graph_wrapper_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styling for the Graph component wrapper.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary of CSS style properties.
+    """
     return {}
 
 def get_grid_default_style(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styling for Grid components.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary of CSS style properties.
+    """
     return {"backgroundColor": theme.panel_bg}
 
 def get_listbox_default_styles(theme: Theme, height_px: int = 160) -> dict[str, Any]:
+    """
+    Get default styling for ListBox components.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        height_px (int, optional): Height of the listbox in pixels. Defaults to 160.
+        
+    Returns:
+        dict[str, Any]: Dictionary containing style settings for different
+        parts of the ListBox (container, inputs, labels).
+    """
     return {
         "style": {"backgroundColor": theme.panel_bg, "color": theme.text_light, "borderRadius": "4px", "border": f"1px solid {theme.secondary}", "overflowY": "auto", "height": f"{height_px}px", "padding": "4px", "fontFamily": "Inter, sans-serif"},
         "inputStyle": {"marginRight": "8px", "cursor": "pointer"},
@@ -85,6 +184,16 @@ def get_listbox_default_styles(theme: Theme, height_px: int = 160) -> dict[str, 
     }
 
 def get_radiobutton_default_styles(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styling for RadioButton components.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary containing style settings for different
+        parts of the RadioButton (container, inputs, labels).
+    """
     return {
         "style": {"color": theme.text_light, "fontFamily": "Inter, sans-serif"},
         "input_checked_style": {"backgroundColor": theme.primary, "borderColor": theme.primary},
@@ -95,7 +204,17 @@ def get_radiobutton_default_styles(theme: Theme) -> dict[str, Any]:
 
 def get_tabs_default_styles(theme: Theme) -> dict[str, Any]:
     """
-    Returns a dictionary containing default style properties for Tabs (dbc.Tabs and dbc.Tab).
+    Get default styling for Tabs components.
+    
+    Returns a dictionary containing default style properties for Tabs 
+    (dbc.Tabs and dbc.Tab) with theme-based colors.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary containing style settings for different
+        parts of the Tabs component (container, active tab, labels).
     """
     return {
         # Styles for the main dbc.Tabs container
