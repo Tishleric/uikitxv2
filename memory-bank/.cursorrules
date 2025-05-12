@@ -29,3 +29,6 @@
 - Keep commits small (<= 50 LOC) unless explicitly waived
 
 # Updated May 5, 2025
+
+# Percentage Handling
+• PERCENTAGE_NUMERIC_TYPES — When handling percentage values (like Delta %), always ensure they're stored as proper numeric types (not strings) and only formatted with % symbols during display.

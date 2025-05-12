@@ -1,12 +1,5 @@
 # tests/decorators/test_trace_closer.py
 
-"""
-Unit tests for the TraceCloser decorator.
-
-These tests validate the TraceCloser decorator's functionality for context management, 
-UUID generation, and interaction with other trace decorators.
-"""
-
 import pytest
 import logging
 import json

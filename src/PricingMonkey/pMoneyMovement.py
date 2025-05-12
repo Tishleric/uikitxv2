@@ -19,12 +19,12 @@ PRICING_MONKEY_MOVEMENT_URL = "https://pricingmonkey.com/b/6feae2cb-9a47-4359-94
 
 # Selection Configuration
 NUM_TABS = 9
-NUM_ROWS_TO_SELECT = 420
+NUM_ROWS_TO_SELECT = 420  # Changed from 350 to 420 (6 scenarios × 70 rows)
 NUM_COLUMNS_TO_SELECT = 7
 
 # Treasury Math Constants
-TICKS_PER_POINT = 32
-BASIS_POINTS_INCREMENT = 2
+TICKS_PER_POINT = 32  # 32/32nds in a full point
+BASIS_POINTS_INCREMENT = 2  # 1bp = 2/32nds
 
 # Scenario labels for underlying categories
 SCENARIOS = {
@@ -52,10 +52,10 @@ COLUMN_HEADERS = [
 KEY_PRESS_PAUSE = 0.01
 WAIT_FOR_BROWSER_TO_OPEN = 2.5
 WAIT_AFTER_NAVIGATION = 0.05
-WAIT_FOR_COPY_OPERATION = 0.2
-WAIT_FOR_CELL_RENDERING = 20.0
+WAIT_FOR_COPY_OPERATION = 0.5  # Increased from 0.2 to 0.5 seconds for more reliable copying
+WAIT_FOR_CELL_RENDERING = 40.0  # Increased from 20.0 to 40.0 seconds for cells to fully render
 WAIT_FOR_BROWSER_CLOSE = 0.5
-WAIT_FOR_UNDERLYING_CELL = 15.0
+WAIT_FOR_UNDERLYING_CELL = 15.0  # Increased from 7.0 to 15.0 seconds
 
 class PMMovementError(Exception):
     """Custom exception for Pricing Monkey Movement operations."""
@@ -72,16 +72,25 @@ def parse_treasury_price(price_str):
         tuple: (whole_number, ticks, decimal)
     """
     try:
+        # Handle potential whitespace
         price_str = price_str.strip()
+        
+        # Remove any trailing \r from clipboard content
         price_str = price_str.rstrip('\r')
         
+        # Split main components
         whole_part, fractional_part = price_str.split('-')
         whole_number = int(whole_part)
         
+        # Handle the decimal part if present
         if '.' in fractional_part:
             ticks_part, decimal_part = fractional_part.split('.')
             ticks = int(ticks_part)
             
+            # Convert decimal_part to the proper fraction, preserving true decimal values
+            # For .5, keep it as 5 (meaning half a tick)
+            # For .05, keep it as 5 (from a differently formatted string)
+            # For other decimals, convert appropriately
             if decimal_part == '5':
                 decimal = 5
             elif decimal_part == '05':
@@ -95,6 +104,7 @@ def parse_treasury_price(price_str):
         return (whole_number, ticks, decimal)
     except Exception as e:
         logger.error(f"Error parsing Treasury price '{price_str}': {str(e)}")
+        # Return a default placeholder value
         return (100, 0, 0)
 
 def format_treasury_price(whole, ticks, decimal=0):
@@ -110,10 +120,13 @@ def format_treasury_price(whole, ticks, decimal=0):
         str: Formatted price string (e.g., "105-20.00")
     """
     if decimal == 5:
+        # For half ticks, use .5 format
         return f"{whole}-{ticks:02d}.5"
     elif decimal > 0:
+        # For other decimals, use standard format
         return f"{whole}-{ticks:02d}.{decimal:02d}"
     else:
+        # No decimal part
         return f"{whole}-{ticks:02d}"
 
 def adjust_treasury_price(price_str, basis_points):
@@ -129,28 +142,36 @@ def adjust_treasury_price(price_str, basis_points):
     """
     whole, ticks, decimal = parse_treasury_price(price_str)
     
+    # Calculate tick adjustment (1bp = 2 ticks)
     tick_adjustment = basis_points * BASIS_POINTS_INCREMENT
     
+    # Convert to total ticks including decimal part for precise calculation
     total_ticks = ticks
     if decimal == 5:
         total_ticks += 0.5
     
+    # Apply adjustment to total ticks
     new_total_ticks = total_ticks + tick_adjustment
     
+    # Calculate new whole number and ticks
     new_whole = whole
     
+    # Handle rollovers
     while new_total_ticks >= TICKS_PER_POINT:
         new_total_ticks -= TICKS_PER_POINT
         new_whole += 1
         
+    # Handle underflows
     while new_total_ticks < 0:
         new_total_ticks += TICKS_PER_POINT
         new_whole -= 1
     
+    # Extract integer and decimal parts
     new_ticks = int(new_total_ticks)
     new_decimal = 0
     
-    if new_total_ticks - new_ticks >= 0.4:
+    # Check if there's a fractional part to represent as .5
+    if new_total_ticks - new_ticks >= 0.4:  # Use 0.4 as threshold to account for float precision issues
         new_decimal = 5
     
     return format_treasury_price(new_whole, new_ticks, new_decimal)

@@ -94,3 +94,16 @@
 - Create performance benchmarks for components
 - Verify all imports work correctly throughout the codebase
 - Document the new import patterns in README.md
+
+## Recent Fixes
+
+- Fixed Delta (%) y-axis display issue in the dashboard graphs
+  - Added explicit numeric type conversion for percentage values
+  - Ensured consistent handling across JSON serialization/deserialization
+  - Improved table formatting for percentage columns
+  - Updated io-schema.md to document the PricingMonkey.%Delta format
+
+- Increased wait times in PricingMonkey data retrieval
+  - Extended WAIT_FOR_CELL_RENDERING from 20.0 to 40.0 seconds
+  - Increased WAIT_FOR_COPY_OPERATION from 0.2 to 0.5 seconds
+  - Improves reliability of data copying before browser window closes

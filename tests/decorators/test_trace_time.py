@@ -1,12 +1,5 @@
 # tests/decorators/test_trace_time.py
 
-"""
-Unit tests for the TraceTime decorator.
-
-These tests validate the TraceTime decorator's functionality for logging
-execution time and function details.
-"""
-
 import pytest
 import logging
 import json
@@ -26,18 +19,7 @@ from decorators.context_vars import log_uuid_var, current_log_data # Import cont
 # ... (other tests remain the same) ...
 
 def test_trace_time_return_value_truncation(caplog, setup_logging_context):
-    """
-    Tests that long return values are truncated in debug logs.
-    
-    Args:
-        caplog: pytest fixture for capturing log output
-        setup_logging_context: fixture that initializes logging context with UUID
-        
-    Verifies:
-        - Return values longer than 200 characters are truncated in logs
-        - Truncated values end with ellipsis
-        - Original value is not included in the log
-    """
+    """Tests that long return values are truncated in debug logs."""
     test_uuid, _ = setup_logging_context
     caplog.set_level(logging.DEBUG)
 

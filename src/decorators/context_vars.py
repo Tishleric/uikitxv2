@@ -1,10 +1,3 @@
-"""
-Context variables for decorator communication.
-
-This module defines shared context variables used by the tracing decorators
-to communicate and share data across the execution context.
-"""
-
 import contextvars
 
 # Shared context variable for the unique log identifier

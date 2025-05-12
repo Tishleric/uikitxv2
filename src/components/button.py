@@ -13,17 +13,6 @@ class Button(BaseComponent):
     A wrapper for dbc.Button that integrates with the theme system.
     """
     def __init__(self, id, label="Button", theme=None, style=None, n_clicks=0, className=""):
-        """
-        Initialize a Button component.
-
-        Args:
-            id (str): The component's ID, required for Dash callbacks.
-            label (str, optional): Text to display on the button. Defaults to "Button".
-            theme (Any, optional): Theme object for styling. Defaults to None.
-            style (dict, optional): Additional CSS styles to apply. Defaults to None.
-            n_clicks (int, optional): Initial click count. Defaults to 0.
-            className (str, optional): Additional CSS classes. Defaults to "".
-        """
         super().__init__(id, theme)
         self.label = label
         self.style = style if style is not None else {}
@@ -31,12 +20,6 @@ class Button(BaseComponent):
         self.className = className
 
     def render(self):
-        """
-        Render the button component.
-
-        Returns:
-            dbc.Button: A Dash Bootstrap button component with applied styling.
-        """
         # Get default styles based on the theme
         default_style = get_button_default_style(self.theme)
 
