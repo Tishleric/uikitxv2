@@ -17,6 +17,7 @@ __all__ = [
     "get_listbox_default_styles",
     "get_radiobutton_default_styles",
     "get_tabs_default_styles", # Added Tabs styles function
+    "get_mermaid_default_styles", # Added Mermaid styles function
 ]
 
 
@@ -303,4 +304,42 @@ def get_tabs_default_styles(theme: Theme) -> dict[str, Any]:
         #     "borderTop": "none",
         #     "backgroundColor": theme.panel_bg,
         # }
+    }
+
+def get_mermaid_default_styles(theme: Theme) -> dict[str, Any]:
+    """
+    Get default styling for Mermaid diagram components.
+    
+    Args:
+        theme (Theme): The theme to use for styling.
+        
+    Returns:
+        dict[str, Any]: Dictionary containing style settings and
+        theme configuration for Mermaid diagrams.
+    """
+    return {
+        "style": {
+            "backgroundColor": theme.panel_bg,
+            "padding": "15px", 
+            "borderRadius": "4px",
+            "border": f"1px solid {theme.secondary}",
+            "fontFamily": "Inter, sans-serif",
+        },
+        # Theme configuration for Mermaid diagrams in JS format
+        "mermaid_config": {
+            "theme": "dark",
+            "themeVariables": {
+                "background": theme.panel_bg,
+                "primaryColor": theme.primary,
+                "secondaryColor": theme.secondary,
+                "tertiaryColor": theme.accent,
+                "primaryTextColor": theme.text_light,
+                "secondaryTextColor": theme.text_subtle,
+                "lineColor": theme.text_light,
+                "mainBkg": theme.panel_bg,
+                "errorBkgColor": theme.danger,
+                "errorTextColor": theme.text_light,
+                "fontFamily": "Inter, sans-serif",
+            }
+        }
     }
