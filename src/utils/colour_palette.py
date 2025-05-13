@@ -106,7 +106,11 @@ def get_container_default_style(theme: Theme) -> dict[str, Any]:
     Returns:
         dict[str, Any]: Dictionary of CSS style properties.
     """
-    return {}
+    return {
+        "backgroundColor": theme.panel_bg,
+        "padding": "15px",
+        "borderRadius": "4px"
+    }
 
 def get_datatable_default_styles(theme: Theme) -> Dict[str, Any]:
     """
@@ -120,13 +124,32 @@ def get_datatable_default_styles(theme: Theme) -> Dict[str, Any]:
         parts of the DataTable (table, header, cells, etc.).
     """
     return {
-        "style_table": {"overflowX": "auto", "width": "100%", "minWidth": "100%"},
-        "style_header": {"backgroundColor": theme.panel_bg, "color": theme.primary, "fontWeight": "bold", "border": f"1px solid {theme.secondary}", "textAlign": "left", "padding": "10px"},
-        "style_cell": {"backgroundColor": theme.panel_bg, "color": theme.text_light, "border": f"1px solid {theme.secondary}", "padding": "8px", "textAlign": "left", "whiteSpace": "normal", "height": "auto", "minWidth": "100px", "width": "auto", "maxWidth": "300px", "overflow": "hidden", "textOverflow": "ellipsis", "fontFamily": "Inter, sans-serif"},
+        "style_table": {"overflowX": "auto", "minWidth": "100%"},
+        "style_header": {
+            "backgroundColor": theme.panel_bg, 
+            "color": theme.text_light, 
+            "fontWeight": "bold", 
+            "border": f"1px solid {theme.secondary}", 
+            "textAlign": "left", 
+            "padding": "10px"
+        },
+        "style_cell": {
+            "backgroundColor": theme.base_bg, 
+            "color": theme.text_light, 
+            "border": f"1px solid {theme.secondary}", 
+            "padding": "10px", 
+            "textAlign": "left", 
+            "fontFamily": "Inter, sans-serif",
+            "fontSize": "0.9rem"
+        },
         "style_data": {},
-        "style_data_conditional": [{'if': {'row_index': 'odd'}, 'backgroundColor': theme.base_bg}],
+        "style_data_conditional": [{'if': {'row_index': 'odd'}, 'backgroundColor': theme.panel_bg}],
         "style_filter": {"backgroundColor": theme.base_bg, "color": theme.text_light, "border": f"1px solid {theme.secondary}", "padding": "5px"},
-        "page_action": "native", "page_size": 15, "sort_action": "native", "filter_action": "native", "style_as_list_view": True,
+        "page_action": "native", 
+        "page_size": 10, 
+        "sort_action": "native", 
+        "filter_action": "none",  # Using string 'none' to properly disable filters
+        "style_as_list_view": True,
     }
 
 def get_graph_figure_layout_defaults(theme: Theme) -> dict[str, Any]:
@@ -139,7 +162,25 @@ def get_graph_figure_layout_defaults(theme: Theme) -> dict[str, Any]:
     Returns:
         dict[str, Any]: Dictionary of Plotly layout properties.
     """
-    return {"paper_bgcolor": theme.panel_bg, "plot_bgcolor": theme.panel_bg, "font": {"color": theme.text_light, "family": "Inter, sans-serif"}}
+    return {
+        "plot_bgcolor": theme.base_bg,
+        "paper_bgcolor": theme.panel_bg,
+        "font_color": theme.text_light,
+        "xaxis": {
+            "gridcolor": theme.secondary,
+            "linecolor": theme.secondary,
+            "zerolinecolor": theme.secondary
+        },
+        "yaxis": {
+            "gridcolor": theme.secondary,
+            "linecolor": theme.secondary,
+            "zerolinecolor": theme.secondary
+        },
+        "legend": {
+            "bgcolor": theme.panel_bg,
+            "bordercolor": theme.secondary
+        }
+    }
 
 def get_graph_wrapper_default_style(theme: Theme) -> dict[str, Any]:
     """

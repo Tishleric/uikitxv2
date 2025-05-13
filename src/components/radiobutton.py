@@ -6,7 +6,7 @@ import dash_bootstrap_components as dbc
 # Corrected relative import: Go up one level (..) to src, then down to core
 from ..core.base_component import BaseComponent
 # Corrected relative import: Go up one level (..) to src, then down to utils
-from ..utils.colour_palette import default_theme # Only default_theme seems used here
+from ..utils.colour_palette import default_theme, get_radiobutton_default_styles
 
 class RadioButton(BaseComponent):
     """
@@ -26,10 +26,13 @@ class RadioButton(BaseComponent):
              self.options = [{'label': opt, 'value': opt} for opt in self.options]
 
     def render(self):
-        # Define default styles based on theme
-        default_label_style = {'color': self.theme.text_light, 'paddingRight': '10px', 'display': 'inline-block', **self.labelStyle}
-        default_input_style = {'marginRight': '5px', **self.inputStyle} # Style for the radio input itself
-        default_container_style = {**self.style} # Style for the overall div
+        # Get default styles from the centralized styling function
+        default_styles = get_radiobutton_default_styles(self.theme)
+        
+        # Merge default styles with instance-specific styles
+        default_container_style = {**default_styles.get('style', {}), **self.style}
+        default_label_style = {**default_styles.get('labelStyle', {}), **self.labelStyle}
+        default_input_style = {**default_styles.get('inputStyle', {}), **self.inputStyle}
 
         return dcc.RadioItems(
             id=self.id,

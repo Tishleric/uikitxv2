@@ -6,7 +6,7 @@ import pandas as pd
 # Corrected relative import: Go up one level (..) to src, then down to core
 from ..core.base_component import BaseComponent
 # Corrected relative import: Go up one level (..) to src, then down to utils
-from ..utils.colour_palette import default_theme
+from ..utils.colour_palette import default_theme, get_datatable_default_styles
 
 class DataTable(BaseComponent):
     """
@@ -62,21 +62,17 @@ class DataTable(BaseComponent):
         Returns:
             dash_table.DataTable: The rendered Dash DataTable component.
         """
-        # Define default styles based on theme
-        default_style_table = {'overflowX': 'auto', 'minWidth': '100%', **self.style_table}
-        default_style_cell = {
-            'padding': '10px', 'textAlign': 'left', 'backgroundColor': self.theme.base_bg,
-            'color': self.theme.text_light, 'border': f'1px solid {self.theme.secondary}',
-            'fontFamily': 'Inter, sans-serif', 'fontSize': '0.9rem',
-            **self.style_cell
-        }
-        default_style_header = {
-            'backgroundColor': self.theme.panel_bg, 'fontWeight': 'bold',
-            'color': self.theme.text_light, 'border': f'1px solid {self.theme.secondary}',
-            **self.style_header
-        }
-        default_style_data_conditional = [
-            {'if': {'row_index': 'odd'}, 'backgroundColor': self.theme.panel_bg},
+        # Get default styles based on theme
+        default_styles = get_datatable_default_styles(self.theme)
+        
+        # Merge default styles with instance-specific styles
+        final_style_table = {**default_styles["style_table"], **self.style_table}
+        final_style_cell = {**default_styles["style_cell"], **self.style_cell}
+        final_style_header = {**default_styles["style_header"], **self.style_header}
+        
+        # Merge conditional styles, prioritizing instance-specific ones
+        final_style_data_conditional = [
+            *default_styles["style_data_conditional"],
             *self.style_data_conditional
         ]
 
@@ -88,11 +84,15 @@ class DataTable(BaseComponent):
             id=self.id,
             columns=self.columns,
             data=self.data,
-            page_size=self.page_size,
-            style_table=default_style_table,
-            style_cell=default_style_cell,
-            style_header=default_style_header,
-            style_data_conditional=default_style_data_conditional
+            page_size=self.page_size if self.page_size is not None else default_styles["page_size"],
+            style_table=final_style_table,
+            style_cell=final_style_cell,
+            style_header=final_style_header,
+            style_data_conditional=final_style_data_conditional,
+            page_action=default_styles["page_action"],
+            sort_action=default_styles["sort_action"],
+            filter_action=default_styles["filter_action"],
+            style_as_list_view=default_styles["style_as_list_view"]
             # className=self.className # REMOVED: This argument is not allowed
         )
 
