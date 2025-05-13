@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 from dash import html # Added for completeness if html components are ever direct children
 from dash.development.base_component import Component as DashBaseComponent # For robust type checking
 from ..core.base_component import BaseComponent
-from ..utils.colour_palette import default_theme
+from ..utils.colour_palette import default_theme, get_container_default_style
 
 class Container(BaseComponent):
     """
@@ -19,10 +19,11 @@ class Container(BaseComponent):
         self.className = className
 
     def render(self):
-        # Apply theme defaults if not overridden by style prop
-        # Example: default_style = {'backgroundColor': self.theme.panel_bg, 'padding': '15px'}
-        # final_style = {**default_style, **self.style} # Merge, instance style takes precedence
-        # For now, just use provided style or theme defaults if applicable elsewhere
+        # Get default styles from utility function
+        default_style = get_container_default_style(self.theme)
+        
+        # Merge default styles with instance-specific styles
+        final_style = {**default_style, **self.style}
 
         processed_children = []
         
@@ -57,7 +58,7 @@ class Container(BaseComponent):
         return dbc.Container(
             children=processed_children,
             id=self.id,
-            style=self.style,
+            style=final_style,
             fluid=self.fluid,
             className=self.className
         )

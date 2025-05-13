@@ -7,7 +7,7 @@ from dash.development.base_component import Component as DashBaseComponent
 # Corrected relative import: Go up one level (..) to src, then down to core
 from ..core.base_component import BaseComponent
 # Corrected relative import: Go up one level (..) to src, then down to utils
-from ..utils.colour_palette import default_theme # Only default_theme seems used here
+from ..utils.colour_palette import default_theme, get_grid_default_style
 
 class Grid(BaseComponent):
     """
@@ -101,14 +101,16 @@ class Grid(BaseComponent):
             dash_bootstrap_components.Row: The rendered Dash Bootstrap row component
             containing the columns with child components.
         """
-        # Apply theme defaults if not overridden by style prop
-        # Example: default_style = {'padding': '10px 0'}
-        # final_style = {**default_style, **self.style}
+        # Get default styles from the centralized styling function
+        default_style = get_grid_default_style(self.theme)
+        
+        # Merge default styles with instance-specific styles
+        final_style = {**default_style, **self.style}
 
         return dbc.Row(
             children=self._build_cols(),
             id=self.id,
-            style=self.style, # Use self.style directly
+            style=final_style,
             className=self.className
         )
 

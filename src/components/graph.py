@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 # Corrected relative import: Go up one level (..) to src, then down to core
 from ..core.base_component import BaseComponent
 # Corrected relative import: Go up one level (..) to src, then down to utils
-from ..utils.colour_palette import default_theme
+from ..utils.colour_palette import default_theme, get_graph_figure_layout_defaults, get_graph_wrapper_default_style
 
 class Graph(BaseComponent):
     """
@@ -25,34 +25,22 @@ class Graph(BaseComponent):
     def _apply_theme_to_figure(self):
         """Applies theme colors to the figure layout."""
         if self.figure and hasattr(self.figure, 'update_layout'):
-            self.figure.update_layout(
-                plot_bgcolor=self.theme.base_bg,
-                paper_bgcolor=self.theme.panel_bg,
-                font_color=self.theme.text_light,
-                xaxis=dict(
-                    gridcolor=self.theme.secondary, # Fixed: Use secondary
-                    linecolor=self.theme.secondary, # Fixed: Use secondary
-                    zerolinecolor=self.theme.secondary # Fixed: Use secondary
-                ),
-                yaxis=dict(
-                    gridcolor=self.theme.secondary, # Fixed: Use secondary
-                    linecolor=self.theme.secondary, # Fixed: Use secondary
-                    zerolinecolor=self.theme.secondary # Fixed: Use secondary
-                ),
-                 legend=dict(
-                    bgcolor=self.theme.panel_bg,
-                    bordercolor=self.theme.secondary # Fixed: Use secondary
-                )
-            )
+            # Get default layout settings from the centralized styling function
+            default_layout = get_graph_figure_layout_defaults(self.theme)
+            self.figure.update_layout(**default_layout)
 
     def render(self):
         # Ensure theme is applied before rendering
         self._apply_theme_to_figure()
 
+        # Get default wrapper style and merge with instance style
+        default_wrapper_style = get_graph_wrapper_default_style(self.theme)
+        final_style = {**{'height': '400px'}, **default_wrapper_style, **self.style}
+
         return dcc.Graph(
             id=self.id,
             figure=self.figure,
-            style=self.style,
+            style=final_style,
             config=self.config,
             className=self.className
         )
