@@ -12,6 +12,9 @@
 | Grid.components | Input | list[UIComponent] | List of wrapped UI components | Grid([button, dropdown]) |
 | ListBox.options | Input | list[str] | Non-empty list of strings | ListBox(["Item 1", "Item 2"]) |
 | ListBox.values | Input | list[str] | Subset of options | ListBox(options, values=["Item 1"]) |
+| Mermaid.graph_definition | Input | str | Valid Mermaid syntax | Mermaid().render("diagram-1", "graph TD; A-->B") |
+| Mermaid.chart_config | Input | dict | Mermaid configuration options | Mermaid().render(id, graph, chart_config={"theme": "neutral"}) |
+| Mermaid.title | Input | str | Any string | Mermaid().render(id, graph, title="Process Diagram") |
 | RadioButton.options | Input | list[str] | Non-empty list of strings | RadioButton(["Yes", "No"]) |
 | RadioButton.value | Input | str | One of the provided options | RadioButton(options, value="Yes") |
 | Tabs.items | Input | list[tuple[str, UIComponent]] | List of (label, component) tuples | Tabs([("Tab1", button)]) |

@@ -28,7 +28,7 @@ else:
 
 # --- Import uikitxv2 components ---
 try:
-    from components import Button, Tabs, Grid, DataTable, ComboBox, Graph
+    from components import Button, Tabs, Grid, DataTable, ComboBox, Graph, Mermaid
     from lumberjack.logging_config import setup_logging, shutdown_logging
     from utils.colour_palette import default_theme
     import plotly.graph_objects as go
@@ -160,6 +160,78 @@ refresh_log_button = Button(
 )
 logger.debug("Instantiated refresh log button")
 
+# Create Mermaid Diagram Component
+mermaid = Mermaid(theme=default_theme)
+
+# Mermaid diagram examples
+flowchart_example = """
+graph TD
+    A[Start] --> B{Is it working?}
+    B -->|Yes| C[Great!]
+    B -->|No| D[Debug]
+    D --> B
+"""
+
+sequence_example = """
+sequenceDiagram
+    participant User
+    participant API
+    participant Database
+    
+    User->>API: Request Data
+    API->>Database: Query
+    Database-->>API: Return Results
+    API-->>User: Send Response
+"""
+
+class_diagram_example = """
+classDiagram
+    class Component {
+        +render()
+    }
+    class Button {
+        +String label
+        +render()
+    }
+    class Graph {
+        +Figure figure
+        +render()
+    }
+    Component <|-- Button
+    Component <|-- Graph
+"""
+
+# Create Mermaid Tab Content
+mermaid_flowchart = mermaid.render(
+    id="flowchart-diagram",
+    graph_definition=flowchart_example,
+    title="Flow Chart Example",
+    description="A simple flow chart showing a decision process"
+)
+
+mermaid_sequence = mermaid.render(
+    id="sequence-diagram",
+    graph_definition=sequence_example,
+    title="Sequence Diagram Example",
+    description="Diagram showing API interaction sequence"
+)
+
+mermaid_class = mermaid.render(
+    id="class-diagram",
+    graph_definition=class_diagram_example,
+    title="Class Diagram Example",
+    description="UIKitX component inheritance example"
+)
+
+mermaid_tab_content_grid = Grid(
+    id="grid-mermaid-tab",
+    children=[mermaid_flowchart, mermaid_sequence, mermaid_class],
+    col_widths=[12, 12, 12],  # Each diagram takes full width in its own row
+    row_heights=[1, 1, 1],    # Equal height rows
+    theme=default_theme
+)
+logger.debug("Instantiated uikitxv2.Mermaid components with theme")
+
 # --- Define Tab Content using uikitxv2.Grid ---
 components_tab_content_grid = Grid(
     id="grid-components-tab",
@@ -180,6 +252,7 @@ main_tabs = Tabs(
     id="main-demo-tabs",
     tabs=[
         ("Components", components_tab_content_grid),
+        ("Mermaid", mermaid_tab_content_grid),
         ("Logs", logs_tab_content_grid)
     ],
     theme=default_theme

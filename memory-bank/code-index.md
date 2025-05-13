@@ -8,12 +8,14 @@
 - `src/components/graph.py` - Implementation of the Graph component wrapper for Plotly figures.
 - `src/components/grid.py` - Implementation of the Grid layout component for arranging multiple UI components.
 - `src/components/listbox.py` - Implementation of the ListBox component wrapper for multi-selection.
+- `src/components/mermaid.py` - Implementation of the Mermaid component wrapper for rendering diagrams.
 - `src/components/radiobutton.py` - Implementation of the RadioButton component wrapper.
 - `src/components/tabs.py` - Implementation of the Tabs component wrapper for tabbed interfaces.
 
 ### Core
 
 - `src/core/base_component.py` - Abstract base class for all UI components.
+- `src/core/mermaid_protocol.py` - Protocol defining the interface for Mermaid diagram components.
 
 ### Decorators
 

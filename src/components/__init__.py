@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from .button import Button
 from .combobox import ComboBox
+from .container import Container
+from .datatable import DataTable
 from .graph import Graph
 from .grid import Grid
 from .listbox import ListBox
 from .radiobutton import RadioButton
 from .tabs import Tabs
-from .datatable import DataTable
-from .container import Container # Added import for Container
+from .mermaid import Mermaid
 
 __all__ = [
     "Button",
@@ -19,5 +20,6 @@ __all__ = [
     "ListBox",
     "Grid",
     "Graph",
-    "Container", # Added Container to __all__
+    "Container",
+    "Mermaid",
 ]

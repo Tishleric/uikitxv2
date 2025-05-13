@@ -21,26 +21,30 @@ project_root = os.path.dirname(current_script_dir)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
     print(f"Added '{project_root}' to sys.path for package 'src'")
+
+# --- Create module alias for imports ---
+import src
+sys.modules['uikitxv2'] = src
 # --- End Path ---
 
 # --- Imports ---
 try:
-    from src.lumberjack.logging_config import setup_logging, shutdown_logging
-    from src.utils.colour_palette import default_theme
+    from uikitxv2.lumberjack.logging_config import setup_logging, shutdown_logging
+    from uikitxv2.utils.colour_palette import default_theme
     # ComboBox and Graph are already imported from your file.
-    from src.components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph, RadioButton
-    print("Successfully imported uikitxv2 logging, theme, and UI components from 'src'.")
-    from src.PricingMonkey.pMoneyAuto import run_pm_automation 
-    from src.PricingMonkey.pMoneyMovement import get_market_movement_data_df, SCENARIOS
-    print("Successfully imported PM modules from 'src.PricingMonkey'.")
+    from uikitxv2.components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph, RadioButton, Mermaid
+    print("Successfully imported uikitxv2 logging, theme, and UI components.")
+    from uikitxv2.PricingMonkey.pMoneyAuto import run_pm_automation 
+    from uikitxv2.PricingMonkey.pMoneyMovement import get_market_movement_data_df, SCENARIOS
+    print("Successfully imported PM modules from 'uikitxv2.PricingMonkey'.")
     # Import decorator functions
-    from src.decorators.trace_closer import TraceCloser
-    from src.decorators.trace_cpu import TraceCpu
-    from src.decorators.trace_time import TraceTime
-    from src.decorators.trace_memory import TraceMemory
+    from uikitxv2.decorators.trace_closer import TraceCloser
+    from uikitxv2.decorators.trace_cpu import TraceCpu
+    from uikitxv2.decorators.trace_time import TraceTime
+    from uikitxv2.decorators.trace_memory import TraceMemory
     print("Successfully imported tracing decorators.")
 except ImportError as e:
-    print(f"Error importing from 'src' package: {e}")
+    print(f"Error importing from 'uikitxv2' package: {e}")
     print(f"Current sys.path: {sys.path}")
     print(f"Project root evaluated as: {project_root}")
     traceback.print_exc()
@@ -637,12 +641,87 @@ def create_logs_tab():
     
     return logs_container.render()
 
+def create_mermaid_tab():
+    """Creates the Mermaid tab with a diagram visualization."""
+    
+    # Define a dummy flowchart for the mermaid diagram
+    dummy_flowchart = """
+    flowchart LR
+        %% ============ Execution layer ============
+        subgraph ExecutionLayer["Execution Layer"]
+            tt["TT (futures algo)"]
+            cmeDirect["CME Direct (options)"]
+            cme["CME Exchange"]
+
+            tt -->|futures orders| cme
+            
+        end
+
+        %% ============ Data & analytics stack ============
+        md["Market Data feed"]
+        pricing["Pricing Monkey"]
+        actant["ACTANT"]
+        greeks["Greeks"]
+        position["Position"]
+        optimizer["Optimizer"]
+        dashboard["Dashboard"]
+
+        %% ----- Market-data distribution -----
+        md --> tt
+        md --> | options order |cmeDirect
+        md --> actant
+        md --> pricing
+
+        %% ----- Exchange & options → risk engine -----
+        cme -->|positions| actant
+        cmeDirect -->|positions| actant
+
+        %% ----- Risk & valuation flow -----
+        actant -->|analytics| greeks
+        actant -->|positions| position
+        pricing --> greeks
+        pricing --> dashboard
+
+        %% ----- Optimisation loop -----
+        greeks --> optimizer
+        position --> optimizer
+        optimizer --> dashboard
+    """
+    
+    # Create the Mermaid component with the dummy diagram
+    mermaid_diagram = Mermaid(theme=default_theme).render(
+        id="mermaid-diagram",
+        graph_definition=dummy_flowchart,
+        title="Project Architecture",
+        description="System architecture diagram showing data flow and component relationships"
+    )
+    
+    # Create Grid layout to contain the Mermaid diagram
+    mermaid_grid = Grid(
+        id="mermaid-grid",
+        children=[mermaid_diagram],
+        style={"backgroundColor": default_theme.panel_bg, "padding": "15px", "borderRadius": "5px"}
+    )
+    
+    # Wrap it all in a Container
+    mermaid_container = Container(
+        id="mermaid-tab-container",
+        children=[
+            html.H4("Diagram Visualization", style={"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}),
+            mermaid_grid.render()
+        ],
+        style={"padding": "15px"}
+    )
+    
+    return mermaid_container.render()
+
 main_tabs_rendered = Tabs(
     id="main-dashboard-tabs",
     tabs=[
         ("Pricing Monkey Setup", pricing_monkey_tab_main_container_rendered),
         ("Analysis", analysis_tab_content),
-        ("Logs", create_logs_tab())
+        ("Logs", create_logs_tab()),
+        ("Mermaid", create_mermaid_tab())
     ], 
     theme=default_theme
 ).render()
