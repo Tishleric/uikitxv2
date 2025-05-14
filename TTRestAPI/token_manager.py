@@ -109,20 +109,26 @@ class TTTokenManager:
         
         # Set up the headers
         headers = {
-            "accept": "application/json",
             "x-api-key": self.api_key,
-            "Content-Type": "application/json"
+            "Content-Type": "application/x-www-form-urlencoded"
         }
         
-        # Create the data string exactly as in the successful cURL request
-        data_str = f"grant_type=user_app&app_key={self.api_key}:{self.api_secret}"
+        # Create the data payload for x-www-form-urlencoded
+        data = {
+            "grant_type": "user_app",
+            "app_key": f"{self.api_key}:{self.api_secret}"
+        }
         
         # Create the URL with request ID
         url = f"{self.token_endpoint}?requestId={request_id}"
         
+        print(f"Attempting to acquire token from: {url}")
+        print(f"Token request headers: {headers}")
+        print(f"Token request data (for x-www-form-urlencoded): {data}")
+
         try:
-            # Make the request
-            response = requests.post(url, headers=headers, data=data_str)
+            # Make the request using data parameter for automatic form URL-encoding
+            response = requests.post(url, headers=headers, data=data)
             
             # Check if successful
             if response.status_code == 200:

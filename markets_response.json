@@ -1,0 +1,394 @@
+{
+  "lastPage": "true",
+  "markets": [
+    {
+      "id": "0",
+      "name": "ASE"
+    },
+    {
+      "id": "2",
+      "name": "Eurex"
+    },
+    {
+      "id": "4",
+      "name": "LSE"
+    },
+    {
+      "id": "7",
+      "name": "CME"
+    },
+    {
+      "id": "14",
+      "name": "EPEX"
+    },
+    {
+      "id": "17",
+      "name": "SGX_GIFT"
+    },
+    {
+      "id": "22",
+      "name": "BrokerTec"
+    },
+    {
+      "id": "24",
+      "name": "ASX"
+    },
+    {
+      "id": "26",
+      "name": "CBOE"
+    },
+    {
+      "id": "30",
+      "name": "Euronext"
+    },
+    {
+      "id": "32",
+      "name": "ICE"
+    },
+    {
+      "id": "64",
+      "name": "SGX"
+    },
+    {
+      "id": "65",
+      "name": "IDEM"
+    },
+    {
+      "id": "66",
+      "name": "MEFF"
+    },
+    {
+      "id": "67",
+      "name": "TFX"
+    },
+    {
+      "id": "72",
+      "name": "MEXDER"
+    },
+    {
+      "id": "73",
+      "name": "KRX"
+    },
+    {
+      "id": "77",
+      "name": "NSE"
+    },
+    {
+      "id": "79",
+      "name": "LME"
+    },
+    {
+      "id": "90",
+      "name": "B3"
+    },
+    {
+      "id": "91",
+      "name": "MX"
+    },
+    {
+      "id": "92",
+      "name": "ICE_L"
+    },
+    {
+      "id": "93",
+      "name": "CFE"
+    },
+    {
+      "id": "94",
+      "name": "Eris"
+    },
+    {
+      "id": "96",
+      "name": "AGGREGATOR"
+    },
+    {
+      "id": "98",
+      "name": "NFI"
+    },
+    {
+      "id": "99",
+      "name": "KCG"
+    },
+    {
+      "id": "100",
+      "name": "EEX"
+    },
+    {
+      "id": "103",
+      "name": "NLX"
+    },
+    {
+      "id": "106",
+      "name": "NDAQ_EU"
+    },
+    {
+      "id": "107",
+      "name": "HKEX"
+    },
+    {
+      "id": "108",
+      "name": "FEX"
+    },
+    {
+      "id": "114",
+      "name": "DGCX"
+    },
+    {
+      "id": "123",
+      "name": "DirectMatch"
+    },
+    {
+      "id": "124",
+      "name": "FENICS"
+    },
+    {
+      "id": "125",
+      "name": "NODAL"
+    },
+    {
+      "id": "126",
+      "name": "BIST"
+    },
+    {
+      "id": "127",
+      "name": "TFEX"
+    },
+    {
+      "id": "128",
+      "name": "Coinbase"
+    },
+    {
+      "id": "129",
+      "name": "JSE"
+    },
+    {
+      "id": "130",
+      "name": "WSE"
+    },
+    {
+      "id": "131",
+      "name": "CurveGlobal"
+    },
+    {
+      "id": "132",
+      "name": "CoinFLEX"
+    },
+    {
+      "id": "133",
+      "name": "Kraken"
+    },
+    {
+      "id": "134",
+      "name": "BitMEX"
+    },
+    {
+      "id": "136",
+      "name": "MOEX"
+    },
+    {
+      "id": "137",
+      "name": "TAIFEX"
+    },
+    {
+      "id": "138",
+      "name": "ATHEX"
+    },
+    {
+      "id": "140",
+      "name": "INE"
+    },
+    {
+      "id": "141",
+      "name": "DCE"
+    },
+    {
+      "id": "142",
+      "name": "CZCE"
+    },
+    {
+      "id": "143",
+      "name": "SHFE"
+    },
+    {
+      "id": "145",
+      "name": "LP"
+    },
+    {
+      "id": "147",
+      "name": "CCFX"
+    },
+    {
+      "id": "148",
+      "name": "BITSO"
+    },
+    {
+      "id": "149",
+      "name": "DERIBIT"
+    },
+    {
+      "id": "150",
+      "name": "Mysteel"
+    },
+    {
+      "id": "151",
+      "name": "XBTG"
+    },
+    {
+      "id": "152",
+      "name": "CME_BrokerTec"
+    },
+    {
+      "id": "154",
+      "name": "CEDX"
+    },
+    {
+      "id": "155",
+      "name": "JPX"
+    },
+    {
+      "id": "156",
+      "name": "OPRA"
+    },
+    {
+      "id": "157",
+      "name": "LME_NTP"
+    },
+    {
+      "id": "158",
+      "name": "NASDAQ_NED"
+    },
+    {
+      "id": "159",
+      "name": "BINANCE"
+    },
+    {
+      "id": "160",
+      "name": "BINANCE_US"
+    },
+    {
+      "id": "161",
+      "name": "BITFINEX"
+    },
+    {
+      "id": "162",
+      "name": "Bitstamp"
+    },
+    {
+      "id": "167",
+      "name": "GEMINI"
+    },
+    {
+      "id": "168",
+      "name": "LMAX"
+    },
+    {
+      "id": "169",
+      "name": "OKX"
+    },
+    {
+      "id": "170",
+      "name": "OSL"
+    },
+    {
+      "id": "182",
+      "name": "NZX"
+    },
+    {
+      "id": "185",
+      "name": "Huobi"
+    },
+    {
+      "id": "186",
+      "name": "CboeDigital-Spot"
+    },
+    {
+      "id": "187",
+      "name": "CboeDigital-Derivs"
+    },
+    {
+      "id": "188",
+      "name": "Binance_Futures"
+    },
+    {
+      "id": "190",
+      "name": "Nordpool"
+    },
+    {
+      "id": "191",
+      "name": "FMX"
+    },
+    {
+      "id": "192",
+      "name": "GFO-X"
+    },
+    {
+      "id": "193",
+      "name": "Dealerweb"
+    },
+    {
+      "id": "194",
+      "name": "CME_BTEC_STREAM"
+    },
+    {
+      "id": "196",
+      "name": "ABX"
+    },
+    {
+      "id": "197",
+      "name": "CDE"
+    },
+    {
+      "id": "198",
+      "name": "CboeFX_SW_NY"
+    },
+    {
+      "id": "203",
+      "name": "TTFX_NY"
+    },
+    {
+      "id": "205",
+      "name": "EBSM_NY"
+    },
+    {
+      "id": "206",
+      "name": "EBSM_LN"
+    },
+    {
+      "id": "216",
+      "name": "MIAX_FUT_CH"
+    },
+    {
+      "id": "221",
+      "name": "FMX_USTF"
+    },
+    {
+      "id": "600",
+      "name": "PME"
+    },
+    {
+      "id": "601",
+      "name": "DV"
+    },
+    {
+      "id": "1000",
+      "name": "ASE_INSTRUMENT"
+    },
+    {
+      "id": "1001",
+      "name": "ALGO"
+    },
+    {
+      "id": "1003",
+      "name": "AGGREGATOR_INSTRUMENT"
+    },
+    {
+      "id": "1004",
+      "name": "BANK_ALGO"
+    },
+    {
+      "id": "1005",
+      "name": "SDK_ALGO"
+    }
+  ],
+  "status": "Ok"
+}

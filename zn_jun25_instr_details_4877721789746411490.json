@@ -1,0 +1,31 @@
+{
+  "instrument": [
+    {
+      "alias": "ZN Jun25",
+      "displayFactor": 1.0,
+      "displayType": 17,
+      "expirationDate": 20250618235959,
+      "id": "4877721789746411490",
+      "lastTradeDate": 20250618,
+      "marketDepth": 10,
+      "marketId": 7,
+      "metadata": "{\"cdd\":\"2025060000000\"}",
+      "name": "ZNM5",
+      "pointValue": 1000.0,
+      "productFamilyId": "11555651545526830408",
+      "productId": "16143309052651006928",
+      "productSymbol": "ZN",
+      "productTypeId": 34,
+      "ricCode": "TYM25",
+      "roundLotQty": 1,
+      "securityExchange": 1,
+      "securityId": "42002725",
+      "seriesTermId": 4,
+      "term": "Jun25",
+      "tickSize": 0.015625,
+      "tickValue": 15.625
+    }
+  ],
+  "lastPage": "true",
+  "status": "Ok"
+}
