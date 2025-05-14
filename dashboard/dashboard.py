@@ -668,7 +668,7 @@ def create_mermaid_tab():
 
         %% ----- Market-data distribution -----
         md --> tt
-        md --> | options order |cmeDirect
+        md --> | options orders |cmeDirect
         md --> actant
         md --> pricing
 
