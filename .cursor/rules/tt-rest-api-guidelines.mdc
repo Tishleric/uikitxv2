@@ -1,0 +1,92 @@
+---
+description: Anything related to TT, Trading Technologies, ADL, the TT Rest API, both for coding and troubleshooting
+globs: 
+alwaysApply: false
+---
+# TT REST API Usage Guidelines
+
+## API Base URLs
+- Base URL pattern: `https://ttrestapi.trade.tt/<service>/<environment>`
+- **CRITICAL**: Service names in URLs must be lowercase (e.g., `/ttuser/` not `/TTUSER/`)
+- Environments:
+  - UAT: `ext_uat_cert`
+  - Production: `ext_prod_live`
+  - Backtest simulation: `ext_prod_sim` (for ttbacktest only)
+
+## Authentication
+- Every request requires both:
+  - Application Key (`x-api-key` header)
+  - Bearer Token (`Authorization: Bearer <token>` header)
+- Tokens expire (check `seconds_until_expiry` in token response)
+- Token refresh should be implemented proactively
+
+## Token Acquisition
+- **IMPORTANT**: Token request requires specific format:
+  - Endpoint: `/ttid/<environment>/token`
+  - Headers:
+    - `Content-Type: application/json`
+    - `x-api-key: <application_key>`
+  - Query Parameter: `requestId=<app_name>-<company_name>--<guid>`
+  - Body (as string): `grant_type=user_app&app_key=<key>:<secret>`
+- Token response includes:
+  - `access_token`: The token to use with Bearer authentication
+  - `token_type`: "bearer"
+  - `seconds_until_expiry`: Time until token expires
+
+## Request IDs
+- Format: `requestId=<app_name>-<company_name>--<new_guid>`
+- MUST generate a new GUID for each request
+- NO special characters: `$ & + , / : ; = ? @ " < > # % { } | \ ^ ~ [ ] `
+- NO spaces allowed
+- Parameter name must be exactly `requestId` (camelCase)
+
+## Rate Limits
+- UAT (Free Plan): 3 requests/second, 10,000 requests/day
+- Production Low Plan: 5 requests/second, 15,000 requests/day
+- Production Medium Plan: 10 requests/second, 30,000 requests/day
+- Production High Plan: 25 requests/second, 75,000 requests/day
+- POST requests with lists: Maximum 20 items per request, 1-second pause after submission
+- Administrative POST requests: Maximum 1 request every 10 seconds
+
+## Error Handling
+- 401: Authentication issues (token expired or invalid)
+- 403: Permission issues OR service name not lowercase in URL
+- 413: Response too large, add `Accept-Encoding: gzip` header
+- 429: Rate limit exceeded, implement backoff and retry
+
+## Available Services
+- `ttid`: Authentication only
+- `ttpds`: Product & instrument definitions (not real-time market data)
+- `ttuser`: User settings and permissions
+- `ttaccount`: Account configuration
+- `ttgroup`: Risk group management
+- `ttledger`: Historical transactions (not real-time)
+- `ttmonitor`: Administrative functions
+- `ttbacktest`: ADL algo backtesting (simulation environment only)
+
+## Important Limitations
+- TT REST API does not provide:
+  - Real-time market data feeds
+  - Direct order placement/management
+- For these functions, use TT.NET SDK or TT FIX protocol
+
+## ttpds Usage (Instrument Lookup)
+- Use `/instruments/query` with specific parameters to find futures contracts
+- Always retrieve full instrument details with `/instruments/{instrumentId}` after search
+- Cache infrequently changing instrument data
+- Implement futures rollover logic in your application
+
+## Required Headers
+- `x-api-key: <application_key>`
+- `Authorization: Bearer <token>`
+- For POST/PUT with JSON: `Content-Type: application/json`
+- For large responses: `Accept-Encoding: gzip`
+
+## Security Best Practices
+- Store Application Key Secret securely, never in source code
+- Implement proper token lifecycle management
+- Follow principle of least privilege for API keys
+- Use TTTokenManager for automated token acquisition and refresh
+
+
+
