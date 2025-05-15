@@ -1,0 +1,430 @@
+{
+  "lastPage": "true",
+  "orders": [
+    {
+      "accountId": 1334000,
+      "algoType": 0,
+      "brokerId": 1055384,
+      "cumulatedQuantity": 0.0,
+      "currUserId": 1168910,
+      "dateTime": 1747328540354606867,
+      "execId": "OEKlCBRr29MA0UkFdkRrJM",
+      "executionType": "1",
+      "instrumentId": "8092262517946017060",
+      "leavesQuantity": 80.0,
+      "manualOrderIndicator": false,
+      "marketId": 183,
+      "orderId": "0aca0322-8ef1-4607-951d-93224663017b",
+      "orderQty": 80.0,
+      "orderStatus": "1",
+      "orderType": "2",
+      "parentOrderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
+      "price": 110.171875,
+      "side": "1",
+      "timeInForce": "1",
+      "uniqueExecId": "OEKlCBRr29MA0UkFdkRrJM",
+      "userId": "1168910",
+      "userParameters": {
+        "userParameterList": [
+          {
+            "name": "__on_leave",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "name": "terminator_cod",
+            "type": 2,
+            "v_int32": 50
+          }
+        ]
+      }
+    },
+    {
+      "accountId": 1334000,
+      "algoType": 0,
+      "brokerId": 1055384,
+      "cumulatedQuantity": 0.0,
+      "currUserId": 1168910,
+      "dateTime": 1747328540353912426,
+      "execId": "fUATPQQF+uNGiOxiTspxpM",
+      "executionType": "1",
+      "instrumentId": "8092262517946017060",
+      "leavesQuantity": 10.0,
+      "manualOrderIndicator": false,
+      "marketId": 183,
+      "orderId": "5ab6e039-5134-481e-a8b6-0bb138be5560",
+      "orderQty": 10.0,
+      "orderStatus": "1",
+      "orderType": "2",
+      "parentOrderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
+      "price": 110.3125,
+      "side": "1",
+      "timeInForce": "1",
+      "uniqueExecId": "fUATPQQF+uNGiOxiTspxpM",
+      "userId": "1168910",
+      "userParameters": {
+        "userParameterList": [
+          {
+            "name": "__on_leave",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "name": "terminator_cod",
+            "type": 2,
+            "v_int32": 236
+          }
+        ]
+      }
+    },
+    {
+      "accountId": 1334000,
+      "algoType": 0,
+      "brokerId": 1055384,
+      "cumulatedQuantity": 0.0,
+      "currUserId": 1168910,
+      "dateTime": 1747328540354147726,
+      "execId": "aU4RiVMIJeIb02nUAd/hLC",
+      "executionType": "1",
+      "instrumentId": "8092262517946017060",
+      "leavesQuantity": 20.0,
+      "manualOrderIndicator": false,
+      "marketId": 183,
+      "orderId": "6a5e85ee-7317-49bc-94c0-8ccc9fa6a175",
+      "orderQty": 20.0,
+      "orderStatus": "1",
+      "orderType": "2",
+      "parentOrderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
+      "price": 110.265625,
+      "side": "1",
+      "timeInForce": "1",
+      "uniqueExecId": "aU4RiVMIJeIb02nUAd/hLC",
+      "userId": "1168910",
+      "userParameters": {
+        "userParameterList": [
+          {
+            "name": "__on_leave",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "name": "terminator_cod",
+            "type": 2,
+            "v_int32": 236
+          }
+        ]
+      }
+    },
+    {
+      "accountId": 1334000,
+      "algoType": 0,
+      "brokerId": 1055384,
+      "cumulatedQuantity": 0.0,
+      "currUserId": 1168910,
+      "dateTime": 1747328540360750444,
+      "execId": "nUCF0XubdxNLK0J3GLreZG",
+      "executionType": "1",
+      "instrumentId": "8092262517946017060",
+      "leavesQuantity": 1.0,
+      "manualOrderIndicator": false,
+      "marketId": 183,
+      "orderId": "86356940-9a2f-4c69-a2d6-c2ecb7db2333",
+      "orderQty": 1.0,
+      "orderStatus": "1",
+      "orderType": "4",
+      "parentOrderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
+      "price": 110.046875,
+      "side": "2",
+      "stopPrice": 110.046875,
+      "timeInForce": "1",
+      "uniqueExecId": "nUCF0XubdxNLK0J3GLreZG",
+      "userId": "1168910",
+      "userParameters": {
+        "userParameterList": [
+          {
+            "name": "__on_leave",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "name": "terminator_cod",
+            "type": 2,
+            "v_int32": 62
+          }
+        ]
+      }
+    },
+    {
+      "accountId": 1334000,
+      "algoType": 0,
+      "brokerId": 1055384,
+      "cumulatedQuantity": 0.0,
+      "currUserId": 1168910,
+      "dateTime": 1747328540354473355,
+      "execId": "M0MQDJGUnvAaerLZJMGDKH",
+      "executionType": "1",
+      "instrumentId": "8092262517946017060",
+      "leavesQuantity": 40.0,
+      "manualOrderIndicator": false,
+      "marketId": 183,
+      "orderId": "93d784cb-7686-492a-92e9-6d4f3f8897a6",
+      "orderQty": 40.0,
+      "orderStatus": "1",
+      "orderType": "2",
+      "parentOrderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
+      "price": 110.21875,
+      "side": "1",
+      "timeInForce": "1",
+      "uniqueExecId": "M0MQDJGUnvAaerLZJMGDKH",
+      "userId": "1168910",
+      "userParameters": {
+        "userParameterList": [
+          {
+            "name": "__on_leave",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "name": "terminator_cod",
+            "type": 2,
+            "v_int32": 50
+          }
+        ]
+      }
+    },
+    {
+      "accountId": 1334000,
+      "algoInstrumentId": "10628608476345732679",
+      "algoType": 0,
+      "brokerId": 1055384,
+      "clientIP": "1928479917",
+      "currUserId": 1168910,
+      "dateTime": 1747328540357005109,
+      "execId": "Uk7HTOqIktPoJHb/HFlxZD",
+      "executionType": "12",
+      "instrumentId": "8092262517946017060",
+      "manualOrderIndicator": true,
+      "marketId": 1001,
+      "orderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
+      "orderStatus": "1",
+      "orderType": "2",
+      "securityDescription": "5MartingaleAPITEST",
+      "side": "1",
+      "syntheticStatus": 3,
+      "syntheticType": "7",
+      "timeInForce": "2",
+      "uniqueExecId": "Uk7HTOqIktPoJHb/HFlxZD",
+      "userId": "1168910",
+      "userParameters": {
+        "userParameterList": [
+          {
+            "displayName": "",
+            "name": "_algo_version",
+            "type": 7,
+            "v_string": "1.0.1"
+          },
+          {
+            "displayName": "",
+            "name": "_algo_name",
+            "type": 7,
+            "v_string": "5MartingaleAPITEST"
+          },
+          {
+            "displayName": "",
+            "name": "user_disconnect_action",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "displayName": "",
+            "name": "_ladder_display",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "displayName": "",
+            "name": "enable_algo_risk_checks",
+            "type": 6,
+            "v_bool": false
+          },
+          {
+            "displayName": "",
+            "name": "pr_waterfall_type",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "displayName": "",
+            "name": "enable_near_far_touch_price_reasonability",
+            "type": 6,
+            "v_bool": false
+          },
+          {
+            "name": "05406aac-a5d9-43a8-972b-cfda65b9c40d",
+            "type": 0,
+            "v_double": 3.0
+          },
+          {
+            "name": "2a58bfe5-f3d8-419b-b38f-3f40cf0d3788",
+            "type": 0,
+            "v_double": 3.0
+          },
+          {
+            "name": "33c3557e-1b6d-4660-b46f-d6d6b7314a64",
+            "type": 0,
+            "v_double": 4.0
+          },
+          {
+            "name": "36ca0e91-07d7-498f-8100-1e2bc09264f5",
+            "type": 0,
+            "v_double": 4.0
+          },
+          {
+            "name": "456a672f-2f8c-4aa7-9fb1-d90c5f908b55",
+            "type": 0,
+            "v_double": 4.0
+          },
+          {
+            "name": "4a6e1b13-1092-4278-b2d5-cf4f02a1e41e",
+            "type": 0,
+            "v_double": 160.0
+          },
+          {
+            "name": "4ea7aef1-a7a4-4c4c-9319-5ff30c73d758",
+            "type": 0,
+            "v_double": 40.0
+          },
+          {
+            "name": "4f9303ce-1ad3-4a05-ae23-970a455d3fdd",
+            "type": 0,
+            "v_double": 0.4
+          },
+          {
+            "name": "51af3e99-d168-46cb-b17e-2f57e2cf44d2",
+            "type": 0,
+            "v_double": 5.0
+          },
+          {
+            "name": "56a3653f-9103-4b97-87dc-c6dc2d36b300",
+            "type": 0,
+            "v_double": 0.75
+          },
+          {
+            "name": "86c89b36-2e67-4d76-8e7e-b412dde9b53b",
+            "type": 0,
+            "v_double": 0.75
+          },
+          {
+            "name": "8fb8cfc5-66df-4996-8aa5-fbfb4dbee4ce",
+            "type": 0,
+            "v_double": 1.0
+          },
+          {
+            "name": "9416b41a-7a35-4f11-9687-f90ecdeeea4f",
+            "type": 0,
+            "v_double": 0.0
+          },
+          {
+            "name": "94596a88-5f36-49af-bf09-5132fdda4330",
+            "type": 0,
+            "v_double": 3.0
+          },
+          {
+            "name": "94fd1148-f456-4959-8260-d5a0ce3fa6f4",
+            "type": 0,
+            "v_double": 3.0
+          },
+          {
+            "name": "9b296f34-927b-46b2-8448-ed36a08a5373",
+            "type": 0,
+            "v_double": 3.0
+          },
+          {
+            "name": "_ignore_market_state",
+            "type": 6,
+            "v_bool": false
+          },
+          {
+            "name": "b20fe4b5-4bfa-46da-97d8-5e7597af45b9",
+            "type": 0,
+            "v_double": 20.0
+          },
+          {
+            "name": "c85f948a-ec60-4dae-908d-c862840937f2",
+            "type": 0,
+            "v_double": 80.0
+          },
+          {
+            "name": "d169fc26-3978-4e50-b2b0-9ebde2fd18d6",
+            "type": 0,
+            "v_double": 1.0
+          },
+          {
+            "name": "de6fd018-245c-450c-87c5-ea0994863b2d",
+            "type": 0,
+            "v_double": 0.0
+          },
+          {
+            "name": "e4a0a2d2-164a-46e9-97d4-8c25997b65ee",
+            "type": 0,
+            "v_double": 0.75
+          },
+          {
+            "name": "e8209ab3-7d27-4992-9a5d-25c01bca591f",
+            "type": 0,
+            "v_double": 5.0
+          },
+          {
+            "name": "e9f9b18c-9ffc-475e-8784-3ac21137ef43",
+            "type": 0,
+            "v_double": 4.0
+          },
+          {
+            "name": "f355c0f9-0b8c-4e39-8af2-73ac4d39dad5",
+            "type": 0,
+            "v_double": 10.0
+          }
+        ]
+      }
+    },
+    {
+      "accountId": 1334000,
+      "algoType": 0,
+      "brokerId": 1055384,
+      "cumulatedQuantity": 0.0,
+      "currUserId": 1168910,
+      "dateTime": 1747328540354301873,
+      "execId": "C0r79lpLoDMIM0gdV/0ipN",
+      "executionType": "1",
+      "instrumentId": "8092262517946017060",
+      "leavesQuantity": 160.0,
+      "manualOrderIndicator": false,
+      "marketId": 183,
+      "orderId": "f747e7f7-4171-42e2-a0d3-853cb7cbebd7",
+      "orderQty": 160.0,
+      "orderStatus": "1",
+      "orderType": "2",
+      "parentOrderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
+      "price": 110.125,
+      "side": "1",
+      "timeInForce": "1",
+      "uniqueExecId": "C0r79lpLoDMIM0gdV/0ipN",
+      "userId": "1168910",
+      "userParameters": {
+        "userParameterList": [
+          {
+            "name": "__on_leave",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "name": "terminator_cod",
+            "type": 2,
+            "v_int32": 236
+          }
+        ]
+      }
+    }
+  ],
+  "status": "Ok"
+}

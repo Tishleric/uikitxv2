@@ -265,3 +265,79 @@ Based on the TT REST API documentation UI, the following GET endpoints are avail
 *   `GET /tradingaccountfills`: Retrieves fills for all users - limited to accounts for which the user of the application key has trading permissions.
 
 ---
+
+### `GET /ttledger/<env>/orders` Response Schema
+
+This endpoint retrieves working orders. The response contains a list of order objects under the `"orders"` key.
+
+**Top-Level Response Fields:**
+
+| Field           | Type   | Description                                                     |
+|-----------------|--------|-----------------------------------------------------------------|
+| `status`        | string | Response status (e.g., "Ok").                                  |
+| `lastPage`      | string | Whether this is the last page of the response (e.g., "true"). Note: Documentation for `/instruments` says this changed from boolean to string. Assume string here too. |
+| `status_message`| string | Populated when an error occurs to provide further details.        |
+| `orders`        | array  | Array of active order objects.                                  |
+| `statusCode`    | integer| The returned HTTP status code.                                    |
+
+**Order Object Fields (within the `orders` array):**
+
+| Field                   | Type    | Description                                                                                                |
+|-------------------------|---------|------------------------------------------------------------------------------------------------------------|
+| `accountId`             | integer | Account ID. Details via Risk service's `/account/{accountId}`.                                               |
+| `accountName`           | string  | Name of the account.                                                                                       |
+| `algoInstrumentId`      | string  | ID of the algo instrument (if applicable). Details via PDS `/instrument/{instrumentId}`.                     |
+| `algoType`              | integer | Source/type of the algo. Enumerations via `/orderdata`.                                                      |
+| `brokerId`              | integer | TT-defined short code for the broker.                                                                        |
+| `clientIP`              | string  | Client IP address that submitted the order.                                                                  |
+| `clientOrderID`         | string  | Unique order identifier assigned by the client.                                                              |
+| `cumulatedQuantity`     | number  | Total filled quantity for this order.                                                                        |
+| `currUserId`            | integer | User ID of the user who last modified the order. Details via Risk `/user/{userId}`.                          |
+| `customerOrderCapacity` | integer | Designates the capacity of the customer placing the order. From Customer Defaults in Setup.                  |
+| `dateTime`              | integer | Timestamp (e.g., Unix epoch with nanoseconds) when the order was submitted or last modified.                 |
+| `displayQty`            | number  | Quantity to disclose for a disclosed quantity order (iceberg).                                               |
+| `execId`                | string  | Execution ID.                                                                                              |
+| `execInst`              | integer | Execution instruction ID. Enumerations via `/orderdata`.                                                     |
+| `executionType`         | string  | Type of executed transaction. Enumerations via `/orderdata`.                                                 |
+| `giveUp`                | integer | Account of the give-up party.                                                                                |
+| `instrumentId`          | string  | Instrument ID. Details via PDS `/instrument/{instrumentId}`.                                                 |
+| `leavesQuantity`        | integer | Number of contracts still working in the market.                                                             |
+| `manualOrderIndicator`  | boolean | `true` if manually sent, `false` for automated. (Note: docs say 0/1, but JSON sample implies boolean)    |
+| `marketId`              | integer | Market ID. Details via PDS `/markets`.                                                                       |
+| `orderCapacity`         | integer | Designates the capacity of the firm placing the order. From Customer Defaults in Setup.                      |
+| `orderId`               | string  | Unique Order ID assigned by TT. Details via `/orders/{orderId}`.                                           |
+| `orderProperties`       | string  | (Description missing in provided schema, likely internal properties)                                       |
+| `orderQty`              | number  | Original order quantity.                                                                                     |
+| `orderStatus`           | string  | Current status of the order. Enumerations via `/orderdata`. (e.g., "1" for Working, "7" for Algo Synthetic) |
+| `orderType`             | string  | Type of order (e.g., "2" for Limit, "4" for Stop Limit). Enumerations via `/orderdata`.                   |
+| `parentOrderId`         | string  | ID of the parent synthetic order (if this is a child order).                                                 |
+| `positionEffect`        | string  | (Description missing, likely Open/Close indicator)                                                         |
+| `price`                 | number  | Order price.                                                                                               |
+| `secondaryExecId`       | string  | Secondary execution ID.                                                                                      |
+| `securityDescription`   | string  | Security description (e.g., instrument name or algo name for synthetic parents).                           |
+| `side`                  | string  | Order side (e.g., "1" for Buy, "2" for Sell). Enumerations via `/orderdata`.                                |
+| `stopPrice`             | integer | Trigger price for a stop order.                                                                              |
+| `syntheticStatus`       | integer | Current status of a synthetic order. Enumerations via `/orderdata`.                                          |
+| `syntheticType`         | string  | Type of synthetic order. Enumerations via `/orderdata`. (e.g., "7" for ADL Algo)                           |
+| `text` / `textA` etc.   | string  | User-defined text field(s). (Note: `text` in schema, often `textA`, `textB`, `textC` or `miscText` are used). |
+| `timeInForce`           | string  | Time In Force (e.g., "1" for Day). Enumerations via `/orderdata`.                                          |
+| `tradeDate`             | integer | Date of the trade (e.g., YYYYMMDD).                                                                          |
+| `uniqueExecId`          | string  | Unique Execution ID.                                                                                         |
+| `userId`                | string  | User ID of the submitting user.                                                                              |
+| `userParameters`        | object  | Object containing a `userParameterList` for algos.                                                           |
+
+**`userParameters.userParameterList` Object Fields (within an order's `userParameters`):**
+
+| Field         | Type    | Description                                      |
+|---------------|---------|--------------------------------------------------|
+| `displayName` | string  | Display name for the parameter (often empty).    |
+| `name`        | string  | Internal name of the parameter (e.g., `_algo_name`).|
+| `type`        | integer | Data type of the parameter (e.g., 7 for string).   |
+| `v_string`    | string  | String value (if type indicates string).           |
+| `v_int32`     | integer | Integer value (if type indicates int).           |
+| `v_bool`      | boolean | Boolean value (if type indicates bool).            |
+| `v_double`    | number  | Double/float value (if type indicates double).   |
+
+**Note:** To get the meaning of enumerated string/integer values (like for `orderStatus`, `side`, `orderType`, `algoType`, `syntheticType`, `timeInForce`, `executionType`, `execInst`), you need to call the `GET /ttledger/<env>/orderdata` endpoint.
+
+---

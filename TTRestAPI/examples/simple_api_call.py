@@ -31,12 +31,10 @@ def main():
     
     # Initialize token manager with credentials from config file
     token_manager = TTTokenManager(
-        api_key=tt_config.TT_API_KEY,
-        api_secret=tt_config.TT_API_SECRET,
-        app_name=tt_config.APP_NAME,
-        company_name=tt_config.COMPANY_NAME,
+        # api_key, api_secret, app_name, company_name are loaded by TokenManager based on environment
         environment=tt_config.ENVIRONMENT,
-        token_file=tt_config.TOKEN_FILE
+        token_file_base=tt_config.TOKEN_FILE, # Pass the base name
+        config_module=tt_config # Pass the config module
     )
     
     print("\nAttempting to get token...")
@@ -49,18 +47,17 @@ def main():
     print("Token acquired.")
     
     # Build the URL (ensure lowercase service name as noted in documentation)
-    environment_path = 'ext_uat_cert' if tt_config.ENVIRONMENT == 'UAT' else 'ext_prod_live'
+    # Use token_manager.env_path_segment for the URL
     service = "ttpds"  # Product Data Service, still ttpds for /markets
-    # Use the correct base URL and change endpoint to /markets
-    url = f"{TT_API_BASE_URL}/{service}/{environment_path}/markets" # Changed endpoint to /markets
+    url = f"{TT_API_BASE_URL}/{service}/{token_manager.env_path_segment}/markets" 
     
     # Get request parameters (includes requestId)
     params = token_manager.get_request_params()
     
     # Prepare headers
     headers = {
-        "x-api-key": tt_config.TT_API_KEY,      # Required for all requests
-        "accept": "application/json"           # Changed to lowercase 'a', Content-Type removed for GET
+        "x-api-key": token_manager.api_key,      # Use API key from token_manager instance
+        "accept": "application/json"           
         # No "Content-Type" for GET requests as per successful cURL example
     }
     
