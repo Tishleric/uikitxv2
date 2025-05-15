@@ -233,3 +233,35 @@ Based on the TT REST API documentation UI, the following GET endpoints are avail
 *   `/syntheticinstruments`: Gets a list of synthetic instruments.
 
 ---
+
+### Known `ttmonitor` (Trade Monitor Service) Endpoints
+
+Based on the TT REST API documentation UI, the following GET & POST endpoints are available under `https://ttrestapi.trade.tt/ttmonitor/<env>/` (all require `requestId` query parameter and standard auth headers, POST may have specific body requirements):
+
+*   `POST /adminfill`: Adds an administrative fill.
+*   `GET /creditutilization`: Gets credit limit and credit utilization details for a given account.
+*   `GET /position`: Gets positions based on today's fills for all or selected accounts associated with the application key.
+*   `GET /position/{accountId}`: Gets positions for the provided `accountId` based on today's fills.
+*   `GET /productfamilyposition`: Gets positions based on today's fills aggregated by specific a product.
+*   `GET /productfamilyposition/{accountId}`: Gets positions for the provided `accountId` based on today's fills.
+*   `GET /productposition`: Gets positions based on today's fills aggregated by specific a product.
+*   `GET /productposition/{accountId}`: Gets positions for the provided `accountId` based on today's fills.
+*   `GET /sod/{accountId}`: Gets SODs for a given account ID.
+*   `POST /sod/upload`: Requests a URL for uploading SODs.
+*   `GET /sod/upload/{batchId}`: Provides the status of an SOD upload.
+
+---
+
+### Known `ttledger` (Ledger Service) Endpoints
+
+Based on the TT REST API documentation UI, the following GET endpoints are available under `https://ttrestapi.trade.tt/ttledger/<env>/` (all require `requestId` query parameter and standard auth headers):
+
+*   `GET /fills`: Retrieves fills for all users on accounts to which the application key has viewing and trading permissions.
+*   `GET /orderdata`: Retrieves definitions for order-related enumerated values.
+*   `GET /orders`: Retrieves working orders based on the user's ID and accounts.
+*   `GET /orders/{orderId}`: Retrieves detailed information about a single working order.
+*   `GET /positionmodifications`: Retrieves position modifications, such as start-of-day (SOC) records and manual fills.
+*   `GET /tcrfills`: Retrieves trade capture fills (internal and external) for all users on accounts to which the application key has viewing and trading permissions.
+*   `GET /tradingaccountfills`: Retrieves fills for all users - limited to accounts for which the user of the application key has trading permissions.
+
+---

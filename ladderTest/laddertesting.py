@@ -35,11 +35,15 @@ app.title = "Trading Ladder"
 # Generate only the exact price range visible in the screenshot (110.090 to 109.945)
 mock_market_data = []
 
-# Create a price range that matches exactly what's visible in the screenshot
-current_price = 110.090  # Start from 110.090 instead of 110.100
-while current_price >= 109.945:  # Cut off at 109.945 to match screenshot
+# Create a price range from 120.000 down to 90.000 with 0.005 increments
+max_price = 120.000
+min_price = 90.000
+current_price = max_price
+epsilon = 0.00001 # For floating point comparisons
+
+while current_price >= min_price - epsilon:  # Ensure 90.000 is included
     mock_market_data.append({
-        'price': current_price,
+        'price': round(current_price, 3), # Ensure rounding
         'work': "",  # Empty string instead of None
         'bid_qty': 0,  # 0 instead of None
         'my_bid_qty': 0,  # 0 instead of None
@@ -147,6 +151,9 @@ trading_ladder_table = DataTable(
     style_table={
         'width': '550px',         # Set fixed width for the entire table
         'tableLayout': 'fixed',   # Use fixed layout algorithm
+        'height': '80vh',         # Set a fixed height for scrollability (e.g., 80% of viewport height)
+        'overflowY': 'auto',      # Enable vertical scrolling
+        'overflowX': 'hidden',    # Disable horizontal scrolling
     },
     
     # Critical: Set exact height with no flexibility
@@ -248,11 +255,11 @@ trading_ladder_table = DataTable(
         
         # Special highlighting for the bid/ask boundary
         {
-            'if': {'filter_query': '{price} = 110.010 || {price} = 110.005'},
+            'if': {'filter_query': '{price} = 110.010 || {price} = 110.005'}, # This might need adjustment or become less relevant with the large range
             'border': '1px solid #666',
         },
     ],
-    page_size=200,  # Large page size, no pagination
+    page_size=len(mock_market_data),  # Set page_size to total number of rows
 )
 
 print("Instantiated trading ladder DataTable")

@@ -1,0 +1,204 @@
+{
+  "algos": [
+    {
+      "id": "1093129781220890406",
+      "isDeployed": true,
+      "name": "Single Theo",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20211105215248,
+      "version": "1636149168501"
+    },
+    {
+      "id": "2101722936378868865",
+      "isDeployed": true,
+      "name": "OCO",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20210204221146,
+      "version": "1612476706488"
+    },
+    {
+      "id": "2755913133411338267",
+      "isDeployed": true,
+      "name": "priceplus5ticks",
+      "ownerId": 24411,
+      "type": "0",
+      "updateTS": 20250514205505,
+      "version": "1747256105670"
+    },
+    {
+      "id": "3737396113047691240",
+      "isDeployed": true,
+      "name": "5Martingale",
+      "ownerId": 24411,
+      "type": "0",
+      "updateTS": 20250514003100,
+      "version": "1747182660890"
+    },
+    {
+      "id": "4446575887856387717",
+      "isDeployed": true,
+      "name": "Bid/Ask Theo",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20211105215306,
+      "version": "1636149186196"
+    },
+    {
+      "id": "6666997691405331468",
+      "isDeployed": false,
+      "name": "Ethan Test",
+      "ownerId": 24411,
+      "type": "0",
+      "updateTS": 20250320201656,
+      "version": "1742501816518"
+    },
+    {
+      "id": "7153103947633458542",
+      "isDeployed": true,
+      "name": "Conditional",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20190403145309,
+      "version": "1554303189161"
+    },
+    {
+      "id": "8108620862008591689",
+      "isDeployed": true,
+      "name": "TT Sniper",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20201125220604,
+      "version": "1606341964155"
+    },
+    {
+      "id": "9077464586452424613",
+      "isDeployed": true,
+      "name": "MinVol",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20190923175904,
+      "version": "1569261544188"
+    },
+    {
+      "id": "9597058292284175733",
+      "isDeployed": false,
+      "name": "3_Martingale Buy_1_1_NO_INDEX_StopV7",
+      "ownerId": 24411,
+      "type": "0",
+      "updateTS": 20250508191734,
+      "version": "1746731854395"
+    },
+    {
+      "id": "9725526449248013297",
+      "isDeployed": true,
+      "name": "TT Multi-Level Bracket",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20210917215154,
+      "version": "1631915514864"
+    },
+    {
+      "id": "10965970487024622388",
+      "isDeployed": true,
+      "name": "OCO 2",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20190411164605,
+      "version": "1555001165542"
+    },
+    {
+      "id": "11373817267373361524",
+      "isDeployed": true,
+      "name": "BrackeTT",
+      "ownerId": 24411,
+      "type": "0",
+      "updateTS": 20250425012634,
+      "version": "1745544394193"
+    },
+    {
+      "id": "12496135585803214524",
+      "isDeployed": false,
+      "name": "testSolution",
+      "ownerId": 24411,
+      "type": "0",
+      "updateTS": 20250419200936,
+      "version": "1745093376777"
+    },
+    {
+      "id": "12890379549072863733",
+      "isDeployed": true,
+      "name": "Direct Entry",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20211105215402,
+      "version": "1636149242569"
+    },
+    {
+      "id": "13551942676294168773",
+      "isDeployed": true,
+      "name": "Reference Market",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20211105215319,
+      "version": "1636149199311"
+    },
+    {
+      "id": "14620432196283538203",
+      "isDeployed": false,
+      "name": "3_Martingale Sell_1_1_NO_INDEX_Stop_V5",
+      "ownerId": 24411,
+      "type": "0",
+      "updateTS": 20250501083843,
+      "version": "1746088723607"
+    },
+    {
+      "id": "14846053287522807166",
+      "isDeployed": true,
+      "name": "Market Base",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20211105215233,
+      "version": "1636149153053"
+    },
+    {
+      "id": "15421850784008807680",
+      "isDeployed": false,
+      "name": "OTC Test",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20250227163555,
+      "version": "1740674155857"
+    },
+    {
+      "id": "17086196184937996791",
+      "isDeployed": true,
+      "name": "With A Tick",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20210917220446,
+      "version": "1631916286983"
+    },
+    {
+      "id": "17651578282027685440",
+      "isDeployed": false,
+      "name": "Martingale",
+      "ownerId": 24411,
+      "type": "0",
+      "updateTS": 20250425130746,
+      "version": "1745586466711"
+    },
+    {
+      "id": "17859637284805990022",
+      "isDeployed": true,
+      "name": "BrackeTT",
+      "ownerId": 0,
+      "type": "0",
+      "updateTS": 20221004190432,
+      "version": "1664910272337"
+    }
+  ],
+  "lastPage": "true",
+  "status": "Ok"
+}
