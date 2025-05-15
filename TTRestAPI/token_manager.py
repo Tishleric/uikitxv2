@@ -15,42 +15,67 @@ class TTTokenManager:
     Handles token acquisition, storage, and automatic refreshing.
     """
     
-    def __init__(self, api_key, api_secret, app_name, company_name, 
-                 environment='UAT', token_file='tt_token.json', 
-                 auto_refresh=True, refresh_buffer_seconds=600):
+    def __init__(self, api_key=None, api_secret=None, app_name=None, company_name=None, 
+                 environment='UAT', token_file_base='tt_token.json', 
+                 auto_refresh=True, refresh_buffer_seconds=600,
+                 config_module=None): # Allow passing config for easier testing/management
         """
         Initialize the token manager with the necessary credentials.
         
         Args:
-            api_key (str): The TT REST API application key
-            api_secret (str): The TT REST API application secret
-            app_name (str): Your application name (used in request IDs)
-            company_name (str): Your company name (used in request IDs)
-            environment (str): 'UAT' or 'LIVE' environment
-            token_file (str): Path to token storage file
-            auto_refresh (bool): Whether to auto-refresh tokens before expiry
-            refresh_buffer_seconds (int): Seconds before expiry to refresh token
+            api_key (str, optional): The TT REST API application key. If None, loads from config.
+            api_secret (str, optional): The TT REST API application secret. If None, loads from config.
+            app_name (str, optional): Your application name. If None, loads from config.
+            company_name (str, optional): Your company name. If None, loads from config.
+            environment (str): 'UAT', 'LIVE', or 'SIM' environment.
+            token_file_base (str): Base name for token storage file (e.g., 'tt_token.json').
+                                   The actual filename will be like 'tt_token_uat.json'.
+            auto_refresh (bool): Whether to auto-refresh tokens before expiry.
+            refresh_buffer_seconds (int): Seconds before expiry to refresh token.
+            config_module (module, optional): The tt_config module. If None, it's imported.
         """
-        self.api_key = api_key
-        self.api_secret = api_secret
-        self.app_name = app_name
-        self.company_name = company_name
-        self.environment = 'ext_uat_cert' if environment == 'UAT' else 'ext_prod_live'
+        if config_module is None:
+            from . import tt_config as config_module # Local import
         
-        # Always save token file in the TTRestAPI folder
+        self.app_name = app_name or config_module.APP_NAME
+        self.company_name = company_name or config_module.COMPANY_NAME
+        self.configured_environment = environment.upper()
+
+        if self.configured_environment == 'UAT':
+            self.api_key = api_key or config_module.TT_API_KEY
+            self.api_secret = api_secret or config_module.TT_API_SECRET
+            self.env_path_segment = 'ext_uat_cert'
+        elif self.configured_environment == 'SIM':
+            self.api_key = api_key or config_module.TT_SIM_API_KEY
+            self.api_secret = api_secret or config_module.TT_SIM_API_SECRET
+            self.env_path_segment = 'ext_prod_sim'
+        elif self.configured_environment == 'LIVE':
+            # Assuming LIVE credentials would be TT_LIVE_API_KEY, TT_LIVE_API_SECRET if added
+            # For now, let's make it explicit that they are not yet defined in current tt_config
+            if hasattr(config_module, 'TT_LIVE_API_KEY') and hasattr(config_module, 'TT_LIVE_API_SECRET'):
+                self.api_key = api_key or config_module.TT_LIVE_API_KEY
+                self.api_secret = api_secret or config_module.TT_LIVE_API_SECRET
+            else:
+                raise ValueError("LIVE environment selected but TT_LIVE_API_KEY/SECRET not found in tt_config.py")
+            self.env_path_segment = 'ext_prod_live'
+        else:
+            raise ValueError(f"Unsupported environment: {self.configured_environment}. Must be 'UAT', 'SIM', or 'LIVE'.")
+
         ttrestapi_dir = os.path.dirname(os.path.abspath(__file__))
-        self.token_file = os.path.join(ttrestapi_dir, os.path.basename(token_file))
+        token_file_name, token_file_ext = os.path.splitext(os.path.basename(token_file_base))
+        # Create environment-specific token filename, e.g., tt_token_sim.json
+        self.token_file = os.path.join(ttrestapi_dir, f"{token_file_name}_{self.configured_environment.lower()}{token_file_ext}")
         
         self.auto_refresh = auto_refresh
         self.refresh_buffer_seconds = refresh_buffer_seconds
         
-        self.base_url = f"https://ttrestapi.trade.tt/ttid/{self.environment}"
+        self.base_url = f"https://ttrestapi.trade.tt/ttid/{self.env_path_segment}"
         self.token_endpoint = f"{self.base_url}/token"
         
         # Token data
         self.token = None
         self.token_type = None
-        self.expiry_time = None
+        self.expiry_time = None # Stored as datetime object
         
         # Load token if available
         self._load_token()
@@ -114,6 +139,7 @@ class TTTokenManager:
         }
         
         # Create the data payload for x-www-form-urlencoded
+        # Ensure api_key and api_secret for app_key are from the correct environment instance variables
         data = {
             "grant_type": "user_app",
             "app_key": f"{self.api_key}:{self.api_secret}"
@@ -139,11 +165,16 @@ class TTTokenManager:
                 self.token_type = token_data.get('token_type', 'bearer')
                 seconds_until_expiry = token_data.get('seconds_until_expiry')
                 
+                if seconds_until_expiry is None:
+                    print(f"Error: 'seconds_until_expiry' not found in token response: {token_data}")
+                    self.token = None # Invalidate token
+                    return False
+
                 # Calculate the expiry time
-                self.expiry_time = datetime.now() + timedelta(seconds=seconds_until_expiry)
+                self.expiry_time = datetime.now() + timedelta(seconds=int(seconds_until_expiry))
                 
                 # Save the token to file
-                self._save_token(token_data)
+                self._save_token(token_data, seconds_until_expiry) # Pass seconds_until_expiry
                 
                 return True
             else:
@@ -165,36 +196,47 @@ class TTTokenManager:
                 
                 self.token = token_data.get('access_token')
                 self.token_type = token_data.get('token_type', 'bearer')
-                seconds_until_expiry = token_data.get('seconds_until_expiry')
+                # Load seconds_until_expiry and acquisition_time for accurate expiry calculation
+                seconds_until_expiry_on_save = token_data.get('seconds_until_expiry_on_save')
                 acquisition_time_str = token_data.get('acquisition_time')
                 
-                if self.token and acquisition_time_str and seconds_until_expiry:
+                if self.token and acquisition_time_str and seconds_until_expiry_on_save is not None:
                     acquisition_time = datetime.fromisoformat(acquisition_time_str)
-                    self.expiry_time = acquisition_time + timedelta(seconds=seconds_until_expiry)
+                    self.expiry_time = acquisition_time + timedelta(seconds=int(seconds_until_expiry_on_save))
+                else:
+                    self.token = None # Invalidate if essential data is missing
+                    self.expiry_time = None
         except Exception as e:
-            print(f"Error loading token: {str(e)}")
+            print(f"Error loading token from {self.token_file}: {str(e)}")
+            self.token = None
+            self.expiry_time = None
     
-    def _save_token(self, token_data):
+    def _save_token(self, token_data, seconds_until_expiry_on_save):
         """
         Save token data to file.
         
         Args:
-            token_data (dict): Token data to save
+            token_data (dict): Token data to save (original response from TT)
+            seconds_until_expiry_on_save (int): The value of 'seconds_until_expiry' at the time of saving.
         """
         try:
-            # Add acquisition time
-            token_data['acquisition_time'] = datetime.now().isoformat()
+            # Create a dictionary to save, ensuring we don't modify the original token_data if not needed
+            data_to_save = token_data.copy() # Start with a copy of the original token response
+            data_to_save['acquisition_time'] = datetime.now().isoformat()
+            # Store the original 'seconds_until_expiry' value at the time of acquisition
+            data_to_save['seconds_until_expiry_on_save'] = seconds_until_expiry_on_save
             
-            # Ensure directory exists
+            # Ensure directory exists (though for __file__ dir, it should)
             token_dir = os.path.dirname(self.token_file)
             if token_dir and not os.path.exists(token_dir):
-                os.makedirs(token_dir)
+                os.makedirs(token_dir) # Should not be necessary if token_file is in same dir as .py
                 
             # Save the token data
             with open(self.token_file, 'w') as f:
-                json.dump(token_data, f, indent=2)
+                json.dump(data_to_save, f, indent=2)
+            print(f"Token saved to {self.token_file}")
         except Exception as e:
-            print(f"Error saving token: {str(e)}")
+            print(f"Error saving token to {self.token_file}: {str(e)}")
     
     def get_auth_header(self):
         """
@@ -226,15 +268,15 @@ if __name__ == "__main__":
     sys.path.append(project_root)
     
     # Import configuration
-    from TTRestAPI import tt_config
+    from TTRestAPI import tt_config # Now safe due to __main__ guard
+    
+    print(f"Testing Token Manager with ENVIRONMENT = '{tt_config.ENVIRONMENT}'")
     
     token_manager = TTTokenManager(
-        api_key=tt_config.TT_API_KEY,
-        api_secret=tt_config.TT_API_SECRET,
-        app_name=tt_config.APP_NAME,
-        company_name=tt_config.COMPANY_NAME,
-        environment=tt_config.ENVIRONMENT,
-        token_file=tt_config.TOKEN_FILE
+        # api_key, api_secret, app_name, company_name are now loaded from tt_config by default
+        environment=tt_config.ENVIRONMENT, # Pass the environment from config
+        token_file_base=tt_config.TOKEN_FILE, # Pass the base name from config
+        config_module=tt_config # Pass the config module itself
     )
     
     token = token_manager.get_token(force_refresh=True)

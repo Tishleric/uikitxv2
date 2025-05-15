@@ -35,12 +35,10 @@ def main():
     
     try:
         token_manager = TTTokenManager(
-            api_key=tt_config.TT_API_KEY,
-            api_secret=tt_config.TT_API_SECRET,
-            app_name=getattr(tt_config, 'APP_NAME', "GetAlgosScript"),
-            company_name=getattr(tt_config, 'COMPANY_NAME', "MyCompany"),
+            # api_key, api_secret, app_name, company_name are loaded by TokenManager
             environment=tt_config.ENVIRONMENT,
-            token_file=getattr(tt_config, 'TOKEN_FILE', os.path.join(project_root, 'tt_token.json'))
+            token_file_base=tt_config.TOKEN_FILE, # Use base name from config
+            config_module=tt_config # Pass config module
         )
     except AttributeError as e:
         print(f"Configuration error in tt_config.py: {e}. Please ensure all required fields are present.")
@@ -58,16 +56,15 @@ def main():
     
     print("Token acquired.")
     
-    environment_path = 'ext_uat_cert' if tt_config.ENVIRONMENT == 'UAT' else 'ext_prod_live'
     service = "ttpds"  # As per ttcheatsheet.md, /algos is under ttpds
     endpoint = "/algos"
-    url = f"{TT_API_BASE_URL}/{service}/{environment_path}{endpoint}"
+    url = f"{TT_API_BASE_URL}/{service}/{token_manager.env_path_segment}{endpoint}"
     
     # Prepare request ID and headers
     request_id = token_manager.create_request_id()
     params = {"requestId": request_id}
     headers = {
-        "x-api-key": tt_config.TT_API_KEY,
+        "x-api-key": token_manager.api_key, # Use API key from token_manager instance
         "accept": "application/json",
         "Authorization": f"Bearer {token}" 
     }
