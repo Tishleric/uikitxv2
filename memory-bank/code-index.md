@@ -52,5 +52,21 @@
 
 - `ladderTest/laddertesting.py` - Dash application to display a TT-style trading ladder with mock data. Includes functionality to scroll to current price levels.
 - `ladderTest/price_formatter.py` - Utility function to convert decimal prices to TT bond-style string notation (e.g., "110'005").
+- `ladderTest/scenario_ladder_v1.py` - Dash application that displays a scenario ladder based on working orders from the TT REST API. It shows prices and user's order quantities with uniform price increments, filling in gaps between actual orders.
 
 ## TT REST API Integration (TTRestAPI/)
+
+- `TTRestAPI/tt_config.py` - Configuration for TT REST API keys, secrets, and environment settings.
+- `TTRestAPI/token_manager.py` - Manages TT REST API authentication tokens, including acquisition, storage, and refresh logic. Supports UAT, SIM, and LIVE environments.
+- `TTRestAPI/tt_utils.py` - Utility functions for TT REST API integration, such as GUID generation and request ID formatting.
+- `TTRestAPI/api_example.py` - Comprehensive example demonstrating various API calls using the token manager.
+- `TTRestAPI/get_token_cli.py` - Command-line tool for fetching and managing TT REST API tokens.
+
+### TT REST API Examples (`TTRestAPI/examples/`)
+- `TTRestAPI/examples/simple_api_call.py` - Basic example of fetching market data.
+- `TTRestAPI/examples/get_cme_products.py` - Fetches and lists products for the CME market.
+- `TTRestAPI/examples/get_zn_instruments.py` - Fetches and lists instruments for the ZN (10-Year T-Note) product.
+- `TTRestAPI/examples/get_zn_instrument_details.py` - Fetches detailed information for a specific ZN instrument.
+- `TTRestAPI/examples/get_my_algo_ids.py` - Fetches and lists ADL algorithm IDs and names.
+- `TTRestAPI/examples/get_algo_orders.py` - Fetches working orders, with logic to identify orders related to a specific algorithm.
+- `TTRestAPI/examples/get_order_enumerations.py` - Fetches and saves enumeration definitions (e.g., for order status, side, type) from the `/ttledger/orderdata` endpoint.
