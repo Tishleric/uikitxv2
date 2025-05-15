@@ -45,44 +45,6 @@
       "brokerId": 1055384,
       "cumulatedQuantity": 0.0,
       "currUserId": 1168910,
-      "dateTime": 1747328540354147726,
-      "execId": "aU4RiVMIJeIb02nUAd/hLC",
-      "executionType": "1",
-      "instrumentId": "8092262517946017060",
-      "leavesQuantity": 20.0,
-      "manualOrderIndicator": false,
-      "marketId": 183,
-      "orderId": "6a5e85ee-7317-49bc-94c0-8ccc9fa6a175",
-      "orderQty": 20.0,
-      "orderStatus": "1",
-      "orderType": "2",
-      "parentOrderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
-      "price": 110.265625,
-      "side": "1",
-      "timeInForce": "1",
-      "uniqueExecId": "aU4RiVMIJeIb02nUAd/hLC",
-      "userId": "1168910",
-      "userParameters": {
-        "userParameterList": [
-          {
-            "name": "__on_leave",
-            "type": 2,
-            "v_int32": 0
-          },
-          {
-            "name": "terminator_cod",
-            "type": 2,
-            "v_int32": 236
-          }
-        ]
-      }
-    },
-    {
-      "accountId": 1334000,
-      "algoType": 0,
-      "brokerId": 1055384,
-      "cumulatedQuantity": 0.0,
-      "currUserId": 1168910,
       "dateTime": 1747328540360750444,
       "execId": "nUCF0XubdxNLK0J3GLreZG",
       "executionType": "1",
@@ -150,6 +112,44 @@
             "name": "terminator_cod",
             "type": 2,
             "v_int32": 50
+          }
+        ]
+      }
+    },
+    {
+      "accountId": 1334000,
+      "algoType": 0,
+      "brokerId": 1055384,
+      "cumulatedQuantity": 0.0,
+      "currUserId": 1168910,
+      "dateTime": 1747331901467965319,
+      "execId": "PUM3OlRh/bAjnBmUFJr07D",
+      "executionType": "1",
+      "instrumentId": "8092262517946017060",
+      "leavesQuantity": 15.0,
+      "manualOrderIndicator": false,
+      "marketId": 183,
+      "orderId": "a3343ea2-1f53-4d5c-bd2a-0a2e872b552c",
+      "orderQty": 15.0,
+      "orderStatus": "1",
+      "orderType": "2",
+      "parentOrderId": "d5474dbc-ed45-44e1-b036-60d65bc2da53",
+      "price": 110.3125,
+      "side": "2",
+      "timeInForce": "1",
+      "uniqueExecId": "PUM3OlRh/bAjnBmUFJr07D",
+      "userId": "1168910",
+      "userParameters": {
+        "userParameterList": [
+          {
+            "name": "__on_leave",
+            "type": 2,
+            "v_int32": 0
+          },
+          {
+            "name": "terminator_cod",
+            "type": 2,
+            "v_int32": 236
           }
         ]
       }

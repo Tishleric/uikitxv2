@@ -341,3 +341,59 @@ This endpoint retrieves working orders. The response contains a list of order ob
 **Note:** To get the meaning of enumerated string/integer values (like for `orderStatus`, `side`, `orderType`, `algoType`, `syntheticType`, `timeInForce`, `executionType`, `execInst`), you need to call the `GET /ttledger/<env>/orderdata` endpoint.
 
 ---
+
+### `GET /ttledger/<env>/orderdata` Enumerations
+
+This endpoint is crucial for translating numeric or coded values found in order objects (from `GET /orders`) into human-readable strings. It should typically be called once at application startup or infrequently, and the results cached.
+
+The response is a JSON object, usually with a top-level key like `"orderData"`. Under this key, there are multiple objects, each corresponding to an order field that uses enumerations. Inside these objects, keys are the numeric codes, and values are their string representations.
+
+**Example Structure (illustrative):**
+```json
+{
+  "status": "Ok",
+  "lastPage": "true",
+  "orderData": {
+    "side": {
+      "1": "BUY",
+      "2": "SELL",
+      // ... other side values
+    },
+    "orderStatus": {
+      "1": "NEW", // Or "WORKING" depending on exact API version/data
+      "2": "PARTIALLY_FILLED",
+      // ... other status values
+    },
+    "orderType": {
+      "1": "MARKET",
+      "2": "LIMIT",
+      // ... other type values
+    }
+    // ... many other fields like 'timeInForce', 'algoType', 'executionType', etc.
+  },
+  "statusCode": 200
+}
+```
+
+**Fields typically providing enumerations (refer to your saved `order_enumerations.json` for the definitive list for your environment):**
+- `algoType`
+- `execInst`
+- `executionType`
+- `fillType`
+- `modificationType`
+- `multiLegReportingType`
+- `orderCapacity`
+- `orderCrossPreventionType`
+- `orderOrigination`
+- `orderStatus`
+- `orderType`
+- `side`
+- `source`
+- `syntheticStatus`
+- `syntheticType`
+- `timeInForce`
+- `tradeType`
+- `positionEffect`
+- `partyRole` (and related party fields)
+
+---
