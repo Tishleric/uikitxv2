@@ -127,9 +127,9 @@ app.layout = dbc.Container([
     html.H2("Scenario Ladder", style={"textAlign": "center", "color": "#18F0C3", "marginBottom": "20px"}),
     dbc.Row([
         dbc.Col(
-            Button(id="get-spot-price-button", label="Get Spot Price", theme=default_theme).render(),
+            Button(id="refresh-data-button", label="Refresh Data", theme=default_theme).render(),
             width={"size": 4, "offset": 4},
-            className="mb-3",
+            className="mb-3 d-flex justify-content-center",
         ),
     ]),
     html.Div(id='spot-price-error-div', style={"textAlign": "center", "color": "red", "marginBottom": "10px"}),
@@ -210,31 +210,58 @@ print("Dash layout defined for Scenario Ladder")
     Output(MESSAGE_DIV_ID, 'style'),
     Input(STORE_ID, 'data'),
     Input('spot-price-store', 'data'), # Add spot price store as input
+    Input('refresh-data-button', 'n_clicks'), # Add refresh button as input
     State(DATATABLE_ID, 'data')      # Add State for current table data
 )
-def load_and_display_orders(store_data, spot_price_data, current_table_data): # Added current_table_data
+def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table_data):
     print("Callback triggered: load_and_display_orders")
     triggered_input_info = dash.callback_context.triggered[0]
     context_id = triggered_input_info['prop_id']
     
-    # If triggered by spot price update, get the current data of DataTable
-    # and just update the spot price indicators
-    if context_id == 'spot-price-store.data' and spot_price_data:
+    # Handle different trigger sources
+    # 1. If triggered by the refresh button or initial load, do a full data refresh
+    # Note: When app first loads, context_id is '.' with no specific component
+    is_initial_app_load = (context_id == '.')
+    is_store_trigger = (context_id == f'{STORE_ID}.data')
+    
+    # Full refresh needed if:
+    # - Button clicked, OR
+    # - Initial app load with initial_load_trigger, OR
+    # - Store data trigger with initial_load_trigger
+    full_refresh_needed = (
+        context_id == 'refresh-data-button.n_clicks' or
+        (is_initial_app_load and store_data and store_data.get('initial_load_trigger')) or
+        (is_store_trigger and store_data and store_data.get('initial_load_trigger'))
+    )
+    
+    # Log the current trigger context for debugging
+    print(f"Trigger context: '{context_id}', Initial load: {is_initial_app_load}, Full refresh needed: {full_refresh_needed}")
+    
+    # 2. If triggered only by spot price update, just update spot indicators on existing data
+    if context_id == 'spot-price-store.data' and spot_price_data and not full_refresh_needed:
         # Use current_table_data from State
         if current_table_data and len(current_table_data) > 0:
-            print(f"Spot price update. current_table_data has {len(current_table_data)} rows.")
+            print(f"Spot price update only. current_table_data has {len(current_table_data)} rows.")
             updated_data = update_data_with_spot_price(current_table_data, spot_price_data)
             return updated_data, dash.no_update, dash.no_update, dash.no_update
         else:
             # Table not populated yet, or empty. Let the full load logic run if initial_load_trigger is set.
-            # Or, if initial_load_trigger is not the cause, prevent update.
-            print("Spot price update, but current_table_data is empty. Preventing update or letting full load proceed.")
-            if not (store_data and store_data.get('initial_load_trigger')):
-                 raise PreventUpdate # Prevent if not an initial load scenario
-
-    if not store_data or not store_data.get('initial_load_trigger'):
-        print("Callback skipped: initial_load_trigger not True")
+            print("Spot price update, but current_table_data is empty. Letting full load proceed.")
+    
+    # If not an initial load or refresh button click, don't proceed with full refresh
+    if not full_refresh_needed:
+        print("Callback skipped: not triggered by initial load or refresh button")
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        
+    # Log the trigger
+    if context_id == 'refresh-data-button.n_clicks':
+        print(f"Full refresh triggered by button click ({n_clicks})")
+    elif is_initial_app_load:
+        print("Full refresh triggered by initial app load (context_id='.')")
+    elif is_store_trigger:
+        print(f"Full refresh triggered by store update with initial_load_trigger={store_data.get('initial_load_trigger')}")
+    else:
+        print(f"Full refresh triggered by unknown source: {context_id}")
 
     orders_data = []
     error_message_str = ""
@@ -405,9 +432,9 @@ def load_and_display_orders(store_data, spot_price_data, current_table_data): # 
             # Correct for potential floating point drift by re-calculating based on fixed increment
             current_price_level = round(current_price_level / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
 
-        # REMOVE The block for spot price between price levels (approx lines 404-426)
-        # This was: if spot_decimal_price is not None and ladder_table_data: ...
-        # This logic is now fully in update_data_with_spot_price
+        # Apply spot price indicators to the ladder data if spot price is available
+        if spot_price_data and 'decimal_price' in spot_price_data and spot_price_data['decimal_price'] is not None:
+            ladder_table_data = update_data_with_spot_price(ladder_table_data, spot_price_data)
         
         print(f"Generated {len(ladder_table_data)} rows for the ladder.")
         message_text = "" # Clear message if table has data
@@ -427,7 +454,7 @@ def load_and_display_orders(store_data, spot_price_data, current_table_data): # 
 @app.callback(
     Output('spot-price-store', 'data'),
     Output('spot-price-error-div', 'children'),
-    Input('get-spot-price-button', 'n_clicks'),
+    Input('refresh-data-button', 'n_clicks'),
     prevent_initial_call=True
 )
 def fetch_spot_price_from_pm(n_clicks):
