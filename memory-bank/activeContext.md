@@ -25,3 +25,6 @@ The project is currently focused on a complete UI component library with perform
 - Restructured package to use flat import structure under src/
 - Simplified imports to use direct references rather than namespace
 - Updated all memory bank documentation to reflect current structure
+
+## Recent Updates (Latest)
+- Updated scenario_ladder_v1.py to use live data from the TT REST API by default instead of mock data, improving the relevance of the ladder visualization

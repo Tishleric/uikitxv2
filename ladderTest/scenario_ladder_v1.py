@@ -67,7 +67,7 @@ PRICE_INCREMENT_DECIMAL = 1.0 / 64.0  # For ZN-like instruments
 DATATABLE_ID = 'scenario-ladder-table'
 MESSAGE_DIV_ID = 'scenario-ladder-message'
 STORE_ID = 'scenario-ladder-store' # For triggering load and potentially storing state
-USE_MOCK_DATA = True # Flag to switch between mock and live data
+USE_MOCK_DATA = False # Flag to switch between mock and live data
 MOCK_DATA_FILE = os.path.join(ladderTest_dir, "my_working_orders_response.json")
 
 # Pricing Monkey constants

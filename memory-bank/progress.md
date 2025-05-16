@@ -1,5 +1,13 @@
 # Project Progress
 
+## Recent Changes
+
+### TT REST API Integration Enhancement
+- Updated scenario_ladder_v1.py to use live data from the TT REST API by default instead of mock data 
+- Changed USE_MOCK_DATA flag from True to False, enabling direct connection to TT's services
+- Verified code path for live data fetching based on existing implementation and log output
+- This provides a more accurate picture of current market orders without requiring manual data updates
+
 ## 2023-11-14 Project Restructuring
 
 ### Completed
