@@ -1,0 +1,25 @@
+{
+  "lastPage": "true",
+  "positions": [
+    {
+      "avgBuy": 110.20089285714286,
+      "avgSell": 110.18984375,
+      "buyFillQty": 70.0,
+      "buyWorkingQty": 0.0,
+      "instrumentId": "8092262517946017060",
+      "netPosition": 219.0,
+      "openAvgPrice": 110.55985292362338,
+      "pnl": 1.7855000848066993,
+      "pnlPrice": 110.3671875,
+      "pnlPriceType": "MIDPOINT",
+      "realizedPnl": -0.07700000365730375,
+      "sellFillQty": 20.0,
+      "sellWorkingQty": 0.0,
+      "sodNetPos": 169.0,
+      "sodPrice": 110.25,
+      "sodPriceType": "SETTLE",
+      "accountId": 1334000
+    }
+  ],
+  "status": "Ok"
+}
