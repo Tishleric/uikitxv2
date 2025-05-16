@@ -70,6 +70,12 @@ STORE_ID = 'scenario-ladder-store' # For triggering load and potentially storing
 USE_MOCK_DATA = False # Flag to switch between mock and live data
 MOCK_DATA_FILE = os.path.join(ladderTest_dir, "my_working_orders_response.json")
 
+# --- PnL Calculation Constants ---
+# One basis point (BP) equals 4 display ticks, where each display tick is 1/32
+BP_DECIMAL_PRICE_CHANGE = 1.0 / 8.0  # 4 * (1/32) = 1/8
+DOLLARS_PER_BP = 6.0  # $6 per basis point
+DEFAULT_CONTRACTS = 1  # Default number of contracts
+
 # Pricing Monkey constants
 PM_URL = "https://pricingmonkey.com/b/e9172aaf-2cb4-4f2c-826d-92f57d3aea90"
 PM_WAIT_FOR_BROWSER_OPEN = 3.0
@@ -141,15 +147,16 @@ app.layout = dbc.Container([
                 id=DATATABLE_ID,
                 columns=[
                     {'name': 'Working Qty', 'id': 'my_qty', "type": "numeric"},
-                    {'name': 'Price', 'id': 'price', "type": "text"}
+                    {'name': 'Price', 'id': 'price', "type": "text"},
+                    {'name': 'Projected PnL', 'id': 'projected_pnl', "type": "numeric", "format": {"specifier": "$,.2f"}}
                 ],
                 data=[], # Start with no data
                 theme=default_theme,
-                style_table={'width': '350px', 'tableLayout': 'fixed', 'height': '70vh', 'overflowY': 'auto', 'margin': 'auto'},
+                style_table={'width': '450px', 'tableLayout': 'fixed', 'height': '70vh', 'overflowY': 'auto', 'margin': 'auto'},
                 style_cell={
                     'backgroundColor': 'black', 'color': 'white', 'font-family': 'monospace',
                     'fontSize': '12px', 'height': '22px', 'maxHeight': '22px', 'minHeight': '22px',
-                    'width': '50%', 'textAlign': 'center', 'padding': '0px', 'margin': '0px', 'border': '1px solid #444'
+                    'width': '33%', 'textAlign': 'center', 'padding': '0px', 'margin': '0px', 'border': '1px solid #444'
                 },
                 style_header={
                     'backgroundColor': '#333333', 'color': 'white', 'height': '28px',
@@ -191,6 +198,20 @@ app.layout = dbc.Container([
                             'column_id': 'price'
                         },
                         'borderTop': '2px solid #228B22'  # Green top border
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{projected_pnl} > 0',
+                            'column_id': 'projected_pnl'
+                        },
+                        'color': '#4CAF50'  # Green for positive PnL
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{projected_pnl} < 0',
+                            'column_id': 'projected_pnl'
+                        },
+                        'color': '#F44336'  # Red for negative PnL
                     }
                 ],
                 page_size=100 # Adjust as needed, or make it dynamic
@@ -422,7 +443,8 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
                 # Spot price indicators (default to 0, handled by update_data_with_spot_price)
                 'is_exact_spot': 0,
                 'is_below_spot': 0,
-                'is_above_spot': 0
+                'is_above_spot': 0,
+                'projected_pnl': 0  # Initialize the Projected PnL column with 0
             }
             
             # Removed initial spot price indicator logic here - will be handled by update_data_with_spot_price
@@ -439,7 +461,7 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         print(f"Generated {len(ladder_table_data)} rows for the ladder.")
         message_text = "" # Clear message if table has data
         message_style_hidden = {'display': 'none'}
-        table_style_visible = {'display': 'block', 'width': '350px', 'margin': 'auto'} # Ensure table is centered
+        table_style_visible = {'display': 'block', 'width': '450px', 'margin': 'auto'} # Ensure table is centered
         return ladder_table_data, table_style_visible, message_text, message_style_hidden
     else: # Should only be hit if error_message_str exists AND processed_orders is empty
         message_text = error_message_str if error_message_str else "No working orders to display."
@@ -527,13 +549,14 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     """
     Update existing ladder data with spot price indicators based on decimal comparison.
     Handles exact matches and midpoints (marking the top border of the base tick).
+    Also calculates Projected PnL based on price difference from spot price.
     
     Args:
         existing_data (list): Current DataTable data (list of dictionaries, each with 'decimal_price_val')
         spot_price_data (dict): Spot price data from spot-price-store (contains 'decimal_price')
         
     Returns:
-        list: Updated DataTable data with spot price indicators
+        list: Updated DataTable data with spot price indicators and PnL values
     """
     if not existing_data or not spot_price_data:
         print("update_data_with_spot_price: No existing_data or spot_price_data, returning existing.")
@@ -567,22 +590,27 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         
         row_decimal_val = new_row.get('decimal_price_val')
         if row_decimal_val is None:
+            new_row['projected_pnl'] = 0  # Set PnL to 0 if no decimal price value
             updated_data.append(new_row)
             continue
         
-        # Round row_decimal_val to the same precision as base_tick_for_spot_decimal for comparison
-        # This ensures that minor floating point discrepancies from initial generation don't affect comparison
-        # row_decimal_val_rounded = round(row_decimal_val / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
-
+        # Calculate Projected PnL based on price difference from spot price
+        # Formula: PnL = (row_price - spot_price) / basis_point_change * dollars_per_bp * contracts
+        price_diff = row_decimal_val - spot_decimal_price
+        pnl = price_diff / BP_DECIMAL_PRICE_CHANGE * DOLLARS_PER_BP * DEFAULT_CONTRACTS
+        
+        # Round to 2 decimal places for currency display
+        new_row['projected_pnl'] = round(pnl, 2)
+        
         # Case 1: Spot price is an exact match for this row's price
         if is_spot_exact_tick and abs(row_decimal_val - spot_decimal_price) < epsilon:
             new_row['is_exact_spot'] = 1
-            print(f"  Exact spot match at row price {row_decimal_val} ('{new_row['price']}')")
+            print(f"  Exact spot match at row price {row_decimal_val} ('{new_row['price']}'), PnL: {new_row['projected_pnl']}")
         # Case 2: This row's price is the base tick for a midpoint spot price
         # (i.e., spot is not exact, and this row is the floor tick of the spot)
         elif not is_spot_exact_tick and abs(row_decimal_val - base_tick_for_spot_decimal) < epsilon:
             new_row['is_above_spot'] = 1 # Spot is above this base tick, mark this row's top border
-            print(f"  Midpoint: Spot {spot_decimal_price} is above base tick {row_decimal_val} ('{new_row['price']}'). Marking top border.")
+            print(f"  Midpoint: Spot {spot_decimal_price} is above base tick {row_decimal_val} ('{new_row['price']}'). Marking top border. PnL: {new_row['projected_pnl']}")
         
         updated_data.append(new_row)
         
