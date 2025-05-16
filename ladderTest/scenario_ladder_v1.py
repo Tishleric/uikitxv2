@@ -71,10 +71,9 @@ USE_MOCK_DATA = False # Flag to switch between mock and live data
 MOCK_DATA_FILE = os.path.join(ladderTest_dir, "my_working_orders_response.json")
 
 # --- PnL Calculation Constants ---
-# One basis point (BP) equals 4 display ticks, where each display tick is 1/32
-BP_DECIMAL_PRICE_CHANGE = 1.0 / 8.0  # 4 * (1/32) = 1/8
-DOLLARS_PER_BP = 6.0  # $6 per basis point
-DEFAULT_CONTRACTS = 1  # Default number of contracts
+# One basis point (BP) equals 2 display ticks, where each display tick is 1/32
+BP_DECIMAL_PRICE_CHANGE = 0.0625  # 2 * (1/32) = 1/16 = 0.0625
+DOLLARS_PER_BP = 63.0  # $63 per basis point
 
 # Pricing Monkey constants
 PM_URL = "https://pricingmonkey.com/b/e9172aaf-2cb4-4f2c-826d-92f57d3aea90"
@@ -148,15 +147,15 @@ app.layout = dbc.Container([
                 columns=[
                     {'name': 'Working Qty', 'id': 'my_qty', "type": "numeric"},
                     {'name': 'Price', 'id': 'price', "type": "text"},
-                    {'name': 'Projected PnL', 'id': 'projected_pnl', "type": "numeric", "format": {"specifier": "$,.2f"}}
+                    {'name': 'Projected PnL', 'id': 'projected_pnl', "type": "numeric", "format": {"specifier": "$,.2f"}},
+                    {'name': 'Pos', 'id': 'position_debug', "type": "numeric"}
                 ],
                 data=[], # Start with no data
                 theme=default_theme,
-                style_table={'width': '450px', 'tableLayout': 'fixed', 'height': '70vh', 'overflowY': 'auto', 'margin': 'auto'},
                 style_cell={
                     'backgroundColor': 'black', 'color': 'white', 'font-family': 'monospace',
                     'fontSize': '12px', 'height': '22px', 'maxHeight': '22px', 'minHeight': '22px',
-                    'width': '33%', 'textAlign': 'center', 'padding': '0px', 'margin': '0px', 'border': '1px solid #444'
+                    'width': '25%', 'textAlign': 'center', 'padding': '0px', 'margin': '0px', 'border': '1px solid #444'
                 },
                 style_header={
                     'backgroundColor': '#333333', 'color': 'white', 'height': '28px',
@@ -212,6 +211,20 @@ app.layout = dbc.Container([
                             'column_id': 'projected_pnl'
                         },
                         'color': '#F44336'  # Red for negative PnL
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{position_debug} > 0',
+                            'column_id': 'position_debug'
+                        },
+                        'color': '#1E88E5'  # Blue for long position
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{position_debug} < 0',
+                            'column_id': 'position_debug'
+                        },
+                        'color': '#E53935'  # Red for short position
                     }
                 ],
                 page_size=100 # Adjust as needed, or make it dynamic
@@ -443,11 +456,10 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
                 # Spot price indicators (default to 0, handled by update_data_with_spot_price)
                 'is_exact_spot': 0,
                 'is_below_spot': 0,
-                'is_above_spot': 0,
-                'projected_pnl': 0  # Initialize the Projected PnL column with 0
+                # Spot price indicators (default to 0, handled by update_data_with_spot_price)
+                'is_exact_spot': 0,
+                'is_below_spot': 0,
             }
-            
-            # Removed initial spot price indicator logic here - will be handled by update_data_with_spot_price
             
             ladder_table_data.append(row_data)
             current_price_level -= PRICE_INCREMENT_DECIMAL
@@ -461,7 +473,8 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         print(f"Generated {len(ladder_table_data)} rows for the ladder.")
         message_text = "" # Clear message if table has data
         message_style_hidden = {'display': 'none'}
-        table_style_visible = {'display': 'block', 'width': '450px', 'margin': 'auto'} # Ensure table is centered
+        table_style_visible = {'display': 'block', 'width': '500px', 'margin': 'auto'} # Ensure table is centered
+        print(f"Generated {len(ladder_table_data)} rows for the ladder.")
         return ladder_table_data, table_style_visible, message_text, message_style_hidden
     else: # Should only be hit if error_message_str exists AND processed_orders is empty
         message_text = error_message_str if error_message_str else "No working orders to display."
@@ -549,7 +562,11 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     """
     Update existing ladder data with spot price indicators based on decimal comparison.
     Handles exact matches and midpoints (marking the top border of the base tick).
-    Also calculates Projected PnL based on price difference from spot price.
+    
+    Calculates Projected PnL based on:
+    1. Starting with zero position at the spot price
+    2. Accumulating position as we move away from spot price
+    3. Orders at a given price level affect the position for all subsequent levels
     
     Args:
         existing_data (list): Current DataTable data (list of dictionaries, each with 'decimal_price_val')
@@ -568,53 +585,152 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         return existing_data
         
     print(f"Updating existing data ({len(existing_data)} rows) with spot price: {spot_decimal_price}")
+    # Add logging for spot price in the specific format
+    special_string_spot = spot_price_data.get('special_string_price', '')
+    print(f"\nSpot Price ({special_string_spot}): Decimal = {int(spot_decimal_price)} + {((spot_decimal_price % 1) * 32):.2f}/32 = {spot_decimal_price}")
     
-    updated_data = []
-    epsilon = PRICE_INCREMENT_DECIMAL / 100.0 # For float comparisons
-
+    # Create a copy of existing data to avoid modifying the original
+    output_data = [row.copy() for row in existing_data]
+    
     # Determine the base tick for the spot price (floor to the nearest tick)
-    # Ensure correct rounding for precise tick values to avoid floating point issues with comparison
-    base_tick_for_spot_decimal = round((math.floor(spot_decimal_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL) / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+    epsilon = PRICE_INCREMENT_DECIMAL / 100.0  # For float comparisons
+    base_tick_for_spot_decimal = math.floor(spot_decimal_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+    base_tick_for_spot_decimal = round(base_tick_for_spot_decimal / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
 
     # Check if the spot price is an exact match to its base tick
     is_spot_exact_tick = abs(spot_decimal_price - base_tick_for_spot_decimal) < epsilon
 
     print(f"Spot Price: {spot_decimal_price}, Base Tick for Spot: {base_tick_for_spot_decimal}, Is Exact: {is_spot_exact_tick}")
 
-    for row in existing_data:
-        new_row = row.copy() # Work on a copy to avoid modifying the original list items directly
-        # Reset indicators for each row
-        new_row['is_exact_spot'] = 0
-        new_row['is_below_spot'] = 0 # Not used by the new logic, but good to reset
-        new_row['is_above_spot'] = 0
-        
-        row_decimal_val = new_row.get('decimal_price_val')
-        if row_decimal_val is None:
-            new_row['projected_pnl'] = 0  # Set PnL to 0 if no decimal price value
-            updated_data.append(new_row)
+    # Find the pivot index for the spot price (or the closest price below spot)
+    spot_pivot_idx = len(output_data)  # Default to end of list if not found
+    for i, row in enumerate(output_data):
+        row_price = row.get('decimal_price_val')
+        if row_price is None:
+            continue
+        if row_price <= spot_decimal_price:
+            spot_pivot_idx = i
+            break
+    
+    print(f"Spot pivot index: {spot_pivot_idx} out of {len(output_data)} rows")
+    
+    # Reset all indicators and set initial PnL values to 0
+    for row in output_data:
+        row['is_exact_spot'] = 0
+        row['is_below_spot'] = 0
+        row['is_above_spot'] = 0
+        row['projected_pnl'] = 0
+        # Optional: Add a debugging field to see position at each level
+        row['position_debug'] = 0
+    
+    # Mark the spot price level(s)
+    for row in output_data:
+        row_price = row.get('decimal_price_val')
+        if row_price is None:
+            continue
+            
+        # Case 1: Spot price is an exact match for this row's price
+        if abs(row_price - spot_decimal_price) < epsilon:
+            row['is_exact_spot'] = 1
+        # Case 2: This row's price is the base tick for a midpoint spot price
+        elif not is_spot_exact_tick and abs(row_price - base_tick_for_spot_decimal) < epsilon:
+            row['is_above_spot'] = 1  # Spot is above this base tick, mark this row's top border
+    
+    # Calculate positions and PnL's for prices at and below spot
+    current_position = 0  # Start with zero position at spot
+    for i in range(spot_pivot_idx, len(output_data)):
+        row = output_data[i]
+        row_price = row.get('decimal_price_val')
+        if row_price is None:
             continue
         
-        # Calculate Projected PnL based on price difference from spot price
-        # Formula: PnL = (row_price - spot_price) / basis_point_change * dollars_per_bp * contracts
-        price_diff = row_decimal_val - spot_decimal_price
-        pnl = price_diff / BP_DECIMAL_PRICE_CHANGE * DOLLARS_PER_BP * DEFAULT_CONTRACTS
+        # Store the current position (before processing orders at this level)
+        row['position_debug'] = current_position
         
-        # Round to 2 decimal places for currency display
-        new_row['projected_pnl'] = round(pnl, 2)
+        # Calculate PnL using the current position
+        price_diff = row_price - spot_decimal_price
         
-        # Case 1: Spot price is an exact match for this row's price
-        if is_spot_exact_tick and abs(row_decimal_val - spot_decimal_price) < epsilon:
-            new_row['is_exact_spot'] = 1
-            print(f"  Exact spot match at row price {row_decimal_val} ('{new_row['price']}'), PnL: {new_row['projected_pnl']}")
-        # Case 2: This row's price is the base tick for a midpoint spot price
-        # (i.e., spot is not exact, and this row is the floor tick of the spot)
-        elif not is_spot_exact_tick and abs(row_decimal_val - base_tick_for_spot_decimal) < epsilon:
-            new_row['is_above_spot'] = 1 # Spot is above this base tick, mark this row's top border
-            print(f"  Midpoint: Spot {spot_decimal_price} is above base tick {row_decimal_val} ('{new_row['price']}'). Marking top border. PnL: {new_row['projected_pnl']}")
+        # Log detailed PnL calculation for specific rows to avoid excessive output
+        special_string_price = row.get('price', '')
+        if abs(price_diff) > 0.001 and current_position != 0:  # Only log non-zero differences where position exists
+            print(f"\nScenario Price ({special_string_price}): Decimal = {int(row_price)} + {((row_price % 1) * 32):.2f}/32 = {row_price}")
+            print(f"Price Difference (Scenario - Spot): {row_price} - {spot_decimal_price} = {price_diff:.7f}")
+            bp_diff = price_diff / BP_DECIMAL_PRICE_CHANGE
+            print(f"Number of Basis Points Moved: {price_diff:.7f} / {BP_DECIMAL_PRICE_CHANGE} = {bp_diff:.3f} BPs")
+            pnl_one_contract = bp_diff * DOLLARS_PER_BP
+            print(f"PnL for 1 contract: {bp_diff:.3f} BPs * ${DOLLARS_PER_BP}/BP = ${pnl_one_contract:.3f}")
+            pnl = pnl_one_contract * current_position
+            print(f"PnL for {current_position} contracts (current position at {special_string_price} level): ${pnl_one_contract:.3f} * {current_position} = ${pnl:.2f}")
+        else:
+            pnl = price_diff / BP_DECIMAL_PRICE_CHANGE * DOLLARS_PER_BP * current_position if BP_DECIMAL_PRICE_CHANGE != 0 else 0
         
-        updated_data.append(new_row)
+        row['projected_pnl'] = round(pnl, 2)
         
-    return updated_data
+        # Update position based on orders at this level
+        qty = row.get('my_qty')
+        side = row.get('working_qty_side')
+        
+        if qty and qty != "":  # If there's a quantity
+            qty = int(qty)
+            if side == '1':  # Buy order
+                current_position += qty
+            elif side == '2':  # Sell order
+                current_position -= qty
+    
+    # Calculate positions and PnL's for prices above spot
+    current_position = 0  # Reset position for above-spot calculation
+    for i in range(spot_pivot_idx - 1, -1, -1):
+        row = output_data[i]
+        row_price = row.get('decimal_price_val')
+        if row_price is None:
+            continue
+        
+        # Store the current position (before processing orders at this level)
+        row['position_debug'] = current_position
+        
+        # Calculate PnL using the current position
+        price_diff = row_price - spot_decimal_price
+        
+        # Log detailed PnL calculation for specific rows to avoid excessive output
+        special_string_price = row.get('price', '')
+        if abs(price_diff) > 0.001 and current_position != 0:  # Only log non-zero differences where position exists
+            print(f"\nScenario Price ({special_string_price}): Decimal = {int(row_price)} + {((row_price % 1) * 32):.2f}/32 = {row_price}")
+            print(f"Price Difference (Scenario - Spot): {row_price} - {spot_decimal_price} = {price_diff:.7f}")
+            bp_diff = price_diff / BP_DECIMAL_PRICE_CHANGE
+            print(f"Number of Basis Points Moved: {price_diff:.7f} / {BP_DECIMAL_PRICE_CHANGE} = {bp_diff:.3f} BPs")
+            pnl_one_contract = bp_diff * DOLLARS_PER_BP
+            print(f"PnL for 1 contract: {bp_diff:.3f} BPs * ${DOLLARS_PER_BP}/BP = ${pnl_one_contract:.3f}")
+            pnl = pnl_one_contract * current_position
+            print(f"PnL for {current_position} contracts (current position at {special_string_price} level): ${pnl_one_contract:.3f} * {current_position} = ${pnl:.2f}")
+        else:
+            pnl = price_diff / BP_DECIMAL_PRICE_CHANGE * DOLLARS_PER_BP * current_position if BP_DECIMAL_PRICE_CHANGE != 0 else 0
+        
+        row['projected_pnl'] = round(pnl, 2)
+        
+        # Update position based on orders at this level
+        qty = row.get('my_qty')
+        side = row.get('working_qty_side')
+        
+        if qty and qty != "":  # If there's a quantity
+            qty = int(qty)
+            if side == '1':  # Buy order
+                current_position += qty
+            elif side == '2':  # Sell order
+                current_position -= qty
+    
+    # Sort back to original order (high to low price should be the same)
+    # This is a safeguard in case the original data had a different sorting
+    output_data.sort(key=lambda x: float('-inf') if x.get('decimal_price_val') is None else x.get('decimal_price_val'), reverse=True)
+    
+    # Log some debug info
+    for i, row in enumerate(output_data):
+        if row.get('decimal_price_val') is not None:
+            if row.get('my_qty') and row.get('my_qty') != "":
+                print(f"Row {i}: Price {row['price']}, Qty {row['my_qty']}, Side {row.get('working_qty_side')}, Position {row.get('position_debug')}, PnL {row['projected_pnl']}")
+            elif row.get('is_exact_spot') == 1:
+                print(f"Row {i}: Price {row['price']} (SPOT PRICE), Position {row.get('position_debug')}, PnL {row['projected_pnl']}")
+    
+    return output_data
 
 # --- Execution ---
 if __name__ == "__main__":
