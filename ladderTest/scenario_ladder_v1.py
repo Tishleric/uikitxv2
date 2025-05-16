@@ -564,9 +564,9 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     Handles exact matches and midpoints (marking the top border of the base tick).
     
     Calculates Projected PnL based on:
-    1. Starting with zero position at the spot price
-    2. Accumulating position as we move away from spot price
-    3. Orders at a given price level affect the position for all subsequent levels
+    1. Starting with zero position and zero PnL at the spot price
+    2. Accumulating PnL based on position and price changes between consecutive price levels
+    3. PnL at each level = PnL of previous level + (position * price change in basis points * $63)
     
     Args:
         existing_data (list): Current DataTable data (list of dictionaries, each with 'decimal_price_val')
@@ -636,35 +636,48 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         elif not is_spot_exact_tick and abs(row_price - base_tick_for_spot_decimal) < epsilon:
             row['is_above_spot'] = 1  # Spot is above this base tick, mark this row's top border
     
-    # Calculate positions and PnL's for prices at and below spot
+    # ----- NEW IMPLEMENTATION: CUMULATIVE PNL CALCULATION -----
+    
+    # PASS 1: Calculate positions and PnL's for prices at and below spot
     current_position = 0  # Start with zero position at spot
+    accumulated_pnl = 0.0  # PnL at spot price is 0
+    previous_price = spot_decimal_price
+    
     for i in range(spot_pivot_idx, len(output_data)):
         row = output_data[i]
-        row_price = row.get('decimal_price_val')
-        if row_price is None:
+        current_price = row.get('decimal_price_val')
+        if current_price is None:
             continue
         
         # Store the current position (before processing orders at this level)
         row['position_debug'] = current_position
         
-        # Calculate PnL using the current position
-        price_diff = row_price - spot_decimal_price
+        # Calculate incremental PnL for this step
+        price_diff = current_price - previous_price
+        bp_diff = price_diff / BP_DECIMAL_PRICE_CHANGE
+        pnl_increment = bp_diff * DOLLARS_PER_BP * current_position
         
-        # Log detailed PnL calculation for specific rows to avoid excessive output
+        # Calculate cumulative PnL (previous level PnL + increment)
+        row['projected_pnl'] = round(accumulated_pnl + pnl_increment, 2)
+        
+        # Log detailed PnL calculation for steps with non-zero positions
         special_string_price = row.get('price', '')
-        if abs(price_diff) > 0.001 and current_position != 0:  # Only log non-zero differences where position exists
-            print(f"\nScenario Price ({special_string_price}): Decimal = {int(row_price)} + {((row_price % 1) * 32):.2f}/32 = {row_price}")
-            print(f"Price Difference (Scenario - Spot): {row_price} - {spot_decimal_price} = {price_diff:.7f}")
-            bp_diff = price_diff / BP_DECIMAL_PRICE_CHANGE
-            print(f"Number of Basis Points Moved: {price_diff:.7f} / {BP_DECIMAL_PRICE_CHANGE} = {bp_diff:.3f} BPs")
-            pnl_one_contract = bp_diff * DOLLARS_PER_BP
-            print(f"PnL for 1 contract: {bp_diff:.3f} BPs * ${DOLLARS_PER_BP}/BP = ${pnl_one_contract:.3f}")
-            pnl = pnl_one_contract * current_position
-            print(f"PnL for {current_position} contracts (current position at {special_string_price} level): ${pnl_one_contract:.3f} * {current_position} = ${pnl:.2f}")
-        else:
-            pnl = price_diff / BP_DECIMAL_PRICE_CHANGE * DOLLARS_PER_BP * current_position if BP_DECIMAL_PRICE_CHANGE != 0 else 0
+        special_string_prev_price = decimal_to_tt_bond_format(previous_price) if i > spot_pivot_idx else special_string_spot
         
-        row['projected_pnl'] = round(pnl, 2)
+        if current_position != 0:
+            print(f"\n--- PnL Calculation for Level Below Spot ---")
+            print(f"Previous Level: {special_string_prev_price} ({previous_price})")
+            print(f"Current Level: {special_string_price} ({current_price})")
+            print(f"Position for this step: {current_position} contracts")
+            print(f"Price Difference (Current - Previous): {current_price} - {previous_price} = {price_diff:.7f}")
+            print(f"Basis Points Moved in this step: {price_diff:.7f} / {BP_DECIMAL_PRICE_CHANGE} = {bp_diff:.3f} BPs")
+            print(f"PnL Increment for this step: {bp_diff:.3f} BPs * ${DOLLARS_PER_BP}/BP * {current_position} = ${pnl_increment:.2f}")
+            print(f"PnL from Previous Level: ${accumulated_pnl:.2f}")
+            print(f"Total PnL for Current Level: ${accumulated_pnl:.2f} + ${pnl_increment:.2f} = ${row['projected_pnl']}")
+        
+        # Update accumulators for next iteration
+        accumulated_pnl = row['projected_pnl']
+        previous_price = current_price
         
         # Update position based on orders at this level
         qty = row.get('my_qty')
@@ -677,35 +690,46 @@ def update_data_with_spot_price(existing_data, spot_price_data):
             elif side == '2':  # Sell order
                 current_position -= qty
     
-    # Calculate positions and PnL's for prices above spot
+    # PASS 2: Calculate positions and PnL's for prices above spot
     current_position = 0  # Reset position for above-spot calculation
+    accumulated_pnl = 0.0  # Reset PnL accumulator
+    previous_price = spot_decimal_price
+    
     for i in range(spot_pivot_idx - 1, -1, -1):
         row = output_data[i]
-        row_price = row.get('decimal_price_val')
-        if row_price is None:
+        current_price = row.get('decimal_price_val')
+        if current_price is None:
             continue
         
         # Store the current position (before processing orders at this level)
         row['position_debug'] = current_position
         
-        # Calculate PnL using the current position
-        price_diff = row_price - spot_decimal_price
+        # Calculate incremental PnL for this step
+        price_diff = current_price - previous_price
+        bp_diff = price_diff / BP_DECIMAL_PRICE_CHANGE
+        pnl_increment = bp_diff * DOLLARS_PER_BP * current_position
         
-        # Log detailed PnL calculation for specific rows to avoid excessive output
+        # Calculate cumulative PnL (previous level PnL + increment)
+        row['projected_pnl'] = round(accumulated_pnl + pnl_increment, 2)
+        
+        # Log detailed PnL calculation for steps with non-zero positions
         special_string_price = row.get('price', '')
-        if abs(price_diff) > 0.001 and current_position != 0:  # Only log non-zero differences where position exists
-            print(f"\nScenario Price ({special_string_price}): Decimal = {int(row_price)} + {((row_price % 1) * 32):.2f}/32 = {row_price}")
-            print(f"Price Difference (Scenario - Spot): {row_price} - {spot_decimal_price} = {price_diff:.7f}")
-            bp_diff = price_diff / BP_DECIMAL_PRICE_CHANGE
-            print(f"Number of Basis Points Moved: {price_diff:.7f} / {BP_DECIMAL_PRICE_CHANGE} = {bp_diff:.3f} BPs")
-            pnl_one_contract = bp_diff * DOLLARS_PER_BP
-            print(f"PnL for 1 contract: {bp_diff:.3f} BPs * ${DOLLARS_PER_BP}/BP = ${pnl_one_contract:.3f}")
-            pnl = pnl_one_contract * current_position
-            print(f"PnL for {current_position} contracts (current position at {special_string_price} level): ${pnl_one_contract:.3f} * {current_position} = ${pnl:.2f}")
-        else:
-            pnl = price_diff / BP_DECIMAL_PRICE_CHANGE * DOLLARS_PER_BP * current_position if BP_DECIMAL_PRICE_CHANGE != 0 else 0
+        special_string_prev_price = decimal_to_tt_bond_format(previous_price) if i < spot_pivot_idx - 1 else special_string_spot
         
-        row['projected_pnl'] = round(pnl, 2)
+        if current_position != 0:
+            print(f"\n--- PnL Calculation for Level Above Spot ---")
+            print(f"Previous Level: {special_string_prev_price} ({previous_price})")
+            print(f"Current Level: {special_string_price} ({current_price})")
+            print(f"Position for this step: {current_position} contracts")
+            print(f"Price Difference (Current - Previous): {current_price} - {previous_price} = {price_diff:.7f}")
+            print(f"Basis Points Moved in this step: {price_diff:.7f} / {BP_DECIMAL_PRICE_CHANGE} = {bp_diff:.3f} BPs")
+            print(f"PnL Increment for this step: {bp_diff:.3f} BPs * ${DOLLARS_PER_BP}/BP * {current_position} = ${pnl_increment:.2f}")
+            print(f"PnL from Previous Level: ${accumulated_pnl:.2f}")
+            print(f"Total PnL for Current Level: ${accumulated_pnl:.2f} + ${pnl_increment:.2f} = ${row['projected_pnl']}")
+        
+        # Update accumulators for next iteration
+        accumulated_pnl = row['projected_pnl']
+        previous_price = current_price
         
         # Update position based on orders at this level
         qty = row.get('my_qty')
@@ -722,7 +746,7 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     # This is a safeguard in case the original data had a different sorting
     output_data.sort(key=lambda x: float('-inf') if x.get('decimal_price_val') is None else x.get('decimal_price_val'), reverse=True)
     
-    # Log some debug info
+    # Log some debug info for rows with orders or at spot price
     for i, row in enumerate(output_data):
         if row.get('decimal_price_val') is not None:
             if row.get('my_qty') and row.get('my_qty') != "":
