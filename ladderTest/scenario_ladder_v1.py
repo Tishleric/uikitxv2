@@ -33,7 +33,7 @@ if TTRestAPI_path not in sys.path:
 
 # --- Import uikitxv2 components and local formatter ---
 try:
-    from src.components import DataTable, Button # Include Button for the 'Get Spot Price' button
+    from src.components import DataTable, Button, Grid # Import Grid component
     from src.utils.colour_palette import default_theme # Using default_theme for now
     from price_formatter import decimal_to_tt_bond_format
     from TTRestAPI.token_manager import TTTokenManager
@@ -154,20 +154,24 @@ app.layout = dbc.Container([
     html.Div(
         id=f"{DATATABLE_ID}-wrapper",
         children=[
-            DataTable(
-                id=DATATABLE_ID,
-                columns=[
-                    {'name': 'Working Qty', 'id': 'my_qty', "type": "numeric"},
-                    {'name': 'Price', 'id': 'price', "type": "text"},
-                    {'name': 'Projected PnL', 'id': 'projected_pnl', "type": "numeric", "format": {"specifier": "$,.2f"}},
-                    {'name': 'Pos', 'id': 'position_debug', "type": "numeric"}
-                ],
+            Grid(
+                id="scenario-ladder-grid",
+                children=[
+                    DataTable(
+                        id=DATATABLE_ID,
+                        columns=[
+                            {'name': 'Working Qty', 'id': 'my_qty', "type": "numeric"},
+                            {'name': 'Price', 'id': 'price', "type": "text"},
+                            {'name': 'Projected PnL', 'id': 'projected_pnl', "type": "numeric", "format": {"specifier": "$,.2f"}},
+                            {'name': 'Pos', 'id': 'position_debug', "type": "numeric"},
+                            {'name': 'Risk', 'id': 'risk', "type": "numeric"}
+                        ],
                 data=[], # Start with no data
                 theme=default_theme,
                 style_cell={
                     'backgroundColor': 'black', 'color': 'white', 'font-family': 'monospace',
                     'fontSize': '12px', 'height': '22px', 'maxHeight': '22px', 'minHeight': '22px',
-                    'width': '25%', 'textAlign': 'center', 'padding': '0px', 'margin': '0px', 'border': '1px solid #444'
+                    'width': '20%', 'textAlign': 'center', 'padding': '0px', 'margin': '0px', 'border': '1px solid #444'
                 },
                 style_header={
                     'backgroundColor': '#333333', 'color': 'white', 'height': '28px',
@@ -237,10 +241,27 @@ app.layout = dbc.Container([
                             'column_id': 'position_debug'
                         },
                         'color': '#E53935'  # Red for short position
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{risk} > 0',
+                            'column_id': 'risk'
+                        },
+                        'color': '#1E88E5'  # Blue for long position (risk)
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{risk} < 0',
+                            'column_id': 'risk'
+                        },
+                        'color': '#E53935'  # Red for short position (risk)
                     }
                 ],
                 page_size=100 # Adjust as needed, or make it dynamic
             ).render()
+                ], # Close the Grid children list
+                theme=default_theme, # Pass theme to Grid
+            ).render() # Close and render the Grid
         ],
         style={'display': 'none'} # Initially hidden until data loads or message changes
     )
@@ -471,6 +492,9 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
                 # Spot price indicators (default to 0, handled by update_data_with_spot_price)
                 'is_exact_spot': 0,
                 'is_below_spot': 0,
+                # Position and risk fields (will be calculated in update_data_with_spot_price)
+                'position_debug': 0,
+                'risk': 0,
             }
             
             ladder_table_data.append(row_data)
@@ -485,7 +509,7 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         print(f"Generated {len(ladder_table_data)} rows for the ladder.")
         message_text = "" # Clear message if table has data
         message_style_hidden = {'display': 'none'}
-        table_style_visible = {'display': 'block', 'width': '500px', 'margin': 'auto'} # Ensure table is centered
+        table_style_visible = {'display': 'block', 'width': '600px', 'margin': 'auto'} # Ensure table is centered
         print(f"Generated {len(ladder_table_data)} rows for the ladder.")
         return ladder_table_data, table_style_visible, message_text, message_style_hidden
     else: # Should only be hit if error_message_str exists AND processed_orders is empty
@@ -656,6 +680,7 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         row['projected_pnl'] = 0
         # Optional: Add a debugging field to see position at each level
         row['position_debug'] = 0
+        row['risk'] = 0
     
     # Mark the spot price level(s)
     for row in output_data:
@@ -723,6 +748,8 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         
         # Store the position AFTER processing orders at this level
         row['position_debug'] = current_position
+        # Calculate risk as position multiplied by 15.625
+        row['risk'] = current_position * 15.625
     
     # PASS 2: Calculate positions and PnL's for prices above spot
     current_position = 0  # Reset position for above-spot calculation
@@ -775,6 +802,8 @@ def update_data_with_spot_price(existing_data, spot_price_data):
                 
         # Store the position AFTER processing orders at this level
         row['position_debug'] = current_position
+        # Calculate risk as position multiplied by 15.625
+        row['risk'] = current_position * 15.625
     
     # Sort back to original order (high to low price should be the same)
     # This is a safeguard in case the original data had a different sorting
