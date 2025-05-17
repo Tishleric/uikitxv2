@@ -74,7 +74,7 @@ MOCK_SPOT_PRICE_STR = "110-08.5" # Mock spot price in Pricing Monkey dash-decima
 # --- PnL Calculation Constants ---
 # One basis point (BP) equals 2 display ticks, where each display tick is 1/32
 BP_DECIMAL_PRICE_CHANGE = 0.0625  # 2 * (1/32) = 1/16 = 0.0625
-DOLLARS_PER_BP = 63.0  # $63 per basis point
+DOLLARS_PER_BP = 62.5  # $62.5 per basis point
 
 # Pricing Monkey constants
 PM_URL = "https://pricingmonkey.com/b/e9172aaf-2cb4-4f2c-826d-92f57d3aea90"
@@ -164,14 +164,15 @@ app.layout = dbc.Container([
                             {'name': 'Price', 'id': 'price', "type": "text"},
                             {'name': 'Projected PnL', 'id': 'projected_pnl', "type": "numeric", "format": {"specifier": "$,.2f"}},
                             {'name': 'Pos', 'id': 'position_debug', "type": "numeric"},
-                            {'name': 'Risk', 'id': 'risk', "type": "numeric"}
+                            {'name': 'Risk', 'id': 'risk', "type": "numeric"},
+                            {'name': 'Breakeven', 'id': 'breakeven', "type": "numeric", "format": {"specifier": ".2f"}}
                         ],
                 data=[], # Start with no data
                 theme=default_theme,
                 style_cell={
                     'backgroundColor': 'black', 'color': 'white', 'font-family': 'monospace',
                     'fontSize': '12px', 'height': '22px', 'maxHeight': '22px', 'minHeight': '22px',
-                    'width': '20%', 'textAlign': 'center', 'padding': '0px', 'margin': '0px', 'border': '1px solid #444'
+                    'width': '16.66%', 'textAlign': 'center', 'padding': '0px', 'margin': '0px', 'border': '1px solid #444'
                 },
                 style_header={
                     'backgroundColor': '#333333', 'color': 'white', 'height': '28px',
@@ -255,6 +256,20 @@ app.layout = dbc.Container([
                             'column_id': 'risk'
                         },
                         'color': '#E53935'  # Red for short position (risk)
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{breakeven} > 0',
+                            'column_id': 'breakeven'
+                        },
+                        'color': '#4CAF50'  # Green for positive breakeven
+                    },
+                    {
+                        'if': {
+                            'filter_query': '{breakeven} < 0',
+                            'column_id': 'breakeven'
+                        },
+                        'color': '#F44336'  # Red for negative breakeven
                     }
                 ],
                 page_size=100 # Adjust as needed, or make it dynamic
@@ -495,6 +510,8 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
                 # Position and risk fields (will be calculated in update_data_with_spot_price)
                 'position_debug': 0,
                 'risk': 0,
+                # Breakeven field (will be calculated in update_data_with_spot_price)
+                'breakeven': 0,
             }
             
             ladder_table_data.append(row_data)
@@ -681,6 +698,7 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         # Optional: Add a debugging field to see position at each level
         row['position_debug'] = 0
         row['risk'] = 0
+        row['breakeven'] = 0
     
     # Mark the spot price level(s)
     for row in output_data:
@@ -750,6 +768,12 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         row['position_debug'] = current_position
         # Calculate risk as position multiplied by 15.625
         row['risk'] = current_position * 15.625
+        
+        # Calculate breakeven as Projected PnL / Risk (showing 0 if either value is 0)
+        if row['projected_pnl'] != 0 and row['risk'] != 0:
+            row['breakeven'] = row['projected_pnl'] / row['risk']
+        else:
+            row['breakeven'] = 0
     
     # PASS 2: Calculate positions and PnL's for prices above spot
     current_position = 0  # Reset position for above-spot calculation
@@ -804,6 +828,12 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         row['position_debug'] = current_position
         # Calculate risk as position multiplied by 15.625
         row['risk'] = current_position * 15.625
+        
+        # Calculate breakeven as Projected PnL / Risk (showing 0 if either value is 0)
+        if row['projected_pnl'] != 0 and row['risk'] != 0:
+            row['breakeven'] = row['projected_pnl'] / row['risk']
+        else:
+            row['breakeven'] = 0
     
     # Sort back to original order (high to low price should be the same)
     # This is a safeguard in case the original data had a different sorting
@@ -813,9 +843,9 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     for i, row in enumerate(output_data):
         if row.get('decimal_price_val') is not None:
             if row.get('my_qty') and row.get('my_qty') != "":
-                print(f"Row {i}: Price {row['price']}, Qty {row['my_qty']}, Side {row.get('working_qty_side')}, Position (after fill) {row.get('position_debug')}, PnL {row['projected_pnl']}")
+                print(f"Row {i}: Price {row['price']}, Qty {row['my_qty']}, Side {row.get('working_qty_side')}, Position (after fill) {row.get('position_debug')}, PnL {row['projected_pnl']}, Risk {row['risk']}, Breakeven {row['breakeven']:.2f}")
             elif row.get('is_exact_spot') == 1:
-                print(f"Row {i}: Price {row['price']} (SPOT PRICE), Position (after fill) {row.get('position_debug')}, PnL {row['projected_pnl']}")
+                print(f"Row {i}: Price {row['price']} (SPOT PRICE), Position (after fill) {row.get('position_debug')}, PnL {row['projected_pnl']}, Risk {row['risk']}, Breakeven {row['breakeven']:.2f}")
     
     return output_data
 
