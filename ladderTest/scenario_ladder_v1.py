@@ -69,6 +69,7 @@ MESSAGE_DIV_ID = 'scenario-ladder-message'
 STORE_ID = 'scenario-ladder-store' # For triggering load and potentially storing state
 USE_MOCK_DATA = True # Flag to switch between mock and live data
 MOCK_DATA_FILE = os.path.join(ladderTest_dir, "my_working_orders_response.json")
+MOCK_SPOT_PRICE_STR = "110-08.5" # Mock spot price in Pricing Monkey dash-decimal format
 
 # --- PnL Calculation Constants ---
 # One basis point (BP) equals 2 display ticks, where each display tick is 1/32
@@ -126,10 +127,20 @@ def parse_and_convert_pm_price(price_str):
     print(f"Converted '{price_str}' to decimal: {decimal_price}, special format: '{special_string_price}'")
     return decimal_price, special_string_price
 
+# Initialize mock spot price by parsing the string format
+MOCK_SPOT_DECIMAL_PRICE, MOCK_SPOT_SPECIAL_STRING_PRICE = parse_and_convert_pm_price(MOCK_SPOT_PRICE_STR)
+if MOCK_SPOT_DECIMAL_PRICE is None:
+    print(f"CRITICAL ERROR: Failed to parse MOCK_SPOT_PRICE_STR: {MOCK_SPOT_PRICE_STR}. Mock spot price will be None.")
+else:
+    print(f"Initialized Mock Spot Price: '{MOCK_SPOT_SPECIAL_STRING_PRICE}' (Decimal: {MOCK_SPOT_DECIMAL_PRICE})")
+
 # --- App Layout ---
 app.layout = dbc.Container([
     dcc.Store(id=STORE_ID, data={'initial_load_trigger': True}), # Trigger initial load
-    dcc.Store(id='spot-price-store', data={'decimal_price': None, 'special_string_price': None}), # Store for spot price
+    dcc.Store(id='spot-price-store', data={
+        'decimal_price': MOCK_SPOT_DECIMAL_PRICE if USE_MOCK_DATA and MOCK_SPOT_DECIMAL_PRICE is not None else None,
+        'special_string_price': MOCK_SPOT_SPECIAL_STRING_PRICE if USE_MOCK_DATA and MOCK_SPOT_SPECIAL_STRING_PRICE is not None else None
+    }), # Store for spot price
     html.H2("Scenario Ladder", style={"textAlign": "center", "color": "#18F0C3", "marginBottom": "20px"}),
     dbc.Row([
         dbc.Col(
@@ -499,6 +510,9 @@ def fetch_spot_price_from_pm(n_clicks):
     Opens the Pricing Monkey URL, navigates through the UI using keyboard shortcuts,
     copies the price from the clipboard, and then closes the browser tab.
     
+    When USE_MOCK_DATA is True, returns the mock spot price instead of
+    fetching from Pricing Monkey.
+    
     Args:
         n_clicks: Button click count
         
@@ -508,6 +522,21 @@ def fetch_spot_price_from_pm(n_clicks):
     """
     if n_clicks is None or n_clicks == 0:
         raise PreventUpdate
+    
+    # If using mock data, return the mock spot price
+    if USE_MOCK_DATA:
+        print(f"Using mock spot price for refresh (button clicks: {n_clicks})")
+        if MOCK_SPOT_DECIMAL_PRICE is not None:
+            return {
+                'decimal_price': MOCK_SPOT_DECIMAL_PRICE,
+                'special_string_price': MOCK_SPOT_SPECIAL_STRING_PRICE
+            }, ""  # Empty error message
+        else:
+            # This case should ideally not happen if parsing was successful at startup
+            return {
+                'decimal_price': None,
+                'special_string_price': None
+            }, "Error: Mock spot price not initialized."
     
     print(f"Fetching spot price from Pricing Monkey ({n_clicks} clicks)")
     
@@ -568,6 +597,10 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     1. Starting with zero position and zero PnL at the spot price
     2. Accumulating PnL based on position and price changes between consecutive price levels
     3. PnL at each level = PnL of previous level + (position * price change in basis points * $63)
+    
+    The position_debug field shows the accumulated position AFTER any working orders at that
+    price level are executed. The projected_pnl uses the position BEFORE orders at the current
+    row are executed (i.e., using the position resulting from all previous fills).
     
     Args:
         existing_data (list): Current DataTable data (list of dictionaries, each with 'decimal_price_val')
@@ -650,10 +683,7 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         if current_price is None:
             continue
         
-        # Store the current position (before processing orders at this level)
-        row['position_debug'] = current_position
-        
-        # Calculate incremental PnL for this step
+        # Calculate incremental PnL for this step using position BEFORE orders at this level
         price_diff = current_price - previous_price
         bp_diff = price_diff / BP_DECIMAL_PRICE_CHANGE
         pnl_increment = bp_diff * DOLLARS_PER_BP * current_position
@@ -690,6 +720,9 @@ def update_data_with_spot_price(existing_data, spot_price_data):
                 current_position += qty
             elif side == '2':  # Sell order
                 current_position -= qty
+        
+        # Store the position AFTER processing orders at this level
+        row['position_debug'] = current_position
     
     # PASS 2: Calculate positions and PnL's for prices above spot
     current_position = 0  # Reset position for above-spot calculation
@@ -702,10 +735,7 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         if current_price is None:
             continue
         
-        # Store the current position (before processing orders at this level)
-        row['position_debug'] = current_position
-        
-        # Calculate incremental PnL for this step
+        # Calculate incremental PnL for this step using position BEFORE orders at this level
         price_diff = current_price - previous_price
         bp_diff = price_diff / BP_DECIMAL_PRICE_CHANGE
         pnl_increment = bp_diff * DOLLARS_PER_BP * current_position
@@ -742,6 +772,9 @@ def update_data_with_spot_price(existing_data, spot_price_data):
                 current_position += qty
             elif side == '2':  # Sell order
                 current_position -= qty
+                
+        # Store the position AFTER processing orders at this level
+        row['position_debug'] = current_position
     
     # Sort back to original order (high to low price should be the same)
     # This is a safeguard in case the original data had a different sorting
@@ -751,9 +784,9 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     for i, row in enumerate(output_data):
         if row.get('decimal_price_val') is not None:
             if row.get('my_qty') and row.get('my_qty') != "":
-                print(f"Row {i}: Price {row['price']}, Qty {row['my_qty']}, Side {row.get('working_qty_side')}, Position {row.get('position_debug')}, PnL {row['projected_pnl']}")
+                print(f"Row {i}: Price {row['price']}, Qty {row['my_qty']}, Side {row.get('working_qty_side')}, Position (after fill) {row.get('position_debug')}, PnL {row['projected_pnl']}")
             elif row.get('is_exact_spot') == 1:
-                print(f"Row {i}: Price {row['price']} (SPOT PRICE), Position {row.get('position_debug')}, PnL {row['projected_pnl']}")
+                print(f"Row {i}: Price {row['price']} (SPOT PRICE), Position (after fill) {row.get('position_debug')}, PnL {row['projected_pnl']}")
     
     return output_data
 

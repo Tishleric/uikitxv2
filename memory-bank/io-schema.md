@@ -24,6 +24,7 @@
 | TraceCpu.sample_interval | Input | float | Positive float (seconds) | @TraceCpu(sample_interval=0.1) |
 | TraceMemory.measure_peak | Input | bool | True or False | @TraceMemory(measure_peak=True) |
 | PricingMonkey.%Delta | Internal | float | Decimal value (0.0-1.0) | Raw delta values in decimal form (0.125 = 12.5%) |
+| MOCK_SPOT_PRICE_STR | Constant | str | TT bond format string | "110'085" for 10-year futures at 110 and 2+5/8 |
 | empty_log_tables | Internal | function | N/A | Empties flowTrace and AveragePerformance tables |
 | logs-empty-button | Output | int | 0 | Reset n_clicks counter after emptying log tables |
 | TT_API_KEY | EnvVar / Config | str | Valid TT API Key | `TT_API_KEY = "your_api_key_here"` (in `TTRestAPI/tt_config.py`) |

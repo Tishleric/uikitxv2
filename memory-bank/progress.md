@@ -2,6 +2,20 @@
 
 ## Recent Changes
 
+### Mock Spot Price Implementation
+- Added mock spot price (110'085) in scenario_ladder_v1.py for use when USE_MOCK_DATA is True
+- Mock spot price is parsed and initialized at application start-up
+- Initial spot-price-store is populated with mock values when in mock mode
+- Refresh Data button returns mock spot price when in mock mode without making external calls
+- Updated docstrings and comments to document this behavior
+
+### Position Calculation Update in Scenario Ladder
+- Modified how the position_debug field is calculated in scenario_ladder_v1.py
+- Position now reflects accumulated position AFTER orders at that price level are executed
+- Projected PnL calculation remains unchanged, still using position BEFORE orders at the current level
+- Improves clarity by showing the "post-execution" position at each price level
+- Updated all relevant documentation and code comments
+
 ### Mermaid Tab UI Enhancements
 - Removed the "Diagram Visualization" header from the mermaid tab
 - Added a second mermaid diagram showing TT REST API architecture
