@@ -67,7 +67,7 @@ PRICE_INCREMENT_DECIMAL = 1.0 / 64.0  # For ZN-like instruments
 DATATABLE_ID = 'scenario-ladder-table'
 MESSAGE_DIV_ID = 'scenario-ladder-message'
 STORE_ID = 'scenario-ladder-store' # For triggering load and potentially storing state
-USE_MOCK_DATA = False # Flag to switch between mock and live data
+USE_MOCK_DATA = True # Flag to switch between mock and live data
 MOCK_DATA_FILE = os.path.join(ladderTest_dir, "my_working_orders_response.json")
 
 # --- PnL Calculation Constants ---
@@ -96,8 +96,8 @@ def parse_and_convert_pm_price(price_str):
     # Clean the string (trim whitespace, handle potential CR/LF)
     price_str = price_str.strip() if price_str else ""
     
-    # Pattern for "XXX-YY.ZZ" or "XXX-YY.ZZZ" (allowing for 2 or 3 decimal places)
-    pattern = r"(\d+)-(\d{1,2})\.(\d{2,3})"
+    # Pattern for "XXX-YY.ZZ" or "XXX-YY.ZZZ" (allowing for 1, 2 or 3 decimal places)
+    pattern = r"(\d+)-(\d{1,2})\.(\d{1,3})"
     match = re.match(pattern, price_str)
     
     if not match:
@@ -108,16 +108,17 @@ def parse_and_convert_pm_price(price_str):
     thirty_seconds_part = int(match.group(2))
     fractional_part_str = match.group(3)
     
-    # Convert fractional part to a value between 0 and 99
-    fractional_thirty_seconds_part = int(fractional_part_str)
+    # Convert fractional part to its decimal value (e.g., "5" -> 0.5, "75" -> 0.75, "125" -> 0.125)
+    # This handles cases like ".5" and ".50" both correctly evaluating to 0.5 for calculation
+    fraction_as_decimal = float("0." + fractional_part_str)
     
-    # Convert to decimal price: whole_points + (thirty_seconds_part + fractional_thirty_seconds_part/100)/32
-    decimal_price = whole_points + (thirty_seconds_part + fractional_thirty_seconds_part/100.0) / 32.0
+    # Convert to decimal price: whole_points + (thirty_seconds_part + fraction_as_decimal) / 32.0
+    decimal_price = whole_points + (thirty_seconds_part + fraction_as_decimal) / 32.0
     
     # Generate special string format
-    # For exact 32nds (e.g. "110-09.00"), use format "110'090"
-    # For fractional 32nds (e.g. "110-09.75"), use format "110'0975"
-    if fractional_part_str == "00":
+    # For exact 32nds (e.g. "110-09.00" or "110-09.0"), use format "110'090"
+    # For fractional 32nds (e.g. "110-09.75" or "110-09.5"), use format "110'0975" or "110'095"
+    if fractional_part_str == "00" or fractional_part_str == "0":
         special_string_price = f"{whole_points}'{thirty_seconds_part:02d}0"
     else:
         special_string_price = f"{whole_points}'{thirty_seconds_part:02d}{fractional_part_str}"
