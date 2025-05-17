@@ -28,3 +28,5 @@ The project is currently focused on a complete UI component library with perform
 
 ## Recent Updates (Latest)
 - Updated scenario_ladder_v1.py to use live data from the TT REST API by default instead of mock data, improving the relevance of the ladder visualization
+- Refined position_debug calculation in scenario_ladder_v1.py to show the accumulated position AFTER orders at each price level are executed, while keeping projected PnL calculation unchanged
+- Added mock spot price capability (110'085) to scenario_ladder_v1.py when in mock data mode, ensuring it's populated on initial page load and refresh
