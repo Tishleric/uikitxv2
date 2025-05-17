@@ -28,6 +28,13 @@
 - Verified code path for live data fetching based on existing implementation and log output
 - This provides a more accurate picture of current market orders without requiring manual data updates
 
+### Risk Calculation Enhancement in Scenario Ladder
+- Modified risk column calculation in scenario_ladder_v1.py to multiply position by 15.625
+- Risk now represents DV01 risk (dollar value of 1 basis point) rather than raw position
+- Applied to both calculation passes (above and below spot price)
+- Maintains existing position_debug column for raw position display
+- No changes to PnL calculation logic
+
 ## 2023-11-14 Project Restructuring
 
 ### Completed
