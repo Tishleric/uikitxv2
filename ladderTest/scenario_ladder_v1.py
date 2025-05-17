@@ -591,7 +591,7 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     
     # Create a copy of existing data to avoid modifying the original
     output_data = [row.copy() for row in existing_data]
-    
+
     # Determine the base tick for the spot price (floor to the nearest tick)
     epsilon = PRICE_INCREMENT_DECIMAL / 100.0  # For float comparisons
     base_tick_for_spot_decimal = math.floor(spot_decimal_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
@@ -628,7 +628,7 @@ def update_data_with_spot_price(existing_data, spot_price_data):
         row_price = row.get('decimal_price_val')
         if row_price is None:
             continue
-            
+
         # Case 1: Spot price is an exact match for this row's price
         if abs(row_price - spot_decimal_price) < epsilon:
             row['is_exact_spot'] = 1
