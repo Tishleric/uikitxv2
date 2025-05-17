@@ -46,7 +46,7 @@
 
 ## Dashboard
 
-- `dashboard/dashboard.py` - Main dashboard application with pricing monkey automation interface, analysis visualization, and logs view. Includes functions for flow trace logs querying, performance metrics querying, and emptying log tables.
+- `dashboard/dashboard.py` - Main dashboard application with pricing monkey automation interface, analysis visualization, and logs view. Includes functions for flow trace logs querying, performance metrics querying, and emptying log tables. Features a mermaid tab with two diagrams: a project architecture overview and a TT REST API flow diagram.
 
 ## Ladder Test Application
 

@@ -2,6 +2,12 @@
 
 ## Recent Changes
 
+### Mermaid Tab UI Enhancements
+- Removed the "Diagram Visualization" header from the mermaid tab
+- Added a second mermaid diagram showing TT REST API architecture
+- Organized both diagrams in separate grid containers for better visual separation
+- Provided more comprehensive visualization of system data flow
+
 ### TT REST API Integration Enhancement
 - Updated scenario_ladder_v1.py to use live data from the TT REST API by default instead of mock data 
 - Changed USE_MOCK_DATA flag from True to False, enabling direct connection to TT's services

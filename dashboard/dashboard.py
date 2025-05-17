@@ -130,7 +130,7 @@ app = dash.Dash(
     assets_folder=assets_folder_path_absolute,
     suppress_callback_exceptions=True 
 )
-app.title = "Pricing Monkey Automation Dashboard"
+app.title = "FRGM Trade Accelerator"
 # --- End App Init ---
 
 # --- UI Constants & Helpers ---
@@ -703,12 +703,53 @@ def create_mermaid_tab():
         style={"backgroundColor": default_theme.panel_bg, "padding": "15px", "borderRadius": "5px"}
     )
     
-    # Wrap it all in a Container
+    # Define new flowchart for TT REST API diagram
+    tt_rest_api_flowchart = """
+    flowchart LR
+      %% Execution Layer
+      subgraph TTExecution["Execution Layer"]
+        A[TT ADL Algorithm Lab] -->|Executes trades| B[CME Exchange]
+      end
+
+      %% Data & Analytics Stack
+      subgraph DataStack["Data & Analytics Stack"]
+        B -->|Market & Position Data| C["Actant  (Position, Risk, Market Data)"]
+        D[Pricing Monkey] -->|Spot Price| E["Backend"]
+        C -->|Processed Position via SFTP| E
+      end
+
+      %% REST API feed
+      A -->|Working Orders via TT REST API| E
+
+      %% In-app calculations
+      E -->|"Calculates PnL, Risk, Breakeven, and (later) Gamma"|E
+
+      %% UI Layer
+      F["UI (Simulated Ladder)"]
+      E --> F
+    """
+    
+    # Create the second Mermaid component 
+    tt_rest_api_diagram = Mermaid(theme=default_theme).render(
+        id="tt-rest-api-diagram",
+        graph_definition=tt_rest_api_flowchart,
+        title="Scenario Ladder Architecture",
+        description="Architecture diagram showing the flow of data into our simulated ladder"
+    )
+    
+    # Create second Grid layout for the TT REST API diagram
+    tt_rest_api_grid = Grid(
+        id="tt-rest-api-grid",
+        children=[tt_rest_api_diagram],
+        style={"backgroundColor": default_theme.panel_bg, "padding": "15px", "borderRadius": "5px", "marginTop": "20px"}
+    )
+    
+    # Wrap it all in a Container with both grids
     mermaid_container = Container(
         id="mermaid-tab-container",
         children=[
-            html.H4("Diagram Visualization", style={"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}),
-            mermaid_grid.render()
+            mermaid_grid.render(),
+            tt_rest_api_grid.render()
         ],
         style={"padding": "15px"}
     )
@@ -728,7 +769,7 @@ main_tabs_rendered = Tabs(
 
 app.layout = html.Div(
     children=[
-        html.H1("Pricing Monkey Automation", style={"textAlign": "center", "color": default_theme.primary, "padding": "20px 0"}), 
+        html.H1("FRGM Trade Accelerator", style={"textAlign": "center", "color": default_theme.primary, "padding": "20px 0"}), 
         main_tabs_rendered
     ],
     style={"backgroundColor": default_theme.base_bg, "padding": "20px", "minHeight": "100vh", "fontFamily": "Inter, sans-serif"} 
