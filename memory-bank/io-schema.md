@@ -41,3 +41,46 @@
 ## Import Notes (May 5, 2025)
 - All components are imported directly: `from components import Button, ComboBox, etc.`
 - All decorators are imported directly: `from decorators import TraceTime, TraceCloser, etc.`
+
+# Input/Output Schema
+
+## Actant Integration
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| `SampleSOD.csv` | Input | CSV file | See CSV format below | Source of Actant fill data for position and P&L calculation |
+| `actant_fills` | Internal | `list[dict]` | List of dicts with `price: float` and `qty: int` keys | `[{'price': 110.203125, 'qty': 10}, {'price': 110.25, 'qty': -5}]` |
+| `baseline_results` | Internal | `dict` | Dict with `base_pos: int` and `base_pnl: float` keys | `{'base_pos': 5, 'base_pnl': 125.0}` |
+| `baseline-store` | Output | Dash Store | Contains `baseline_results` | Used to persist baseline data between callbacks |
+| `baseline-display` | Output | HTML Div | String representation of position and P&L | "Current Position: Long 5, Realized P&L @ Spot: $125.00" |
+
+### Actant CSV Format
+
+The Actant CSV file (`SampleSOD.csv`) must contain these columns:
+
+- `ACCOUNT`: Account identifier
+- `UNDERLYING`: Underlying symbol
+- `ASSET`: Asset symbol (e.g., "ZN")
+- `RUN_DATE`: Date of the data run
+- `PRODUCT_CODE`: Product type (e.g., "FUTURE")
+- `LONG_SHORT`: Position direction ("L" for long, "S" for short)
+- `QUANTITY`: Position size (positive number)
+- `PRICE_TODAY`: Entry price in special format (e.g., "110'065") 
+
+## Function Parameters
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| `update_data_with_spot_price.base_position` | Input | `int` | Any integer | Starting position at spot price |
+| `update_data_with_spot_price.base_pnl` | Input | `float` | Any float | Starting P&L at spot price |
+| `calculate_baseline_from_actant_fills.actant_fills` | Input | `list[dict]` | List of dicts with `price` and `qty` keys | List of Actant fills |
+| `calculate_baseline_from_actant_fills.spot_decimal_price` | Input | `float` | Positive float | Current spot price in decimal format |
+
+## TT Special Format Price Parsing
+
+The `convert_tt_special_format_to_decimal` function handles TT's special bond price format:
+
+Format: `XXX'YYZZ` where:
+- `XXX`: Whole points (e.g., "110")
+- `YY`: 32nds (e.g., "06")
+- `ZZ`: Optional fraction of 32nd (e.g., "5" for half of 1/32)
