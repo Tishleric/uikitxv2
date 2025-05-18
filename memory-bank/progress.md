@@ -174,20 +174,19 @@
 - Modified `update_data_with_spot_price` to accept baseline position and P&L
 - Enhanced the display to show current position and realized P&L at spot price
 - Updated callback to synchronize all data sources (TT working orders, Actant fills, spot price)
+- Created `csv_to_sqlite.py` helper module for converting CSV data to SQLite database
+- Implemented `load_actant_zn_fills_from_db` function to query fills from SQLite database
+- Added graceful fallback to direct CSV reading if SQLite operations fail
 
 ## In Progress
-
-1. Integration tests for multiple decorators working together
-2. Additional UI components
-3. Performance benchmarks for the logging system
-4. Verifying fill price parsing logic is correct for Actant data (from `110'065` format)
-5. Testing Actant integration with different fill scenarios
+- Verifying fill price parsing logic is correct for Actant data (from `110'065` format)
+- Testing Actant integration with different fill scenarios
+- Improving error handling for SQLite database operations
 
 ## Known Issues
-
-1. Large log tables can cause performance issues over time - added "Empty Table" button to address this
-2. Need to extend error handling for malformed Actant data
-3. Position direction terminology needs to match industry convention (Long/Short vs Buy/Sell)
+- Need to extend error handling for malformed Actant data
+- Position direction terminology needs to match industry convention (Long/Short vs Buy/Sell)
+- SQLite database connection errors might occur if files are locked
 
 ## For Investigation
 
@@ -202,3 +201,4 @@
 4. Connect to live Actant data feed when it becomes available
 5. Refine visualization of the baseline display
 6. Add unit tests for new Actant data processing functions
+7. Implement SQLite database schema versioning for future enhancements

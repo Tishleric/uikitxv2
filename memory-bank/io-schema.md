@@ -49,6 +49,7 @@
 | Name | Kind | Type | Allowed values / range | Example Usage |
 |------|------|------|------------------------|---------------|
 | `SampleSOD.csv` | Input | CSV file | See CSV format below | Source of Actant fill data for position and P&L calculation |
+| `actant_data.db` | Internal | SQLite DB | Contains `actant_sod_fills` table | Database for storing Actant fill data |
 | `actant_fills` | Internal | `list[dict]` | List of dicts with `price: float` and `qty: int` keys | `[{'price': 110.203125, 'qty': 10}, {'price': 110.25, 'qty': -5}]` |
 | `baseline_results` | Internal | `dict` | Dict with `base_pos: int` and `base_pnl: float` keys | `{'base_pos': 5, 'base_pnl': 125.0}` |
 | `baseline-store` | Output | Dash Store | Contains `baseline_results` | Used to persist baseline data between callbacks |
@@ -67,6 +68,22 @@ The Actant CSV file (`SampleSOD.csv`) must contain these columns:
 - `QUANTITY`: Position size (positive number)
 - `PRICE_TODAY`: Entry price in special format (e.g., "110'065") 
 
+### SQLite Database Schema
+
+The SQLite database table `actant_sod_fills` has the same structure as the CSV file:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ACCOUNT` | TEXT | Account identifier |
+| `UNDERLYING` | TEXT | Underlying symbol |
+| `ASSET` | TEXT | Asset symbol (e.g., "ZN") |
+| `RUN_DATE` | TEXT | Date of the data run |
+| `PRODUCT_CODE` | TEXT | Product type (e.g., "FUTURE") |
+| `LONG_SHORT` | TEXT | Position direction ("L" for long, "S" for short) |
+| `QUANTITY` | REAL | Position size (positive number) |
+| `PRICE_TODAY` | TEXT | Entry price in special format (e.g., "110'065") |
+| Additional columns as in CSV | Varies | Preserves all columns from source CSV |
+
 ## Function Parameters
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
@@ -75,6 +92,12 @@ The Actant CSV file (`SampleSOD.csv`) must contain these columns:
 | `update_data_with_spot_price.base_pnl` | Input | `float` | Any float | Starting P&L at spot price |
 | `calculate_baseline_from_actant_fills.actant_fills` | Input | `list[dict]` | List of dicts with `price` and `qty` keys | List of Actant fills |
 | `calculate_baseline_from_actant_fills.spot_decimal_price` | Input | `float` | Positive float | Current spot price in decimal format |
+| `csv_to_sqlite_table.csv_filepath` | Input | `str` | Valid file path | Path to CSV file to load |
+| `csv_to_sqlite_table.db_filepath` | Input | `str` | Valid file path | Path to SQLite DB file to create/update |
+| `csv_to_sqlite_table.table_name` | Input | `str` | Valid SQLite table name | Name of table to create from CSV |
+| `csv_to_sqlite_table.if_exists` | Input | `str` | 'fail', 'replace', 'append' | How to handle existing table (default: 'replace') |
+| `load_actant_zn_fills_from_db.db_filepath` | Input | `str` | Valid file path | Path to SQLite DB file to read |
+| `load_actant_zn_fills_from_db.table_name` | Input | `str` | Valid SQLite table name | Name of table containing Actant data |
 
 ## TT Special Format Price Parsing
 
