@@ -11,9 +11,18 @@ import re   # For regex parsing of spot price
 import time
 import webbrowser
 import pyperclip
+import sqlite3
 from pywinauto.keyboard import send_keys
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
+
+# Import custom CSV to SQLite helper
+try:
+    from csv_to_sqlite import csv_to_sqlite_table, query_sqlite_table
+    print("Successfully imported csv_to_sqlite helper")
+except ImportError as e:
+    print(f"Error importing csv_to_sqlite helper: {e}")
+    print("Will fall back to direct CSV reading if conversion to SQLite fails")
 
 # --- Adjust Python path to find uikitxv2 and local modules ---
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -70,6 +79,11 @@ STORE_ID = 'scenario-ladder-store' # For triggering load and potentially storing
 USE_MOCK_DATA = True # Flag to switch between mock and live data
 MOCK_DATA_FILE = os.path.join(ladderTest_dir, "my_working_orders_response.json")
 MOCK_SPOT_PRICE_STR = "110-08.5" # Mock spot price in Pricing Monkey dash-decimal format
+
+# --- Actant Data SQLite Constants ---
+ACTANT_CSV_FILE = os.path.join(ladderTest_dir, "SampleSOD.csv")
+ACTANT_DB_FILEPATH = os.path.join(ladderTest_dir, "actant_data.db")
+ACTANT_TABLE_NAME = "actant_sod_fills"
 
 # --- PnL Calculation Constants ---
 # One basis point (BP) equals 2 display ticks, where each display tick is 1/32
@@ -224,6 +238,84 @@ def load_actant_zn_fills(csv_filepath):
         
     except Exception as e:
         print(f"Error loading Actant ZN fills: {e}")
+        return []
+
+def load_actant_zn_fills_from_db(db_filepath, table_name):
+    """
+    Load ZN futures fill data from SQLite database.
+    
+    Args:
+        db_filepath (str): Path to the SQLite database file
+        table_name (str): Name of the table containing fill data
+        
+    Returns:
+        list: List of dictionaries containing fill data with 'price' and 'qty' keys
+    """
+    print(f"Loading Actant ZN fills from DB: {db_filepath}, table: {table_name}")
+    
+    try:
+        if not os.path.exists(db_filepath):
+            print(f"Actant DB file not found: {db_filepath}")
+            return []
+            
+        # Query the database for all relevant columns
+        columns = ["PRICE_TODAY", "QUANTITY", "LONG_SHORT", "ASSET", "PRODUCT_CODE"]
+        query = f"SELECT {', '.join(columns)} FROM {table_name}"
+        
+        try:
+            # Use the imported query_sqlite_table function if available
+            df = query_sqlite_table(db_filepath, table_name, columns=columns)
+        except (NameError, TypeError):
+            # Fall back to direct SQLite connection if query_sqlite_table isn't available
+            print("Falling back to direct SQLite connection")
+            conn = sqlite3.connect(db_filepath)
+            df = pd.read_sql_query(query, conn)
+            conn.close()
+        
+        if df.empty:
+            print(f"No data found in {table_name}")
+            return []
+            
+        # Filter for ZN futures
+        zn_future_fills = df[(df['ASSET'] == 'ZN') & (df['PRODUCT_CODE'] == 'FUTURE')]
+        
+        if zn_future_fills.empty:
+            print("No ZN futures found in database")
+            return []
+            
+        print(f"Found {len(zn_future_fills)} ZN future fills in database")
+        
+        # Process each fill
+        processed_fills = []
+        for _, row in zn_future_fills.iterrows():
+            # Convert price from TT special format to decimal
+            price_str = row.get('PRICE_TODAY')
+            price = convert_tt_special_format_to_decimal(price_str)
+            
+            if price is None:
+                print(f"Skipping fill with invalid price: {price_str}")
+                continue
+                
+            # Get quantity and adjust sign based on long/short
+            quantity = float(row.get('QUANTITY', 0))
+            if pd.isna(quantity) or quantity == 0:
+                print(f"Skipping fill with invalid quantity: {quantity}")
+                continue
+                
+            side = row.get('LONG_SHORT', '')
+            if side == 'S':  # Short position
+                quantity = -quantity
+            
+            processed_fills.append({
+                'price': price,
+                'qty': int(quantity)  # Ensure quantity is an integer
+            })
+            
+        print(f"Processed {len(processed_fills)} valid ZN future fills from database")
+        return processed_fills
+        
+    except Exception as e:
+        print(f"Error loading Actant ZN fills from DB: {e}")
         return []
 
 def calculate_baseline_from_actant_fills(actant_fills, spot_decimal_price):
@@ -645,31 +737,59 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
     baseline_display_text = "No Actant data available"
     
     try:
-        # Load Actant ZN fills from CSV
-        actant_csv_path = os.path.join(ladderTest_dir, "SampleSOD.csv")
-        if os.path.exists(actant_csv_path):
-            actant_fills = load_actant_zn_fills(actant_csv_path)
-            print(f"Loaded {len(actant_fills)} Actant ZN fills from {actant_csv_path}")
-            
-            # Get spot price from store
-            spot_decimal_price = None
-            if spot_price_data and 'decimal_price' in spot_price_data:
-                spot_decimal_price = spot_price_data.get('decimal_price')
-                
-            if spot_decimal_price is not None and actant_fills:
-                # Calculate baseline position and P&L
-                baseline_results = calculate_baseline_from_actant_fills(actant_fills, spot_decimal_price)
-                
-                # Prepare display text
-                pos_str = f"Long {baseline_results['base_pos']}" if baseline_results['base_pos'] > 0 else \
-                         f"Short {-baseline_results['base_pos']}" if baseline_results['base_pos'] < 0 else "FLAT"
-                pnl_str = f"${baseline_results['base_pnl']:.2f}"
-                baseline_display_text = f"Current Position: {pos_str}, Realized P&L @ Spot: {pnl_str}"
-                print(f"Baseline from Actant: {baseline_display_text}")
-            else:
-                print("Either spot price or Actant fills not available for baseline calculation")
+        # Step 1: Check if CSV exists and update the SQLite database
+        if os.path.exists(ACTANT_CSV_FILE):
+            try:
+                # Check if csv_to_sqlite_table function is available
+                if 'csv_to_sqlite_table' in globals() or 'csv_to_sqlite_table' in locals():
+                    print(f"Updating SQLite DB from {ACTANT_CSV_FILE}...")
+                    success = csv_to_sqlite_table(ACTANT_CSV_FILE, ACTANT_DB_FILEPATH, ACTANT_TABLE_NAME)
+                    if success:
+                        print(f"Successfully updated {ACTANT_TABLE_NAME} in {ACTANT_DB_FILEPATH}")
+                    else:
+                        print(f"Failed to update SQLite DB, will try direct CSV reading")
+                        
+                        # Fall back to direct CSV reading if SQLite update fails
+                        if not os.path.exists(ACTANT_DB_FILEPATH):
+                            print(f"SQLite DB not found after update attempt, falling back to direct CSV")
+                            actant_fills = load_actant_zn_fills(ACTANT_CSV_FILE)
+                else:
+                    print("csv_to_sqlite_table function not available, using direct CSV reading")
+                    actant_fills = load_actant_zn_fills(ACTANT_CSV_FILE)
+            except Exception as e:
+                print(f"Error updating SQLite DB: {e}, falling back to direct CSV reading")
+                actant_fills = load_actant_zn_fills(ACTANT_CSV_FILE)
         else:
-            print(f"Actant CSV file not found: {actant_csv_path}")
+            print(f"Actant CSV file not found: {ACTANT_CSV_FILE}")
+            
+        # Step 2: If no fills loaded yet, try to read from SQLite if the DB file exists
+        if not actant_fills and os.path.exists(ACTANT_DB_FILEPATH):
+            try:
+                print(f"Loading Actant data from SQLite DB {ACTANT_DB_FILEPATH}")
+                actant_fills = load_actant_zn_fills_from_db(ACTANT_DB_FILEPATH, ACTANT_TABLE_NAME)
+            except Exception as e:
+                print(f"Error loading from SQLite DB: {e}")
+                # Already tried or will try direct CSV reading if needed
+            
+        print(f"Loaded {len(actant_fills)} Actant ZN fills")
+            
+        # Step 3: Calculate baseline position and P&L if we have fills and spot price
+        spot_decimal_price = None
+        if spot_price_data and 'decimal_price' in spot_price_data:
+            spot_decimal_price = spot_price_data.get('decimal_price')
+                
+        if spot_decimal_price is not None and actant_fills:
+            # Calculate baseline position and P&L
+            baseline_results = calculate_baseline_from_actant_fills(actant_fills, spot_decimal_price)
+                
+            # Prepare display text
+            pos_str = f"Long {baseline_results['base_pos']}" if baseline_results['base_pos'] > 0 else \
+                     f"Short {-baseline_results['base_pos']}" if baseline_results['base_pos'] < 0 else "FLAT"
+            pnl_str = f"${baseline_results['base_pnl']:.2f}"
+            baseline_display_text = f"Current Position: {pos_str}, Realized P&L @ Spot: {pnl_str}"
+            print(f"Baseline from Actant: {baseline_display_text}")
+        else:
+            print("Either spot price or Actant fills not available for baseline calculation")
     except Exception as e:
         print(f"Error processing Actant data: {e}")
         baseline_display_text = f"Error processing Actant data: {str(e)}"

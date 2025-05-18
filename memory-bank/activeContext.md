@@ -1,37 +1,20 @@
-# Active Development Context
+# Active Context
 
 ## Current Focus
-The project is currently focused on a complete UI component library with performance tracing and logging functionality. We have:
+- Integrating Actant-provided position data into the scenario ladder
+- Using Actant fills to establish a baseline position and P&L at spot price
+- Projecting realistic P&L scenarios based on actual filled positions rather than assuming flat start
+- Converting Actant CSV data to SQLite for more robust data handling
 
-1. A core set of UI components inheriting from BaseComponent
-2. A suite of decorators for tracing and logging function execution 
-3. A lumberjack module for logging configuration and SQLite persistence
-4. Test suites for all components, decorators, and lumberjack modules
-
-## Current Development Constraints
-- All new code must pass mypy --strict and ruff linting
-- New components must inherit from BaseComponent
-- Decorators must follow the established pattern of using context variables
-- Direct imports are used throughout (e.g., `from components import Button`)
-
-## Next Steps (Priority Order)
-1. Create integration tests for decorators working together
-2. Add performance benchmarks for the logging system
-3. Enhance the component library with additional UI elements
-4. Improve documentation with common usage patterns
-5. Consider creating a comprehensive example application
-
-## Recent Updates (May 5, 2025)
-- Restructured package to use flat import structure under src/
-- Simplified imports to use direct references rather than namespace
-- Updated all memory bank documentation to reflect current structure
-
-## Recent Updates (Latest)
-- Updated scenario_ladder_v1.py to use live data from the TT REST API by default instead of mock data, improving the relevance of the ladder visualization
-- Refined position_debug calculation in scenario_ladder_v1.py to show the accumulated position AFTER orders at each price level are executed, while keeping projected PnL calculation unchanged
-- Added mock spot price capability (110'085) to scenario_ladder_v1.py when in mock data mode, ensuring it's populated on initial page load and refresh
+## Next Steps
+- Connect to real Actant data feed when available
+- Refine P&L calculation logic as needed
+- Implement option strategy visualization
+- Add error handling and recovery for SQLite database operations
 
 ## Recent Decisions
 - Using `SampleSOD.csv` for simulating Actant fill data
 - P&L projections now start from current net position and P&L derived from Actant fills
 - Maintaining separation between TT working orders (future orders) and Actant fills (executed orders)
+- Using SQLite as a data store for Actant fill data with CSV as the source
+- Implementing graceful fallback to direct CSV reading if SQLite operations fail
