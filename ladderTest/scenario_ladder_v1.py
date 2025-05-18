@@ -127,6 +127,181 @@ def parse_and_convert_pm_price(price_str):
     print(f"Converted '{price_str}' to decimal: {decimal_price}, special format: '{special_string_price}'")
     return decimal_price, special_string_price
 
+def convert_tt_special_format_to_decimal(price_str):
+    """
+    Convert a TT special string format price (e.g. "110'065") to decimal.
+    
+    Args:
+        price_str (str): Price string in TT format, e.g. "110'065" or "110'0875"
+        
+    Returns:
+        float: Decimal price or None if parsing fails
+    """
+    price_str = price_str.strip() if price_str else ""
+    
+    # Pattern for "XXX'YYZZ" format where YY is 32nds and ZZ is optional fractional part
+    pattern = r"(\d+)'(\d{2,4})"
+    match = re.match(pattern, price_str)
+    
+    if not match:
+        print(f"Failed to parse TT special format price: '{price_str}'")
+        return None
+        
+    whole_points = int(match.group(1))
+    fractional_str = match.group(2)
+    
+    if len(fractional_str) == 2:  # Just 32nds, no fraction (e.g., "110'08")
+        thirty_seconds_part = int(fractional_str)
+        fraction_part = 0
+    elif len(fractional_str) == 3:  # 32nds with single-digit fraction (e.g., "110'085")
+        thirty_seconds_part = int(fractional_str[0:2])
+        fraction_part = int(fractional_str[2]) / 10.0
+    elif len(fractional_str) == 4:  # 32nds with two-digit fraction (e.g., "110'0875")
+        thirty_seconds_part = int(fractional_str[0:2])
+        fraction_part = int(fractional_str[2:4]) / 100.0
+    else:
+        print(f"Unexpected fractional format: '{fractional_str}'")
+        return None
+
+    # Calculate decimal: whole_points + (thirty_seconds_part + fraction_part) / 32.0
+    decimal_price = whole_points + (thirty_seconds_part + fraction_part) / 32.0
+    
+    print(f"Converted '{price_str}' to decimal: {decimal_price}")
+    return decimal_price
+
+def load_actant_zn_fills(csv_filepath):
+    """
+    Load ZN futures fill data from Actant CSV file.
+    
+    Args:
+        csv_filepath (str): Path to the Actant CSV file
+        
+    Returns:
+        list: List of dictionaries containing fill data with 'price' and 'qty' keys
+    """
+    print(f"Loading Actant ZN fills from: {csv_filepath}")
+    try:
+        fills_df = pd.read_csv(csv_filepath)
+        
+        # Filter for ZN futures only
+        zn_future_fills = fills_df[(fills_df['ASSET'] == 'ZN') & 
+                                   (fills_df['PRODUCT_CODE'] == 'FUTURE')]
+        
+        if zn_future_fills.empty:
+            print("No ZN futures found in Actant data")
+            return []
+            
+        print(f"Found {len(zn_future_fills)} ZN future fills in Actant data")
+        
+        # Process each fill
+        processed_fills = []
+        for _, row in zn_future_fills.iterrows():
+            # Convert price from TT special format to decimal
+            price_str = row.get('PRICE_TODAY')
+            price = convert_tt_special_format_to_decimal(price_str)
+            
+            if price is None:
+                print(f"Skipping fill with invalid price: {price_str}")
+                continue
+                
+            # Get quantity and adjust sign based on long/short
+            quantity = float(row.get('QUANTITY', 0))
+            if pd.isna(quantity) or quantity == 0:
+                print(f"Skipping fill with invalid quantity: {quantity}")
+                continue
+                
+            side = row.get('LONG_SHORT', '')
+            if side == 'S':  # Short position
+                quantity = -quantity
+            
+            processed_fills.append({
+                'price': price,
+                'qty': int(quantity)  # Ensure quantity is an integer
+            })
+            
+        print(f"Processed {len(processed_fills)} valid ZN future fills")
+        return processed_fills
+        
+    except Exception as e:
+        print(f"Error loading Actant ZN fills: {e}")
+        return []
+
+def calculate_baseline_from_actant_fills(actant_fills, spot_decimal_price):
+    """
+    Calculate baseline position and P&L at spot price based on Actant fill data.
+    
+    Args:
+        actant_fills (list): List of dictionaries with 'price' and 'qty' keys
+        spot_decimal_price (float): Current spot price in decimal format
+        
+    Returns:
+        dict: Dictionary with 'base_pos' and 'base_pnl' keys
+    """
+    if not actant_fills or spot_decimal_price is None:
+        print("No fills or invalid spot price - using zero baseline")
+        return {'base_pos': 0, 'base_pnl': 0.0}
+
+    # Sort fills by price (ascending) to process them in sequence
+    sorted_fills = sorted(actant_fills, key=lambda x: x['price'])
+    
+    current_position = 0
+    realized_pnl = 0.0
+    
+    # Initialize evaluation price with the first fill price
+    if sorted_fills:
+        current_eval_price = sorted_fills[0]['price']
+    else:
+        return {'base_pos': 0, 'base_pnl': 0.0}
+    
+    print("\n--- Baseline P&L Calculation from Actant Fills ---")
+    print(f"Starting price (first fill): {decimal_to_tt_bond_format(current_eval_price)} ({current_eval_price})")
+    print(f"Target spot price: {decimal_to_tt_bond_format(spot_decimal_price)} ({spot_decimal_price})")
+    
+    for fill in sorted_fills:
+        fill_price = fill['price']
+        fill_qty = fill['qty']
+        
+        # P&L from price movement with current position
+        price_movement = fill_price - current_eval_price
+        if abs(price_movement) > 0.000001:  # Avoid floating point comparison issues
+            bp_movement = price_movement / BP_DECIMAL_PRICE_CHANGE
+            pnl_increment = bp_movement * DOLLARS_PER_BP * current_position
+            realized_pnl += pnl_increment
+            
+            print(f"\nPosition before fill: {current_position}")
+            print(f"Price movement: {current_eval_price} to {fill_price} = {price_movement:.7f}")
+            print(f"BP movement: {price_movement:.7f} / {BP_DECIMAL_PRICE_CHANGE} = {bp_movement:.3f} BPs")
+            print(f"P&L increment: {bp_movement:.3f} BPs * ${DOLLARS_PER_BP}/BP * {current_position} = ${pnl_increment:.2f}")
+            print(f"Running P&L: ${realized_pnl:.2f}")
+        
+        # Update position with current fill
+        current_position += fill_qty
+        print(f"Fill executed: {'BUY' if fill_qty > 0 else 'SELL'} {abs(fill_qty)} @ {decimal_to_tt_bond_format(fill_price)}")
+        print(f"New position after fill: {current_position}")
+        
+        # Update evaluation price for next iteration
+        current_eval_price = fill_price
+    
+    # Calculate P&L adjustment from last fill to spot price
+    price_movement_to_spot = spot_decimal_price - current_eval_price
+    if abs(price_movement_to_spot) > 0.000001:  # Avoid floating point comparison issues
+        bp_movement_to_spot = price_movement_to_spot / BP_DECIMAL_PRICE_CHANGE
+        pnl_increment_to_spot = bp_movement_to_spot * DOLLARS_PER_BP * current_position
+        realized_pnl += pnl_increment_to_spot
+        
+        print(f"\nFinal position: {current_position}")
+        print(f"Price movement to spot: {current_eval_price} to {spot_decimal_price} = {price_movement_to_spot:.7f}")
+        print(f"BP movement: {price_movement_to_spot:.7f} / {BP_DECIMAL_PRICE_CHANGE} = {bp_movement_to_spot:.3f} BPs")
+        print(f"P&L increment to spot: {bp_movement_to_spot:.3f} BPs * ${DOLLARS_PER_BP}/BP * {current_position} = ${pnl_increment_to_spot:.2f}")
+        print(f"Final P&L at spot: ${realized_pnl:.2f}")
+    
+    result = {
+        'base_pos': current_position,
+        'base_pnl': round(realized_pnl, 2)
+    }
+    print(f"\nBaseline Result: Position = {result['base_pos']}, P&L at spot = ${result['base_pnl']:.2f}")
+    return result
+
 # Initialize mock spot price by parsing the string format
 MOCK_SPOT_DECIMAL_PRICE, MOCK_SPOT_SPECIAL_STRING_PRICE = parse_and_convert_pm_price(MOCK_SPOT_PRICE_STR)
 if MOCK_SPOT_DECIMAL_PRICE is None:
@@ -141,6 +316,10 @@ app.layout = dbc.Container([
         'decimal_price': MOCK_SPOT_DECIMAL_PRICE if USE_MOCK_DATA and MOCK_SPOT_DECIMAL_PRICE is not None else None,
         'special_string_price': MOCK_SPOT_SPECIAL_STRING_PRICE if USE_MOCK_DATA and MOCK_SPOT_SPECIAL_STRING_PRICE is not None else None
     }), # Store for spot price
+    dcc.Store(id='baseline-store', data={
+        'base_pos': 0,
+        'base_pnl': 0.0
+    }), # Store for baseline position/P&L from Actant fills
     html.H2("Scenario Ladder", style={"textAlign": "center", "color": "#18F0C3", "marginBottom": "20px"}),
     dbc.Row([
         dbc.Col(
@@ -149,6 +328,7 @@ app.layout = dbc.Container([
             className="mb-3 d-flex justify-content-center",
         ),
     ]),
+    html.Div(id='baseline-display', style={"textAlign": "center", "color": "#18F0C3", "marginBottom": "10px"}),
     html.Div(id='spot-price-error-div', style={"textAlign": "center", "color": "red", "marginBottom": "10px"}),
     html.Div(id=MESSAGE_DIV_ID, children="Loading working orders...", style={"textAlign": "center", "color": "white", "marginBottom": "20px"}),
     html.Div(
@@ -290,12 +470,15 @@ print("Dash layout defined for Scenario Ladder")
     Output(f"{DATATABLE_ID}-wrapper", 'style'),
     Output(MESSAGE_DIV_ID, 'children'),
     Output(MESSAGE_DIV_ID, 'style'),
+    Output('baseline-store', 'data'),
+    Output('baseline-display', 'children'),
     Input(STORE_ID, 'data'),
     Input('spot-price-store', 'data'), # Add spot price store as input
     Input('refresh-data-button', 'n_clicks'), # Add refresh button as input
-    State(DATATABLE_ID, 'data')      # Add State for current table data
+    State(DATATABLE_ID, 'data'),      # Add State for current table data
+    State('baseline-store', 'data')   # Add State for baseline data
 )
-def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table_data):
+def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table_data, baseline_data):
     print("Callback triggered: load_and_display_orders")
     triggered_input_info = dash.callback_context.triggered[0]
     context_id = triggered_input_info['prop_id']
@@ -324,8 +507,12 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         # Use current_table_data from State
         if current_table_data and len(current_table_data) > 0:
             print(f"Spot price update only. current_table_data has {len(current_table_data)} rows.")
-            updated_data = update_data_with_spot_price(current_table_data, spot_price_data)
-            return updated_data, dash.no_update, dash.no_update, dash.no_update
+            # Use existing baseline data if available
+            base_pos = baseline_data.get('base_pos', 0) if baseline_data else 0
+            base_pnl = baseline_data.get('base_pnl', 0.0) if baseline_data else 0.0
+            updated_data = update_data_with_spot_price(current_table_data, spot_price_data, base_pos, base_pnl)
+            # No need to update baseline on spot price change only
+            return updated_data, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
         else:
             # Table not populated yet, or empty. Let the full load logic run if initial_load_trigger is set.
             print("Spot price update, but current_table_data is empty. Letting full load proceed.")
@@ -333,7 +520,7 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
     # If not an initial load or refresh button click, don't proceed with full refresh
     if not full_refresh_needed:
         print("Callback skipped: not triggered by initial load or refresh button")
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
         
     # Log the trigger
     if context_id == 'refresh-data-button.n_clicks':
@@ -452,6 +639,41 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         message_text = error_message_str
         print(f"Displaying error (safeguard): {message_text}")
 
+    # Process Actant fill data to get baseline position and P&L
+    actant_fills = []
+    baseline_results = {'base_pos': 0, 'base_pnl': 0.0}
+    baseline_display_text = "No Actant data available"
+    
+    try:
+        # Load Actant ZN fills from CSV
+        actant_csv_path = os.path.join(ladderTest_dir, "SampleSOD.csv")
+        if os.path.exists(actant_csv_path):
+            actant_fills = load_actant_zn_fills(actant_csv_path)
+            print(f"Loaded {len(actant_fills)} Actant ZN fills from {actant_csv_path}")
+            
+            # Get spot price from store
+            spot_decimal_price = None
+            if spot_price_data and 'decimal_price' in spot_price_data:
+                spot_decimal_price = spot_price_data.get('decimal_price')
+                
+            if spot_decimal_price is not None and actant_fills:
+                # Calculate baseline position and P&L
+                baseline_results = calculate_baseline_from_actant_fills(actant_fills, spot_decimal_price)
+                
+                # Prepare display text
+                pos_str = f"Long {baseline_results['base_pos']}" if baseline_results['base_pos'] > 0 else \
+                         f"Short {-baseline_results['base_pos']}" if baseline_results['base_pos'] < 0 else "FLAT"
+                pnl_str = f"${baseline_results['base_pnl']:.2f}"
+                baseline_display_text = f"Current Position: {pos_str}, Realized P&L @ Spot: {pnl_str}"
+                print(f"Baseline from Actant: {baseline_display_text}")
+            else:
+                print("Either spot price or Actant fills not available for baseline calculation")
+        else:
+            print(f"Actant CSV file not found: {actant_csv_path}")
+    except Exception as e:
+        print(f"Error processing Actant data: {e}")
+        baseline_display_text = f"Error processing Actant data: {str(e)}"
+        
     if processed_orders:
         min_order_price = min(o['price'] for o in processed_orders)
         max_order_price = max(o['price'] for o in processed_orders)
@@ -521,20 +743,29 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
 
         # Apply spot price indicators to the ladder data if spot price is available
         if spot_price_data and 'decimal_price' in spot_price_data and spot_price_data['decimal_price'] is not None:
-            ladder_table_data = update_data_with_spot_price(ladder_table_data, spot_price_data)
+            # Use baseline position and P&L for PnL projections
+            ladder_table_data = update_data_with_spot_price(
+                ladder_table_data, 
+                spot_price_data,
+                base_position=baseline_results['base_pos'],
+                base_pnl=baseline_results['base_pnl']
+            )
         
         print(f"Generated {len(ladder_table_data)} rows for the ladder.")
         message_text = "" # Clear message if table has data
         message_style_hidden = {'display': 'none'}
         table_style_visible = {'display': 'block', 'width': '600px', 'margin': 'auto'} # Ensure table is centered
         print(f"Generated {len(ladder_table_data)} rows for the ladder.")
-        return ladder_table_data, table_style_visible, message_text, message_style_hidden
+        return ladder_table_data, table_style_visible, message_text, message_style_hidden, baseline_results, baseline_display_text
     else: # Should only be hit if error_message_str exists AND processed_orders is empty
         message_text = error_message_str if error_message_str else "No working orders to display."
         print(f"Final fallback: {message_text}")
         message_style_visible = {'textAlign': 'center', 'color': 'red' if error_message_str else 'white', 'marginBottom': '20px', 'display': 'block'}
         table_style_hidden = {'display': 'none'}
-        return [], table_style_hidden, message_text, message_style_visible
+        empty_baseline = {'base_pos': 0, 'base_pnl': 0.0}
+        # If baseline was calculated successfully earlier, use that display
+        display_text = baseline_display_text if 'baseline_display_text' in locals() else "No position data available"
+        return [], table_style_hidden, message_text, message_style_visible, empty_baseline, display_text
 
 
 
@@ -629,13 +860,13 @@ def fetch_spot_price_from_pm(n_clicks):
         print(error_msg)
         return {'decimal_price': None, 'special_string_price': None}, error_msg
 
-def update_data_with_spot_price(existing_data, spot_price_data):
+def update_data_with_spot_price(existing_data, spot_price_data, base_position=0, base_pnl=0.0):
     """
     Update existing ladder data with spot price indicators based on decimal comparison.
     Handles exact matches and midpoints (marking the top border of the base tick).
     
     Calculates Projected PnL based on:
-    1. Starting with zero position and zero PnL at the spot price
+    1. Starting with baseline position and P&L at the spot price from Actant fills
     2. Accumulating PnL based on position and price changes between consecutive price levels
     3. PnL at each level = PnL of previous level + (position * price change in basis points * $63)
     
@@ -646,6 +877,8 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     Args:
         existing_data (list): Current DataTable data (list of dictionaries, each with 'decimal_price_val')
         spot_price_data (dict): Spot price data from spot-price-store (contains 'decimal_price')
+        base_position (int): Starting position at spot price from Actant fills (default: 0)
+        base_pnl (float): Starting P&L at spot price from Actant fills (default: 0.0)
         
     Returns:
         list: Updated DataTable data with spot price indicators and PnL values
@@ -716,9 +949,11 @@ def update_data_with_spot_price(existing_data, spot_price_data):
     # ----- NEW IMPLEMENTATION: CUMULATIVE PNL CALCULATION -----
     
     # PASS 1: Calculate positions and PnL's for prices at and below spot
-    current_position = 0  # Start with zero position at spot
-    accumulated_pnl = 0.0  # PnL at spot price is 0
+    current_position = base_position  # Start with baseline position at spot
+    accumulated_pnl = base_pnl  # Start with baseline P&L at spot
     previous_price = spot_decimal_price
+    
+    print(f"\n--- P&L Projections with Baseline: Pos={base_position}, PnL=${base_pnl:.2f} ---")
     
     for i in range(spot_pivot_idx, len(output_data)):
         row = output_data[i]
@@ -776,8 +1011,8 @@ def update_data_with_spot_price(existing_data, spot_price_data):
             row['breakeven'] = 0
     
     # PASS 2: Calculate positions and PnL's for prices above spot
-    current_position = 0  # Reset position for above-spot calculation
-    accumulated_pnl = 0.0  # Reset PnL accumulator
+    current_position = base_position  # Reset to baseline position for above-spot calculation
+    accumulated_pnl = base_pnl  # Reset to baseline P&L
     previous_price = spot_decimal_price
     
     for i in range(spot_pivot_idx - 1, -1, -1):

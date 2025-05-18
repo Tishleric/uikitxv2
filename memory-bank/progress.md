@@ -166,15 +166,28 @@
 9. Dashboard logs view with flow trace and performance data tables
 10. Added "Empty Table" button to clear log data from the database tables
 
+## Recently Completed
+- Integrated Actant position data into scenario ladder P&L calculations
+- Added `convert_tt_special_format_to_decimal` function to parse TT-style price strings
+- Added `load_actant_zn_fills` function to read ZN future fills from Actant CSV
+- Added `calculate_baseline_from_actant_fills` function to determine net position and realized P&L
+- Modified `update_data_with_spot_price` to accept baseline position and P&L
+- Enhanced the display to show current position and realized P&L at spot price
+- Updated callback to synchronize all data sources (TT working orders, Actant fills, spot price)
+
 ## In Progress
 
 1. Integration tests for multiple decorators working together
 2. Additional UI components
 3. Performance benchmarks for the logging system
+4. Verifying fill price parsing logic is correct for Actant data (from `110'065` format)
+5. Testing Actant integration with different fill scenarios
 
 ## Known Issues
 
 1. Large log tables can cause performance issues over time - added "Empty Table" button to address this
+2. Need to extend error handling for malformed Actant data
+3. Position direction terminology needs to match industry convention (Long/Short vs Buy/Sell)
 
 ## For Investigation
 
@@ -186,3 +199,6 @@
 1. Complete integration tests
 2. Add more comprehensive dashboard examples
 3. Improve error handling in decorators
+4. Connect to live Actant data feed when it becomes available
+5. Refine visualization of the baseline display
+6. Add unit tests for new Actant data processing functions
