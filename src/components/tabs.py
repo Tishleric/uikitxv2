@@ -15,7 +15,25 @@ class Tabs(BaseComponent):
     Expects 'tabs' prop to be a list of tuples: [('Tab Label 1', content1), ('Tab Label 2', content2)]
     Content can be a BaseComponent instance or any Dash-compatible component layout.
     """
-    def __init__(self, id, tabs=None, active_tab=None, theme=None, style=None, className=""):
+    def __init__(
+        self,
+        id,
+        tabs=None,
+        active_tab=None,
+        theme=None,
+        style=None,
+        className="",
+    ):
+        """Instantiate a Tabs component.
+
+        Args:
+            id: The unique component identifier.
+            tabs: List of ``(label, content)`` tuples defining each tab.
+            active_tab: Identifier of the tab that should be active initially.
+            theme: Optional theme configuration for styling.
+            style: CSS style overrides for the tabs container.
+            className: Additional CSS class names for the wrapper.
+        """
         super().__init__(id, theme)
         self.tabs_data = tabs if tabs is not None else []
         self.active_tab = active_tab
@@ -57,6 +75,11 @@ class Tabs(BaseComponent):
         return dbc_tabs
 
     def render(self):
+        """Render the tabs and their content as a ``dbc.Tabs`` component.
+
+        Returns:
+            dbc.Tabs: The Dash Bootstrap tabs component with its child tabs.
+        """
         # Determine the default active tab if not specified
         active_tab_id = self.active_tab
         if active_tab_id is None and self.tabs_data:
