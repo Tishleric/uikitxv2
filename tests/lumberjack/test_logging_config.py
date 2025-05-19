@@ -1,17 +1,16 @@
 # tests/lumberjack/test_logging_config.py
 
-import pytest
 import logging
-import os
-from pathlib import Path
-import sys
-from unittest.mock import patch, MagicMock
+
 # Import ListHandler - KEEPING for other tests if needed, but not this one
 from logging.handlers import BufferingHandler
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 # Assuming 'src' is accessible in the path for imports
 from lumberjack.logging_config import setup_logging, shutdown_logging
-from lumberjack.sqlite_handler import SQLiteHandler # Import handler for type checking
 
 # --- Fixtures ---
 
@@ -82,8 +81,34 @@ def cleanup_logging():
 # --- Test Functions ---
 
 # test_setup_logging_basic remains the same
-# test_setup_logging_custom_levels remains the same
-# test_setup_logging_clears_existing_handlers remains the same
+
+def test_setup_logging_custom_levels(db_path: str) -> None:
+    """Ensure custom log levels apply to logger and handlers."""
+    console_h, db_h = setup_logging(
+        log_level_main=logging.WARNING,
+        log_level_console=logging.ERROR,
+        log_level_db=logging.CRITICAL,
+        db_path=db_path,
+    )
+
+    root_logger = logging.getLogger()
+
+    assert root_logger.level == logging.WARNING
+    assert console_h.level == logging.ERROR
+    assert db_h.level == logging.CRITICAL
+
+
+def test_setup_logging_clears_existing_handlers(db_path: str) -> None:
+    """Ensure repeated setup does not accumulate handlers."""
+    first_console, first_db = setup_logging(db_path=db_path)
+    root_logger = logging.getLogger()
+    assert len(root_logger.handlers) == 2
+
+    second_console, second_db = setup_logging(db_path=db_path)
+
+    assert len(root_logger.handlers) == 2
+    assert second_console is not first_console
+    assert second_db is not first_db
 
 @patch('lumberjack.logging_config.os.makedirs')
 @patch('lumberjack.logging_config.logging.basicConfig') # Mock basicConfig
