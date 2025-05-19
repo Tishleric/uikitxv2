@@ -61,6 +61,8 @@ from TTRestAPI.tt_utils import (
 auth_header_value = format_bearer_token("my_token")
 ```
 
+Unit tests in `tests/ttapi/test_tt_utils.py` verify GUID generation, request ID formatting, and sanitize logic.
+
 ### `api_example.py`
 
 A comprehensive example of how to use the package to make API requests to different TT REST API services.

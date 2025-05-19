@@ -54,6 +54,9 @@
 - `ladderTest/price_formatter.py` - Utility function to convert decimal prices to TT bond-style string notation (e.g., "110'005").
 - `ladderTest/scenario_ladder_v1.py` - Dash application that displays a scenario ladder. The ladder range is determined by live working orders and the current spot price, ensuring the spot price is always visible. An extra row is added at the top and bottom of this range for padding. It shows prices and user's order quantities with uniform price increments. PnL is calculated based on the position before any orders at the current level, while position_debug shows the accumulated position after orders at that level are executed. The risk column displays position multiplied by 15.625 (DV01). Includes mock spot price functionality.
 - `ladderTest/csv_to_sqlite.py` - Helper module for converting CSV data to SQLite database tables with query utilities.
+- `tests/ladderTest/test_scenario_ladder_v1.py` - Unit tests covering price ladder calculations and PnL updates with mocked TT REST API responses.
+- `tests/ladderTest/test_csv_to_sqlite.py` - Unit tests for the CSV-to-SQLite conversion helpers.
+- `tests/ladderTest/test_price_formatter.py` - Unit tests for TT bond price conversion utilities.
 
 ## TT REST API Integration (TTRestAPI/)
 
@@ -71,3 +74,21 @@
 - `TTRestAPI/examples/get_my_algo_ids.py` - Fetches and lists ADL algorithm IDs and names.
 - `TTRestAPI/examples/get_algo_orders.py` - Fetches working orders, with logic to identify orders related to a specific algorithm.
 - `TTRestAPI/examples/get_order_enumerations.py` - Fetches and saves enumeration definitions (e.g., for order status, side, type) from the `/ttledger/orderdata` endpoint.
+
+
+## Tests
+
+- `tests/dashboard/test_dashboard_callbacks.py` - Unit tests for dashboard callbacks such as option block updates and log refresh logic.
+
+- `tests/ttapi/test_tt_utils.py` - Unit tests for GUID generation, request ID formatting, and sanitization logic in `tt_utils`.
+
+- `tests/ttapi/test_token_manager.py` - Unit tests for TTTokenManager covering token retrieval, auto-refresh, and auth header creation.
+
+- `tests/utils/test_colour_palette.py` - Validates theme defaults and style helper outputs.
+
+- `tests/components/test_mermaid_render.py` - Unit tests for `Mermaid.render` verifying ID propagation, theme styling, and default config merging.
+
+- `tests/components/test_container_render.py` - Unit tests verifying `Container.render` child handling and theme styles.
+- `tests/core/test_base_component.py` - Unit tests verifying ID validation and default theme usage in `BaseComponent`.
+- `tests/core/test_mermaid_protocol.py` - Ensures abstract methods defined in `MermaidProtocol` return expected structures when implemented.
+
