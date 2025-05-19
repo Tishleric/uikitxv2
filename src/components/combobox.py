@@ -13,7 +13,33 @@ class ComboBox(BaseComponent):
     """
     A wrapper for dcc.Dropdown styled as a ComboBox, integrated with the theme system.
     """
-    def __init__(self, id, options=None, value=None, placeholder=None, theme=None, style=None, clearable=True, searchable=True, multi=False, className=""):
+    def __init__(
+        self,
+        id,
+        options=None,
+        value=None,
+        placeholder=None,
+        theme=None,
+        style=None,
+        clearable=True,
+        searchable=True,
+        multi=False,
+        className="",
+    ):
+        """Instantiate a ComboBox component.
+
+        Args:
+            id: The unique component identifier.
+            options: List of option dicts or strings to populate the dropdown.
+            value: Currently selected value(s).
+            placeholder: Placeholder text when no value is selected.
+            theme: Optional theme configuration for styling.
+            style: Custom CSS style overrides.
+            clearable: Whether the selection can be cleared by the user.
+            searchable: Whether the dropdown includes a search box.
+            multi: Enable multi-select mode if ``True``.
+            className: Additional CSS class names for the wrapper.
+        """
         super().__init__(id, theme)
         self.options = options if options is not None else []
         self.value = value
@@ -29,6 +55,11 @@ class ComboBox(BaseComponent):
 
 
     def render(self):
+        """Render the ComboBox as a Dash ``dcc.Dropdown`` component.
+
+        Returns:
+            dcc.Dropdown: The Dash dropdown element with merged theme styles.
+        """
         # Get default styles using the correct function from colour_palette
         default_style = get_combobox_default_style(self.theme)
 
