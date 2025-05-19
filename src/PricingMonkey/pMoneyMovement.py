@@ -191,8 +191,19 @@ def split_dataframe_by_expiry(df):
         return {'1st': df}  # Return original DataFrame as fallback
     
     # Extract expiry from Trade Description column
-    def extract_expiry(desc):
-        """Return the expiry keyword from an option description string."""
+
+    def extract_expiry(desc: str | None) -> str | None:
+        """Extract the expiry token from a trade description string.
+
+        Args:
+            desc: The full trade description, expected to start with the
+                expiry label (e.g., ``"1st ZN Mar25"``).
+
+        Returns:
+            The expiry label (``"1st"``) if present, otherwise ``None``.
+        """
+
+
         if not isinstance(desc, str):
             return None
         words = desc.split()
@@ -244,8 +255,19 @@ def split_dataframe_by_expiry_and_underlying(df):
         }
     
     # Extract expiry from Trade Description column
-    def extract_expiry(desc):
-        """Return the expiry keyword from an option description string."""
+
+    def extract_expiry(desc: str | None) -> str | None:
+        """Extract the expiry token from a trade description string.
+
+        Args:
+            desc: The full trade description, expected to start with the
+                expiry label (for example ``"2nd ZN Jun25"``).
+
+        Returns:
+            The expiry label if present, otherwise ``None``.
+        """
+
+
         if not isinstance(desc, str):
             return None
         words = desc.split()

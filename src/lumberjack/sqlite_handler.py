@@ -16,12 +16,16 @@ class SQLiteHandler(logging.Handler):
     - Aggregates performance metrics into the 'AveragePerformance' table.
     - Ignores other log messages.
     """
-    def __init__(self, db_filename='function_logs.db'):
-        """Initialize the handler and create required tables if needed.
+
+    def __init__(self, db_filename: str = "function_logs.db"):
+        """Initialize the handler and set up the SQLite database.
 
         Args:
-            db_filename: Path to the SQLite database used for logging.
+            db_filename: Path to the SQLite database file. A new file is
+                created if it does not already exist.
         """
+
+
         super().__init__()
         self.db_filename = db_filename
         self.conn = None
