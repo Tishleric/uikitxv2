@@ -1208,4 +1208,4 @@ def update_data_with_spot_price(existing_data, spot_price_data, base_position=0,
 if __name__ == "__main__":
     print(f"Scenario Ladder App - Target TT Env: {tt_config.ENVIRONMENT}")
     print("Starting Dash server for Scenario Ladder...")
-    app.run(debug=True, port=8052) # Using a different port 
+    app.run(debug=True, port=8053) # Using a different port 
