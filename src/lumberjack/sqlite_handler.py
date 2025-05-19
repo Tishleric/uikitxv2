@@ -17,6 +17,11 @@ class SQLiteHandler(logging.Handler):
     - Ignores other log messages.
     """
     def __init__(self, db_filename='function_logs.db'):
+        """Initialize the handler and create required tables if needed.
+
+        Args:
+            db_filename: Path to the SQLite database used for logging.
+        """
         super().__init__()
         self.db_filename = db_filename
         self.conn = None
