@@ -15,8 +15,31 @@ from decorators.context_vars import log_uuid_var, current_log_data # Import cont
 
 # --- Test Functions ---
 
-# test_trace_time_basic_logging remains the same
-# ... (other tests remain the same) ...
+def test_trace_time_basic_logging(caplog, setup_logging_context):
+    """Checks DEBUG log output and context update for a successful call."""
+    test_uuid, test_data = setup_logging_context
+    caplog.set_level(logging.DEBUG)
+
+    @TraceTime()
+    def add(a, b):
+        time.sleep(0.01)
+        return a + b
+
+    result = add(2, 3)
+
+    assert result == 5
+    assert "duration_s" in test_data
+
+    start_found = any(
+        r.getMessage().startswith(f"Starting: add ({test_uuid[:8]})")
+        for r in caplog.records
+    )
+    done_found = any(
+        r.getMessage().startswith(f"Done: add ({test_uuid[:8]})")
+        for r in caplog.records
+    )
+    assert start_found
+    assert done_found
 
 def test_trace_time_return_value_truncation(caplog, setup_logging_context):
     """Tests that long return values are truncated in debug logs."""
@@ -53,8 +76,52 @@ def test_trace_time_return_value_truncation(caplog, setup_logging_context):
     # Check that the full representation is NOT there
     assert repr(long_string) not in done_log_message
 
-# test_trace_time_exception_handling remains the same
-# test_trace_time_db_log_format remains the same
-# test_trace_time_no_context_uuid remains the same
 
-# (Include the unchanged test functions here if providing the full file) 
+def test_trace_time_exception_handling(caplog, setup_logging_context):
+    """Ensures duration and error are captured when the function raises."""
+    test_uuid, test_data = setup_logging_context
+    caplog.set_level(logging.DEBUG)
+
+    @TraceTime()
+    def boom():
+        raise ValueError("bad")
+
+    with pytest.raises(ValueError):
+        boom()
+
+    assert test_data.get("error") == "bad"
+    assert "duration_s" in test_data
+    assert f"Exception in boom ({test_uuid[:8]})" in caplog.text
+
+
+def test_trace_time_db_log_format(caplog, setup_logging_context):
+    """Verifies no FUNC_EXEC_LOG message is emitted."""
+    _, _ = setup_logging_context
+    caplog.set_level(logging.DEBUG)
+
+    @TraceTime()
+    def dummy():
+        return "ok"
+
+    dummy()
+
+    db_prefix = getattr(TraceTime, "DB_LOG_PREFIX", "FUNC_EXEC_LOG:")
+    assert db_prefix not in caplog.text
+
+
+def test_trace_time_no_context_uuid(caplog, setup_logging_context):
+    """Checks logging when no UUID is present in the context."""
+    _, _ = setup_logging_context
+    # Remove context before calling
+    log_uuid_var.set(None)
+    current_log_data.set(None)
+    caplog.set_level(logging.DEBUG)
+
+    @TraceTime()
+    def simple():
+        return 42
+
+    result = simple()
+
+    assert result == 42
+    assert any("NO_UUID" in r.getMessage() for r in caplog.records)
