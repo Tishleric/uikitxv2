@@ -52,7 +52,7 @@
 
 - `ladderTest/laddertesting.py` - Dash application to display a TT-style trading ladder with mock data. Includes functionality to scroll to current price levels.
 - `ladderTest/price_formatter.py` - Utility function to convert decimal prices to TT bond-style string notation (e.g., "110'005").
-- `ladderTest/scenario_ladder_v1.py` - Dash application that displays a scenario ladder based on live working orders fetched from the TT REST API. It shows prices and user's order quantities with uniform price increments, filling in gaps between actual orders. PnL is calculated based on the position before any orders at the current level, while position_debug shows the accumulated position after orders at that level are executed. The risk column displays position multiplied by 15.625 to represent DV01 risk. Includes mock spot price functionality (110'085) when in mock data mode.
+- `ladderTest/scenario_ladder_v1.py` - Dash application that displays a scenario ladder based on live working orders fetched from the TT REST API or mock data. It shows prices and user's order quantities with uniform price increments, filling in gaps between actual orders. PnL is calculated based on the position before any orders at the current level, while position_debug shows the accumulated position after orders at that level are executed. The risk column displays position multiplied by 15.625 to represent DV01 risk. Includes mock spot price functionality (110'085) when in mock data mode. Recently fixed a bug where a callback returned an incorrect number of outputs when no working orders were found.
 - `ladderTest/csv_to_sqlite.py` - Helper module for converting CSV data to SQLite database tables with query utilities.
 
 ## TT REST API Integration (TTRestAPI/)
