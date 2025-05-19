@@ -76,7 +76,7 @@ PRICE_INCREMENT_DECIMAL = 1.0 / 64.0  # For ZN-like instruments
 DATATABLE_ID = 'scenario-ladder-table'
 MESSAGE_DIV_ID = 'scenario-ladder-message'
 STORE_ID = 'scenario-ladder-store' # For triggering load and potentially storing state
-USE_MOCK_DATA = True # Flag to switch between mock and live data
+USE_MOCK_DATA = False # Flag to switch between mock and live data
 MOCK_DATA_FILE = os.path.join(ladderTest_dir, "my_working_orders_response.json")
 MOCK_SPOT_PRICE_STR = "110-08.5" # Mock spot price in Pricing Monkey dash-decimal format
 
@@ -720,7 +720,26 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         print(message_text)
         message_style_visible = {'textAlign': 'center', 'color': 'white', 'marginBottom': '20px', 'display': 'block'}
         table_style_hidden = {'display': 'none'}
-        return [], table_style_hidden, message_text, message_style_visible
+        # Ensure baseline_results and baseline_display_text are available here,
+        # using their initial values if not yet fully computed.
+        # These are initialized around lines 823-824 before this block.
+        current_baseline_results = baseline_data if baseline_data else {'base_pos': 0, 'base_pnl': 0.0}
+        current_baseline_display_text = "No Actant data available" # Default, might be updated later if Actant data is processed
+                                                            # but for this early exit, use a sensible default.
+        
+        # Check if baseline_results and baseline_display_text have been defined in a broader scope
+        # For this specific early exit, we should use the initial defaults or last known state.
+        # Re-checking logic for baseline_results and baseline_display_text availability.
+        # They are initialized before this conditional branch (lines 823, 824).
+        # So, we can directly use those initialized variables.
+        
+        # The variables `baseline_results` and `baseline_display_text`
+        # are initialized prior to this check (lines 823-824).
+        # `baseline_results` = {'base_pos': 0, 'base_pnl': 0.0}
+        # `baseline_display_text` = "No Actant data available"
+        # We will use these directly.
+        
+        return [], table_style_hidden, message_text, message_style_visible, {'base_pos': 0, 'base_pnl': 0.0}, "No Actant data available"
     elif error_message_str and not processed_orders : # Prioritize API/load error message if it exists and no orders processed
         message_text = error_message_str
         print(f"Displaying error: {message_text}")

@@ -177,6 +177,7 @@
 - Created `csv_to_sqlite.py` helper module for converting CSV data to SQLite database
 - Implemented `load_actant_zn_fills_from_db` function to query fills from SQLite database
 - Added graceful fallback to direct CSV reading if SQLite operations fail
+- Fixed a bug in `scenario_ladder_v1.py` where a callback would return an incorrect number of outputs if no working orders were found, by ensuring default baseline data is returned.
 
 ## In Progress
 - Verifying fill price parsing logic is correct for Actant data (from `110'065` format)
