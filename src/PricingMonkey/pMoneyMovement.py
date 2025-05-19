@@ -191,6 +191,7 @@ def split_dataframe_by_expiry(df):
         return {'1st': df}  # Return original DataFrame as fallback
     
     # Extract expiry from Trade Description column
+
     def extract_expiry(desc: str | None) -> str | None:
         """Extract the expiry token from a trade description string.
 
@@ -201,6 +202,7 @@ def split_dataframe_by_expiry(df):
         Returns:
             The expiry label (``"1st"``) if present, otherwise ``None``.
         """
+
 
         if not isinstance(desc, str):
             return None
@@ -253,6 +255,7 @@ def split_dataframe_by_expiry_and_underlying(df):
         }
     
     # Extract expiry from Trade Description column
+
     def extract_expiry(desc: str | None) -> str | None:
         """Extract the expiry token from a trade description string.
 
@@ -263,6 +266,7 @@ def split_dataframe_by_expiry_and_underlying(df):
         Returns:
             The expiry label if present, otherwise ``None``.
         """
+
 
         if not isinstance(desc, str):
             return None
