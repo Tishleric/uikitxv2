@@ -179,6 +179,7 @@
 - Added graceful fallback to direct CSV reading if SQLite operations fail
 - Fixed a bug in `scenario_ladder_v1.py` where a callback would return an incorrect number of outputs if no working orders were found, by ensuring default baseline data is returned.
 - Added unit tests for `csv_to_sqlite_table`, `get_table_schema`, and `query_sqlite_table`.
+- Added unit tests for TT bond price conversion utilities.
 
 ## In Progress
 - Verifying fill price parsing logic is correct for Actant data (from `110'065` format)
