@@ -71,3 +71,7 @@
 - `TTRestAPI/examples/get_my_algo_ids.py` - Fetches and lists ADL algorithm IDs and names.
 - `TTRestAPI/examples/get_algo_orders.py` - Fetches working orders, with logic to identify orders related to a specific algorithm.
 - `TTRestAPI/examples/get_order_enumerations.py` - Fetches and saves enumeration definitions (e.g., for order status, side, type) from the `/ttledger/orderdata` endpoint.
+
+## Tests
+
+- `tests/dashboard/test_dashboard_callbacks.py` - Unit tests for dashboard callbacks such as option block updates and log refresh logic.
