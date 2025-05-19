@@ -41,6 +41,7 @@
 - Applied to both calculation passes (above and below spot price)
 - Maintains existing position_debug column for raw position display
 - No changes to PnL calculation logic
+- Added unit test `tests/core/test_mermaid_protocol.py` with a dummy subclass to verify MermaidProtocol method outputs
 
 ## 2023-11-14 Project Restructuring
 
@@ -109,6 +110,8 @@
   - Added DataTable entries to io-schema.md
   - Updated demo files in code-index.md
   - Added decorator configuration entries to io-schema.md
+  - Added tests for invalid JSON, schema errors, and repeated close operations in
+    `tests/lumberjack/test_sqlite_handler.py`
 
 ### Next Steps
 - Create integration tests for all decorators working together
@@ -185,6 +188,8 @@
 - Implemented `load_actant_zn_fills_from_db` function to query fills from SQLite database
 - Added graceful fallback to direct CSV reading if SQLite operations fail
 - Fixed a bug in `scenario_ladder_v1.py` where a callback would return an incorrect number of outputs if no working orders were found, by ensuring default baseline data is returned.
+- Added unit tests for `csv_to_sqlite_table`, `get_table_schema`, and `query_sqlite_table`.
+- Added unit tests for TT bond price conversion utilities.
 - Enhanced scenario ladder price range in `scenario_ladder_v1.py` to always include the spot price and add top/bottom padding rows.
 
 ## In Progress

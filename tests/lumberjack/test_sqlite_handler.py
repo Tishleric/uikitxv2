@@ -244,6 +244,24 @@ def test_emit_handles_malformed_json(logger_with_handler: logging.Logger, sqlite
     assert "Error decoding JSON" in captured.out or "Error decoding JSON" in captured.err
 
 
+def test_emit_flow_trace_malformed_json(
+    logger_with_handler: logging.Logger,
+    sqlite_handler: SQLiteHandler,
+    db_path: str,
+    capsys,
+):
+    """Ensures FLOW_TRACE messages with bad JSON do not crash the handler."""
+    log_message = "FLOW_TRACE:{\"log_uuid\": \"bad-json-2\""  # Missing closing brace
+
+    logger_with_handler.info(log_message)
+
+    results = query_db(db_path, "SELECT * FROM flowTrace")
+    assert len(results) == 0
+
+    captured = capsys.readouterr()
+    assert "Error decoding JSON" in captured.out or "Error decoding JSON" in captured.err
+
+
 def test_emit_handles_missing_data(logger_with_handler: logging.Logger, sqlite_handler: SQLiteHandler, db_path: str, capsys):
     """Tests handling of records with missing required fields."""
     # Missing 'duration_s' in FUNC_EXEC_LOG
@@ -285,4 +303,46 @@ def test_sqlite_handler_close(db_path: str):
         handler.close()
     except Exception as e:
         pytest.fail(f"Closing handler second time raised exception: {e}")
+
+
+def test_close_idempotent(db_path: str):
+    """Calling close multiple times should not raise and leaves state cleared."""
+    handler = SQLiteHandler(db_filename=db_path)
+    handler.close()
+    handler.close()
+    handler.close()
+
+    assert handler.conn is None
+    assert handler.cursor is None
+
+
+def test_initialization_schema_error(monkeypatch, db_path: str):
+    """Handler sets connection to None when table creation fails."""
+
+    class DummyCursor:
+        def execute(self, sql, params=None):
+            raise sqlite3.OperationalError("create fail")
+
+    class DummyConn:
+        def __init__(self):
+            self.row_factory = None
+
+        def cursor(self):
+            return DummyCursor()
+
+        def commit(self):
+            pass
+
+        def close(self):
+            pass
+
+    def failing_connect(*args, **kwargs):
+        return DummyConn()
+
+    monkeypatch.setattr(sqlite3, "connect", failing_connect)
+
+    handler = SQLiteHandler(db_filename=db_path)
+
+    assert handler.conn is None
+    assert handler.cursor is None
 
