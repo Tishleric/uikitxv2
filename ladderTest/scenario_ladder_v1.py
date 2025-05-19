@@ -627,6 +627,17 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
     orders_data = []
     error_message_str = ""
 
+    # --- Extract Spot Price Consistently (Step 3a of Plan v2) ---
+    spot_decimal_val = None
+    if spot_price_data and 'decimal_price' in spot_price_data:
+        spot_decimal_val = spot_price_data.get('decimal_price')
+        if spot_decimal_val is not None:
+            print(f"Extracted spot_decimal_val: {spot_decimal_val}")
+        else:
+            print("spot_price_data present, but decimal_price is None.")
+    else:
+        print("spot_price_data is None or does not contain 'decimal_price'.")
+
     if USE_MOCK_DATA:
         print(f"Using mock data from: {MOCK_DATA_FILE}")
         try:
@@ -714,32 +725,17 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
                 })
     print(f"Processed {len(processed_orders)} relevant working orders.")
 
-    if not processed_orders and not error_message_str:
-        # No relevant orders found, but no API error either
-        message_text = "No working orders found to display."
+    # --- Adjust Early Exit for "No working orders" (Step 3b of Plan v2) ---
+    if not processed_orders and not error_message_str and spot_decimal_val is None:
+        # No relevant orders found, no API error, AND no spot price available
+        message_text = "No working orders or spot price found to display."
         print(message_text)
-        message_style_visible = {'textAlign': 'center', 'color': 'white', 'marginBottom': '20px', 'display': 'block'}
+        message_style_visible = {'textAlign': 'center', 'color': 'orange', 'marginBottom': '20px', 'display': 'block'}
         table_style_hidden = {'display': 'none'}
-        # Ensure baseline_results and baseline_display_text are available here,
-        # using their initial values if not yet fully computed.
-        # These are initialized around lines 823-824 before this block.
-        current_baseline_results = baseline_data if baseline_data else {'base_pos': 0, 'base_pnl': 0.0}
-        current_baseline_display_text = "No Actant data available" # Default, might be updated later if Actant data is processed
-                                                            # but for this early exit, use a sensible default.
-        
-        # Check if baseline_results and baseline_display_text have been defined in a broader scope
-        # For this specific early exit, we should use the initial defaults or last known state.
-        # Re-checking logic for baseline_results and baseline_display_text availability.
-        # They are initialized before this conditional branch (lines 823, 824).
-        # So, we can directly use those initialized variables.
-        
-        # The variables `baseline_results` and `baseline_display_text`
-        # are initialized prior to this check (lines 823-824).
-        # `baseline_results` = {'base_pos': 0, 'base_pnl': 0.0}
-        # `baseline_display_text` = "No Actant data available"
-        # We will use these directly.
-        
-        return [], table_style_hidden, message_text, message_style_visible, {'base_pos': 0, 'base_pnl': 0.0}, "No Actant data available"
+        # Use existing baseline_results and baseline_display_text if computed, else defaults
+        final_baseline_results = baseline_data if baseline_data else {'base_pos': 0, 'base_pnl': 0.0}
+        final_baseline_display_text = "No Actant data available"
+        return [], table_style_hidden, message_text, message_style_visible, final_baseline_results, final_baseline_display_text
     elif error_message_str and not processed_orders : # Prioritize API/load error message if it exists and no orders processed
         message_text = error_message_str
         print(f"Displaying error: {message_text}")
@@ -793,13 +789,9 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         print(f"Loaded {len(actant_fills)} Actant ZN fills")
             
         # Step 3: Calculate baseline position and P&L if we have fills and spot price
-        spot_decimal_price = None
-        if spot_price_data and 'decimal_price' in spot_price_data:
-            spot_decimal_price = spot_price_data.get('decimal_price')
-                
-        if spot_decimal_price is not None and actant_fills:
+        if spot_decimal_val is not None and actant_fills:
             # Calculate baseline position and P&L
-            baseline_results = calculate_baseline_from_actant_fills(actant_fills, spot_decimal_price)
+            baseline_results = calculate_baseline_from_actant_fills(actant_fills, spot_decimal_val)
                 
             # Prepare display text
             pos_str = f"Long {baseline_results['base_pos']}" if baseline_results['base_pos'] > 0 else \
@@ -813,35 +805,71 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         print(f"Error processing Actant data: {e}")
         baseline_display_text = f"Error processing Actant data: {str(e)}"
         
-    if processed_orders:
-        min_order_price = min(o['price'] for o in processed_orders)
-        max_order_price = max(o['price'] for o in processed_orders)
+    if processed_orders or spot_decimal_val is not None:
+        # --- Calculate Overall Raw Min/Max Prices (Step 3d of Plan v2) ---
+        current_min_raw_price = None
+        current_max_raw_price = None
 
-        # Round to nearest tick:
-        # For min_price, round down. For max_price, round up.
-        # math.floor(x / increment) * increment
-        # math.ceil(x / increment) * increment
-        ladder_min_price = math.floor(min_order_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
-        ladder_max_price = math.ceil(max_order_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        if processed_orders:
+            order_prices = [
+                float(o['price']) for o in processed_orders
+                if isinstance(o.get('price'), (int, float)) and o.get('price') is not None
+            ]
+            if order_prices:  # Ensure list is not empty
+                min_order_val = min(order_prices)
+                max_order_val = max(order_prices)
+                current_min_raw_price = min_order_val
+                current_max_raw_price = max_order_val
+                print(f"Min/Max from orders: {min_order_val}/{max_order_val}")
+
+        if spot_decimal_val is not None:
+            print(f"Considering spot_decimal_val for range: {spot_decimal_val}")
+            if current_min_raw_price is None or spot_decimal_val < current_min_raw_price:
+                current_min_raw_price = spot_decimal_val
+            if current_max_raw_price is None or spot_decimal_val > current_max_raw_price:
+                current_max_raw_price = spot_decimal_val
         
-        # Add some padding (e.g., 5 ticks above and below) if desired, or use a fixed range.
-        # For now, just using the range of orders. Consider adding padding later.
-        # ladder_min_price -= 5 * PRICE_INCREMENT_DECIMAL
-        # ladder_max_price += 5 * PRICE_INCREMENT_DECIMAL
+        print(f"Overall raw min/max before rounding: {current_min_raw_price}/{current_max_raw_price}")
 
+        # If current_min_raw_price is still None, means no valid prices from orders and no spot price.
+        # This should ideally not be reached if the parent 'if' condition is robust.
+        # However, if it is, we can't proceed.
+        if current_min_raw_price is None:
+            print("No valid price data (orders or spot) to form ladder. Returning empty.")
+            message_text = "No price data available to display ladder."
+            message_style_visible = {'textAlign': 'center', 'color': 'orange', 'marginBottom': '20px', 'display': 'block'}
+            table_style_hidden = {'display': 'none'}
+            # Use existing baseline_results and baseline_display_text if computed, else defaults
+            final_baseline_results = baseline_results if 'baseline_results' in locals() else {'base_pos': 0, 'base_pnl': 0.0}
+            final_baseline_display_text = baseline_display_text if 'baseline_display_text' in locals() else "No Actant data"
+            return [], table_style_hidden, message_text, message_style_visible, final_baseline_results, final_baseline_display_text
+
+        # Round to nearest tick using current_min_raw_price and current_max_raw_price
+        ladder_min_price = math.floor(current_min_raw_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        ladder_max_price = math.ceil(current_max_raw_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        
+        print(f"Ladder min/max after initial rounding: {ladder_min_price}/{ladder_max_price}")
+
+        # --- Add Padding (Step 3e of Plan v2) ---
+        ladder_min_price -= PRICE_INCREMENT_DECIMAL
+        ladder_max_price += PRICE_INCREMENT_DECIMAL
+
+        # Re-round for precision after padding
+        ladder_min_price = round(ladder_min_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        ladder_max_price = round(ladder_max_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        
+        print(f"Ladder min/max after padding and re-rounding: {ladder_min_price}/{ladder_max_price}")
+        
+        # --- Ensure num_levels is Positive (Step 3f of Plan v2) ---
         num_levels = round((ladder_max_price - ladder_min_price) / PRICE_INCREMENT_DECIMAL) + 1
-        print(f"Ladder Price Range: {decimal_to_tt_bond_format(ladder_min_price)} to {decimal_to_tt_bond_format(ladder_max_price)}, Levels: {num_levels}")
+        if num_levels <= 0:
+            num_levels = 1 # Ensure at least one level if rounding leads to non-positive
+        
+        print(f"Final Ladder Price Range: {decimal_to_tt_bond_format(ladder_min_price)} to {decimal_to_tt_bond_format(ladder_max_price)}, Levels: {num_levels}")
 
         current_price_level = ladder_max_price
         epsilon = PRICE_INCREMENT_DECIMAL / 100.0 # For float comparisons
         
-        # Get spot price from store (if available)
-        spot_decimal_price = None
-        if spot_price_data and 'decimal_price' in spot_price_data:
-            spot_decimal_price = spot_price_data.get('decimal_price')
-            if spot_decimal_price is not None:
-                print(f"Using spot price: {spot_decimal_price}")
-
         for _ in range(num_levels):
             formatted_price = decimal_to_tt_bond_format(current_price_level)
             my_qty_at_level = 0
@@ -881,11 +909,11 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
             current_price_level = round(current_price_level / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
 
         # Apply spot price indicators to the ladder data if spot price is available
-        if spot_price_data and 'decimal_price' in spot_price_data and spot_price_data['decimal_price'] is not None:
+        if spot_price_data and spot_price_data.get('decimal_price') is not None: # Check key existence
             # Use baseline position and P&L for PnL projections
             ladder_table_data = update_data_with_spot_price(
                 ladder_table_data, 
-                spot_price_data,
+                spot_price_data, # This contains spot_decimal_val
                 base_position=baseline_results['base_pos'],
                 base_pnl=baseline_results['base_pnl']
             )
@@ -894,16 +922,18 @@ def load_and_display_orders(store_data, spot_price_data, n_clicks, current_table
         message_text = "" # Clear message if table has data
         message_style_hidden = {'display': 'none'}
         table_style_visible = {'display': 'block', 'width': '600px', 'margin': 'auto'} # Ensure table is centered
-        print(f"Generated {len(ladder_table_data)} rows for the ladder.")
         return ladder_table_data, table_style_visible, message_text, message_style_hidden, baseline_results, baseline_display_text
-    else: # Should only be hit if error_message_str exists AND processed_orders is empty
-        message_text = error_message_str if error_message_str else "No working orders to display."
+    else: # Should only be hit if not (processed_orders or spot_decimal_val is not None)
+          # This means processed_orders is empty AND spot_decimal_val is None.
+          # This case should have been caught by the modified early exit.
+        # --- Review Final else Block Message (Step 3g of Plan v2) ---
+        message_text = error_message_str if error_message_str else "No working orders or spot price available to display ladder."
         print(f"Final fallback: {message_text}")
         message_style_visible = {'textAlign': 'center', 'color': 'red' if error_message_str else 'white', 'marginBottom': '20px', 'display': 'block'}
         table_style_hidden = {'display': 'none'}
         empty_baseline = {'base_pos': 0, 'base_pnl': 0.0}
         # If baseline was calculated successfully earlier, use that display
-        display_text = baseline_display_text if 'baseline_display_text' in locals() else "No position data available"
+        display_text = baseline_display_text if 'baseline_display_text' in locals() and baseline_display_text else "No position data available"
         return [], table_style_hidden, message_text, message_style_visible, empty_baseline, display_text
 
 

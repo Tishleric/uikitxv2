@@ -2,6 +2,13 @@
 
 ## Recent Changes
 
+### Scenario Ladder Range Enhancement
+- Modified `scenario_ladder_v1.py` to enhance ladder price range generation:
+  - The ladder now always includes the current spot price. If the spot is outside the range of working orders, the ladder expands to include it.
+  - Added one extra price increment (tick) as padding at both the top and bottom of the calculated price range.
+- Adjusted logic for determining ladder boundaries to consider both processed working orders and the spot price before rounding and padding.
+- Ensured early exits for "no data" scenarios correctly account for the availability of spot price.
+
 ### Mock Spot Price Implementation
 - Added mock spot price (110'085) in scenario_ladder_v1.py for use when USE_MOCK_DATA is True
 - Mock spot price is parsed and initialized at application start-up
@@ -178,6 +185,7 @@
 - Implemented `load_actant_zn_fills_from_db` function to query fills from SQLite database
 - Added graceful fallback to direct CSV reading if SQLite operations fail
 - Fixed a bug in `scenario_ladder_v1.py` where a callback would return an incorrect number of outputs if no working orders were found, by ensuring default baseline data is returned.
+- Enhanced scenario ladder price range in `scenario_ladder_v1.py` to always include the spot price and add top/bottom padding rows.
 
 ## In Progress
 - Verifying fill price parsing logic is correct for Actant data (from `110'065` format)
