@@ -102,6 +102,8 @@
   - Added DataTable entries to io-schema.md
   - Updated demo files in code-index.md
   - Added decorator configuration entries to io-schema.md
+  - Added tests for invalid JSON, schema errors, and repeated close operations in
+    `tests/lumberjack/test_sqlite_handler.py`
 
 ### Next Steps
 - Create integration tests for all decorators working together
