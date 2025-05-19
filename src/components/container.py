@@ -11,7 +11,25 @@ class Container(BaseComponent):
     A wrapper for dbc.Container that allows for easier styling and theme integration.
     It can accept other BaseComponent instances as children and will render them.
     """
-    def __init__(self, id, children=None, theme=None, style=None, fluid=False, className=""):
+    def __init__(
+        self,
+        id,
+        children=None,
+        theme=None,
+        style=None,
+        fluid=False,
+        className="",
+    ):
+        """Instantiate a Container component.
+
+        Args:
+            id: The unique component identifier.
+            children: Child components or layouts contained within the container.
+            theme: Optional theme configuration for styling.
+            style: Custom CSS style overrides.
+            fluid: Enable full-width container behavior.
+            className: Additional CSS classes for the container.
+        """
         super().__init__(id, theme)
         self.children = children if children is not None else []
         self.style = style if style is not None else {}
@@ -19,6 +37,11 @@ class Container(BaseComponent):
         self.className = className
 
     def render(self):
+        """Render the container and its children as a ``dbc.Container``.
+
+        Returns:
+            dbc.Container: The rendered Dash Bootstrap container with children.
+        """
         # Get default styles from utility function
         default_style = get_container_default_style(self.theme)
         

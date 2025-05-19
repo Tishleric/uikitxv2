@@ -12,7 +12,25 @@ class Graph(BaseComponent):
     """
     A wrapper for dcc.Graph with theme integration for layout.
     """
-    def __init__(self, id, figure=None, theme=None, style=None, config=None, className=""):
+    def __init__(
+        self,
+        id,
+        figure=None,
+        theme=None,
+        style=None,
+        config=None,
+        className="",
+    ):
+        """Instantiate a Graph component with optional theming.
+
+        Args:
+            id: The unique component identifier.
+            figure: A Plotly figure object to display.
+            theme: Optional theme configuration for styling.
+            style: CSS style overrides for the wrapper.
+            config: Additional Plotly configuration options.
+            className: Additional CSS class names for the wrapper.
+        """
         super().__init__(id, theme)
         self.figure = figure if figure is not None else go.Figure()
         self.style = style if style is not None else {'height': '400px'} # Default height
@@ -30,6 +48,11 @@ class Graph(BaseComponent):
             self.figure.update_layout(**default_layout)
 
     def render(self):
+        """Render the graph as a Dash ``dcc.Graph`` component.
+
+        Returns:
+            dcc.Graph: The graph component with themed layout and styles.
+        """
         # Ensure theme is applied before rendering
         self._apply_theme_to_figure()
 
