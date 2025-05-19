@@ -89,4 +89,5 @@
 
 - `tests/components/test_container_render.py` - Unit tests verifying `Container.render` child handling and theme styles.
 - `tests/core/test_base_component.py` - Unit tests verifying ID validation and default theme usage in `BaseComponent`.
+- `tests/core/test_mermaid_protocol.py` - Ensures abstract methods defined in `MermaidProtocol` return expected structures when implemented.
 
