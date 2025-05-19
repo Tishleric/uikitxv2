@@ -99,12 +99,49 @@ WAIT_FOR_COPY_OPERATION = 0.2
 WAIT_FOR_BROWSER_CLOSE = 0.5
 
 def check_file_exists(file_path):
-    if os.path.exists(file_path): logger.info(f"Excel file verified at: {file_path}"); return True
-    else: logger.error(f"Excel file not found at {file_path}."); return False
+    """Verify that the expected Excel file exists.
 
-def excel_setup_options_and_consolidate_for_pm_openpyxl(file_path, sheet_name_target, pnl_sheet_name_source, options_data_list):
-    # This function remains the same - prepares Sheet2
-    logger.info(f"Preparing Excel Data for {len(options_data_list)} Option(s) on sheet '{sheet_name_target}'.")
+    Args:
+        file_path (str): Path to the Excel workbook.
+
+    Returns:
+        bool: ``True`` if the file exists, otherwise ``False``.
+    """
+
+    if os.path.exists(file_path):
+        logger.info(f"Excel file verified at: {file_path}")
+        return True
+    logger.error(f"Excel file not found at {file_path}.")
+    return False
+
+def excel_setup_options_and_consolidate_for_pm_openpyxl(
+    file_path,
+    sheet_name_target,
+    pnl_sheet_name_source,
+    options_data_list,
+):
+    """Prepare Sheet2 for Pricing Monkey and consolidate option data.
+
+    This loads the workbook, writes option quantities and descriptions to
+    the target sheet, reads values back to build a consolidated DataFrame,
+    and copies the result to the clipboard for the browser step.
+
+    Args:
+        file_path (str): Path to the Excel workbook.
+        sheet_name_target (str): Worksheet where Pricing Monkey data is entered.
+        pnl_sheet_name_source (str): Worksheet containing PnL values for each row.
+        options_data_list (list[dict]): Option descriptors with ``id``, ``desc``,
+            ``qty``, and ``phase`` keys.
+
+    Returns:
+        tuple[pd.DataFrame, list[int]] | tuple[None, None]:
+            A DataFrame of consolidated option rows and a list of row counts per
+            option, or ``(None, None)`` on failure.
+    """
+
+    logger.info(
+        f"Preparing Excel Data for {len(options_data_list)} Option(s) on sheet '{sheet_name_target}'."
+    )
     fixed_pm_quantity = 1000
     workbook = None
     all_data_for_pm_list_of_lists = []
@@ -189,9 +226,15 @@ def excel_setup_options_and_consolidate_for_pm_openpyxl(file_path, sheet_name_ta
         
         if not consolidated_df.empty and "Underlying_Raw" in consolidated_df.columns:
             def format_for_pm(x):
-                if pd.isnull(x) or x == '': return '' 
-                try: return f"{float(x):.3f}".replace('.', '-')
-                except ValueError: return str(x).replace('.', '-')
+                """Format numeric underlying values for Pricing Monkey."""
+
+                if pd.isnull(x) or x == "":
+                    return ""
+                try:
+                    return f"{float(x):.3f}".replace(".", "-")
+                except ValueError:
+                    return str(x).replace(".", "-")
+
             consolidated_df["Underlying"] = consolidated_df["Underlying_Raw"].apply(format_for_pm)
             consolidated_df.drop(columns=["Underlying_Raw"], inplace=True)
         
@@ -208,6 +251,20 @@ def excel_setup_options_and_consolidate_for_pm_openpyxl(file_path, sheet_name_ta
         if workbook: workbook.close()
 
 def browser_operations_and_copy(url_to_open, total_rows_pasted_to_pm):
+    """Automate the browser steps for Pricing Monkey.
+
+    This function opens the Pricing Monkey URL, pastes the consolidated
+    option data, copies the resulting 11-column output, and closes the tab.
+
+    Args:
+        url_to_open (str): The Pricing Monkey URL to open in the browser.
+        total_rows_pasted_to_pm (int): Number of option rows pasted, used to
+            select the returned rows for copying.
+
+    Returns:
+        bool: ``True`` on success, ``False`` if any step fails.
+    """
+
     # Selects 11 columns
     try:
         logger.info(f"Opening URL: {url_to_open} ..."); webbrowser.open(url_to_open, new=2); time.sleep(WAIT_FOR_BROWSER_TO_OPEN)
@@ -235,7 +292,33 @@ def browser_operations_and_copy(url_to_open, total_rows_pasted_to_pm):
     except Exception as e: logger.error(f"Error during browser ops: {e}", exc_info=True); return False
 
 
-def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_target, all_options_inputs_list, pm_data_from_clipboard, option_row_counts_for_pm_results):
+def excel_distribute_pm_data_and_final_cleanup_openpyxl(
+    file_path,
+    sheet_name_target,
+    all_options_inputs_list,
+    pm_data_from_clipboard,
+    option_row_counts_for_pm_results,
+):
+    """Paste Pricing Monkey results into Excel and return the full DataFrame.
+
+    The function parses the 11-column result set copied from the browser,
+    writes the first three columns back to Sheet2, cleans up extra rows, and
+    saves the workbook.
+
+    Args:
+        file_path (str): Path to the Excel workbook.
+        sheet_name_target (str): Worksheet where results should be pasted.
+        all_options_inputs_list (list[dict]): Original list of option inputs used
+            during setup.
+        pm_data_from_clipboard (str): Raw tab-separated data from Pricing Monkey.
+        option_row_counts_for_pm_results (list[int]): Row counts corresponding to
+            each option.
+
+    Returns:
+        pandas.DataFrame | None: Parsed results DataFrame or ``None`` if parsing
+        failed.
+    """
+
     # Parses 11 columns, pastes first 3 back to Sheet2
     workbook = None
     df_pm_results = None
@@ -329,9 +412,24 @@ def excel_distribute_pm_data_and_final_cleanup_openpyxl(file_path, sheet_name_ta
     finally:
         if workbook: workbook.close()
 
-def write_dataframes_to_sheet1(file_path: str, list_of_dataframes: list, target_sheet_name: str, start_row: int, row_offset: int):
-    """
-    Writes a list of DataFrames to Sheet1, clearing first and applying % format.
+def write_dataframes_to_sheet1(
+    file_path: str,
+    list_of_dataframes: list,
+    target_sheet_name: str,
+    start_row: int,
+    row_offset: int,
+):
+    """Write a sequence of DataFrames to ``Sheet1`` with formatting.
+
+    Existing rows in the target sheet are cleared before writing. The ``% Delta``
+    column, if present, is formatted as a percentage.
+
+    Args:
+        file_path: Path to the Excel workbook.
+        list_of_dataframes: DataFrames to write sequentially.
+        target_sheet_name: Worksheet name to receive the data.
+        start_row: First row number where data should be written.
+        row_offset: Number of rows to skip between DataFrames.
     """
     if not list_of_dataframes:
         logger.info("No DataFrames provided to write to Sheet1.")
@@ -398,6 +496,21 @@ def write_dataframes_to_sheet1(file_path: str, list_of_dataframes: list, target_
 
 
 def run_pm_automation(options_data_from_dashboard: list):
+    """Run the full Pricing Monkey automation workflow.
+
+    This high-level function orchestrates the Excel preparation, browser
+    automation, result processing, and final DataFrame slicing used by the
+    dashboard integration.
+
+    Args:
+        options_data_from_dashboard (list): List of option dictionaries received
+            from the dashboard.
+
+    Returns:
+        list[pandas.DataFrame] | None: List of DataFrames (one per option) on
+        success, otherwise ``None``.
+    """
+
     logger.info("Running Pricing Monkey Automation (Dashboard Integration)")
     if not options_data_from_dashboard: logger.warning("No option data from dashboard."); return None
     if not check_file_exists(FILE_PATH): return None
@@ -545,6 +658,8 @@ if __name__ == "__main__":
     logger.info("Running pMoneyAuto.py in STANDALONE mode for testing")
     
     def get_all_user_inputs_for_standalone():
+        """Prompt the user for option details when run standalone."""
+
         num_options = int(input("How many options for standalone test (1-3)? ").strip())
         collected_options_data = []
         min_phase = 1
