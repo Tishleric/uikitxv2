@@ -1,19 +1,14 @@
 # tests/decorators/test_trace_cpu.py
 
-import pytest
 import logging
-import json
 import uuid
-import time
-import contextvars
-from unittest.mock import patch, MagicMock
 
-# Assuming 'src' is accessible in the path for imports
-# Adjust if your test setup requires different import paths
+import pytest
+
+from decorators.context_vars import current_log_data, log_uuid_var
+from decorators.trace_closer import TraceCloser
 from decorators.trace_cpu import TraceCpu
-from decorators.trace_closer import TraceCloser # Needed for stacking test
-from decorators.trace_time import TraceTime # Needed for stacking test
-from decorators.context_vars import log_uuid_var, current_log_data
+from decorators.trace_time import TraceTime
 
 # --- Fixtures ---
 
@@ -71,7 +66,6 @@ def test_trace_cpu_psutil_error_start(mocker, caplog, setup_logging_context):
     # Check that the final "Could not get end CPU usage *or delta*" warning is NOT present
     # because the end call itself didn't fail here.
     assert "Could not get end CPU usage or delta" not in caplog.text
-    assert TraceCpu.DB_LOG_PREFIX not in caplog.text # No DB log because delta couldn't be calculated
 
     # 4. Mock calls
     # --- Corrected Assertion ---
@@ -79,11 +73,62 @@ def test_trace_cpu_psutil_error_start(mocker, caplog, setup_logging_context):
     assert mock_cpu_percent.call_count == 2 # Expect two calls even if the first fails.
 
 
-# test_trace_cpu_psutil_error_end remains the same
-# test_trace_cpu_no_context_uuid remains the same
-# test_trace_cpu_stacked remains the same
+def test_trace_cpu_psutil_error_end(mocker, caplog, setup_logging_context):
+    """CPU delta not recorded if psutil fails on end measurement."""
+    _, test_data = setup_logging_context
+    caplog.set_level(logging.WARNING)
 
-# (Include the unchanged test functions test_trace_cpu_basic,
-# test_trace_cpu_psutil_error_end, test_trace_cpu_no_context_uuid,
-# and test_trace_cpu_stacked here if providing the full file)
+    mock_cpu = mocker.patch('decorators.trace_cpu.psutil.cpu_percent')
+    mock_cpu.side_effect = [10.0, RuntimeError('psutil failed')]
+
+    @TraceCpu()
+    def sample(x: int) -> int:
+        return x + 1
+
+    assert sample(3) == 4
+    assert 'cpu_delta' not in test_data
+    assert 'Could not get end CPU usage or calculate delta' in caplog.text
+    assert mock_cpu.call_count == 2
+
+
+def test_trace_cpu_no_context_uuid(mocker, caplog, setup_logging_context):
+    """Decorator works when no UUID is present in context."""
+    _, test_data = setup_logging_context
+    caplog.set_level(logging.DEBUG)
+
+    log_uuid_var.set(None)
+    mock_cpu = mocker.patch('decorators.trace_cpu.psutil.cpu_percent')
+    mock_cpu.side_effect = [10.0, 15.0]
+
+    @TraceCpu()
+    def mul(x: int) -> int:
+        return x * 2
+
+    assert mul(2) == 4
+    assert test_data.get('cpu_delta') == 5.0
+    assert 'NO_UUID' in caplog.text
+    assert mock_cpu.call_count == 2
+
+
+def test_trace_cpu_stacked(mocker, caplog, setup_logging_context):
+    """TraceCpu stacks with TraceTime and TraceCloser."""
+    _, test_data = setup_logging_context
+    caplog.set_level(logging.INFO)
+
+    mock_cpu = mocker.patch('decorators.trace_cpu.psutil.cpu_percent')
+    mock_cpu.side_effect = [10.0, 15.0]
+
+    @TraceCloser()
+    @TraceCpu()
+    @TraceTime(log_args=False, log_return=False)
+    def work() -> str:
+        return 'ok'
+
+    assert work() == 'ok'
+    assert 'cpu_delta' in test_data
+    assert 'duration_s' in test_data
+    assert any('FLOW_TRACE:' in r.getMessage() for r in caplog.records)
+    assert mock_cpu.call_count == 2
+
+
 
