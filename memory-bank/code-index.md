@@ -75,7 +75,10 @@
 - `TTRestAPI/examples/get_order_enumerations.py` - Fetches and saves enumeration definitions (e.g., for order status, side, type) from the `/ttledger/orderdata` endpoint.
 
 
-### Tests (`tests/ttapi/`)
+## Tests
+
+- `tests/dashboard/test_dashboard_callbacks.py` - Unit tests for dashboard callbacks such as option block updates and log refresh logic.
+
 - `tests/ttapi/test_tt_utils.py` - Unit tests for GUID generation, request ID formatting, and sanitization logic in `tt_utils`.
 
 - `tests/ttapi/test_token_manager.py` - Unit tests for TTTokenManager covering token retrieval, auto-refresh, and auth header creation.
