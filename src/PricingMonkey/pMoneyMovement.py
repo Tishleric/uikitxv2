@@ -192,6 +192,7 @@ def split_dataframe_by_expiry(df):
     
     # Extract expiry from Trade Description column
     def extract_expiry(desc):
+        """Return the expiry keyword from an option description string."""
         if not isinstance(desc, str):
             return None
         words = desc.split()
@@ -244,6 +245,7 @@ def split_dataframe_by_expiry_and_underlying(df):
     
     # Extract expiry from Trade Description column
     def extract_expiry(desc):
+        """Return the expiry keyword from an option description string."""
         if not isinstance(desc, str):
             return None
         words = desc.split()
