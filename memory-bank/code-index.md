@@ -73,6 +73,7 @@
 - `TTRestAPI/examples/get_order_enumerations.py` - Fetches and saves enumeration definitions (e.g., for order status, side, type) from the `/ttledger/orderdata` endpoint.
 
 ## Tests
+- `tests/ttapi/test_token_manager.py` - Unit tests for TTTokenManager covering token retrieval, auto-refresh, and auth header creation.
 
 - `tests/utils/test_colour_palette.py` - Validates theme defaults and style helper outputs.
 
@@ -80,6 +81,4 @@
 
 - `tests/components/test_container_render.py` - Unit tests verifying `Container.render` child handling and theme styles.
 - `tests/core/test_base_component.py` - Unit tests verifying ID validation and default theme usage in `BaseComponent`.
-
-
 
