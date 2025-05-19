@@ -56,6 +56,7 @@
 - `ladderTest/csv_to_sqlite.py` - Helper module for converting CSV data to SQLite database tables with query utilities.
 - `tests/ladderTest/test_scenario_ladder_v1.py` - Unit tests covering price ladder calculations and PnL updates with mocked TT REST API responses.
 - `tests/ladderTest/test_csv_to_sqlite.py` - Unit tests for the CSV-to-SQLite conversion helpers.
+- `tests/ladderTest/test_price_formatter.py` - Unit tests for TT bond price conversion utilities.
 
 ## TT REST API Integration (TTRestAPI/)
 
