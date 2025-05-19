@@ -34,6 +34,7 @@
 - Applied to both calculation passes (above and below spot price)
 - Maintains existing position_debug column for raw position display
 - No changes to PnL calculation logic
+- Added unit test `tests/core/test_mermaid_protocol.py` with a dummy subclass to verify MermaidProtocol method outputs
 
 ## 2023-11-14 Project Restructuring
 
