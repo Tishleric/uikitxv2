@@ -73,5 +73,10 @@
 - `TTRestAPI/examples/get_order_enumerations.py` - Fetches and saves enumeration definitions (e.g., for order status, side, type) from the `/ttledger/orderdata` endpoint.
 
 ## Tests
+
+
+- `tests/components/test_mermaid_render.py` - Unit tests for `Mermaid.render` verifying ID propagation, theme styling, and default config merging.
+
 - `tests/components/test_container_render.py` - Unit tests verifying `Container.render` child handling and theme styles.
+
 
