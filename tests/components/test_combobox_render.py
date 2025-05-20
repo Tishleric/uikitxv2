@@ -2,7 +2,8 @@ from components.combobox import ComboBox
 from utils.colour_palette import default_theme
 
 
-def test_combobox_render():
+def test_combobox_render() -> None:
+    """Render a ComboBox and verify option mapping and styling."""
     cb = ComboBox(["A", "B", "C"]).render()
 
     assert cb.id.startswith("combo-")
