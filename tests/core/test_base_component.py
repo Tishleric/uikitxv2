@@ -12,11 +12,13 @@ class DummyComponent(BaseComponent):  # type: ignore[misc]
 
 
 def test_base_component_requires_id() -> None:
+    """BaseComponent must raise when id is missing."""
     with pytest.raises(ValueError):
         DummyComponent(id=None)
 
 
 def test_base_component_default_theme() -> None:
+    """Components default to the global theme."""
     comp = DummyComponent("dummy")
     assert comp.theme is default_theme
 

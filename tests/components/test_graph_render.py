@@ -2,7 +2,8 @@ from components.graph import Graph
 from utils.colour_palette import default_theme
 
 
-def test_graph_render():
+def test_graph_render() -> None:
+    """Render Graph component with default settings."""
     g = Graph({}).render()  # empty figure dict
 
     assert g.id.startswith("graph-")

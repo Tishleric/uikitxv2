@@ -5,6 +5,7 @@ from utils.colour_palette import default_theme  # type: ignore
 
 
 def test_mermaid_render_basic(mocker: MockerFixture) -> None:
+    """Ensure Mermaid component renders and forwards config."""
     mermaid_mock = mocker.patch("components.mermaid.dash_extensions.Mermaid")
     m = Mermaid()
     div = m.render("diag-1", "graph TD; A-->B")
