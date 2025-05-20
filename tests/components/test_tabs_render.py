@@ -5,7 +5,8 @@ from components.tabs import Tabs
 from utils.colour_palette import default_theme
 
 
-def test_tabs_render():
+def test_tabs_render() -> None:
+    """Render Tabs component and verify active tab styling."""
     tab_a = Button("A")
     tab_b = Button("B")
     tabs_wrapper = Tabs([("First", tab_a), ("Second", tab_b)], active_tab_index=1)
