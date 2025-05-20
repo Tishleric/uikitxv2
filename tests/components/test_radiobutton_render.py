@@ -2,7 +2,8 @@ from components.radiobutton import RadioButton
 from utils.colour_palette import default_theme
 
 
-def test_radiobutton_render():
+def test_radiobutton_render() -> None:
+    """Render RadioButton and check selected state."""
     rb = RadioButton(["Red", "Blue"], value="Blue").render()
 
     assert rb.id.startswith("radio-")

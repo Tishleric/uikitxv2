@@ -2,7 +2,8 @@ from components.listbox import ListBox
 from utils.colour_palette import default_theme
 
 
-def test_listbox_render():
+def test_listbox_render() -> None:
+    """Render ListBox with single value pre-selected."""
     lb = ListBox(["One", "Two", "Three"], values=["Two"]).render()
 
     assert lb.id.startswith("listbox-")

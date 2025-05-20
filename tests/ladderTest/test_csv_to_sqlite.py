@@ -64,6 +64,7 @@ def _create_sample_csv(path: Path) -> None:
 
 
 def test_csv_to_sqlite_table(tmp_path: Path) -> None:
+    """CSV rows are loaded into a SQLite table."""
     csv_file = tmp_path / "data.csv"
     db_file = tmp_path / "db.sqlite"
     _create_sample_csv(csv_file)
@@ -80,6 +81,7 @@ def test_csv_to_sqlite_table(tmp_path: Path) -> None:
 
 
 def test_get_table_schema(tmp_path: Path) -> None:
+    """Schema is returned after table creation."""
     csv_file = tmp_path / "data.csv"
     db_file = tmp_path / "db.sqlite"
     _create_sample_csv(csv_file)
@@ -94,6 +96,7 @@ def test_get_table_schema(tmp_path: Path) -> None:
 
 
 def test_query_sqlite_table(tmp_path: Path) -> None:
+    """Querying the table returns expected rows."""
     csv_file = tmp_path / "data.csv"
     db_file = tmp_path / "db.sqlite"
     _create_sample_csv(csv_file)
