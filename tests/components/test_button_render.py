@@ -2,7 +2,8 @@ from components.button import Button
 from utils.colour_palette import default_theme
 
 
-def test_button_render():
+def test_button_render() -> None:
+    """Render a Button and verify default properties."""
     btn = Button("Refresh").render()
 
     # minimal snapshot: children, id, bootstrap colour & inline style keys
