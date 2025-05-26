@@ -220,7 +220,7 @@ def get_listbox_default_styles(theme: Theme, height_px: int = 160) -> dict[str, 
         parts of the ListBox (container, inputs, labels).
     """
     return {
-        "style": {"backgroundColor": theme.panel_bg, "color": theme.text_light, "borderRadius": "4px", "border": f"1px solid {theme.secondary}", "overflowY": "auto", "height": f"{height_px}px", "padding": "4px", "fontFamily": "Inter, sans-serif"},
+        "style": {"backgroundColor": theme.panel_bg, "color": theme.text_light, "borderRadius": "4px", "border": f"1px solid {theme.secondary}", "padding": "4px", "fontFamily": "Inter, sans-serif", "minHeight": "38px", "maxHeight": "120px"},
         "inputStyle": {"marginRight": "8px", "cursor": "pointer"},
         "labelStyle": {"display": "block", "cursor": "pointer", "padding": "2px 0", "color": theme.text_light}
     }

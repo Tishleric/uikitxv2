@@ -178,6 +178,9 @@
 10. Added "Empty Table" button to clear log data from the database tables
 
 ## Recently Completed
+- Enhanced `pMoneySimpleRetrieval.py` with date-based asset code determination for options based on actual trading calendar
+- Enhanced `pMoneySimpleRetrieval.py` to transform retrieved Pricing Monkey data into a structured SOD CSV format matching SampleZNSOD.csv
+- Created new `pMoneySimpleRetrieval.py` script for simple data extraction from PricingMonkey with browser automation
 - Integrated Actant position data into scenario ladder P&L calculations
 - Added `convert_tt_special_format_to_decimal` function to parse TT-style price strings
 - Added `load_actant_zn_fills` function to read ZN future fills from Actant CSV
@@ -217,3 +220,19 @@
 5. Refine visualization of the baseline display
 6. Add unit tests for new Actant data processing functions
 7. Implement SQLite database schema versioning for future enhancements
+
+## 2024-05-21 - Actant JSON Processing
+
+### Done
+- Created `ActantEOD/process_actant_json.py` to transform Actant JSON data into structured formats
+- Implemented parsing logic to handle both percentage and absolute USD price shocks
+- Successfully converted the data to Pandas DataFrame with proper types
+- Generated CSV export with all data fields preserved
+- Added SQLite database export functionality with a clean table schema
+- Tested script with the existing `GE_XCME.ZN_20250521_102611.json` file
+- Updated all relevant memory bank files with documentation
+
+### Todo
+- Add command-line arguments to make the script more flexible (e.g., specify input file)
+- Create visualization components to help analyze the data
+- Add additional data aggregation and processing functions
