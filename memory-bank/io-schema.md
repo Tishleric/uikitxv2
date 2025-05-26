@@ -236,3 +236,70 @@ Format: `XXX'YYZZ` where:
 | PM_URL | Constant | str | URL string | `https://pricingmonkey.com/b/e9172aaf-2cb4-4f2c-826d-92f57d3aea90` (for `scenario_ladder_v1.py`) |
 | BP_DECIMAL_PRICE_CHANGE | Constant | float | 0.0625 | Decimal price change for 1 basis point (e.g., for ZN) |
 | DOLLARS_PER_BP | Constant | float | 62.5 | Dollar value per basis point movement per contract (e.g., for ZN) |
+| PRICING_MONKEY_URL | Constant | str | URL string | `https://pricingmonkey.com/b/a05cfbe3-30cc-4c08-8bde-601051682959` (for `pMoneySimpleRetrieval.py`) |
+
+## PricingMonkey Functions
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| `get_simple_data` | Function | Returns `pd.DataFrame` | N/A | `df = get_simple_data()` returns a DataFrame with columns: "Trade Amount", "Trade Description", "Strike", "Expiry Date", "Price" |
+| `transform_df_to_sod_format` | Function | Input: `pd.DataFrame`, Returns: `list[list[str]]` | DataFrame from `get_simple_data()` | `sod_rows = transform_df_to_sod_format(df)` transforms raw data to SOD format |
+| `save_sod_to_csv` | Function | Input: `list[list[str]]`, `str`, Returns: `str` | SOD rows from `transform_df_to_sod_format()`, filename | `path = save_sod_to_csv(sod_rows, "output.csv")` saves SOD data to CSV file |
+| `_get_option_asset_and_expiry_date` | Function | Input: `str`, `datetime.datetime`, Returns: `tuple[str, datetime.date]` | Option trade description, current EST datetime | Asset code and expiry date based on the current date and rolling expiries |
+| `get_market_movement_data_df` | Function | Returns nested `dict` of DataFrames | N/A | `result = get_market_movement_data_df()` returns market movement data structured by underlying and expiry |
+| `run_pm_automation` | Function | Input: `list[dict]`, Returns: `list[pd.DataFrame]` | List of option dicts with 'id', 'desc', 'qty', 'phase' | `dfs = run_pm_automation([{'id': 0, 'desc': 'My Option', 'qty': 100, 'phase': 1}])` |
+
+### Option Asset Code Logic
+
+The `_get_option_asset_and_expiry_date` function determines the asset code for option instruments based on:
+
+1. **Option ordinal (1st, 2nd, 3rd, etc.)** extracted from the trade description
+2. **Current date and time in US/Eastern timezone**
+3. **Rolling expiry determination:**
+   - Expiry days are Monday, Wednesday, and Friday
+   - If the current day is an expiry day and before 3 PM EST, it counts as a potential expiry
+   - If the current day is an expiry day and after 3 PM EST, it is skipped 
+4. **Weekday to Asset Code mapping:**
+   - Monday: `VY`
+   - Wednesday: `WY`
+   - Friday: `OZN`
+
+## Actant Data Processing
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| INPUT_JSON_FILENAME | Constant | str | Valid filename string | "GE_XCME.ZN_20250521_102611.json" |
+| OUTPUT_CSV_FILENAME_TEMPLATE | Constant | str | String with '{}' placeholder | "{}_processed.csv" |
+| OUTPUT_DB_FILENAME | Constant | str | Valid filename string | "actant_eod_data.db" |
+| DB_TABLE_NAME | Constant | str | Valid SQLite table name | "scenario_metrics" |
+| scenario_header | Output | str | Any string identifier | "XCME.ZN", "21MAY25" |
+| uprice | Output | float | > 0 | 109.8671875 |
+| point_header_original | Output | str | Original shock value string | "-2.5%", "-2" |
+| shock_value | Output | float | Any numeric value | -0.025, -2.0 |
+| shock_type | Output | str | "percentage" or "absolute_usd" | "percentage" |
+| Notional | Output | float | Any numeric value or NaN | 825530865.01 |
+| ab_Epsilon | Output | float | Any numeric value or NaN | -289000.00 |
+| ab_Th PnL | Output | float | Any numeric value or NaN | 9640839.84 |
+| ab_Theta | Output | float | Any numeric value or NaN | 9.58 |
+| ab_Vega | Output | float | Any numeric value or NaN | 2.91 |
+| ab_WVega | Output | float | Any numeric value or NaN | 0.70 |
+| ab_Zeta | Output | float | Any numeric value or NaN | 13552.20 |
+| ab_sDeltaPath | Output | float | Any numeric value or NaN | 3661000.00 |
+| ab_sGammaPath | Output | float | Any numeric value or NaN | 41254.40 |
+| ab_sOEV | Output | float | Any numeric value or NaN | 274324.66 |
+
+## ActantEOD Dashboard
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| DEFAULT_JSON_FOLDER | Constant | str | Windows path string | r"Z:\ActantEOD" |
+| FALLBACK_JSON_FOLDER | Constant | str | Local directory name | "ActantEOD" |
+| JSON_FILE_PATTERN | Constant | str | Glob pattern | "*.json" |
+| get_most_recent_json_file | Function | Returns Path &#124; None | N/A | `path = get_most_recent_json_file()` |
+| scan_json_files | Function | Returns List[Dict] | N/A | `files = scan_json_files()` returns list of file metadata |
+| validate_json_file | Function | Input: Path, Returns: bool | Valid file path | `is_valid = validate_json_file(path)` |
+| ActantDataService.load_data_from_json | Function | Input: Path, Returns: bool | Valid JSON file path | `success = service.load_data_from_json(path)` |
+| ActantDataService.get_scenario_headers | Function | Returns: List[str] | N/A | `scenarios = service.get_scenario_headers()` |
+| ActantDataService.get_shock_types | Function | Returns: List[str] | N/A | `types = service.get_shock_types()` |
+| ActantDataService.get_metric_names | Function | Returns: List[str] | N/A | `metrics = service.get_metric_names()` |
+| ActantDataService.get_filtered_data | Function | Returns: pd.DataFrame | Optional filter parameters | `df = service.get_filtered_data(scenarios=['XCME.ZN'])` |
