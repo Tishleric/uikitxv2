@@ -31,6 +31,10 @@ sys.modules['uikitxv2'] = src
 
 from uikitxv2.core.data_service_protocol import DataServiceProtocol
 
+# Import new PM modules
+from pricing_monkey_retrieval import get_extended_pm_data, PMRetrievalError
+from pricing_monkey_processor import process_pm_for_separate_table, validate_pm_data
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,8 +55,10 @@ class ActantDataService(DataServiceProtocol):
         """
         self.db_path = db_path
         self.table_name = "scenario_metrics"
+        self.pm_table_name = "pm_data"  # Separate table for PM data
         self._data_loaded = False
         self._current_file = None
+        self._pm_data_loaded = False
         
     def load_data_from_json(self, json_file_path: Path) -> bool:
         """
@@ -237,6 +243,58 @@ class ActantDataService(DataServiceProtocol):
             logger.error(f"Error getting shock types: {e}")
             return []
     
+    def get_shock_values(self) -> List[float]:
+        """
+        Get list of unique shock values from the loaded data.
+        
+        Returns:
+            List of shock values as floats, sorted numerically
+        """
+        if not self.is_data_loaded():
+            return []
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            query = f"SELECT DISTINCT shock_value FROM {self.table_name} ORDER BY shock_value"
+            df = pd.read_sql_query(query, conn)
+            conn.close()
+            
+            return df['shock_value'].dropna().tolist()
+        except Exception as e:
+            logger.error(f"Error getting shock values: {e}")
+            return []
+    
+    def get_shock_values_by_type(self, shock_type: Optional[str] = None) -> List[float]:
+        """
+        Get list of unique shock values filtered by shock type.
+        
+        Args:
+            shock_type: Shock type to filter by ('percentage' or 'absolute_usd'). 
+                       If None, returns all shock values.
+        
+        Returns:
+            List of shock values as floats, sorted numerically
+        """
+        if not self.is_data_loaded():
+            return []
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            
+            if shock_type:
+                query = f"SELECT DISTINCT shock_value FROM {self.table_name} WHERE shock_type = ? ORDER BY shock_value"
+                df = pd.read_sql_query(query, conn, params=[shock_type])
+            else:
+                query = f"SELECT DISTINCT shock_value FROM {self.table_name} ORDER BY shock_value"
+                df = pd.read_sql_query(query, conn)
+            
+            conn.close()
+            
+            return df['shock_value'].dropna().tolist()
+        except Exception as e:
+            logger.error(f"Error getting shock values by type: {e}")
+            return []
+    
     def get_metric_names(self) -> List[str]:
         """
         Get list of available metric names from the loaded data.
@@ -274,6 +332,7 @@ class ActantDataService(DataServiceProtocol):
         self, 
         scenario_headers: Optional[List[str]] = None,
         shock_types: Optional[List[str]] = None,
+        shock_values: Optional[List[float]] = None,
         metrics: Optional[List[str]] = None
     ) -> pd.DataFrame:
         """
@@ -282,6 +341,7 @@ class ActantDataService(DataServiceProtocol):
         Args:
             scenario_headers: List of scenario headers to include
             shock_types: List of shock types to include
+            shock_values: List of shock values to include
             metrics: List of metrics to include
             
         Returns:
@@ -315,6 +375,11 @@ class ActantDataService(DataServiceProtocol):
                 placeholders = ','.join(['?' for _ in shock_types])
                 conditions.append(f"shock_type IN ({placeholders})")
                 params.extend(shock_types)
+            
+            if shock_values:
+                placeholders = ','.join(['?' for _ in shock_values])
+                conditions.append(f"shock_value IN ({placeholders})")
+                params.extend(shock_values)
             
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
@@ -369,6 +434,152 @@ class ActantDataService(DataServiceProtocol):
             logger.error(f"Error getting data summary: {e}")
             return {}
     
+    def load_pricing_monkey_data(self) -> bool:
+        """
+        Load Pricing Monkey data via browser automation and integrate with existing data.
+        
+        Returns:
+            True if PM data was loaded successfully, False otherwise
+        """
+        try:
+            logger.info("Starting Pricing Monkey data retrieval and processing")
+            
+            # Step 1: Retrieve PM data via browser automation
+            pm_df = get_extended_pm_data()
+            
+            # Step 2: Validate retrieved data
+            validation_errors = validate_pm_data(pm_df)
+            if validation_errors:
+                logger.error(f"PM data validation failed: {validation_errors}")
+                return False
+            
+            # Step 3: Process PM data for separate table
+            processed_pm_df = process_pm_for_separate_table(pm_df)
+            if processed_pm_df.empty:
+                logger.error("PM data processing resulted in empty DataFrame")
+                return False
+            
+            # Debug logging: show first 5 rows of processed data
+            logger.info(f"PM Data Processing Summary: {len(processed_pm_df)} rows, {len(processed_pm_df.columns)} columns")
+            logger.info("First 5 rows of processed PM data:")
+            print("\n" + "="*80)
+            print("PROCESSED PM DATA (First 5 rows):")
+            print("="*80)
+            print(processed_pm_df.head().to_string())
+            print("="*80 + "\n")
+            
+            # Step 4: Save to separate PM table
+            self._save_pm_to_database(processed_pm_df)
+            
+            self._pm_data_loaded = True
+            logger.info(f"Successfully loaded PM data: {len(processed_pm_df)} records")
+            return True
+            
+        except PMRetrievalError as e:
+            logger.error(f"PM data retrieval failed: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error loading PM data: {e}", exc_info=True)
+            return False
+    
+    def _ensure_schema_compatibility(self) -> None:
+        """
+        Ensure database schema includes data_source column for dual-source support.
+        
+        Adds data_source column if missing and backfills existing Actant data.
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Check if data_source column exists
+            cursor.execute(f"PRAGMA table_info({self.table_name})")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            if 'data_source' not in columns:
+                logger.info("Adding data_source column to support dual-source architecture")
+                
+                # Add the column
+                cursor.execute(f"ALTER TABLE {self.table_name} ADD COLUMN data_source TEXT")
+                
+                # Backfill existing data as Actant source
+                cursor.execute(f"UPDATE {self.table_name} SET data_source = 'Actant' WHERE data_source IS NULL")
+                
+                conn.commit()
+                logger.info("Schema migration completed successfully")
+            
+            conn.close()
+            
+        except sqlite3.Error as e:
+            logger.error(f"Error during schema migration: {e}")
+            raise
+
+    def _save_pm_to_database(self, df: pd.DataFrame) -> None:
+        """
+        Save PM DataFrame to separate PM table in SQLite database.
+        
+        Args:
+            df: PM DataFrame to save
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            df.to_sql(self.pm_table_name, conn, if_exists="replace", index=False)
+            conn.close()
+            logger.info(f"Successfully saved PM data to SQLite table '{self.pm_table_name}': {self.db_path}")
+        except sqlite3.Error as e:
+            logger.error(f"Error saving PM data to SQLite: {e}")
+            raise
+
+    def _append_to_database(self, df: pd.DataFrame) -> None:
+        """
+        Append DataFrame to existing SQLite database.
+        
+        Args:
+            df: DataFrame to append
+        """
+        try:
+            # Ensure schema compatibility before appending
+            self._ensure_schema_compatibility()
+            
+            conn = sqlite3.connect(self.db_path)
+            df.to_sql(self.table_name, conn, if_exists="append", index=False)
+            conn.close()
+            logger.info(f"Successfully appended data to SQLite: {self.db_path}")
+        except sqlite3.Error as e:
+            logger.error(f"Error appending to SQLite: {e}")
+            raise
+    
+    def get_data_sources(self) -> List[str]:
+        """
+        Get list of available data sources in the loaded data.
+        
+        Returns:
+            List of data source names
+        """
+        if not self.is_data_loaded():
+            return []
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            # Check if data_source column exists
+            cursor = conn.cursor()
+            cursor.execute(f"PRAGMA table_info({self.table_name})")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            if 'data_source' in columns:
+                query = f"SELECT DISTINCT data_source FROM {self.table_name} ORDER BY data_source"
+                df = pd.read_sql_query(query, conn)
+                conn.close()
+                return df['data_source'].dropna().tolist()
+            else:
+                conn.close()
+                # If no data_source column, assume all data is from Actant
+                return ['Actant'] if self._data_loaded else []
+                
+        except Exception as e:
+            logger.error(f"Error getting data sources: {e}")
+            return []
+    
     def is_data_loaded(self) -> bool:
         """
         Check if data has been successfully loaded.
@@ -377,6 +588,15 @@ class ActantDataService(DataServiceProtocol):
             True if data is loaded and ready for queries, False otherwise
         """
         return self._data_loaded and Path(self.db_path).exists()
+    
+    def is_pm_data_loaded(self) -> bool:
+        """
+        Check if Pricing Monkey data has been loaded.
+        
+        Returns:
+            True if PM data is loaded, False otherwise
+        """
+        return self._pm_data_loaded
 
 
 if __name__ == "__main__":
@@ -402,6 +622,9 @@ if __name__ == "__main__":
             
             shock_types = service.get_shock_types()
             print(f"Shock types: {shock_types}")
+            
+            shock_values = service.get_shock_values()
+            print(f"Shock values: {shock_values}")
             
             metrics = service.get_metric_names()
             print(f"Metrics: {metrics[:5]}...")  # Show first 5

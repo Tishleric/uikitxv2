@@ -2,6 +2,16 @@
 
 ## Recent Changes
 
+### Dynamic Shock Amount Options Enhancement (January 2025)
+- Enhanced ActantEOD dashboard with dynamic shock amount filtering based on shock type selection
+- Added `get_shock_values_by_type()` method to data service for type-specific shock value retrieval
+- Implemented smart formatting: percentage values display as "-25.0%" while absolute values show as "$-2.00"
+- Added mixed display mode when no shock type is selected, showing all values with intelligent type detection
+- Created `update_shock_amount_options()` callback that responds to shock type changes and updates available options
+- User selection is automatically cleared when shock type changes to prevent invalid combinations
+- Enhanced user experience with proper formatting and intuitive filtering behavior
+- **Fixed**: Resolved duplicate callback outputs error by consolidating shock amount options logic into single callback
+
 ### Scenario Ladder Range Enhancement
 - Modified `scenario_ladder_v1.py` to enhance ladder price range generation:
   - The ladder now always includes the current spot price. If the spot is outside the range of working orders, the ladder expands to include it.

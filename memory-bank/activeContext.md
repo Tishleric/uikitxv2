@@ -1,6 +1,154 @@
 # Active Context
 
 ## Current Focus
+**Dynamic Shock Amount Options Enhancement for ActantEOD** - **✅ IMPLEMENTED & FIXED**
+
+## Recent Implementation ✅
+**Added Dynamic Shock Amount Options Based on Shock Type Selection (45 LOC)**
+
+### **Feature Summary:**
+- **Dynamic Filtering**: Shock amount options now change based on selected shock type
+- **Smart Formatting**: Percentage values display as "-25.0%" while absolute values show as "$-2.00"
+- **Mixed Display**: When no shock type is selected, all values are shown with intelligent type detection
+- **User Experience**: Selection is cleared when shock type changes to prevent invalid combinations
+
+### **Technical Implementation:**
+- **Enhanced**: `data_service.py` - Added `get_shock_values_by_type()` method for filtered shock value retrieval
+- **Enhanced**: `dashboard_eod.py` - Added `format_shock_value_for_display()` and `create_shock_amount_options()` helper functions
+- **New Callback**: `update_shock_amount_options()` callback responds to shock type changes and updates available options
+- **Smart Logic**: Mixed display uses value range (-0.5 to 0.5) to distinguish percentage from absolute values
+
+### **Key Features Added:**
+- **Type-Specific Options**: Percentage shock type shows only percentage values (-30% to +30%)
+- **Absolute Options**: Absolute USD shock type shows only absolute values ($-2.00 to $+2.00)
+- **All Options**: No shock type selection shows all values with mixed formatting
+- **Clear Selection**: Changing shock type clears current selection to prevent invalid states
+- **Proper Formatting**: Percentage values formatted as "±X.X%" and absolute as "$±X.XX"
+
+### **UI Enhancement:**
+```
+Shock Type Selection → Dynamic Options Update
+├── "Percentage" → Shows: -30.0%, -25.0%, ..., +30.0%
+├── "Absolute USD" → Shows: $-2.00, $-1.50, ..., $+2.00
+└── None Selected → Shows: Mixed formatting (all values)
+```
+
+### **Data Flow:**
+```
+Shock Type Change → update_shock_amount_options() → get_shock_values_by_type() → create_shock_amount_options() → Formatted Options Display
+```
+
+## Previous Implementation ✅
+**Added Shock Amount ListBox for Granular Filtering (40 LOC)**
+
+### **Feature Summary:**
+- **New UI Component**: Multi-select ListBox for shock amounts positioned between shock type and metrics
+- **Data Service Enhancement**: Added `get_shock_values()` method returning sorted list of unique shock values
+- **Enhanced Filtering**: Updated `get_filtered_data()` to support shock value filtering via SQL WHERE clause
+- **Callback Integration**: Extended existing filtering callbacks to include shock amount selections
+
+### **Technical Implementation:**
+- **Enhanced**: `data_service.py` - Added `get_shock_values()` method and `shock_values` parameter to `get_filtered_data()`
+- **Enhanced**: `dashboard_eod.py` - Added shock amount ListBox component and integrated with existing filtering callbacks
+- **Updated**: Memory bank documentation with new component and method signatures
+
+### **Key Features Added:**
+- **Formatted Display**: Shock values displayed as "+0.025", "-0.1", "0" for better readability
+- **Multi-Select Capability**: Users can select multiple shock amounts for comparative analysis
+- **Integrated Filtering**: Works seamlessly with existing scenario, shock type, and metrics filters
+- **Sorted Options**: 23 shock values from -2.0 to +2.0 presented in numerical order
+
+### **UI Enhancement:**
+```
+Controls Panel Layout:
+├── Scenarios (multi-select)
+├── Shock Type (single-select)
+├── Shock Amounts (multi-select) ← NEW
+└── Metrics (multi-select)
+```
+
+### **Data Flow:**
+```
+User Selection → shock-amount-listbox → update_filtered_data() → get_filtered_data(shock_values=[...]) → SQL WHERE shock_value IN (...) → Filtered Results
+```
+
+## Previous Focus
+**Pricing Monkey Integration for ActantEOD** - **✅ RESTRUCTURED FOR SEPARATE TABLES**
+
+## Recent Restructure ✅
+**PM Data Architecture Change to Separate Tables (25 LOC)**
+
+### **Architecture Change:**
+- **Before**: PM data forced into Actant schema with column mapping
+- **After**: PM data preserved in separate `pm_data` table with original column structure
+
+### **Implementation:**
+- **Modified**: `pricing_monkey_processor.py` - Rewrote transformation logic for separate table
+- **Enhanced**: `data_service.py` - Added `_save_pm_to_database()` method for PM table
+- **Table Structure**: `pm_data` with scenario_header + all original PM columns (Trade_Amount, Trade_Description, Strike, etc.)
+- **Preserved Columns**: All PM column names maintained for clear comparison capability
+- **✅ Fixed**: Updated `validate_pm_data()` to use correct column names (removed old `PM_TO_ACTANT_MAPPING` reference)
+
+## Recent Fix ✅
+**Resolved Duplicate Callback Outputs Error (10 LOC)**
+
+### **Issue Resolved:**
+- **Dash Error**: "Duplicate callback outputs" for `shock-amount-listbox.options`
+- **Root Cause**: Two callbacks (`load_data` and `update_shock_amount_options`) both tried to control the same output
+- **Impact**: Dashboard failed to start with callback conflict error
+
+### **Surgical Solution:**
+- **Removed**: `shock-amount-listbox.options` output from `load_data` callback
+- **Enhanced**: `update_shock_amount_options` callback to handle both initial loading and shock type changes
+- **Changed**: `data-loaded-store` from State to Input in `update_shock_amount_options`
+- **Result**: Single callback now manages all shock amount options updates
+
+### **Technical Fix:**
+```
+Before: load_data() + update_shock_amount_options() → CONFLICT
+After:  update_shock_amount_options() only → ✅ RESOLVED
+```
+
+**Callback Consolidation:**
+- `update_shock_amount_options` now responds to both shock type changes AND data loading
+- Eliminated duplicate output control while preserving all functionality
+- Dashboard starts successfully without callback conflicts
+
+## Recent Implementation ✅
+**Added Pricing Monkey Data Source to ActantEOD Dashboard (75 LOC)**
+
+### **Implementation Summary:**
+- **New Module**: `pricing_monkey_retrieval.py` - Browser automation for 9-column PM data capture
+- **New Module**: `pricing_monkey_processor.py` - Transform PM data to Actant-compatible schema  
+- **Enhanced**: `data_service.py` - Added PM data loading, dual-source support, source tagging
+- **Enhanced**: `dashboard_eod.py` - Added "Load PM Data" button alongside "Load Actant Data"
+- **Updated**: Memory bank documentation with new modules and schemas
+
+### **Technical Architecture:**
+```
+PM Browser → pricing_monkey_retrieval.py → pricing_monkey_processor.py → data_service.py → dashboard_eod.py
+                    ↓                            ↓                         ↓
+            9 columns captured            Actant schema mapping      Unified SQLite storage
+```
+
+### **Key Features Added:**
+- **Extended Column Capture**: 9 columns vs 5 (adds DV01 Gamma, Vega, %Delta, Theta)
+- **Schema Transformation**: Maps PM risk metrics to Actant column names for unified analysis
+- **Dual Source Support**: Both Actant JSON and PM data in same dashboard interface
+- **Source Tagging**: `data_source` field distinguishes "Actant" vs "PricingMonkey" origins
+- **Robust Error Handling**: Validation, graceful failures, comprehensive logging
+
+### **Files Created:**
+1. `ActantEOD/pricing_monkey_retrieval.py` (165 LOC) - Extended browser automation
+2. `ActantEOD/pricing_monkey_processor.py` (220 LOC) - Data transformation engine
+
+### **Files Modified:**
+3. `ActantEOD/data_service.py` (+55 LOC) - Added PM integration methods
+4. `ActantEOD/dashboard_eod.py` (+25 LOC) - Added PM loading UI and callback
+5. `memory-bank/code-index.md` (+6 LOC) - Documented new modules
+6. `memory-bank/io-schema.md` (+8 LOC) - Added PM integration schema
+
+## Previous Completion ✅ 
 **ActantEOD Dashboard Visual Fixes** - **✅ COMPLETED SUCCESSFULLY**
 
 ## Recent Completion ✅ 
