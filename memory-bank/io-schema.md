@@ -52,6 +52,10 @@
 | ListBox.style | Input | dict &#124; None | CSS style dictionary | ListBox(id="lb", style={"height": "200px"}) |
 | ListBox.theme | Input | Theme &#124; None | Theme object or None | ListBox(id="lb", theme=my_theme) |
 | ListBox.value | Input | list[str] &#124; str | Subset of options (list if multi, else str) | ListBox(id="lb", value=["Item A"]) |
+| shock-amount-listbox.options | Input | list[dict] | List of shock amount option dictionaries | [{"label": "+0.025", "value": 0.025}, {"label": "-0.1", "value": -0.1}] |
+| shock-amount-listbox.value | Input | list[float] | List of selected shock amounts | [0.025, -0.1, 0.0] |
+| format_shock_value_for_display | Function | Returns: str | value: float, shock_type: str | `label = format_shock_value_for_display(-0.25, "percentage")` → "-25.0%" |
+| create_shock_amount_options | Function | Returns: List[Dict] | shock_values: List[float], shock_type: Optional[str] | `options = create_shock_amount_options(values, "percentage")` |
 | Mermaid.chart_config | Input (to render) | dict | Mermaid configuration options | Mermaid().render(id="m", graph_definition="graph TD; A-->B", chart_config={"theme": "forest"}) |
 | Mermaid.className | Input (to render) | str | Any string | Mermaid().render(id="m", graph_definition="graph TD; A-->B", className="my-diagram") |
 | Mermaid.description | Input (to render) | str &#124; None | Description text for the diagram | Mermaid().render(id="m", graph_definition="graph TD; A-->B", description="My process flow.") |
@@ -288,6 +292,17 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | ab_sGammaPath | Output | float | Any numeric value or NaN | 41254.40 |
 | ab_sOEV | Output | float | Any numeric value or NaN | 274324.66 |
 
+## Pricing Monkey Integration
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| PM_EXTENDED_COLUMNS | Constant | list[str] | 9 specific column names | ["Trade Amount", "Trade Description", "Strike", "Expiry Date", "Price", "DV01 Gamma", "Vega", "%Delta", "Theta"] |
+| PM_TO_ACTANT_MAPPING | Constant | dict | PM column → Actant column mapping | {"DV01 Gamma": "ab_sGammaPath", "Vega": "ab_Vega", "%Delta": "ab_sDeltaPath", "Theta": "ab_Theta"} |
+| get_extended_pm_data | Function | Returns: pd.DataFrame | N/A | `df = get_extended_pm_data()` retrieves 9-column PM data via browser automation |
+| transform_pm_to_actant_schema | Function | Input: pd.DataFrame, Returns: pd.DataFrame | PM DataFrame → Actant schema | `transformed = transform_pm_to_actant_schema(pm_df)` |
+| validate_pm_data | Function | Input: pd.DataFrame, Returns: List[str] | Validation error list | `errors = validate_pm_data(pm_df)` |
+| data_source | Output | str | "Actant" or "PricingMonkey" | Field added to distinguish data origins in unified view |
+
 ## ActantEOD Dashboard
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
@@ -301,5 +316,10 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | ActantDataService.load_data_from_json | Function | Input: Path, Returns: bool | Valid JSON file path | `success = service.load_data_from_json(path)` |
 | ActantDataService.get_scenario_headers | Function | Returns: List[str] | N/A | `scenarios = service.get_scenario_headers()` |
 | ActantDataService.get_shock_types | Function | Returns: List[str] | N/A | `types = service.get_shock_types()` |
+| ActantDataService.get_shock_values | Function | Returns: List[float] | N/A | `values = service.get_shock_values()` |
+| ActantDataService.get_shock_values_by_type | Function | Returns: List[float] | shock_type: Optional[str] | `values = service.get_shock_values_by_type("percentage")` |
 | ActantDataService.get_metric_names | Function | Returns: List[str] | N/A | `metrics = service.get_metric_names()` |
-| ActantDataService.get_filtered_data | Function | Returns: pd.DataFrame | Optional filter parameters | `df = service.get_filtered_data(scenarios=['XCME.ZN'])` |
+| ActantDataService.get_filtered_data | Function | Returns: pd.DataFrame | Optional filter parameters | `df = service.get_filtered_data(scenarios=['XCME.ZN'], shock_values=[0.025, -0.1])` |
+| ActantDataService.load_pricing_monkey_data | Function | Returns: bool | N/A | `success = service.load_pricing_monkey_data()` |
+| ActantDataService.get_data_sources | Function | Returns: List[str] | N/A | `sources = service.get_data_sources()` |
+| ActantDataService.is_pm_data_loaded | Function | Returns: bool | N/A | `loaded = service.is_pm_data_loaded()` |

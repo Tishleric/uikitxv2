@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import List, Dict, Optional, Any
 
 # --- Adjust Python path ---
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -56,6 +57,63 @@ text_style = {"color": default_theme.text_light, "marginBottom": "10px"}
 header_style = {"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}
 
 
+def format_shock_value_for_display(value: float, shock_type: str) -> str:
+    """
+    Format shock value for display based on shock type.
+    
+    Args:
+        value: Shock value as float
+        shock_type: Type of shock ('percentage' or 'absolute_usd')
+        
+    Returns:
+        Formatted string for display
+    """
+    if shock_type == "percentage":
+        # Convert decimal to percentage and format
+        percentage = value * 100
+        if percentage == 0:
+            return "0%"
+        return f"{percentage:+.1f}%"
+    else:  # absolute_usd
+        # Format as currency
+        if value == 0:
+            return "$0"
+        return f"${value:+.2f}"
+
+
+def create_shock_amount_options(shock_values: List[float], shock_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    Create formatted options for shock amount listbox.
+    
+    Args:
+        shock_values: List of shock values
+        shock_type: Type of shock for formatting, or None for mixed display
+        
+    Returns:
+        List of option dictionaries with label and value
+    """
+    if not shock_values:
+        return []
+    
+    options = []
+    for value in shock_values:
+        if shock_type:
+            # Use specific formatting for known shock type
+            label = format_shock_value_for_display(value, shock_type)
+        else:
+            # Mixed display - determine type based on value range
+            # Percentage values are between -0.5 and 0.5 (excluding larger absolute values)
+            # This handles the case where we have both percentage (-0.3 to 0.3) and absolute (-2.0 to 2.0)
+            if -0.5 <= value <= 0.5:
+                label = format_shock_value_for_display(value, "percentage")
+            else:
+                label = format_shock_value_for_display(value, "absolute_usd")
+        
+        options.append({"label": label, "value": value})
+    
+    return options
+
+
 def create_dashboard_layout():
     """
     Create the main dashboard layout using wrapped components.
@@ -69,18 +127,27 @@ def create_dashboard_layout():
             
             # Data loading section
             html.Div([
-                html.P("Data Source:", style=text_style),
+                html.P("Data Sources:", style=text_style),
                 html.Div(id="current-file-display", style={
                     "color": default_theme.text_subtle, 
                     "marginBottom": "10px",
                     "fontStyle": "italic"
                 }),
-                Button(
-                    id="load-data-button",
-                    label="Load Latest Data",
-                    theme=default_theme,
-                    n_clicks=0
-                ).render()
+                html.Div([
+                    Button(
+                        id="load-data-button",
+                        label="Load Actant Data",
+                        theme=default_theme,
+                        n_clicks=0,
+                        style={"marginRight": "10px"}
+                    ).render(),
+                    Button(
+                        id="load-pm-button",
+                        label="Load PM Data",
+                        theme=default_theme,
+                        n_clicks=0
+                    ).render()
+                ], style={"display": "flex", "justifyContent": "center"})
             ], style={"marginBottom": "30px", "textAlign": "center"}),
             
             # Main content grid
@@ -111,6 +178,17 @@ def create_dashboard_layout():
                                 options=[],
                                 value=None,
                                 placeholder="Select shock type",
+                                theme=default_theme,
+                                style={"marginBottom": "20px", "width": "100%"}
+                            ).render(),
+                            
+                            # Shock amount selection
+                            html.P("Shock Amounts:", style=text_style),
+                            ListBox(
+                                id="shock-amount-listbox",
+                                options=[],
+                                value=[],
+                                multi=True,
                                 theme=default_theme,
                                 style={"marginBottom": "20px", "width": "100%"}
                             ).render(),
@@ -243,6 +321,7 @@ def create_dashboard_layout():
             
             # Data stores
             dcc.Store(id="data-loaded-store", data=False),
+            dcc.Store(id="pm-data-loaded-store", data=False),
             dcc.Store(id="filtered-data-store", data=[])
         ],
         theme=default_theme,
@@ -318,20 +397,93 @@ def load_data(n_clicks):
 
 
 @app.callback(
+    [Output("current-file-display", "children", allow_duplicate=True),
+     Output("pm-data-loaded-store", "data")],
+    Input("load-pm-button", "n_clicks"),
+    prevent_initial_call=True
+)
+def load_pm_data(n_clicks):
+    """
+    Load Pricing Monkey data via browser automation.
+    
+    Args:
+        n_clicks: Number of button clicks
+        
+    Returns:
+        Tuple of (status_message, pm_data_loaded_flag)
+    """
+    if n_clicks == 0:
+        raise PreventUpdate
+    
+    try:
+        logger.info("Starting Pricing Monkey data loading")
+        
+        # Load PM data through data service
+        success = data_service.load_pricing_monkey_data()
+        
+        if success:
+            return "✅ PM Data loaded successfully", True
+        else:
+            return "❌ Failed to load PM data", False
+            
+    except Exception as e:
+        logger.error(f"Error loading PM data: {e}")
+        return f"❌ Error loading PM data: {str(e)}", False
+
+
+@app.callback(
+    [Output("shock-amount-listbox", "options"),
+     Output("shock-amount-listbox", "value")],
+    [Input("shock-type-combobox", "value"),
+     Input("data-loaded-store", "data")],
+    prevent_initial_call=False
+)
+def update_shock_amount_options(selected_shock_type, data_loaded):
+    """
+    Update shock amount options based on selected shock type and data loading.
+    
+    Args:
+        selected_shock_type: Selected shock type ('percentage' or 'absolute_usd')
+        data_loaded: Whether data is loaded
+        
+    Returns:
+        Tuple of (shock_amount_options, cleared_selection)
+    """
+    if not data_loaded or not data_service.is_data_loaded():
+        return [], []
+    
+    try:
+        # Get shock values filtered by type (None returns all values)
+        shock_values = data_service.get_shock_values_by_type(selected_shock_type)
+        
+        # Create formatted options
+        shock_amount_options = create_shock_amount_options(shock_values, selected_shock_type)
+        
+        # Clear selection when shock type changes or on initial load
+        return shock_amount_options, []
+        
+    except Exception as e:
+        logger.error(f"Error updating shock amount options: {e}")
+        return [], []
+
+
+@app.callback(
     Output("filtered-data-store", "data"),
     [Input("scenario-listbox", "value"),
      Input("shock-type-combobox", "value"),
+     Input("shock-amount-listbox", "value"),
      Input("metrics-listbox", "value")],
     State("data-loaded-store", "data"),
     prevent_initial_call=True
 )
-def update_filtered_data(selected_scenarios, selected_shock_type, selected_metrics, data_loaded):
+def update_filtered_data(selected_scenarios, selected_shock_type, selected_shock_amounts, selected_metrics, data_loaded):
     """
     Update filtered data based on user selections.
     
     Args:
         selected_scenarios: List of selected scenario headers
         selected_shock_type: Selected shock type
+        selected_shock_amounts: List of selected shock amounts
         selected_metrics: List of selected metrics
         data_loaded: Whether data is loaded
         
@@ -345,12 +497,14 @@ def update_filtered_data(selected_scenarios, selected_shock_type, selected_metri
         # Build filter parameters
         scenario_filter = selected_scenarios if selected_scenarios else None
         shock_type_filter = [selected_shock_type] if selected_shock_type else None
+        shock_values_filter = selected_shock_amounts if selected_shock_amounts else None
         metrics_filter = selected_metrics if selected_metrics else None
         
         # Get filtered data
         df = data_service.get_filtered_data(
             scenario_headers=scenario_filter,
             shock_types=shock_type_filter,
+            shock_values=shock_values_filter,
             metrics=metrics_filter
         )
         
