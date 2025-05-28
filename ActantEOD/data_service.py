@@ -328,6 +328,21 @@ class ActantDataService(DataServiceProtocol):
             logger.error(f"Error getting metric names: {e}")
             return []
     
+    def _quote_column_name(self, column_name: str) -> str:
+        """
+        Quote column names that contain spaces or special characters for SQL.
+        
+        Args:
+            column_name: The column name to quote
+            
+        Returns:
+            Quoted column name safe for SQL
+        """
+        # If column name contains spaces or special chars, quote it
+        if ' ' in column_name or any(char in column_name for char in ['-', '+', '*', '/', '(', ')']):
+            return f'"{column_name}"'
+        return column_name
+
     def get_filtered_data(
         self, 
         scenario_headers: Optional[List[str]] = None,
@@ -355,7 +370,9 @@ class ActantDataService(DataServiceProtocol):
             base_columns = ['scenario_header', 'uprice', 'point_header_original', 'shock_value', 'shock_type']
             
             if metrics:
-                columns = base_columns + metrics
+                # Quote metric column names that may have spaces
+                quoted_metrics = [self._quote_column_name(metric) for metric in metrics]
+                columns = base_columns + quoted_metrics
             else:
                 columns = ['*']
             
@@ -780,7 +797,9 @@ class ActantDataService(DataServiceProtocol):
             base_columns = ['scenario_header', 'uprice', 'point_header_original', 'shock_value', 'shock_type']
             
             if metrics:
-                columns = base_columns + metrics
+                # Quote metric column names that may have spaces
+                quoted_metrics = [self._quote_column_name(metric) for metric in metrics]
+                columns = base_columns + quoted_metrics
             else:
                 columns = ['*']
             
