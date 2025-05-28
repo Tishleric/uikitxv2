@@ -323,3 +323,30 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | ActantDataService.load_pricing_monkey_data | Function | Returns: bool | N/A | `success = service.load_pricing_monkey_data()` |
 | ActantDataService.get_data_sources | Function | Returns: List[str] | N/A | `sources = service.get_data_sources()` |
 | ActantDataService.is_pm_data_loaded | Function | Returns: bool | N/A | `loaded = service.is_pm_data_loaded()` |
+
+# I/O Schema
+
+| Name | Kind* | Type | Allowed values / range | Example Usage |
+|------|-------|------|------------------------|-------------|
+| Checkbox.id | Input | str | any valid HTML id | "metric-filter-checkbox" |
+| Checkbox.options | Input | List[Dict[str, Any]] | [{"label": str, "value": str/int}] | [{"label": "Delta", "value": "delta"}] |
+| Checkbox.value | Input/Output | List[Union[str, int]] | subset of option values | ["delta", "gamma"] |
+| Checkbox.theme | Input | Optional[Theme] | Theme instance or None | default_theme |
+| Checkbox.inline | Input | bool | True/False | False |
+| RangeSlider.id | Input | str | any valid HTML id | "shock-range-slider" |
+| RangeSlider.min | Input | float | any number | -10.0 |
+| RangeSlider.max | Input | float | any number > min | 10.0 |
+| RangeSlider.value | Input/Output | List[float] | [min_val, max_val] | [-5.0, 5.0] |
+| RangeSlider.step | Input | Optional[float] | positive number | 0.1 |
+| RangeSlider.marks | Input | Optional[Dict] | {value: label} mapping | {-5: "-5", 0: "0", 5: "5"} |
+| Toggle.id | Input | str | any valid HTML id | "view-mode-toggle" |
+| Toggle.value | Input/Output | bool | True/False | False |
+| Toggle.label | Input | Optional[str] | any string | "Table View" |
+| Toggle.labelPosition | Input | str | "left", "right", "top", "bottom" | "left" |
+| categorize_metrics() | Output | Dict[str, List[str]] | category -> metrics mapping | {"Delta": ["Delta", "ab_Delta", ...]} |
+| filter_metrics_by_prefix() | Output | List[str] | filtered metric names | ["Delta", "Gamma"] (base only) |
+| get_shock_range_by_scenario() | Output | tuple[float, float] | (min_shock, max_shock) | (-0.1, 0.1) |
+| get_filtered_data_with_range() | Output | pd.DataFrame | filtered scenario data | DataFrame with shock_value between ranges |
+| metric_categories | Constant | Dict[str, List[str]] | predefined category mappings | {"Delta": [...], "Epsilon": [...]} |
+| prefix_filters | Constant | List[str] | ["all", "base", "ab", "bs", "pa"] | "base" for no-prefix metrics |
+| scenario_shock_ranges | Internal | Dict[str, List[float]] | scenario -> [min, max] | {"XCME.ZN": [-0.1, 0.1]} |
