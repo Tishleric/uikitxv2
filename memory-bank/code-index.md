@@ -14,6 +14,9 @@
 - `src/components/mermaid.py` - Implementation of the Mermaid component wrapper for rendering diagrams.
 - `src/components/radiobutton.py` - Implementation of the RadioButton component wrapper.
 - `src/components/tabs.py` - Implementation of the Tabs component wrapper for tabbed interfaces.
+- `src/components/checkbox.py` - Implementation of the Checkbox component wrapper for dcc.Checklist with themed styling and multi-select support for UI interactions.
+- `src/components/rangeslider.py` - Implementation of the RangeSlider component wrapper for dcc.RangeSlider with themed styling, automatic mark generation, and range selection support.
+- `src/components/toggle.py` - Implementation of the Toggle component wrapper for daq.ToggleSwitch with themed styling, flexible label positioning, and boolean state management.
 
 ### Core
 
@@ -151,4 +154,37 @@ PM Browser Data → pricing_monkey_adapter.py → actant.py → SOD CSV Output
 - **Simplified Architecture**: Removed complex calculation logic in favor of direct data usage
 - **Production Logging**: Detailed progress tracking and error diagnostics
 - **Surgical Implementation**: Minimal changes to existing logic while maximizing accuracy
+
+# Code Index
+
+A summary of each code file with its purpose and key functionality.
+
+## Components (`src/components/`)
+
+### Core Components
+- **button.py** - Button wrapper for dbc.Button with theme support and styled interactions
+- **checkbox.py** - Checkbox wrapper for dcc.Checklist with themed styling and multi-select support for UI interactions
+- **combobox.py** - ComboBox wrapper for dcc.Dropdown with theme support, search, and option management
+- **container.py** - Container wrapper for dbc.Container providing themed layout containers with flexible content support
+- **datatable.py** - DataTable wrapper for dash_table.DataTable with comprehensive theme support, pagination, and filtering
+- **graph.py** - Graph wrapper for dcc.Graph with theme-integrated plotly figures and consistent styling
+- **grid.py** - Grid wrapper for dbc.Row/dbc.Col providing responsive layout with Bootstrap grid system
+- **listbox.py** - ListBox wrapper for dcc.Dropdown in multi-select mode, themed for option selection interfaces
+- **mermaid.py** - Mermaid diagram component wrapper supporting themed diagram rendering with custom configurations
+- **radiobutton.py** - RadioButton wrapper for dcc.RadioItems providing themed single-choice selection interfaces
+- **rangeslider.py** - RangeSlider wrapper for dcc.RangeSlider with themed styling, automatic mark generation, and range selection support
+- **tabs.py** - Tabs wrapper for dbc.Tabs providing themed tab interfaces with consistent navigation styling
+- **toggle.py** - Toggle wrapper for daq.ToggleSwitch with themed styling, flexible label positioning, and boolean state management
+
+## ActantEOD (`ActantEOD/`)
+
+### Dashboard
+- **dashboard_eod.py** - Comprehensive redesigned ActantEOD dashboard with multi-scenario visualization, metric categorization (Delta, Epsilon, Gamma, Theta, Vega, Zeta, Vol, OEV, Th PnL, Misc), prefix filtering (ab_, bs_, pa_, base), dynamic grid layouts, per-scenario range sliders, and table/graph toggle views
+
+### Data Processing
+- **data_service.py** - ActantDataService with enhanced metric categorization, prefix filtering, shock range calculation per scenario, and filtered data retrieval with range support
+- **file_manager.py** - JSON file discovery, validation, and metadata extraction for ActantEOD data files
+- **pricing_monkey_processor.py** - Data processing pipeline for Pricing Monkey integration with validation and transformation
+- **pricing_monkey_retrieval.py** - Browser automation for retrieving Pricing Monkey data with error handling
+- **process_actant_json.py** - JSON data processing utilities for parsing and flattening Actant scenario data
 

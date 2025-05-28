@@ -598,6 +598,237 @@ class ActantDataService(DataServiceProtocol):
         """
         return self._pm_data_loaded
 
+    def categorize_metrics(self) -> Dict[str, List[str]]:
+        """
+        Categorize all available metrics into predefined categories.
+        
+        Returns:
+            Dictionary mapping category names to lists of metric names
+        """
+        if not self.is_data_loaded():
+            return {}
+        
+        all_metrics = self.get_metric_names()
+        
+        # Define metric categories with their patterns
+        metric_categories = {
+            "Delta": ["Delta", "ab_Delta", "bs_Delta", "pa_Delta", "sDelta", "sDeltaCorr", "sDeltaPath", "ab_sDeltaPath", "bs_sDeltaPath", "pa_sDeltaPath"],
+            "Epsilon": ["Epsilon", "ab_Epsilon", "bs_Epsilon", "pa_Epsilon"],
+            "Gamma": ["Gamma", "ab_Gamma", "bs_Gamma", "pa_Gamma", "sGamma", "sGammaCorr", "sGammaPath", "ab_sGammaPath", "bs_sGammaPath", "pa_sGammaPath"],
+            "Theta": ["Theta", "ab_Theta", "bs_Theta", "pa_Theta"],
+            "Vega": ["Vega", "ab_Vega", "bs_Vega", "pa_Vega", "WVega", "ab_WVega", "bs_WVega", "pa_WVega"],
+            "Zeta": ["Zeta", "ab_Zeta", "bs_Zeta", "pa_Zeta"],
+            "Vol": ["ATMVol", "Down1SDVol", "Down2SDVol", "DownHalfSDVol", "Up1SDVol", "Up2SDVol", "UpHalfSDVol"],
+            "OEV": ["OEV", "ab_sOEV", "bs_sOEV", "pa_sOEV", "sOEV"],
+            "Th PnL": ["Th PnL", "ab_Th PnL", "bs_Th PnL", "pa_Th PnL"],
+            "Misc": []  # Will be populated with remaining metrics
+        }
+        
+        # Create the categorized result
+        categorized = {}
+        used_metrics = set()
+        
+        # First pass: assign metrics to predefined categories
+        for category, metric_patterns in metric_categories.items():
+            if category == "Misc":
+                continue
+            
+            category_metrics = []
+            for metric in all_metrics:
+                if metric in metric_patterns:
+                    category_metrics.append(metric)
+                    used_metrics.add(metric)
+            
+            if category_metrics:  # Only include categories with metrics
+                categorized[category] = sorted(category_metrics)
+        
+        # Second pass: add remaining metrics to Misc
+        misc_metrics = [m for m in all_metrics if m not in used_metrics]
+        if misc_metrics:
+            categorized["Misc"] = sorted(misc_metrics)
+        
+        return categorized
+
+    def filter_metrics_by_prefix(self, metrics: List[str], prefix_filter: Optional[str] = None) -> List[str]:
+        """
+        Filter metrics by prefix pattern.
+        
+        Args:
+            metrics: List of metric names to filter
+            prefix_filter: Filter type ("ab", "bs", "pa", "base", or None for all)
+            
+        Returns:
+            Filtered list of metric names
+        """
+        if not prefix_filter or prefix_filter == "all":
+            return metrics
+        
+        if prefix_filter == "base":
+            # Base metrics have no prefix (don't start with ab_, bs_, pa_, or s)
+            return [m for m in metrics if not any(m.startswith(p) for p in ["ab_", "bs_", "pa_", "s"])]
+        elif prefix_filter == "ab":
+            return [m for m in metrics if m.startswith("ab_")]
+        elif prefix_filter == "bs":
+            return [m for m in metrics if m.startswith("bs_")]
+        elif prefix_filter == "pa":
+            return [m for m in metrics if m.startswith("pa_")]
+        else:
+            return metrics
+
+    def get_shock_range_by_scenario(self, scenario_header: str, shock_type: Optional[str] = None) -> tuple[float, float]:
+        """
+        Get the min and max shock values for a specific scenario.
+        
+        Args:
+            scenario_header: The scenario to get range for
+            shock_type: Optional shock type filter
+            
+        Returns:
+            Tuple of (min_shock, max_shock)
+        """
+        if not self.is_data_loaded():
+            return (0.0, 0.0)
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            
+            if shock_type:
+                query = f"""
+                    SELECT MIN(shock_value) as min_val, MAX(shock_value) as max_val 
+                    FROM {self.table_name} 
+                    WHERE scenario_header = ? AND shock_type = ?
+                """
+                df = pd.read_sql_query(query, conn, params=[scenario_header, shock_type])
+            else:
+                query = f"""
+                    SELECT MIN(shock_value) as min_val, MAX(shock_value) as max_val 
+                    FROM {self.table_name} 
+                    WHERE scenario_header = ?
+                """
+                df = pd.read_sql_query(query, conn, params=[scenario_header])
+            
+            conn.close()
+            
+            if df.empty or df.iloc[0]['min_val'] is None:
+                return (0.0, 0.0)
+            
+            return (float(df.iloc[0]['min_val']), float(df.iloc[0]['max_val']))
+            
+        except Exception as e:
+            logger.error(f"Error getting shock range for scenario {scenario_header}: {e}")
+            return (0.0, 0.0)
+
+    def get_distinct_shock_values_by_scenario_and_type(self, scenario_header: str, shock_type: str) -> List[float]:
+        """
+        Get distinct shock values for a specific scenario and shock type.
+        
+        Args:
+            scenario_header: The scenario to get shock values for
+            shock_type: The shock type ('percentage' or 'absolute_usd')
+            
+        Returns:
+            Sorted list of distinct shock values
+        """
+        if not self.is_data_loaded():
+            return []
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            
+            query = f"""
+                SELECT DISTINCT shock_value 
+                FROM {self.table_name} 
+                WHERE scenario_header = ? AND shock_type = ?
+                ORDER BY shock_value
+            """
+            df = pd.read_sql_query(query, conn, params=[scenario_header, shock_type])
+            conn.close()
+            
+            if df.empty:
+                return []
+            
+            return df['shock_value'].tolist()
+            
+        except Exception as e:
+            logger.error(f"Error getting distinct shock values for scenario {scenario_header}, type {shock_type}: {e}")
+            return []
+
+    def get_filtered_data_with_range(
+        self,
+        scenario_headers: Optional[List[str]] = None,
+        shock_types: Optional[List[str]] = None,
+        shock_ranges: Optional[Dict[str, List[float]]] = None,  # scenario -> [min, max]
+        metrics: Optional[List[str]] = None
+    ) -> pd.DataFrame:
+        """
+        Get filtered data with shock range filtering per scenario.
+        
+        Args:
+            scenario_headers: List of scenario headers to include
+            shock_types: List of shock types to include
+            shock_ranges: Dict mapping scenario names to [min, max] shock ranges
+            metrics: List of metrics to include
+            
+        Returns:
+            Filtered pandas DataFrame
+        """
+        if not self.is_data_loaded():
+            return pd.DataFrame()
+        
+        try:
+            # Build base query
+            base_columns = ['scenario_header', 'uprice', 'point_header_original', 'shock_value', 'shock_type']
+            
+            if metrics:
+                columns = base_columns + metrics
+            else:
+                columns = ['*']
+            
+            columns_str = ', '.join(columns) if columns != ['*'] else '*'
+            query = f"SELECT {columns_str} FROM {self.table_name}"
+            
+            # Build WHERE conditions
+            conditions = []
+            params = []
+            
+            if scenario_headers:
+                placeholders = ','.join(['?' for _ in scenario_headers])
+                conditions.append(f"scenario_header IN ({placeholders})")
+                params.extend(scenario_headers)
+            
+            if shock_types:
+                placeholders = ','.join(['?' for _ in shock_types])
+                conditions.append(f"shock_type IN ({placeholders})")
+                params.extend(shock_types)
+            
+            # Add shock range conditions per scenario
+            if shock_ranges:
+                range_conditions = []
+                for scenario, shock_range in shock_ranges.items():
+                    if len(shock_range) == 2:
+                        range_conditions.append(
+                            f"(scenario_header = ? AND shock_value BETWEEN ? AND ?)"
+                        )
+                        params.extend([scenario, shock_range[0], shock_range[1]])
+                
+                if range_conditions:
+                    conditions.append(f"({' OR '.join(range_conditions)})")
+            
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
+            query += " ORDER BY scenario_header, shock_value"
+            
+            conn = sqlite3.connect(self.db_path)
+            df = pd.read_sql_query(query, conn, params=params)
+            conn.close()
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error getting filtered data with range: {e}")
+            return pd.DataFrame()
+
 
 if __name__ == "__main__":
     # Test the data service
