@@ -350,3 +350,46 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | metric_categories | Constant | Dict[str, List[str]] | predefined category mappings | {"Delta": [...], "Epsilon": [...]} |
 | prefix_filters | Constant | List[str] | ["all", "base", "ab", "bs", "pa"] | "base" for no-prefix metrics |
 | scenario_shock_ranges | Internal | Dict[str, List[float]] | scenario -> [min, max] | {"XCME.ZN": [-0.1, 0.1]} |
+
+## Risk Metric Transformations
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| DV01 | Constant | float | 0.063 | Risk transformation multiplier (will be dynamic from PM later) |
+| _apply_risk_metric_transformations | Function | Input: pd.DataFrame, Returns: pd.DataFrame | DataFrame with bs_ metrics | `transformed_df = service._apply_risk_metric_transformations(df)` |
+| _transform_bs_delta | Function | Input: float, Returns: float | original_bs_delta × DV01 | `adjusted = service._transform_bs_delta(original_value)` |
+| _transform_bs_gamma | Function | Input: float, float, float, Returns: float | Complex formula with DV01, adjusted_bs_delta, sim_uprice | `transformed = service._transform_bs_gamma(gamma, delta, uprice)` |
+| _transform_bs_vega | Function | Input: float, Returns: float | original_bs_vega × DV01 | `transformed = service._transform_bs_vega(original_value)` |
+
+## Visualization Mode Toggle
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| visualization-mode-toggle.value | Input/Output | bool | False = Scenario View, True = Metric View | Toggle between visualization modes |
+| _create_scenario_view_grid | Function | Returns: Dash components | selected_scenarios, selected_metrics, is_table_view, is_percentage | Creates scenario-based grid (current behavior) |
+| _create_metric_view_grid | Function | Returns: Dash components | selected_scenarios, selected_metrics, is_table_view, is_percentage | Creates metric-based grid (new behavior) |
+| {"type": "metric-graph", "metric": MATCH} | Component ID | dict | Pattern for metric-specific graphs | Dynamic component IDs for metric view |
+| {"type": "metric-table", "metric": MATCH} | Component ID | dict | Pattern for metric-specific tables | Dynamic component IDs for metric view |
+| {"type": "metric-range-slider", "metric": MATCH} | Component ID | dict | Pattern for metric-specific range sliders | Dynamic component IDs for metric view |
+| _get_global_shock_range_for_metric | Function | Returns: tuple[float, float] | Calculates global min/max across scenarios | `min_shock, max_shock = _get_global_shock_range_for_metric(scenarios, shock_type)` |
+| _get_global_shock_values_for_metric | Function | Returns: List[float] | Union of shock values across scenarios | `values = _get_global_shock_values_for_metric(scenarios, shock_type)` |
+| metric_table_pivot | Function | Input: pd.DataFrame, Returns: pd.DataFrame | Pivot scenarios from rows to columns | `pivot_df = df.pivot_table(index='shock_value', columns='scenario_header', values=metric)` |
+
+## Button-Based Toggle System
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| view-mode-graph-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for graph view selection |
+| view-mode-table-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for table view selection |
+| percentage-absolute-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for absolute values selection |
+| percentage-percentage-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for percentage values selection |
+| viz-mode-scenario-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for scenario view selection |
+| viz-mode-metric-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for metric view selection |
+| toggle-states-store.data | Internal | Dict | {"is_table_view": bool, "is_percentage": bool, "is_metric_view": bool} | Shared state store for toggle states |
+| _get_toggle_state_from_buttons | Function | Returns: bool | ctx, button_id_false, button_id_true, default_false | Helper to determine toggle state from button clicks |
+| update_toggle_states_store | Function | Returns: Dict | Button click inputs | Updates shared toggle states based on button interactions |
+| update_view_mode_button_styles | Function | Returns: Tuple[Dict, Dict] | Button click inputs | Updates button styles for visual feedback |
+| update_percentage_button_styles | Function | Returns: Tuple[Dict, Dict] | Button click inputs | Updates button styles for visual feedback |
+| update_viz_mode_button_styles | Function | Returns: Tuple[Dict, Dict] | Button click inputs | Updates button styles for visual feedback |
+
+## ActantEOD Dashboard

@@ -46,6 +46,9 @@ class ActantDataService(DataServiceProtocol):
     and providing filtered access to the data for dashboard components.
     """
     
+    # Risk metric transformation constants
+    DV01 = 0.063  # TODO: This will be dynamically retrieved from Pricing Monkey later
+    
     def __init__(self, db_path: str = "actant_eod_data.db"):
         """
         Initialize the data service.
@@ -88,8 +91,11 @@ class ActantDataService(DataServiceProtocol):
             df = pd.DataFrame(flattened_records)
             logger.info(f"Created DataFrame with {len(df)} rows and {len(df.columns)} columns")
             
+            # Apply risk metric transformations
+            transformed_df = self._apply_risk_metric_transformations(df)
+            
             # Save to SQLite
-            self._save_to_database(df)
+            self._save_to_database(transformed_df)
             
             self._data_loaded = True
             self._current_file = json_file_path
@@ -184,6 +190,125 @@ class ActantDataService(DataServiceProtocol):
                 return value, "absolute_usd", header_str
         except (ValueError, TypeError):
             return None, None, header_str
+    
+    def _apply_risk_metric_transformations(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Apply risk metric transformations to bs_Delta, bs_Gamma, and bs_Vega.
+        
+        Transformations applied:
+        - bs_Delta: multiplied by DV01
+        - bs_Gamma: DV01² × bs_Gamma - adjusted_bs_Delta × ((DV01/SimUPrice)²/2) + DV01/SimUPrice  
+        - bs_Vega: multiplied by DV01
+        
+        Args:
+            df: DataFrame with raw metric values
+            
+        Returns:
+            DataFrame with transformed risk metrics
+        """
+        if df.empty:
+            return df
+        
+        df_transformed = df.copy()
+        transformation_count = 0
+        
+        try:
+            # Check for required columns
+            required_metrics = ['bs_Delta', 'bs_Gamma', 'bs_Vega']
+            available_metrics = [col for col in required_metrics if col in df_transformed.columns]
+            
+            if not available_metrics:
+                logger.info("No bs_ risk metrics found for transformation")
+                return df_transformed
+            
+            # Apply transformations row by row for clear logic
+            for idx, row in df_transformed.iterrows():
+                sim_uprice = row.get('uprice', None)
+                
+                # Transform bs_Delta (simple multiplication)
+                if 'bs_Delta' in df_transformed.columns and pd.notna(row.get('bs_Delta')):
+                    original_bs_delta = row['bs_Delta']
+                    adjusted_bs_delta = self._transform_bs_delta(original_bs_delta)
+                    df_transformed.at[idx, 'bs_Delta'] = adjusted_bs_delta
+                    transformation_count += 1
+                else:
+                    adjusted_bs_delta = None
+                
+                # Transform bs_Gamma (complex formula)
+                if ('bs_Gamma' in df_transformed.columns and 
+                    pd.notna(row.get('bs_Gamma')) and 
+                    pd.notna(sim_uprice) and sim_uprice != 0 and
+                    adjusted_bs_delta is not None):
+                    
+                    original_bs_gamma = row['bs_Gamma']
+                    transformed_bs_gamma = self._transform_bs_gamma(
+                        original_bs_gamma, adjusted_bs_delta, sim_uprice
+                    )
+                    df_transformed.at[idx, 'bs_Gamma'] = transformed_bs_gamma
+                    transformation_count += 1
+                
+                # Transform bs_Vega (simple multiplication)
+                if 'bs_Vega' in df_transformed.columns and pd.notna(row.get('bs_Vega')):
+                    original_bs_vega = row['bs_Vega']
+                    transformed_bs_vega = self._transform_bs_vega(original_bs_vega)
+                    df_transformed.at[idx, 'bs_Vega'] = transformed_bs_vega
+                    transformation_count += 1
+            
+            logger.info(f"Applied {transformation_count} risk metric transformations (DV01={self.DV01})")
+            return df_transformed
+            
+        except Exception as e:
+            logger.error(f"Error applying risk metric transformations: {e}")
+            return df  # Return original DataFrame on error
+    
+    def _transform_bs_delta(self, original_bs_delta: float) -> float:
+        """
+        Transform bs_Delta by multiplying with DV01.
+        
+        Formula: adjusted_bs_Delta = original_bs_Delta × DV01
+        
+        Args:
+            original_bs_delta: Original bs_Delta value
+            
+        Returns:
+            Transformed bs_Delta value
+        """
+        return original_bs_delta * self.DV01
+    
+    def _transform_bs_gamma(self, original_bs_gamma: float, adjusted_bs_delta: float, sim_uprice: float) -> float:
+        """
+        Transform bs_Gamma using complex formula.
+        
+        Formula: DV01² × bs_Gamma - adjusted_bs_Delta × ((DV01/SimUPrice)²/2) + DV01/SimUPrice
+        
+        Args:
+            original_bs_gamma: Original bs_Gamma value
+            adjusted_bs_delta: Already transformed bs_Delta value
+            sim_uprice: SimUPrice value from the row
+            
+        Returns:
+            Transformed bs_Gamma value
+        """
+        # Calculate each term separately for clarity
+        term1 = (self.DV01 ** 2) * original_bs_gamma
+        term2 = adjusted_bs_delta * (((self.DV01 / sim_uprice) ** 2) / 2)
+        term3 = self.DV01 / sim_uprice
+        
+        return term1 - term2 + term3
+    
+    def _transform_bs_vega(self, original_bs_vega: float) -> float:
+        """
+        Transform bs_Vega by multiplying with DV01.
+        
+        Formula: transformed_bs_Vega = original_bs_Vega × DV01
+        
+        Args:
+            original_bs_vega: Original bs_Vega value
+            
+        Returns:
+            Transformed bs_Vega value
+        """
+        return original_bs_vega * self.DV01
     
     def _save_to_database(self, df: pd.DataFrame) -> None:
         """
