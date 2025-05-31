@@ -2,6 +2,20 @@
 
 ## Recent Changes
 
+### Architecture Dependency Diagram Creation (January 2025) ✅ COMPLETED
+- **Documentation Task**: Created comprehensive architecture dependency diagrams showing all file dependencies
+- **HTML Visualization**: Created `architecture_dependency_diagram.html` with interactive Mermaid diagrams
+- **Markdown Documentation**: Created `ARCHITECTURE_DEPENDENCIES.md` with detailed dependency explanations
+- **Comprehensive Coverage**: Documented all ~56 primary files across 7 architectural layers
+- **Three Diagram Views**: 
+  - Complete system architecture with all dependencies
+  - Simplified high-level view for easier understanding
+  - Key architectural patterns diagram
+- **Dependency Analysis**: Mapped all imports and dependencies between files
+- **No Code Changes**: Pure documentation task as requested
+- **Files Created**: `architecture_dependency_diagram.html`, `ARCHITECTURE_DEPENDENCIES.md`
+- **Technical Achievement**: Complete dependency map showing protocol patterns, component inheritance, decorator stacking, and application layer usage
+
 ### ActantEOD Dashboard Precision Fixes (January 2025) ✅ COMPLETED
 - **SURGICAL PRECISION**: All user-reported issues resolved with minimal, targeted code changes
 - **Range Slider Marks**: Added `get_distinct_shock_values_by_scenario_and_type()` method, dynamic marks generation based on actual data
