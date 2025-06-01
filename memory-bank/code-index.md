@@ -27,6 +27,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **rangeslider.py** - RangeSlider wrapper for dcc.RangeSlider with automatic mark generation
 - **tabs.py** - Tabs wrapper for dbc.Tabs providing themed tab interfaces
 - **toggle.py** - Toggle wrapper for daq.ToggleSwitch with flexible label positioning
+- **tooltip.py** - Tooltip wrapper for dbc.Tooltip providing hover tooltips with HTML content support
 
 #### Advanced Components (`lib/components/advanced/`)
 - **datatable.py** - DataTable wrapper for dash_table.DataTable with pagination and filtering

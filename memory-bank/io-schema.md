@@ -92,6 +92,14 @@
 | Toggle.value | Input/Output | bool | True/False | False |
 | Toggle.label | Input | Optional[str] | any string | "Table View" |
 | Toggle.labelPosition | Input | str | "left", "right", "top", "bottom" | "left" |
+| Tooltip.id | Input | str | Unique string | Tooltip(id="help-tooltip", target="btn-1", children="Click here for help") |
+| Tooltip.target | Input | str &#124; dict | Target element ID or pattern dict | Tooltip(target="my-button") or Tooltip(target={"type": "graph", "index": 0}) |
+| Tooltip.children | Input | Any | Tooltip content (string or HTML) | Tooltip(children="This is helpful text") |
+| Tooltip.placement | Input | str | "auto", "top", "bottom", "left", "right", etc. | Tooltip(placement="top") |
+| Tooltip.delay | Input | dict &#124; None | {"show": ms, "hide": ms} | Tooltip(delay={"show": 500, "hide": 100}) |
+| Tooltip.style | Input | dict &#124; None | CSS style dictionary | Tooltip(style={"fontSize": "12px"}) |
+| Tooltip.className | Input | str | CSS class names | Tooltip(className="custom-tooltip") |
+| Tooltip.theme | Input | Theme &#124; None | Theme object or None | Tooltip(theme=my_theme) |
 | TraceTime.include_args | Input | bool | True or False | @TraceTime(log_args=True) |
 | TraceTime.include_result | Input | bool | True or False | @TraceTime(log_return=True) |
 | shock-amount-listbox.options | Input | list[dict] | List of shock amount option dictionaries | [{"label": "+0.025", "value": 0.025}, {"label": "-0.1", "value": -0.1}] |
