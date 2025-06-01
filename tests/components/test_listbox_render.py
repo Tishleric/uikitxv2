@@ -1,5 +1,5 @@
-from components.listbox import ListBox
-from utils.colour_palette import default_theme
+from components import ListBox
+from components.themes import default_theme
 
 
 def test_listbox_render() -> None:

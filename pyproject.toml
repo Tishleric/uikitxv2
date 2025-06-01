@@ -1,14 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "uikitxv2"
-version = "0.1.0"
-requires-python = ">=3.12"
+version = "2.0.0"
+requires-python = ">=3.10"
+description = "UIKitXv2 - Trading Dashboard Components and Utilities"
+authors = [{name = "Your Name", email = "your.email@example.com"}]
 
 # ---------- Runtime ----------
 dependencies = [
-    "dash==3.0.4",                     # latest stable Dash
-    "dash-bootstrap-components==1.6.0",
-    "dash-table==5.0.0",               # DataTable component
-    "plotly==6.0.1",
+    "dash>=2.17.1",                     
+    "dash-bootstrap-components>=1.6.0",
+    "dash-daq>=0.5.0",
+    "dash-table>=5.0.0",               
+    "plotly>=5.22.0",
+    "pandas>=2.2.2",
+    "numpy>=2.0.0",
+    "psutil>=6.0.0",
+    "pyautogui>=0.9.54",
+    "pyperclip>=1.9.0",
+    "openpyxl>=3.1.5",
+    "requests>=2.32.3",
+    "python-dateutil>=2.9.0.post0",
 ]
 
 # ---------- Dev / tooling / stubs ----------
@@ -19,6 +34,7 @@ dev = [
     "mypy",
     "pytest",
     "pytest-cov",
+    "pytest-mock",
 
     # Selenium-based Dash integration testing
     "selenium==4.19.*",
@@ -30,13 +46,21 @@ dev = [
     "chromedriver-binary",
 
     # Type stubs
-    "plotly-stubs",                # plotly 6 APIs
+    "plotly-stubs",                
     "types-python-dateutil",
+    "types-requests",
 ]
+
+[tool.setuptools.packages.find]
+where = ["lib"]
+
+[tool.setuptools.package-dir]
+"" = "lib"
 
 # ---------- mypy ----------
 [tool.mypy]
 strict = true
+python_version = "3.10"
 
 # Dash & dbc still have no official stubs → ignore just those modules
 [[tool.mypy.overrides]]
@@ -47,13 +71,25 @@ ignore_missing_imports = true
 module = "dash_bootstrap_components.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "dash_daq.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pyautogui.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pyperclip.*"
+ignore_missing_imports = true
+
 # ---------- Ruff ----------
 [tool.ruff]
 select = ["F", "E", "I"]
-exclude = ["build", ".venv", ".mypy_cache"]
+exclude = ["build", ".venv", ".mypy_cache", "src", "__pycache__"]
 line-length = 120
 
 # ---------- Pytest ----------
 [tool.pytest.ini_options]
 addopts = "-q"
-pythonpath = ["src"]
+pythonpath = ["lib"]

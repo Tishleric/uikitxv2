@@ -1,7 +1,7 @@
 from pytest_mock import MockerFixture  # type: ignore
 
-from components.mermaid import Mermaid  # type: ignore
-from utils.colour_palette import default_theme  # type: ignore
+from components import Mermaid  # type: ignore
+from components.themes import default_theme  # type: ignore
 
 
 def test_mermaid_render_basic(mocker: MockerFixture) -> None:

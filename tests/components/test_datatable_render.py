@@ -2,8 +2,8 @@ import pytest
 
 # Assuming your project structure allows importing from src like this
 # Adjust if necessary based on your pytest setup (e.g., conftest.py sys.path modification)
-from components.datatable import DataTable
-from utils.colour_palette import default_theme
+from components import DataTable
+from components.themes import default_theme
 
 # Sample data for testing
 SAMPLE_COLUMNS = [

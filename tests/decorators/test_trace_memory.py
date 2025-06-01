@@ -10,11 +10,11 @@ import psutil # <-- Added import
 from unittest.mock import patch, MagicMock
 
 # Assuming 'src' is accessible in the path for imports
-from decorators.trace_memory import TraceMemory
-from decorators.trace_closer import TraceCloser # Needed for stacking test
-from decorators.trace_time import TraceTime # Needed for stacking test
-from decorators.trace_cpu import TraceCpu # <-- Added import
-from decorators.context_vars import log_uuid_var, current_log_data
+from monitoring.decorators.trace_memory import TraceMemory
+from monitoring.decorators.trace_closer import TraceCloser # Needed for stacking test
+from monitoring.decorators.trace_time import TraceTime # Needed for stacking test
+from monitoring.decorators.trace_cpu import TraceCpu # <-- Added import
+from monitoring.decorators.context_vars import log_uuid_var, current_log_data
 
 # Use the shared fixtures from tests/decorators/conftest.py
 # setup_logging_context fixture is applied automatically via autouse=True

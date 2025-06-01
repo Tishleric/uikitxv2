@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from TTRestAPI.token_manager import TTTokenManager
+from trading.tt_api.token_manager import TTTokenManager
 
 
 @pytest.fixture()

@@ -5,10 +5,10 @@ import uuid
 
 import pytest
 
-from decorators.context_vars import current_log_data, log_uuid_var
-from decorators.trace_closer import TraceCloser
-from decorators.trace_cpu import TraceCpu
-from decorators.trace_time import TraceTime
+from monitoring.decorators.context_vars import current_log_data, log_uuid_var
+from monitoring.decorators.trace_closer import TraceCloser
+from monitoring.decorators.trace_cpu import TraceCpu
+from monitoring.decorators.trace_time import TraceTime
 
 # --- Fixtures ---
 

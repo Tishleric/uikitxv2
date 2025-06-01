@@ -1,6 +1,6 @@
-from components.button import Button
-from components.container import Container
-from utils.colour_palette import default_theme
+from components import Button
+from components import Container
+from components.themes import default_theme
 
 
 def test_container_single_child() -> None:

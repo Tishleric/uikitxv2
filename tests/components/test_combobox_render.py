@@ -1,5 +1,5 @@
-from components.combobox import ComboBox
-from utils.colour_palette import default_theme
+from components import ComboBox
+from components.themes import default_theme
 
 
 def test_combobox_render() -> None:

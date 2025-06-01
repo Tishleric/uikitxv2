@@ -1,5 +1,12 @@
 # IO Schema - UIKitX v2
 
+## Import Notes (January 31, 2025)
+- All components are imported from the package: `from components import Button, ComboBox, etc.`
+- All monitoring utilities are imported from the package: `from monitoring.decorators import TraceTime, TraceCloser, etc.`
+- All trading utilities are imported from the package: `from trading.common import format_shock_value_for_display, etc.`
+- **PricingMonkey is now imported from trading package**: `from trading.pricing_monkey import run_pm_automation, get_market_movement_data_df, SCENARIOS, etc.`
+- Package must be installed first: `pip install -e .`
+
 | Name | Kind | Type | Allowed values / range | Example Usage |
 |------|------|------|------------------------|---------------|
 | Button.className | Input | str | Any string | Button(id="btn", className="my-button") |
@@ -40,7 +47,7 @@
 | Graph.id | Input | str | Unique string | Graph(id="main-plot") |
 | Graph.style | Input | dict &#124; None | CSS style dictionary | Graph(id="graph", style={"height": "500px"}) |
 | Graph.theme | Input | Theme &#124; None | Theme object or None | Graph(id="graph", theme=my_theme) |
-| Grid.children | Input | list &#124; Any &#124; None | List of components or (component, width_dict) tuples | Grid(id="grid", children=[(Button(id=\'b\'), {'width': 6})]) |
+| Grid.children | Input | list &#124; Any &#124; None | List of components or (component, width_dict) tuples | Grid(id="grid", children=[(Button(id='b'), {'width': 6})]) |
 | Grid.className | Input | str | Any string | Grid(id="grid", className="my-grid-layout") |
 | Grid.id | Input | str | Unique string | Grid(id="page-layout-grid") |
 | Grid.style | Input | dict &#124; None | CSS style dictionary | Grid(id="grid", style={"backgroundColor": "lightgrey"}) |
@@ -52,10 +59,6 @@
 | ListBox.style | Input | dict &#124; None | CSS style dictionary | ListBox(id="lb", style={"height": "200px"}) |
 | ListBox.theme | Input | Theme &#124; None | Theme object or None | ListBox(id="lb", theme=my_theme) |
 | ListBox.value | Input | list[str] &#124; str | Subset of options (list if multi, else str) | ListBox(id="lb", value=["Item A"]) |
-| shock-amount-listbox.options | Input | list[dict] | List of shock amount option dictionaries | [{"label": "+0.025", "value": 0.025}, {"label": "-0.1", "value": -0.1}] |
-| shock-amount-listbox.value | Input | list[float] | List of selected shock amounts | [0.025, -0.1, 0.0] |
-| format_shock_value_for_display | Function | Returns: str | value: float, shock_type: str | `label = format_shock_value_for_display(-0.25, "percentage")` → "-25.0%" |
-| create_shock_amount_options | Function | Returns: List[Dict] | shock_values: List[float], shock_type: Optional[str] | `options = create_shock_amount_options(values, "percentage")` |
 | Mermaid.chart_config | Input (to render) | dict | Mermaid configuration options | Mermaid().render(id="m", graph_definition="graph TD; A-->B", chart_config={"theme": "forest"}) |
 | Mermaid.className | Input (to render) | str | Any string | Mermaid().render(id="m", graph_definition="graph TD; A-->B", className="my-diagram") |
 | Mermaid.description | Input (to render) | str &#124; None | Description text for the diagram | Mermaid().render(id="m", graph_definition="graph TD; A-->B", description="My process flow.") |
@@ -73,40 +76,54 @@
 | RadioButton.style | Input | dict &#124; None | CSS style dictionary for the outer container | RadioButton(id="rb", style={"padding": "5px"}) |
 | RadioButton.theme | Input | Theme &#124; None | Theme object or None | RadioButton(id="rb", theme=my_theme) |
 | RadioButton.value | Input | str &#124; None | One of the provided options | RadioButton(id="rb", value="Yes") |
+| RangeSlider.id | Input | str | any valid HTML id | "shock-range-slider" |
+| RangeSlider.min | Input | float | any number | -10.0 |
+| RangeSlider.max | Input | float | any number > min | 10.0 |
+| RangeSlider.value | Input/Output | List[float] | [min_val, max_val] | [-5.0, 5.0] |
+| RangeSlider.step | Input | Optional[float] | positive number | 0.1 |
+| RangeSlider.marks | Input | Optional[Dict] | {value: label} mapping | {-5: "-5", 0: "0", 5: "5"} |
 | Tabs.active_tab | Input | str &#124; None | ID of the initially active tab | Tabs(id="tabs", active_tab="tab-1") |
 | Tabs.className | Input | str | Any string | Tabs(id="tabs", className="my-tabs-container") |
 | Tabs.id | Input | str | Unique string | Tabs(id="main-app-tabs") |
 | Tabs.style | Input | dict &#124; None | CSS style dictionary for the tabs container | Tabs(id="tabs", style={"marginTop": "10px"}) |
 | Tabs.tabs | Input | list[tuple[str, Any]] &#124; None | List of (label, component) tuples | Tabs(id="tabs", tabs=[("Tab 1", html.P("Content 1"))]) |
 | Tabs.theme | Input | Theme &#124; None | Theme object or None | Tabs(id="tabs", theme=my_theme) |
+| Toggle.id | Input | str | any valid HTML id | "view-mode-toggle" |
+| Toggle.value | Input/Output | bool | True/False | False |
+| Toggle.label | Input | Optional[str] | any string | "Table View" |
+| Toggle.labelPosition | Input | str | "left", "right", "top", "bottom" | "left" |
 | TraceTime.include_args | Input | bool | True or False | @TraceTime(log_args=True) |
 | TraceTime.include_result | Input | bool | True or False | @TraceTime(log_return=True) |
+| shock-amount-listbox.options | Input | list[dict] | List of shock amount option dictionaries | [{"label": "+0.025", "value": 0.025}, {"label": "-0.1", "value": -0.1}] |
+| shock-amount-listbox.value | Input | list[float] | List of selected shock amounts | [0.025, -0.1, 0.0] |
+| format_shock_value_for_display | Function | Returns: str | value: float, shock_type: str | `from trading.common import format_shock_value_for_display; label = format_shock_value_for_display(-0.25, "percentage")` → "-25.0%" |
+| create_shock_amount_options | Function | Returns: List[Dict] | shock_values: List[float], shock_type: Optional[str] | `options = create_shock_amount_options(values, "percentage")` |
 | PricingMonkey.%Delta | Internal | float | Decimal value (0.0-1.0) | Raw delta values in decimal form (0.125 = 12.5%) |
 | MOCK_SPOT_PRICE_STR | Constant | str | TT bond format string | "110'085" for 10-year futures at 110 and 2+5/8 |
 | empty_log_tables | Internal | function | N/A | Empties flowTrace and AveragePerformance tables |
 | logs-empty-button | Output | int | 0 | Reset n_clicks counter after emptying log tables |
-| TT_API_KEY | EnvVar / Config | str | Valid TT API Key | `TT_API_KEY = "your_api_key_here"` (in `TTRestAPI/tt_config.py`) |
-| TT_API_SECRET | EnvVar / Config | str | Valid TT API Secret | `TT_API_SECRET = "your_api_secret_here"` (in `TTRestAPI/tt_config.py`) |
-| TT_SIM_API_KEY | EnvVar / Config | str | Valid TT API Key for SIM | `TT_SIM_API_KEY = "your_sim_api_key"` (in `TTRestAPI/tt_config.py`) |
-| TT_SIM_API_SECRET | EnvVar / Config | str | Valid TT API Secret for SIM | `TT_SIM_API_SECRET = "your_sim_api_secret"` (in `TTRestAPI/tt_config.py`) |
-| APP_NAME | EnvVar / Config | str | String, no restricted chars | `APP_NAME = "YourAppName"` (in `TTRestAPI/tt_config.py`) |
-| COMPANY_NAME | EnvVar / Config | str | String, no restricted chars | `COMPANY_NAME = "YourCompanyName"` (in `TTRestAPI/tt_config.py`) |
-| ENVIRONMENT | EnvVar / Config | str | "UAT", "SIM", "LIVE" | `ENVIRONMENT = "SIM"` (in `TTRestAPI/tt_config.py`) |
-| TOKEN_FILE | EnvVar / Config | str | Base filename (e.g., "tt_token.json") | `TOKEN_FILE = "tt_token.json"` (in `TTRestAPI/tt_config.py`). Actual file will be e.g. `tt_token_sim.json`. |
-| AUTO_REFRESH | EnvVar / Config | bool | True or False | `AUTO_REFRESH = True` (in `TTRestAPI/tt_config.py`) |
-| REFRESH_BUFFER_SECONDS | EnvVar / Config | int | Positive integer (seconds) | `REFRESH_BUFFER_SECONDS = 600` (in `TTRestAPI/tt_config.py`) |
+| TT_API_KEY | EnvVar / Config | str | Valid TT API Key | `from trading.tt_api import TT_API_KEY` |
+| TT_API_SECRET | EnvVar / Config | str | Valid TT API Secret | `from trading.tt_api import TT_API_SECRET` |
+| TT_SIM_API_KEY | EnvVar / Config | str | Valid TT API Key for SIM | `from trading.tt_api import TT_SIM_API_KEY` |
+| TT_SIM_API_SECRET | EnvVar / Config | str | Valid TT API Secret for SIM | `from trading.tt_api import TT_SIM_API_SECRET` |
+| APP_NAME | EnvVar / Config | str | String, no restricted chars | `from trading.tt_api import APP_NAME` |
+| COMPANY_NAME | EnvVar / Config | str | String, no restricted chars | `from trading.tt_api import COMPANY_NAME` |
+| ENVIRONMENT | EnvVar / Config | str | "UAT", "SIM", "LIVE" | `from trading.tt_api import ENVIRONMENT` |
+| TOKEN_FILE | EnvVar / Config | str | Base filename (e.g., "tt_token.json") | `from trading.tt_api import TOKEN_FILE` |
+| AUTO_REFRESH | EnvVar / Config | bool | True or False | `from trading.tt_api import AUTO_REFRESH` |
+| REFRESH_BUFFER_SECONDS | EnvVar / Config | int | Positive integer (seconds) | `from trading.tt_api import REFRESH_BUFFER_SECONDS` |
 
 ## Logging Configuration Parameters
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
 |------|------|------|------------------------|---------------|
-| setup_logging.log_level_main | Input | int | e.g., logging.DEBUG, logging.INFO | setup_logging(log_level_main=logging.DEBUG) |
+| setup_logging.log_level_main | Input | int | e.g., logging.DEBUG, logging.INFO | from monitoring.logging import setup_logging; setup_logging(log_level_main=logging.DEBUG) |
 | setup_logging.log_level_console | Input | int | e.g., logging.DEBUG, logging.INFO | setup_logging(log_level_console=logging.WARNING) |
 | setup_logging.log_level_db | Input | int | e.g., logging.INFO, logging.ERROR | setup_logging(log_level_db=logging.INFO) |
 | setup_logging.db_path | Input | str | Valid file path string | setup_logging(db_path='logs/my_app_logs.db') |
 | setup_logging.console_format | Input | str | Python logging format string | setup_logging(console_format='%(asctime)s - %(name)s - %(message)s') |
 | setup_logging.date_format | Input | str | strftime format string | setup_logging(date_format='%H:%M:%S') |
-| SQLiteHandler.db_filename | Input | str | Valid file path string | SQLiteHandler(db_filename='logs/specific_handler.db') |
+| SQLiteHandler.db_filename | Input | str | Valid file path string | from monitoring.logging import SQLiteHandler; SQLiteHandler(db_filename='logs/specific_handler.db') |
 
 ## UI Theme Definition
 
@@ -122,7 +139,7 @@
 | Theme.text_subtle | Field | str | Hex color string | Subtle/muted text color. |
 | Theme.danger | Field | str | Hex color string | Color for errors/dangerous actions. |
 | Theme.success | Field | str | Hex color string | Color for success/completion. |
-| default_theme | Constant | Theme | Instance of Theme | The default theme instance (`#000000` based). |
+| default_theme | Constant | Theme | Instance of Theme | from components.themes import default_theme |
 
 ## Logging Database Schema
 
@@ -149,10 +166,6 @@
 | avg_cpu_delta     | REAL NOT NULL DEFAULT 0.0 | Average CPU utilization delta (%) |
 | avg_memory_delta_mb | REAL NOT NULL DEFAULT 0.0 | Average RSS memory delta in MB |
 | last_updated      | TEXT NOT NULL | ISO 8601 timestamp of the last update to this record |
-
-## Import Notes (May 5, 2025)
-- All components are imported directly: `from components import Button, ComboBox, etc.`
-- All decorators are imported directly: `from decorators import TraceTime, TraceCloser, etc.`
 
 # Input/Output Schema
 
@@ -246,12 +259,16 @@ Format: `XXX'YYZZ` where:
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
 |------|------|------|------------------------|---------------|
-| `get_simple_data` | Function | Returns `pd.DataFrame` | N/A | `df = get_simple_data()` returns a DataFrame with columns: "Trade Amount", "Trade Description", "Strike", "Expiry Date", "Price" |
-| `transform_df_to_sod_format` | Function | Input: `pd.DataFrame`, Returns: `list[list[str]]` | DataFrame from `get_simple_data()` | `sod_rows = transform_df_to_sod_format(df)` transforms raw data to SOD format |
-| `save_sod_to_csv` | Function | Input: `list[list[str]]`, `str`, Returns: `str` | SOD rows from `transform_df_to_sod_format()`, filename | `path = save_sod_to_csv(sod_rows, "output.csv")` saves SOD data to CSV file |
+| `get_simple_data` | Function | Returns `pd.DataFrame` | N/A | `from trading.pricing_monkey import get_simple_data; df = get_simple_data()` returns a DataFrame with columns: "Trade Amount", "Trade Description", "Strike", "Expiry Date", "Price" |
+| `transform_df_to_sod_format` | Function | Input: `pd.DataFrame`, Returns: `list[list[str]]` | DataFrame from `get_simple_data()` | `from trading.pricing_monkey.retrieval.simple_retrieval import transform_df_to_sod_format; sod_rows = transform_df_to_sod_format(df)` transforms raw data to SOD format |
+| `save_sod_to_csv` | Function | Input: `list[list[str]]`, `str`, Returns: `str` | SOD rows from `transform_df_to_sod_format()`, filename | `from trading.pricing_monkey.retrieval.simple_retrieval import save_sod_to_csv; path = save_sod_to_csv(sod_rows, "output.csv")` saves SOD data to CSV file |
 | `_get_option_asset_and_expiry_date` | Function | Input: `str`, `datetime.datetime`, Returns: `tuple[str, datetime.date]` | Option trade description, current EST datetime | Asset code and expiry date based on the current date and rolling expiries |
-| `get_market_movement_data_df` | Function | Returns nested `dict` of DataFrames | N/A | `result = get_market_movement_data_df()` returns market movement data structured by underlying and expiry |
-| `run_pm_automation` | Function | Input: `list[dict]`, Returns: `list[pd.DataFrame]` | List of option dicts with 'id', 'desc', 'qty', 'phase' | `dfs = run_pm_automation([{'id': 0, 'desc': 'My Option', 'qty': 100, 'phase': 1}])` |
+| `get_market_movement_data_df` | Function | Returns nested `dict` of DataFrames | N/A | `from trading.pricing_monkey import get_market_movement_data_df; result = get_market_movement_data_df()` returns market movement data structured by underlying and expiry |
+| `run_pm_automation` | Function | Input: `list[dict]`, Returns: `list[pd.DataFrame]` | List of option dicts with 'id', 'desc', 'qty', 'phase' | `from trading.pricing_monkey import run_pm_automation; dfs = run_pm_automation([{'id': 0, 'desc': 'My Option', 'qty': 100, 'phase': 1}])` |
+| `SCENARIOS` | Constant | dict | Scenario configuration dictionary | `from trading.pricing_monkey import SCENARIOS; print(SCENARIOS['base']['display_name'])` |
+| `get_extended_pm_data` | Function | Returns: pd.DataFrame | N/A | `from trading.pricing_monkey import get_extended_pm_data; df = get_extended_pm_data()` returns 9-column extended dataset |
+| `PMRetrievalError` | Exception | Custom exception class | N/A | `from trading.pricing_monkey import PMRetrievalError; raise PMRetrievalError("Failed to retrieve data")` |
+| `PMSimpleRetrievalError` | Exception | Custom exception class | N/A | `from trading.pricing_monkey import PMSimpleRetrievalError; raise PMSimpleRetrievalError("Simple retrieval failed")` |
 
 ### Option Asset Code Logic
 
@@ -298,9 +315,9 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 |------|------|------|------------------------|---------------|
 | PM_EXTENDED_COLUMNS | Constant | list[str] | 9 specific column names | ["Trade Amount", "Trade Description", "Strike", "Expiry Date", "Price", "DV01 Gamma", "Vega", "%Delta", "Theta"] |
 | PM_TO_ACTANT_MAPPING | Constant | dict | PM column → Actant column mapping | {"DV01 Gamma": "ab_sGammaPath", "Vega": "ab_Vega", "%Delta": "ab_sDeltaPath", "Theta": "ab_Theta"} |
-| get_extended_pm_data | Function | Returns: pd.DataFrame | N/A | `df = get_extended_pm_data()` retrieves 9-column PM data via browser automation |
-| transform_pm_to_actant_schema | Function | Input: pd.DataFrame, Returns: pd.DataFrame | PM DataFrame → Actant schema | `transformed = transform_pm_to_actant_schema(pm_df)` |
-| validate_pm_data | Function | Input: pd.DataFrame, Returns: List[str] | Validation error list | `errors = validate_pm_data(pm_df)` |
+| get_extended_pm_data | Function | Returns: pd.DataFrame | N/A | `from trading.pricing_monkey.retrieval import get_extended_pm_data; df = get_extended_pm_data()` |
+| process_pm_for_separate_table | Function | Input: pd.DataFrame, Returns: pd.DataFrame | PM DataFrame → Actant schema | `from trading.pricing_monkey.processors import process_pm_for_separate_table; transformed = process_pm_for_separate_table(pm_df)` |
+| validate_pm_data | Function | Input: pd.DataFrame, Returns: List[str] | Validation error list | `from trading.pricing_monkey.processors import validate_pm_data; errors = validate_pm_data(pm_df)` |
 | data_source | Output | str | "Actant" or "PricingMonkey" | Field added to distinguish data origins in unified view |
 
 ## ActantEOD Dashboard
@@ -310,10 +327,10 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | DEFAULT_JSON_FOLDER | Constant | str | Windows path string | r"Z:\ActantEOD" |
 | FALLBACK_JSON_FOLDER | Constant | str | Local directory name | "ActantEOD" |
 | JSON_FILE_PATTERN | Constant | str | Glob pattern | "*.json" |
-| get_most_recent_json_file | Function | Returns Path &#124; None | N/A | `path = get_most_recent_json_file()` |
+| get_most_recent_json_file | Function | Returns Path &#124; None | N/A | `from trading.actant.eod import get_most_recent_json_file; path = get_most_recent_json_file()` |
 | scan_json_files | Function | Returns List[Dict] | N/A | `files = scan_json_files()` returns list of file metadata |
 | validate_json_file | Function | Input: Path, Returns: bool | Valid file path | `is_valid = validate_json_file(path)` |
-| ActantDataService.load_data_from_json | Function | Input: Path, Returns: bool | Valid JSON file path | `success = service.load_data_from_json(path)` |
+| ActantDataService.load_data_from_json | Function | Input: Path, Returns: bool | Valid JSON file path | `from trading.actant.eod import ActantDataService; service = ActantDataService(); success = service.load_data_from_json(path)` |
 | ActantDataService.get_scenario_headers | Function | Returns: List[str] | N/A | `scenarios = service.get_scenario_headers()` |
 | ActantDataService.get_shock_types | Function | Returns: List[str] | N/A | `types = service.get_shock_types()` |
 | ActantDataService.get_shock_values | Function | Returns: List[float] | N/A | `values = service.get_shock_values()` |
@@ -331,18 +348,8 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | Checkbox.id | Input | str | any valid HTML id | "metric-filter-checkbox" |
 | Checkbox.options | Input | List[Dict[str, Any]] | [{"label": str, "value": str/int}] | [{"label": "Delta", "value": "delta"}] |
 | Checkbox.value | Input/Output | List[Union[str, int]] | subset of option values | ["delta", "gamma"] |
-| Checkbox.theme | Input | Optional[Theme] | Theme instance or None | default_theme |
+| Checkbox.theme | Input | Optional[Theme] | Theme instance or None | from components.themes import default_theme |
 | Checkbox.inline | Input | bool | True/False | False |
-| RangeSlider.id | Input | str | any valid HTML id | "shock-range-slider" |
-| RangeSlider.min | Input | float | any number | -10.0 |
-| RangeSlider.max | Input | float | any number > min | 10.0 |
-| RangeSlider.value | Input/Output | List[float] | [min_val, max_val] | [-5.0, 5.0] |
-| RangeSlider.step | Input | Optional[float] | positive number | 0.1 |
-| RangeSlider.marks | Input | Optional[Dict] | {value: label} mapping | {-5: "-5", 0: "0", 5: "5"} |
-| Toggle.id | Input | str | any valid HTML id | "view-mode-toggle" |
-| Toggle.value | Input/Output | bool | True/False | False |
-| Toggle.label | Input | Optional[str] | any string | "Table View" |
-| Toggle.labelPosition | Input | str | "left", "right", "top", "bottom" | "left" |
 | categorize_metrics() | Output | Dict[str, List[str]] | category -> metrics mapping | {"Delta": ["Delta", "ab_Delta", ...]} |
 | filter_metrics_by_prefix() | Output | List[str] | filtered metric names | ["Delta", "Gamma"] (base only) |
 | get_shock_range_by_scenario() | Output | tuple[float, float] | (min_shock, max_shock) | (-0.1, 0.1) |

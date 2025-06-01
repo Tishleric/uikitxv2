@@ -1,0 +1,24 @@
+# demo/queries.yaml
+# Contains SQL queries identified by unique keys.
+
+getUserById: >
+  SELECT user_id, username, email, creation_date
+  FROM users
+  WHERE user_id = ?;
+
+updateOrderStatus: >
+  UPDATE orders
+  SET status = ?, last_updated = CURRENT_TIMESTAMP
+  WHERE order_id = ?;
+
+getActiveSessions: >
+  SELECT session_id, user_id, login_time
+  FROM sessions
+  WHERE expiry_time > ?;
+
+# Add a query that might not exist in the DB for error testing
+getNonExistentTableData: >
+  SELECT column1
+  FROM non_existent_table
+  WHERE id = ?;
+
