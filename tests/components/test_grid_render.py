@@ -1,5 +1,5 @@
-from components.button import Button
-from components.grid import Grid
+from components import Button
+from components import Grid
 
 
 def test_grid_even_split() -> None:

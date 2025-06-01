@@ -7,8 +7,8 @@ import time
 from unittest.mock import patch
 
 # Assuming 'src' is accessible in the path for imports
-from decorators.trace_time import TraceTime
-from decorators.context_vars import log_uuid_var, current_log_data # Import context vars
+from monitoring.decorators.trace_time import TraceTime
+from monitoring.decorators.context_vars import log_uuid_var, current_log_data # Import context vars
 
 # Use the shared fixture from tests/decorators/conftest.py
 # setup_logging_context fixture is applied automatically via autouse=True

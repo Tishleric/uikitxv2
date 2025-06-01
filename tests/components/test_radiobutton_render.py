@@ -1,5 +1,5 @@
-from components.radiobutton import RadioButton
-from utils.colour_palette import default_theme
+from components import RadioButton
+from components.themes import default_theme
 
 
 def test_radiobutton_render() -> None:

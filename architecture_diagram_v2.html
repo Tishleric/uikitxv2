@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIKitXv2 Architecture - Reorganized Structure</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .mermaid {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .section {
+            margin: 30px 0;
+        }
+        .legend {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .legend ul {
+            list-style: none;
+            padding: 0;
+        }
+        .legend li {
+            margin: 5px 0;
+        }
+        .note {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <h1>UIKitXv2 Architecture - Reorganized Structure</h1>
+    
+    <div class="note">
+        <strong>Note:</strong> This diagram reflects the reorganized project structure with proper package management. 
+        All library code is in <code>lib/</code> and installed via <code>pip install -e .</code>
+    </div>
+
+    <div class="legend">
+        <h3>Legend</h3>
+        <ul>
+            <li>📦 Package Directories</li>
+            <li>🔷 Core Modules (Protocols/Base Classes)</li>
+            <li>🎨 UI Components</li>
+            <li>🎯 Applications/Dashboards</li>
+            <li>🔧 Utilities/Services</li>
+            <li>🎭 Monitoring & Decorators</li>
+            <li>💰 Trading Modules</li>
+            <li>📊 Data Processing</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>High-Level Package Structure</h2>
+        <div class="mermaid">
+graph TD
+    subgraph ProjectRoot["Project Root"]
+        LibPackage["📦 lib/<br/>(Python Package)"]
+        AppsDir["📦 apps/<br/>(Applications)"]
+        PyProject["pyproject.toml<br/>(Package Config)"]
+        EntryPoints["run_*.py<br/>(Entry Points)"]
+    end
+
+    subgraph LibStructure["lib/ Package Structure"]
+        Components["components/<br/>UI Components"]
+        Monitoring["monitoring/<br/>Logging & Decorators"]
+        Trading["trading/<br/>Trading Utilities"]
+    end
+
+    subgraph AppsStructure["apps/ Structure"]
+        Dashboards["dashboards/<br/>Dashboard Apps"]
+        ActantEODApp["actant_eod/<br/>EOD Dashboard"]
+    end
+
+    LibPackage --> LibStructure
+    AppsDir --> AppsStructure
+    Dashboards --> ActantEODApp
+
+    classDef packageClass fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+    classDef structClass fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+
+    class LibPackage,AppsDir,PyProject packageClass
+    class Components,Monitoring,Trading,Dashboards structClass
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Components Package (lib/components/)</h2>
+        <div class="mermaid">
+graph LR
+    subgraph ComponentsPackage["📦 lib/components/"]
+        subgraph Basic["basic/"]
+            Button["button.py"]
+            Checkbox["checkbox.py"]
+            ComboBox["combobox.py"]
+            Container["container.py"]
+            ListBox["listbox.py"]
+            RadioButton["radiobutton.py"]
+            RangeSlider["rangeslider.py"]
+            Tabs["tabs.py"]
+            Toggle["toggle.py"]
+        end
+
+        subgraph Advanced["advanced/"]
+            DataTable["datatable.py"]
+            Graph["graph.py"]
+            Grid["grid.py"]
+            Mermaid["mermaid.py"]
+        end
+
+        subgraph Core["core/"]
+            BaseComponent["base_component.py"]
+            Protocols["protocols.py<br/>(MermaidProtocol,<br/>DataServiceProtocol)"]
+        end
+
+        subgraph Themes["themes/"]
+            ColourPalette["colour_palette.py<br/>(Theme, default_theme)"]
+        end
+    end
+
+    %% Dependencies
+    Basic --> BaseComponent
+    Basic --> ColourPalette
+    Advanced --> BaseComponent
+    Advanced --> ColourPalette
+    Mermaid --> Protocols
+
+    classDef coreClass fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+    classDef componentClass fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef themeClass fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+
+    class BaseComponent,Protocols coreClass
+    class Button,Checkbox,ComboBox,Container,DataTable,Graph,Grid,ListBox,Mermaid,RadioButton,RangeSlider,Tabs,Toggle componentClass
+    class ColourPalette themeClass
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Monitoring Package (lib/monitoring/)</h2>
+        <div class="mermaid">
+graph LR
+    subgraph MonitoringPackage["📦 lib/monitoring/"]
+        subgraph Decorators["decorators/"]
+            ContextVars["context_vars.py"]
+            TraceCloser["trace_closer.py"]
+            TraceTime["trace_time.py"]
+            TraceCpu["trace_cpu.py"]
+            TraceMemory["trace_memory.py"]
+        end
+
+        subgraph Logging["logging/"]
+            Config["config.py<br/>(setup_logging)"]
+            Handlers["handlers.py<br/>(SQLiteHandler)"]
+        end
+    end
+
+    %% Dependencies
+    TraceCloser --> ContextVars
+    TraceTime --> ContextVars
+    TraceCpu --> ContextVars
+    TraceMemory --> ContextVars
+    Handlers --> Config
+
+    %% Decorator stacking
+    TraceCloser -.->|wraps| TraceMemory
+    TraceMemory -.->|wraps| TraceCpu
+    TraceCpu -.->|wraps| TraceTime
+
+    classDef decoratorClass fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef loggingClass fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+
+    class TraceCloser,TraceTime,TraceCpu,TraceMemory,ContextVars decoratorClass
+    class Config,Handlers loggingClass
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Trading Package (lib/trading/)</h2>
+        <div class="mermaid">
+graph TD
+    subgraph TradingPackage["📦 lib/trading/"]
+        subgraph Common["common/"]
+            PriceParser["price_parser.py<br/>• decimal_to_tt_bond_format<br/>• parse_treasury_price<br/>• format_shock_value_for_display"]
+            DateUtils["date_utils.py<br/>• get_monthly_expiry_code<br/>• get_futures_expiry_date<br/>• is_trading_day"]
+        end
+
+        subgraph Actant["actant/"]
+            subgraph EOD["eod/"]
+                DataService["data_service.py<br/>(ActantDataService)"]
+                FileManager["file_manager.py<br/>(JSON file utils)"]
+            end
+        end
+
+        subgraph PricingMonkey["pricing_monkey/"]
+            subgraph Retrieval["retrieval/"]
+                PMRetrieval["retrieval.py<br/>(get_extended_pm_data)"]
+            end
+            subgraph Processors["processors/"]
+                PMProcessor["processor.py<br/>(process_pm_for_separate_table)"]
+            end
+        end
+
+        subgraph TTAPI["tt_api/"]
+            TokenManager["token_manager.py<br/>(TTTokenManager)"]
+            Utils["utils.py<br/>(generate_guid, etc.)"]
+            Config["config.py<br/>(API credentials)"]
+        end
+    end
+
+    %% Key dependencies
+    DataService --> PMRetrieval
+    DataService --> PMProcessor
+
+    classDef utilClass fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef dataClass fill:#fff8e1,stroke:#f57f17,stroke-width:2px
+    classDef apiClass fill:#e3f2fd,stroke:#0d47a1,stroke-width:2px
+
+    class PriceParser,DateUtils utilClass
+    class DataService,FileManager,PMRetrieval,PMProcessor dataClass
+    class TokenManager,Utils,Config apiClass
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Import Flow Example</h2>
+        <div class="mermaid">
+graph LR
+    subgraph Imports["Clean Import Pattern"]
+        App["ActantEOD Dashboard<br/>(apps/dashboards/actant_eod/app.py)"]
+        
+        CompImport["from components import Button, DataTable, Graph"]
+        ThemeImport["from components.themes import default_theme"]
+        MonImport["from monitoring.decorators import TraceTime"]
+        TradeImport["from trading.common import format_shock_value_for_display"]
+        ActantImport["from trading.actant.eod import ActantDataService"]
+        
+        App --> CompImport
+        App --> ThemeImport
+        App --> MonImport
+        App --> TradeImport
+        App --> ActantImport
+    end
+
+    classDef appClass fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
+    classDef importClass fill:#e0f2f1,stroke:#00695c,stroke-width:2px
+
+    class App appClass
+    class CompImport,ThemeImport,MonImport,TradeImport,ActantImport importClass
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Key Benefits of Reorganization</h2>
+        <div class="mermaid">
+graph TD
+    subgraph Benefits["Reorganization Benefits"]
+        Clean["✅ Clean Imports<br/>No sys.path hacks"]
+        Organized["✅ Domain Organization<br/>components, monitoring, trading"]
+        Reusable["✅ Reusable Modules<br/>Shared across apps"]
+        Testable["✅ Better Testing<br/>Clear module boundaries"]
+        Maintainable["✅ Maintainable<br/>Easy to find and modify"]
+    end
+
+    subgraph OldWay["❌ Old Structure Issues"]
+        SysPath["sys.path manipulation"]
+        Scattered["Scattered modules"]
+        Duplicate["Code duplication"]
+        Unclear["Unclear dependencies"]
+    end
+
+    OldWay -->|Fixed by| Benefits
+
+    classDef benefitClass fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    classDef issueClass fill:#ffcdd2,stroke:#c62828,stroke-width:2px
+
+    class Clean,Organized,Reusable,Testable,Maintainable benefitClass
+    class SysPath,Scattered,Duplicate,Unclear issueClass
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Application Structure (apps/)</h2>
+        <div class="mermaid">
+graph TD
+    subgraph Applications["📦 apps/dashboards/"]
+        subgraph ActantEOD["actant_eod/"]
+            AppPy["app.py<br/>(Main Dashboard)"]
+            Future["Future: Split into<br/>layouts/ & callbacks/"]
+        end
+        
+        subgraph FutureDashboards["Future Dashboards"]
+            Ladder["ladder/"]
+            Main["main/"]
+            SOD["actant_sod/"]
+        end
+    end
+
+    AppPy -.->|When needed| Future
+
+    classDef currentClass fill:#e1f5fe,stroke:#01579b,stroke-width:3px
+    classDef futureClass fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5
+
+    class AppPy currentClass
+    class Future,Ladder,Main,SOD futureClass
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#f5f5f5',
+                primaryTextColor: '#333',
+                primaryBorderColor: '#ccc',
+                lineColor: '#666',
+                secondaryColor: '#e0e0e0',
+                tertiaryColor: '#d0d0d0'
+            },
+            flowchart: {
+                curve: 'basis',
+                padding: 20
+            }
+        });
+    </script>
+</body>
+</html> 

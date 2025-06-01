@@ -6,10 +6,10 @@ from typing import Any
 
 import pytest  # type: ignore[import-not-found]
 
-from decorators.trace_closer import TraceCloser, current_log_data, log_uuid_var  # type: ignore[import-not-found]
-from decorators.trace_cpu import TraceCpu  # type: ignore[import-not-found]
-from decorators.trace_memory import TraceMemory  # type: ignore[import-not-found]
-from decorators.trace_time import TraceTime  # type: ignore[import-not-found]
+from monitoring.decorators.trace_closer import TraceCloser, current_log_data, log_uuid_var  # type: ignore[import-not-found]
+from monitoring.decorators.trace_cpu import TraceCpu  # type: ignore[import-not-found]
+from monitoring.decorators.trace_memory import TraceMemory  # type: ignore[import-not-found]
+from monitoring.decorators.trace_time import TraceTime  # type: ignore[import-not-found]
 
 # --- Test Functions ---
 

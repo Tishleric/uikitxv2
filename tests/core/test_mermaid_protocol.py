@@ -1,4 +1,4 @@
-from core.mermaid_protocol import MermaidProtocol
+from components.core.protocols import MermaidProtocol
 
 
 class DummyMermaid(MermaidProtocol):  # type: ignore[misc]

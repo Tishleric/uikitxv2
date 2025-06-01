@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 # Assuming 'src' is accessible in the path for imports
-from lumberjack.sqlite_handler import SQLiteHandler
+from monitoring.logging.handlers import SQLiteHandler
 
 # --- Fixtures ---
 

@@ -1,8 +1,8 @@
 # tests/components/test_tabs_render.py
 
-from components.button import Button
-from components.tabs import Tabs
-from utils.colour_palette import default_theme
+from components import Button
+from components import Tabs
+from components.themes import default_theme
 
 
 def test_tabs_render() -> None:

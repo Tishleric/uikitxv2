@@ -69,7 +69,7 @@ def test_csv_to_sqlite_table(tmp_path: Path) -> None:
     db_file = tmp_path / "db.sqlite"
     _create_sample_csv(csv_file)
 
-    from ladderTest.csv_to_sqlite import csv_to_sqlite_table
+    from trading.ladder.csv_to_sqlite import csv_to_sqlite_table
 
     result = csv_to_sqlite_table(str(csv_file), str(db_file), "items")
     assert result is True
@@ -85,7 +85,7 @@ def test_get_table_schema(tmp_path: Path) -> None:
     csv_file = tmp_path / "data.csv"
     db_file = tmp_path / "db.sqlite"
     _create_sample_csv(csv_file)
-    from ladderTest.csv_to_sqlite import csv_to_sqlite_table, get_table_schema
+    from trading.ladder.csv_to_sqlite import csv_to_sqlite_table, get_table_schema
 
     assert csv_to_sqlite_table(str(csv_file), str(db_file), "items")
 
@@ -100,7 +100,7 @@ def test_query_sqlite_table(tmp_path: Path) -> None:
     csv_file = tmp_path / "data.csv"
     db_file = tmp_path / "db.sqlite"
     _create_sample_csv(csv_file)
-    from ladderTest.csv_to_sqlite import csv_to_sqlite_table, query_sqlite_table
+    from trading.ladder.csv_to_sqlite import csv_to_sqlite_table, query_sqlite_table
 
     assert csv_to_sqlite_table(str(csv_file), str(db_file), "items")
 

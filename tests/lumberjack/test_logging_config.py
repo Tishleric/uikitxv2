@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 # Assuming 'src' is accessible in the path for imports
-from lumberjack.logging_config import setup_logging, shutdown_logging
+from monitoring.logging.config import setup_logging, shutdown_logging
 
 # --- Fixtures ---
 

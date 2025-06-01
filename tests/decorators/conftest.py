@@ -7,7 +7,7 @@ import psutil # Import psutil here
 from unittest.mock import MagicMock, patch
 
 # Assuming 'src' is accessible in the path for imports
-from decorators.context_vars import log_uuid_var, current_log_data
+from monitoring.decorators.context_vars import log_uuid_var, current_log_data
 
 @pytest.fixture(autouse=True)
 def setup_logging_context():

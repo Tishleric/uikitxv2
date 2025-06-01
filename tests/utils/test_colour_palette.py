@@ -2,7 +2,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from utils.colour_palette import (
+from components.themes import (
     default_theme,
     get_button_default_style,
     get_combobox_default_style,

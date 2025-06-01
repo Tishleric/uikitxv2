@@ -1,5 +1,5 @@
-from components.button import Button
-from utils.colour_palette import default_theme
+from components import Button
+from components.themes import default_theme
 
 
 def test_button_render() -> None:

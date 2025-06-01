@@ -1,4 +1,4 @@
-from TTRestAPI.tt_utils import (
+from trading.tt_api.utils import (
     create_request_id,
     generate_guid,
     is_valid_guid,

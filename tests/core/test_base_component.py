@@ -1,7 +1,7 @@
 import pytest
 
-from core.base_component import BaseComponent
-from utils.colour_palette import default_theme
+from components.core.base_component import BaseComponent
+from components.themes import default_theme
 
 
 class DummyComponent(BaseComponent):  # type: ignore[misc]

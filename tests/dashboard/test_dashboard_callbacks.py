@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from _pytest.monkeypatch import MonkeyPatch
 
-from dashboard import dashboard as dash_module
+from apps.dashboards.main.app import app as dash_module
 
 dashboard_mod = cast(Any, dash_module)
 
