@@ -1,54 +1,40 @@
 # Active Context
 
-## Current Focus: ✅ COMPLETED - Tooltip Component & Documentation Enhancement
+## Current Focus: ✅ COMPLETED - Enhanced HTML Documentation with Hover Tooltips
 
-**Status**: **COMPLETE** - Successfully implemented all user requests with surgical precision
+**Status**: **COMPLETE** - Successfully implemented hover tooltips showing code index excerpts
 
 ### Achievement Summary
 
-#### Tooltip Component Created
-- Built `lib/components/basic/tooltip.py` following established patterns
-- Full theme integration with dark mode support
-- Supports both string and HTML content
-- Configurable placement and delays
-- Pattern matching target support for dynamic components
-- Updated all necessary exports and documentation
+#### HTML Documentation Enhanced
+- Modified `project_structure_documentation.html` to show tooltips on hover
+- Removed click-to-toggle functionality in favor of hover tooltips
+- Tooltips display code index excerpts for each file
+- Smooth hover experience with appropriate delays
+- Tooltips positioned intelligently to avoid going off-screen
 
-#### Documentation Fixed
-- Corrected doxygen link to: `file://eric-host-pc/FRGMSharedSpace/uikitxv2/html/html/index.html`
-- Single line change, surgical precision as requested
+#### Technical Implementation
+- Used `data-tooltip` attributes on links to identify tooltip targets
+- Hidden content divs contain the actual tooltip content from code index
+- JavaScript handles:
+  - Mouse enter/leave events with delays
+  - Smart positioning (below link, or above if no space)
+  - Prevents tooltips from going off-screen horizontally
+  - Keeps tooltip visible when hovering over it
+  - Prevents link navigation on click
 
-#### Testing Enhanced
-- Created 7 unit tests for Tooltip component - all passing ✓
-- Created 4 integration tests covering:
-  - Component rendering in Dash apps
-  - Decorator stacking functionality
-  - Tooltip integration with other components  
-  - Data flow testing
-- All new tests passing (11/11) ✓
+#### User Experience Improvements
+- 200ms delay before showing tooltip (prevents accidental triggers)
+- 100ms delay before hiding (allows moving cursor to tooltip)
+- Tooltips stay visible when hovering over them
+- Clean dark theme styling matching the project UI
+- Code blocks highlighted with project's primary color
 
-#### Documentation Lag Identified
-- Many older tests still use outdated import paths
-- Test files not updated for new API signatures
-- This is documentation lag, not broken functionality
-- Core functionality verified through high-level tests
+### Key Features
+- ✅ All file links now show relevant code index excerpts on hover
+- ✅ No clicks required - pure hover interaction
+- ✅ Tooltips include function lists, descriptions, and key features
+- ✅ Consistent styling with dark theme and green accents
+- ✅ Smart positioning to keep tooltips visible
 
-### Key Technical Decisions
-- Wrapped dbc.Tooltip to maintain consistency with existing patterns
-- Used class-based decorator pattern matching existing codebase
-- Created integration tests in new `tests/integration/` directory
-- Maintained backward compatibility and zero breaking changes
-
-### Next Recommended Steps
-1. Update failing unit tests to use new import paths
-2. Fix test API usage (add required 'id' parameters)
-3. Create more integration tests for dashboards
-4. Update inline documentation in older modules
-5. Add CI/CD pipeline to catch import issues
-
-The project now has:
-- ✅ Complete Tooltip component with theme support
-- ✅ Fixed documentation links
-- ✅ Basic integration test suite
-- ✅ Verification that core functionality works
-- ✅ Clear identification of documentation lag issues
+The documentation page now provides an excellent interactive experience for understanding the project structure without needing to click or navigate away from the file tree view.

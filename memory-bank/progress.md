@@ -2,6 +2,76 @@
 
 ## Recent Changes
 
+### Actant Preprocessing Dashboard Creation (January 31, 2025) 🚧 IN PROGRESS
+- **Phase 1: Basic Layout** ✅ COMPLETED
+  - Created `apps/dashboards/actant_preprocessing/` directory structure
+  - Implemented basic dashboard with static Greek profiles
+  - Created 2x2 grid layout showing Delta, Gamma, Vega, Theta profiles
+  - Added Graph/Table view toggle (table view placeholder for Phase 2)
+  - Used existing wrapped components (Container, Grid, Graph, Button)
+  - Applied consistent dark theme styling from default_theme
+  - Created entry point script `run_actant_preprocessing.py`
+- **Phase 2: Interactivity** ✅ COMPLETED
+  - Added comprehensive parameter input controls:
+    - Strike Price, Future Price, Days to Expiry (Row 1)
+    - Market Price (64ths), Future DV01, Future Convexity (Row 2)
+    - Option Type (Put/Call), Implied Vol display, Recalculate button (Row 3)
+  - Implemented real-time Greek recalculation callback
+  - Added dcc.Store for data persistence
+  - Enhanced graphs with current price indicator
+  - Implemented DataTable view showing:
+    - Current Greeks at future price
+    - Profile statistics (min/max ranges)
+  - Automatic calculation on page load
+  - All inputs styled consistently with dark theme
+- **Phase 3: Value-Added Features** (Next)
+  - Export functionality (CSV/PNG)
+  - Scenario analysis
+  - Moneyness indicators
+
+### Actant Preprocessing Dashboard Refinements (January 31, 2025) ✅ COMPLETED
+- **Loading Component Creation**: 
+  - Created new `Loading` component wrapper for dcc.Loading
+  - Added theme support and consistent styling
+  - Integrated with component exports
+- **Graph Annotation Fixes**:
+  - Moved "Current" annotation to top position to avoid X-axis clash
+  - Both Strike and Current now positioned at top
+- **Table View Redesign**:
+  - Replaced single statistics table with 2x2 grid of Greek tables
+  - Each table shows Future Price vs Greek values
+  - Added row highlighting for current price (accent color) and strike (danger color)
+  - Shows ±5 price range around current future price
+  - Tables have scrollable view with fixed headers
+- **Loading Indicators**:
+  - Wrapped both graph and table views with Loading components
+  - Shows circle loading animation during recalculation
+  - Uses theme primary color for consistency
+- **ComboBox Styling**: Already handled by custom_styles.css
+
+### Bond Future Options Integration (January 31, 2025) ✅ COMPLETED
+- **Integrated CTO-validated Bond Future Option pricing system** into UIKitXv2 trading framework
+- **Module Creation**: Created `lib/trading/bond_future_options/` with proper package structure
+- **File Migration**: 
+  - `bfo_fixed.py` → `pricing_engine.py` (preserved exactly, CTO-validated)
+  - `bfo_analysis.py` → `analysis.py` (with updated imports)
+  - `demo_greek_profiles.py` → `demo_profiles.py` (with updated imports)
+- **Output Directory**: Created `output/` subdirectory for generated CSV and PNG files
+  - Added .gitignore to exclude generated files from version control
+  - Updated demo to save all outputs to this directory
+- **Dependencies Added**: scipy>=1.11.0 and matplotlib>=3.7.0 to pyproject.toml
+- **Documentation Updated**:
+  - Added module to code-index.md with comprehensive function descriptions
+  - Added I/O schema entries for all BFO functions and constants
+  - Created proper __init__.py with exports
+- **Key Features Preserved**:
+  - Bachelier model pricing for 10-year US Treasury Note futures/options
+  - Newton-Raphson implied volatility solver
+  - Comprehensive Greeks (delta, gamma, vega, theta, and higher-order)
+  - Greek profile generation across ±20 point scenarios
+  - All scaling factors maintained (×1000 for most Greeks, theta/252 for daily)
+- **Technical Achievement**: Zero changes to validated mathematical calculations while enabling flexible analysis
+
 ### Code Cleanup, Testing, and Optimization (January 2025) ✅ MAJOR MILESTONE
 - **Comprehensive Testing Suite Created**: 40 tests covering all reorganized modules
 - **Phase 1 - Backup and Cleanup**: ✅ COMPLETED

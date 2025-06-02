@@ -105,6 +105,7 @@
             border-radius: 5px;
             overflow-x: auto;
             border: 1px solid var(--border);
+            position: relative;
         }
 
         .file-tree pre {
@@ -115,6 +116,7 @@
         .file-tree a {
             color: var(--link);
             text-decoration: none;
+            position: relative;
         }
 
         .file-tree a:hover {
@@ -122,39 +124,56 @@
             text-decoration: underline;
         }
 
-        /* Code description sections */
-        .code-desc {
-            background-color: #050505;
-            padding: 20px;
-            margin-top: 10px;
-            border-radius: 5px;
-            border: 1px solid var(--border);
+        /* Tooltip styling */
+        .tooltip {
+            position: absolute;
+            background-color: var(--panel-bg);
+            color: var(--text-light);
+            border: 1px solid var(--secondary);
+            border-radius: 4px;
+            padding: 12px 16px;
+            font-size: 14px;
+            max-width: 400px;
+            z-index: 1000;
             display: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.5;
         }
 
-        .code-desc.active {
+        .tooltip.show {
             display: block;
         }
 
-        .code-desc h4 {
+        .tooltip h4 {
             color: var(--primary);
-            margin-top: 0;
-            margin-bottom: 10px;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 500;
         }
 
-        .code-desc p {
-            margin: 5px 0;
+        .tooltip p {
+            margin: 4px 0;
             color: var(--text-dim);
         }
 
-        .code-desc ul {
-            margin: 10px 0;
+        .tooltip ul {
+            margin: 8px 0 0 0;
             padding-left: 20px;
         }
 
-        .code-desc li {
+        .tooltip li {
             color: var(--text-light);
-            margin: 5px 0;
+            margin: 4px 0;
+        }
+
+        .tooltip code {
+            background-color: rgba(0, 255, 136, 0.1);
+            color: var(--primary);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
         }
 
         /* Architecture diagram */
@@ -198,26 +217,23 @@
             border-radius: 5px;
         }
 
-        /* Toggle buttons */
-        .toggle-btn {
-            background-color: var(--secondary);
-            color: var(--text-light);
-            border: 1px solid var(--border);
-            padding: 8px 16px;
-            margin: 5px;
+        /* Code examples */
+        .code-example {
+            background-color: #050505;
+            padding: 20px;
+            margin: 20px 0;
             border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            border: 1px solid var(--border);
         }
 
-        .toggle-btn:hover {
-            background-color: var(--accent);
-            color: var(--base-bg);
+        .code-example pre {
+            margin: 0;
+            overflow-x: auto;
         }
 
-        .toggle-btn.active {
-            background-color: var(--primary);
-            color: var(--base-bg);
+        .code-example code {
+            color: var(--text-light);
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
@@ -301,98 +317,99 @@
 
         <section id="file-tree" class="section">
             <h2>Project File Tree</h2>
-            <p>Click on any file to see its purpose and functionality. Blue items are clickable.</p>
+            <p>Hover over any blue file link to see its purpose and functionality from the code index.</p>
             
             <div class="file-tree">
                 <pre>
 <strong>uikitxv2/</strong>
 ├── <strong>lib/</strong>                          <em># Main package (pip install -e .)</em>
-│   ├── <a href="#lib-init" onclick="toggleDesc('lib-init'); return false;">__init__.py</a>              <em># Critical module exposer</em>
+│   ├── <a href="#" data-tooltip="lib-init">__init__.py</a>              <em># Critical module exposer</em>
 │   ├── <strong>components/</strong>              <em># UI components library</em>
 │   │   ├── __init__.py
 │   │   ├── <strong>basic/</strong>              <em># Simple UI components</em>
-│   │   │   ├── <a href="#button" onclick="toggleDesc('button'); return false;">button.py</a>
-│   │   │   ├── <a href="#checkbox" onclick="toggleDesc('checkbox'); return false;">checkbox.py</a>
-│   │   │   ├── <a href="#combobox" onclick="toggleDesc('combobox'); return false;">combobox.py</a>
-│   │   │   ├── <a href="#container" onclick="toggleDesc('container'); return false;">container.py</a>
-│   │   │   ├── <a href="#listbox" onclick="toggleDesc('listbox'); return false;">listbox.py</a>
-│   │   │   ├── <a href="#radiobutton" onclick="toggleDesc('radiobutton'); return false;">radiobutton.py</a>
-│   │   │   ├── <a href="#rangeslider" onclick="toggleDesc('rangeslider'); return false;">rangeslider.py</a>
-│   │   │   ├── <a href="#tabs" onclick="toggleDesc('tabs'); return false;">tabs.py</a>
-│   │   │   └── <a href="#toggle" onclick="toggleDesc('toggle'); return false;">toggle.py</a>
+│   │   │   ├── <a href="#" data-tooltip="button">button.py</a>
+│   │   │   ├── <a href="#" data-tooltip="checkbox">checkbox.py</a>
+│   │   │   ├── <a href="#" data-tooltip="combobox">combobox.py</a>
+│   │   │   ├── <a href="#" data-tooltip="container">container.py</a>
+│   │   │   ├── <a href="#" data-tooltip="listbox">listbox.py</a>
+│   │   │   ├── <a href="#" data-tooltip="radiobutton">radiobutton.py</a>
+│   │   │   ├── <a href="#" data-tooltip="rangeslider">rangeslider.py</a>
+│   │   │   ├── <a href="#" data-tooltip="tabs">tabs.py</a>
+│   │   │   ├── <a href="#" data-tooltip="toggle">toggle.py</a>
+│   │   │   └── <a href="#" data-tooltip="tooltip">tooltip.py</a>
 │   │   ├── <strong>advanced/</strong>           <em># Complex UI components</em>
-│   │   │   ├── <a href="#datatable" onclick="toggleDesc('datatable'); return false;">datatable.py</a>
-│   │   │   ├── <a href="#graph" onclick="toggleDesc('graph'); return false;">graph.py</a>
-│   │   │   ├── <a href="#grid" onclick="toggleDesc('grid'); return false;">grid.py</a>
-│   │   │   └── <a href="#mermaid" onclick="toggleDesc('mermaid'); return false;">mermaid.py</a>
+│   │   │   ├── <a href="#" data-tooltip="datatable">datatable.py</a>
+│   │   │   ├── <a href="#" data-tooltip="graph">graph.py</a>
+│   │   │   ├── <a href="#" data-tooltip="grid">grid.py</a>
+│   │   │   └── <a href="#" data-tooltip="mermaid">mermaid.py</a>
 │   │   ├── <strong>core/</strong>               <em># Component foundations</em>
-│   │   │   ├── <a href="#base-component" onclick="toggleDesc('base-component'); return false;">base_component.py</a>
-│   │   │   └── <a href="#protocols" onclick="toggleDesc('protocols'); return false;">protocols.py</a>
+│   │   │   ├── <a href="#" data-tooltip="base-component">base_component.py</a>
+│   │   │   └── <a href="#" data-tooltip="protocols">protocols.py</a>
 │   │   └── <strong>themes/</strong>            <em># UI theming</em>
-│   │       └── <a href="#colour-palette" onclick="toggleDesc('colour-palette'); return false;">colour_palette.py</a>
+│   │       └── <a href="#" data-tooltip="colour-palette">colour_palette.py</a>
 │   ├── <strong>monitoring/</strong>              <em># Logging & performance</em>
 │   │   ├── <strong>decorators/</strong>
-│   │   │   ├── <a href="#trace-time" onclick="toggleDesc('trace-time'); return false;">trace_time.py</a>
-│   │   │   ├── <a href="#trace-cpu" onclick="toggleDesc('trace-cpu'); return false;">trace_cpu.py</a>
-│   │   │   ├── <a href="#trace-memory" onclick="toggleDesc('trace-memory'); return false;">trace_memory.py</a>
-│   │   │   └── <a href="#trace-closer" onclick="toggleDesc('trace-closer'); return false;">trace_closer.py</a>
+│   │   │   ├── <a href="#" data-tooltip="trace-time">trace_time.py</a>
+│   │   │   ├── <a href="#" data-tooltip="trace-cpu">trace_cpu.py</a>
+│   │   │   ├── <a href="#" data-tooltip="trace-memory">trace_memory.py</a>
+│   │   │   └── <a href="#" data-tooltip="trace-closer">trace_closer.py</a>
 │   │   └── <strong>logging/</strong>
-│   │       ├── <a href="#logging-config" onclick="toggleDesc('logging-config'); return false;">config.py</a>
-│   │       └── <a href="#logging-handlers" onclick="toggleDesc('logging-handlers'); return false;">handlers.py</a>
+│   │       ├── <a href="#" data-tooltip="logging-config">config.py</a>
+│   │       └── <a href="#" data-tooltip="logging-handlers">handlers.py</a>
 │   └── <strong>trading/</strong>               <em># Trading business logic</em>
 │       ├── <strong>common/</strong>            <em># Shared utilities</em>
-│       │   ├── <a href="#price-parser" onclick="toggleDesc('price-parser'); return false;">price_parser.py</a>
-│       │   └── <a href="#date-utils" onclick="toggleDesc('date-utils'); return false;">date_utils.py</a>
+│       │   ├── <a href="#" data-tooltip="price-parser">price_parser.py</a>
+│       │   └── <a href="#" data-tooltip="date-utils">date_utils.py</a>
 │       ├── <strong>actant/</strong>
 │       │   ├── <strong>eod/</strong>          <em># End of Day processing</em>
-│   │   │   ├── <a href="#eod-data-service" onclick="toggleDesc('eod-data-service'); return false;">data_service.py</a>
-│   │   │   └── <a href="#eod-file-manager" onclick="toggleDesc('eod-file-manager'); return false;">file_manager.py</a>
+│   │   │   ├── <a href="#" data-tooltip="eod-data-service">data_service.py</a>
+│   │   │   └── <a href="#" data-tooltip="eod-file-manager">file_manager.py</a>
 │   │   └── <strong>sod/</strong>          <em># Start of Day processing</em>
-│   │       ├── <a href="#sod-actant" onclick="toggleDesc('sod-actant'); return false;">actant.py</a>
-│   │       ├── <a href="#sod-adapter" onclick="toggleDesc('sod-adapter'); return false;">pricing_monkey_adapter.py</a>
-│   │       ├── <a href="#sod-browser" onclick="toggleDesc('sod-browser'); return false;">browser_automation.py</a>
-│   │       └── <a href="#sod-futures" onclick="toggleDesc('sod-futures'); return false;">futures_utils.py</a>
+│   │       ├── <a href="#" data-tooltip="sod-actant">actant.py</a>
+│   │       ├── <a href="#" data-tooltip="sod-adapter">pricing_monkey_adapter.py</a>
+│   │       ├── <a href="#" data-tooltip="sod-browser">browser_automation.py</a>
+│   │       └── <a href="#" data-tooltip="sod-futures">futures_utils.py</a>
 │   │
 │   ├── <strong>pricing_monkey/</strong>
 │   │   ├── <strong>automation/</strong>   <em># Excel/browser automation</em>
-│   │   │   └── <a href="#pm-auto" onclick="toggleDesc('pm-auto'); return false;">pm_auto.py</a>
+│   │   │   └── <a href="#" data-tooltip="pm-auto">pm_auto.py</a>
 │   │   ├── <strong>retrieval/</strong>    <em># Data retrieval</em>
-│   │   │   ├── <a href="#pm-retrieval" onclick="toggleDesc('pm-retrieval'); return false;">retrieval.py</a>
-│   │   │   └── <a href="#pm-simple" onclick="toggleDesc('pm-simple'); return false;">simple_retrieval.py</a>
+│   │   │   ├── <a href="#" data-tooltip="pm-retrieval">retrieval.py</a>
+│   │   │   └── <a href="#" data-tooltip="pm-simple">simple_retrieval.py</a>
 │   │   └── <strong>processors/</strong>   <em># Data processing</em>
-│   │       ├── <a href="#pm-processor" onclick="toggleDesc('pm-processor'); return false;">processor.py</a>
-│   │       └── <a href="#pm-movement" onclick="toggleDesc('pm-movement'); return false;">movement.py</a>
+│   │       ├── <a href="#" data-tooltip="pm-processor">processor.py</a>
+│   │       └── <a href="#" data-tooltip="pm-movement">movement.py</a>
 │   │
 │   ├── <strong>ladder/</strong>
-│   │   ├── <a href="#ladder-formatter" onclick="toggleDesc('ladder-formatter'); return false;">price_formatter.py</a>
-│   │   └── <a href="#ladder-sqlite" onclick="toggleDesc('ladder-sqlite'); return false;">csv_to_sqlite.py</a>
+│   │   ├── <a href="#" data-tooltip="ladder-formatter">price_formatter.py</a>
+│   │   └── <a href="#" data-tooltip="ladder-sqlite">csv_to_sqlite.py</a>
 │   │
 │   └── <strong>tt_api/</strong>           <em># TT REST API integration</em>
-│       ├── <a href="#tt-config" onclick="toggleDesc('tt-config'); return false;">config.py</a>
-│       ├── <a href="#tt-token" onclick="toggleDesc('tt-token'); return false;">token_manager.py</a>
-│       └── <a href="#tt-utils" onclick="toggleDesc('tt-utils'); return false;">utils.py</a>
+│       ├── <a href="#" data-tooltip="tt-config">config.py</a>
+│       ├── <a href="#" data-tooltip="tt-token">token_manager.py</a>
+│       └── <a href="#" data-tooltip="tt-utils">utils.py</a>
 │
 ├── <strong>apps/</strong>                       <em># Application layer</em>
 │   ├── <strong>dashboards/</strong>
 │   │   ├── <strong>actant_eod/</strong>      <em># EOD Dashboard</em>
-│   │   │   └── <a href="#eod-app" onclick="toggleDesc('eod-app'); return false;">app.py</a>
+│   │   │   └── <a href="#" data-tooltip="eod-app">app.py</a>
 │   │   ├── <strong>actant_sod/</strong>      <em># SOD Dashboard (placeholder)</em>
 │   │   ├── <strong>ladder/</strong>
-│   │   │   ├── <a href="#ladder-scenario" onclick="toggleDesc('ladder-scenario'); return false;">scenario_ladder.py</a>
-│   │   │   └── <a href="#ladder-tracker" onclick="toggleDesc('ladder-tracker'); return false;">zn_price_tracker.py</a>
+│   │   │   ├── <a href="#" data-tooltip="ladder-scenario">scenario_ladder.py</a>
+│   │   │   └── <a href="#" data-tooltip="ladder-tracker">zn_price_tracker.py</a>
 │   │   └── <strong>main/</strong>
-│   │       └── <a href="#main-app" onclick="toggleDesc('main-app'); return false;">app.py</a>
+│   │       └── <a href="#" data-tooltip="main-app">app.py</a>
 │   │
 │   └── <strong>demos/</strong>
-│       └── <a href="#demo-app" onclick="toggleDesc('demo-app'); return false;">app.py</a>
+│       └── <a href="#" data-tooltip="demo-app">app.py</a>
 │
 ├── <strong>scripts/</strong>                    <em># Utility scripts</em>
 │   ├── <strong>actant_eod/</strong>
-│   │   ├── <a href="#script-process-json" onclick="toggleDesc('script-process-json'); return false;">process_actant_json.py</a>
-│   │   ├── <a href="#script-integrity" onclick="toggleDesc('script-integrity'); return false;">data_integrity_check.py</a>
-│   │   └── <a href="#script-verify" onclick="toggleDesc('script-verify'); return false;">verify_th_pnl.py</a>
+│   │   ├── <a href="#" data-tooltip="script-process-json">process_actant_json.py</a>
+│   │   ├── <a href="#" data-tooltip="script-integrity">data_integrity_check.py</a>
+│   │   └── <a href="#" data-tooltip="script-verify">verify_th_pnl.py</a>
 │   └── <strong>actant_sod/</strong>
-│       └── <a href="#script-pm-to-actant" onclick="toggleDesc('script-pm-to-actant'); return false;">pricing_monkey_to_actant.py</a>
+│       └── <a href="#" data-tooltip="script-pm-to-actant">pricing_monkey_to_actant.py</a>
 │
 ├── <strong>data/</strong>                       <em># Data organization</em>
 │   ├── <strong>input/</strong>
@@ -407,86 +424,387 @@
 │       └── reports/          <em># Generated reports</em>
 │
 ├── <strong>Entry Points</strong>
-│   ├── <a href="#run-eod" onclick="toggleDesc('run-eod'); return false;">run_actant_eod.py</a>       <em># Start EOD Dashboard</em>
-│   ├── <a href="#run-sod" onclick="toggleDesc('run-sod'); return false;">run_actant_sod.py</a>       <em># Run SOD Processing</em>
-│   └── <a href="#run-ladder" onclick="toggleDesc('run-ladder'); return false;">run_scenario_ladder.py</a>  <em># Start Ladder Dashboard</em>
+│   ├── <a href="#" data-tooltip="run-eod">run_actant_eod.py</a>       <em># Start EOD Dashboard</em>
+│   ├── <a href="#" data-tooltip="run-sod">run_actant_sod.py</a>       <em># Run SOD Processing</em>
+│   └── <a href="#" data-tooltip="run-ladder">run_scenario_ladder.py</a>  <em># Start Ladder Dashboard</em>
 │
 └── <strong>Configuration</strong>
-    └── <a href="#pyproject" onclick="toggleDesc('pyproject'); return false;">pyproject.toml</a>          <em># Package configuration</em>
+    └── <a href="#" data-tooltip="pyproject">pyproject.toml</a>          <em># Package configuration</em>
                 </pre>
             </div>
 
-            <!-- Hidden descriptions for each file -->
-            <div id="lib-init" class="code-desc">
-                <h4>lib/__init__.py</h4>
-                <p><strong>Critical File:</strong> This file makes the clean import syntax work!</p>
-                <ul>
-                    <li>Re-exports all submodules (components, monitoring, trading, utils)</li>
-                    <li>Registers modules in sys.modules for backward compatibility</li>
-                    <li>Enables: <code>from components import Button</code> instead of <code>from lib.components import Button</code></li>
-                    <li>Fixed the critical import issue that was blocking all dashboards</li>
-                </ul>
-            </div>
+            <!-- Tooltip container -->
+            <div id="tooltip" class="tooltip"></div>
 
-            <div id="button" class="code-desc">
-                <h4>components/basic/button.py</h4>
-                <p>Button wrapper for dbc.Button with theme support</p>
-                <ul>
-                    <li>Provides consistent styling across the application</li>
-                    <li>Supports theme integration for dark mode</li>
-                    <li>Handles click interactions with styled feedback</li>
-                </ul>
-            </div>
+            <!-- Hidden tooltip content -->
+            <div style="display: none;">
+                <div id="lib-init-content">
+                    <h4>lib/__init__.py</h4>
+                    <p><strong>Critical File:</strong> This file makes the clean import syntax work!</p>
+                    <ul>
+                        <li>Re-exports all submodules (components, monitoring, trading, utils)</li>
+                        <li>Registers modules in sys.modules for backward compatibility</li>
+                        <li>Enables: <code>from components import Button</code> instead of <code>from lib.components import Button</code></li>
+                        <li>Fixed the critical import issue that was blocking all dashboards</li>
+                    </ul>
+                </div>
 
-            <div id="eod-data-service" class="code-desc">
-                <h4>trading/actant/eod/data_service.py</h4>
-                <p>Core ActantDataService implementation for EOD processing</p>
-                <ul>
-                    <li>Loads and processes JSON data into SQLite database</li>
-                    <li>Applies risk metric transformations (DV01-based calculations)</li>
-                    <li>Provides filtered data access with range support</li>
-                    <li>Implements metric categorization (Delta, Gamma, Vega, etc.)</li>
-                    <li>Supports prefix filtering (ab_, bs_, pa_, base)</li>
-                    <li>Integrates Pricing Monkey data when available</li>
-                </ul>
-            </div>
+                <div id="button-content">
+                    <h4>components/basic/button.py</h4>
+                    <p>Button wrapper for dbc.Button with theme support</p>
+                    <ul>
+                        <li>Provides consistent styling across the application</li>
+                        <li>Supports theme integration for dark mode</li>
+                        <li>Handles click interactions with styled feedback</li>
+                    </ul>
+                </div>
 
-            <div id="sod-actant" class="code-desc">
-                <h4>trading/actant/sod/actant.py</h4>
-                <p>Core SOD processing logic</p>
-                <ul>
-                    <li>Parses trade descriptions to extract instrument details</li>
-                    <li>Generates Actant-compatible CSV format for upload</li>
-                    <li>Handles futures and options identification</li>
-                    <li><code>actant_main()</code> runs in demo mode with test data when called directly</li>
-                    <li>Real data processing requires using the integration script</li>
-                </ul>
-            </div>
+                <div id="checkbox-content">
+                    <h4>components/basic/checkbox.py</h4>
+                    <p>Checkbox wrapper for dcc.Checklist with themed styling and multi-select support</p>
+                </div>
 
-            <div id="run-sod" class="code-desc">
-                <h4>run_actant_sod.py</h4>
-                <p>Entry point for SOD processing</p>
-                <ul>
-                    <li>Currently runs <code>actant_main()</code> which operates in demo mode</li>
-                    <li>Generates test CSV with sample trades in data/output/sod/</li>
-                    <li>For real data: use scripts/actant_sod/pricing_monkey_to_actant.py</li>
-                    <li>No flag for fake vs real data - it's always demo mode from this entry point</li>
-                </ul>
-            </div>
+                <div id="combobox-content">
+                    <h4>components/basic/combobox.py</h4>
+                    <p>ComboBox wrapper for dcc.Dropdown with theme support, search, and option management</p>
+                </div>
 
-            <div id="script-pm-to-actant" class="code-desc">
-                <h4>scripts/actant_sod/pricing_monkey_to_actant.py</h4>
-                <p>Real SOD data integration script</p>
-                <ul>
-                    <li>Retrieves live data from Pricing Monkey via browser automation</li>
-                    <li>Transforms PM data to Actant-compatible format</li>
-                    <li>Processes through actant.py logic for proper formatting</li>
-                    <li>Outputs SOD CSV files to both local and network locations</li>
-                    <li>This is the production script for actual SOD processing</li>
-                </ul>
-            </div>
+                <div id="container-content">
+                    <h4>components/basic/container.py</h4>
+                    <p>Container wrapper for dbc.Container providing themed layout containers</p>
+                </div>
 
-            <!-- Add more descriptions as needed -->
+                <div id="listbox-content">
+                    <h4>components/basic/listbox.py</h4>
+                    <p>ListBox wrapper for dcc.Dropdown in multi-select mode for option selection</p>
+                </div>
+
+                <div id="radiobutton-content">
+                    <h4>components/basic/radiobutton.py</h4>
+                    <p>RadioButton wrapper for dcc.RadioItems providing single-choice selection</p>
+                </div>
+
+                <div id="rangeslider-content">
+                    <h4>components/basic/rangeslider.py</h4>
+                    <p>RangeSlider wrapper for dcc.RangeSlider with automatic mark generation</p>
+                </div>
+
+                <div id="tabs-content">
+                    <h4>components/basic/tabs.py</h4>
+                    <p>Tabs wrapper for dbc.Tabs providing themed tab interfaces</p>
+                </div>
+
+                <div id="toggle-content">
+                    <h4>components/basic/toggle.py</h4>
+                    <p>Toggle wrapper for daq.ToggleSwitch with flexible label positioning</p>
+                </div>
+
+                <div id="tooltip-content">
+                    <h4>components/basic/tooltip.py</h4>
+                    <p>Tooltip wrapper for dbc.Tooltip providing hover tooltips with HTML content support</p>
+                </div>
+
+                <div id="datatable-content">
+                    <h4>components/advanced/datatable.py</h4>
+                    <p>DataTable wrapper for dash_table.DataTable with pagination and filtering</p>
+                </div>
+
+                <div id="graph-content">
+                    <h4>components/advanced/graph.py</h4>
+                    <p>Graph wrapper for dcc.Graph with theme-integrated plotly figures</p>
+                </div>
+
+                <div id="grid-content">
+                    <h4>components/advanced/grid.py</h4>
+                    <p>Grid wrapper for dbc.Row/dbc.Col providing responsive layout system</p>
+                </div>
+
+                <div id="mermaid-content">
+                    <h4>components/advanced/mermaid.py</h4>
+                    <p>Mermaid diagram component wrapper supporting themed diagram rendering</p>
+                </div>
+
+                <div id="base-component-content">
+                    <h4>components/core/base_component.py</h4>
+                    <p>Abstract base class for all UI components, ensures ID and theme handling</p>
+                </div>
+
+                <div id="protocols-content">
+                    <h4>components/core/protocols.py</h4>
+                    <p>Protocol definitions including MermaidProtocol and DataServiceProtocol</p>
+                </div>
+
+                <div id="colour-palette-content">
+                    <h4>components/themes/colour_palette.py</h4>
+                    <p>Theme dataclass, default_theme, and component styling functions</p>
+                </div>
+
+                <div id="trace-time-content">
+                    <h4>monitoring/decorators/trace_time.py</h4>
+                    <p>Decorator for logging function execution time and storing in context</p>
+                </div>
+
+                <div id="trace-cpu-content">
+                    <h4>monitoring/decorators/trace_cpu.py</h4>
+                    <p>Decorator for measuring CPU usage delta during execution</p>
+                </div>
+
+                <div id="trace-memory-content">
+                    <h4>monitoring/decorators/trace_memory.py</h4>
+                    <p>Decorator for measuring RSS memory usage delta</p>
+                </div>
+
+                <div id="trace-closer-content">
+                    <h4>monitoring/decorators/trace_closer.py</h4>
+                    <p>Decorator for managing resource tracing and flow trace logs</p>
+                </div>
+
+                <div id="logging-config-content">
+                    <h4>monitoring/logging/config.py</h4>
+                    <p>Logging configuration with console and SQLite handlers setup</p>
+                </div>
+
+                <div id="logging-handlers-content">
+                    <h4>monitoring/logging/handlers.py</h4>
+                    <p>SQLiteHandler processing FLOW_TRACE logs into database tables</p>
+                </div>
+
+                <div id="price-parser-content">
+                    <h4>trading/common/price_parser.py</h4>
+                    <p>Price parsing and formatting utilities for treasury/bond trading:</p>
+                    <ul>
+                        <li><code>decimal_to_tt_bond_format()</code> - Convert decimal to TT bond format</li>
+                        <li><code>tt_bond_format_to_decimal()</code> - Parse TT format to decimal</li>
+                        <li><code>parse_treasury_price()</code> - Parse various treasury price formats</li>
+                        <li><code>format_treasury_price()</code> - Format decimal as treasury string</li>
+                    </ul>
+                </div>
+
+                <div id="date-utils-content">
+                    <h4>trading/common/date_utils.py</h4>
+                    <p>Trading calendar and date utilities:</p>
+                    <ul>
+                        <li><code>get_monthly_expiry_code()</code> - Get futures month letter codes</li>
+                        <li><code>get_third_friday()</code> - Calculate third Friday expiry dates</li>
+                        <li><code>get_futures_expiry_date()</code> - Get expiry dates by contract type</li>
+                        <li><code>is_trading_day()</code> - Check if date is trading day</li>
+                    </ul>
+                </div>
+
+                <div id="eod-data-service-content">
+                    <h4>trading/actant/eod/data_service.py</h4>
+                    <p>Core ActantDataService implementation for EOD processing</p>
+                    <ul>
+                        <li>Loads and processes JSON data into SQLite database</li>
+                        <li>Applies risk metric transformations (DV01-based calculations)</li>
+                        <li>Provides filtered data access with range support</li>
+                        <li>Implements metric categorization (Delta, Gamma, Vega, etc.)</li>
+                        <li>Supports prefix filtering (ab_, bs_, pa_, base)</li>
+                        <li>Integrates Pricing Monkey data when available</li>
+                    </ul>
+                </div>
+
+                <div id="eod-file-manager-content">
+                    <h4>trading/actant/eod/file_manager.py</h4>
+                    <p>File management utilities:</p>
+                    <ul>
+                        <li><code>get_most_recent_json_file()</code> - Find latest JSON in data directory</li>
+                        <li><code>get_json_file_metadata()</code> - Extract file metadata</li>
+                        <li>JSON validation and discovery functions</li>
+                    </ul>
+                </div>
+
+                <div id="sod-actant-content">
+                    <h4>trading/actant/sod/actant.py</h4>
+                    <p>Core SOD processing logic</p>
+                    <ul>
+                        <li>Parses trade descriptions to extract instrument details</li>
+                        <li>Generates Actant-compatible CSV format for upload</li>
+                        <li>Handles futures and options identification</li>
+                        <li><code>actant_main()</code> runs in demo mode with test data when called directly</li>
+                        <li>Real data processing requires using the integration script</li>
+                    </ul>
+                </div>
+
+                <div id="sod-adapter-content">
+                    <h4>trading/actant/sod/pricing_monkey_adapter.py</h4>
+                    <p>Adapter for converting Pricing Monkey formats to Actant formats</p>
+                </div>
+
+                <div id="sod-browser-content">
+                    <h4>trading/actant/sod/browser_automation.py</h4>
+                    <p>Browser automation for retrieving data from Pricing Monkey</p>
+                </div>
+
+                <div id="sod-futures-content">
+                    <h4>trading/actant/sod/futures_utils.py</h4>
+                    <p>Utilities for futures contract date calculations and expiry handling</p>
+                </div>
+
+                <div id="pm-auto-content">
+                    <h4>trading/pricing_monkey/automation/pm_auto.py</h4>
+                    <p>Multi-option workflow automation using openpyxl:</p>
+                    <ul>
+                        <li><code>run_pm_automation()</code> - Main entry point for automated Excel/browser workflow</li>
+                        <li>Manages Excel setup for multiple options with phases</li>
+                        <li>Automates browser operations for data paste and retrieval</li>
+                        <li>Processes 11-column result sets from Pricing Monkey</li>
+                    </ul>
+                </div>
+
+                <div id="pm-retrieval-content">
+                    <h4>trading/pricing_monkey/retrieval/retrieval.py</h4>
+                    <p>Extended browser automation for ActantEOD:</p>
+                    <ul>
+                        <li><code>get_extended_pm_data()</code> - Retrieve 9-column dataset via automation</li>
+                        <li>Captures risk metrics: DV01 Gamma, Vega, %Delta, Theta</li>
+                        <li>Clipboard processing and data validation</li>
+                    </ul>
+                </div>
+
+                <div id="pm-simple-content">
+                    <h4>trading/pricing_monkey/retrieval/simple_retrieval.py</h4>
+                    <p>Simple data retrieval with SOD formatting:</p>
+                    <ul>
+                        <li><code>get_simple_data()</code> - Basic 5-column data retrieval</li>
+                        <li><code>transform_df_to_sod_format()</code> - Convert PM data to SOD CSV format</li>
+                        <li>Handles futures/options contract identification</li>
+                    </ul>
+                </div>
+
+                <div id="pm-processor-content">
+                    <h4>trading/pricing_monkey/processors/processor.py</h4>
+                    <p>PM data processing utilities:</p>
+                    <ul>
+                        <li><code>process_pm_for_separate_table()</code> - Transform PM data for storage</li>
+                        <li><code>validate_pm_data()</code> - Validate PM data structure</li>
+                        <li>Column standardization and type conversion</li>
+                    </ul>
+                </div>
+
+                <div id="pm-movement-content">
+                    <h4>trading/pricing_monkey/processors/movement.py</h4>
+                    <p>Market movement data collection and analysis:</p>
+                    <ul>
+                        <li><code>get_market_movement_data_df()</code> - Dashboard-ready data retrieval</li>
+                        <li><code>SCENARIOS</code> - Scenario configuration dictionary</li>
+                        <li>Treasury price parsing and adjustment utilities</li>
+                    </ul>
+                </div>
+
+                <div id="ladder-formatter-content">
+                    <h4>trading/ladder/price_formatter.py</h4>
+                    <p>Treasury bond price formatting between decimal and TT special formats</p>
+                </div>
+
+                <div id="ladder-sqlite-content">
+                    <h4>trading/ladder/csv_to_sqlite.py</h4>
+                    <p>Utilities for converting CSV files to SQLite tables for efficient querying</p>
+                </div>
+
+                <div id="tt-config-content">
+                    <h4>trading/tt_api/config.py</h4>
+                    <p>Configuration for TT REST API credentials and settings</p>
+                </div>
+
+                <div id="tt-token-content">
+                    <h4>trading/tt_api/token_manager.py</h4>
+                    <p>TTTokenManager for authentication:</p>
+                    <ul>
+                        <li>Token acquisition, storage, and auto-refresh</li>
+                        <li>Multi-environment support (UAT, SIM, LIVE)</li>
+                        <li>Request ID generation</li>
+                    </ul>
+                </div>
+
+                <div id="tt-utils-content">
+                    <h4>trading/tt_api/utils.py</h4>
+                    <p>TT API utility functions:</p>
+                    <ul>
+                        <li><code>generate_guid()</code> - Create new GUID for requests</li>
+                        <li><code>create_request_id()</code> - Format TT-compliant request IDs</li>
+                        <li><code>sanitize_request_id_part()</code> - Clean request ID components</li>
+                    </ul>
+                </div>
+
+                <div id="eod-app-content">
+                    <h4>apps/dashboards/actant_eod/app.py</h4>
+                    <p>Main ActantEOD dashboard application with real-time market data visualization, P&L metrics, shock scenarios, and scenario-by-metric views. Uses DataServiceProtocol for data abstraction and has complex Dash callbacks for interactive filtering.</p>
+                </div>
+
+                <div id="ladder-scenario-content">
+                    <h4>apps/dashboards/ladder/scenario_ladder.py</h4>
+                    <p>Scenario ladder dashboard for price ladder visualization with TT API integration</p>
+                </div>
+
+                <div id="ladder-tracker-content">
+                    <h4>apps/dashboards/ladder/zn_price_tracker.py</h4>
+                    <p>ZN price tracking application</p>
+                </div>
+
+                <div id="main-app-content">
+                    <h4>apps/dashboards/main/app.py</h4>
+                    <p>Main FRGM Trade Accelerator dashboard with PricingMonkey integration</p>
+                </div>
+
+                <div id="demo-app-content">
+                    <h4>apps/demos/app.py</h4>
+                    <p>UIKitXv2 components demo application showcasing tabs, graphs, and data tables</p>
+                </div>
+
+                <div id="script-process-json-content">
+                    <h4>scripts/actant_eod/process_actant_json.py</h4>
+                    <p>Processes Actant JSON output into flattened CSV and SQLite format</p>
+                </div>
+
+                <div id="script-integrity-content">
+                    <h4>scripts/actant_eod/data_integrity_check.py</h4>
+                    <p>Comprehensive data integrity verification for ActantEOD pipeline</p>
+                </div>
+
+                <div id="script-verify-content">
+                    <h4>scripts/actant_eod/verify_th_pnl.py</h4>
+                    <p>Simple verification script for Th PnL data integrity</p>
+                </div>
+
+                <div id="script-pm-to-actant-content">
+                    <h4>scripts/actant_sod/pricing_monkey_to_actant.py</h4>
+                    <p>Real SOD data integration script</p>
+                    <ul>
+                        <li>Retrieves live data from Pricing Monkey via browser automation</li>
+                        <li>Transforms PM data to Actant-compatible format</li>
+                        <li>Processes through actant.py logic for proper formatting</li>
+                        <li>Outputs SOD CSV files to both local and network locations</li>
+                        <li>This is the production script for actual SOD processing</li>
+                    </ul>
+                </div>
+
+                <div id="run-eod-content">
+                    <h4>run_actant_eod.py</h4>
+                    <p>Entry point for ActantEOD dashboard (port 8050)</p>
+                </div>
+
+                <div id="run-sod-content">
+                    <h4>run_actant_sod.py</h4>
+                    <p>Entry point for SOD processing</p>
+                    <ul>
+                        <li>Currently runs <code>actant_main()</code> which operates in demo mode</li>
+                        <li>Generates test CSV with sample trades in data/output/sod/</li>
+                        <li>For real data: use scripts/actant_sod/pricing_monkey_to_actant.py</li>
+                        <li>No flag for fake vs real data - it's always demo mode from this entry point</li>
+                    </ul>
+                </div>
+
+                <div id="run-ladder-content">
+                    <h4>run_scenario_ladder.py</h4>
+                    <p>Entry point for Scenario Ladder dashboard (port 8051)</p>
+                </div>
+
+                <div id="pyproject-content">
+                    <h4>pyproject.toml</h4>
+                    <p>Package configuration with dependencies</p>
+                </div>
+            </div>
 
         </section>
 
@@ -823,12 +1141,93 @@ tooltip = Tooltip(
     </div>
 
     <script>
-        function toggleDesc(id) {
-            const element = document.getElementById(id);
-            if (element) {
-                element.classList.toggle('active');
+        // Tooltip functionality
+        const tooltip = document.getElementById('tooltip');
+        let currentTooltipTarget = null;
+        let tooltipTimeout = null;
+        
+        // Find all links with data-tooltip attribute
+        const tooltipLinks = document.querySelectorAll('a[data-tooltip]');
+        
+        tooltipLinks.forEach(link => {
+            link.addEventListener('mouseenter', function(e) {
+                e.preventDefault();
+                
+                // Clear any existing timeout
+                if (tooltipTimeout) {
+                    clearTimeout(tooltipTimeout);
+                }
+                
+                // Get the tooltip content ID
+                const tooltipId = this.getAttribute('data-tooltip');
+                const contentElement = document.getElementById(tooltipId + '-content');
+                
+                if (contentElement) {
+                    // Set tooltip content
+                    tooltip.innerHTML = contentElement.innerHTML;
+                    
+                    // Show tooltip with a small delay
+                    tooltipTimeout = setTimeout(() => {
+                        // Position tooltip
+                        const linkRect = this.getBoundingClientRect();
+                        const tooltipRect = tooltip.getBoundingClientRect();
+                        
+                        // Calculate position
+                        let left = linkRect.left + window.scrollX;
+                        let top = linkRect.bottom + window.scrollY + 5;
+                        
+                        // Adjust if tooltip would go off screen
+                        if (left + 400 > window.innerWidth) {
+                            left = window.innerWidth - 410;
+                        }
+                        
+                        // Check if tooltip would go below viewport
+                        if (top + tooltipRect.height > window.innerHeight + window.scrollY) {
+                            // Show above instead
+                            top = linkRect.top + window.scrollY - tooltipRect.height - 5;
+                        }
+                        
+                        tooltip.style.left = left + 'px';
+                        tooltip.style.top = top + 'px';
+                        tooltip.classList.add('show');
+                        
+                        currentTooltipTarget = this;
+                    }, 200); // 200ms delay before showing
+                }
+            });
+            
+            link.addEventListener('mouseleave', function(e) {
+                // Clear timeout if tooltip hasn't shown yet
+                if (tooltipTimeout) {
+                    clearTimeout(tooltipTimeout);
+                    tooltipTimeout = null;
+                }
+                
+                // Hide tooltip with a small delay to allow moving to tooltip
+                setTimeout(() => {
+                    if (currentTooltipTarget === this) {
+                        tooltip.classList.remove('show');
+                        currentTooltipTarget = null;
+                    }
+                }, 100);
+            });
+            
+            link.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent navigation
+            });
+        });
+        
+        // Keep tooltip visible when hovering over it
+        tooltip.addEventListener('mouseenter', function() {
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
             }
-        }
+        });
+        
+        tooltip.addEventListener('mouseleave', function() {
+            tooltip.classList.remove('show');
+            currentTooltipTarget = null;
+        });
     </script>
 </body>
 </html> 

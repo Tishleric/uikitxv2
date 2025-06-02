@@ -23,6 +23,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **combobox.py** - ComboBox wrapper for dcc.Dropdown with theme support, search, and option management
 - **container.py** - Container wrapper for dbc.Container providing themed layout containers
 - **listbox.py** - ListBox wrapper for dcc.Dropdown in multi-select mode for option selection
+- **loading.py** - Loading wrapper for dcc.Loading providing theme-consistent loading indicators
 - **radiobutton.py** - RadioButton wrapper for dcc.RadioItems providing single-choice selection
 - **rangeslider.py** - RangeSlider wrapper for dcc.RangeSlider with automatic mark generation
 - **tabs.py** - Tabs wrapper for dbc.Tabs providing themed tab interfaces
@@ -153,6 +154,34 @@ A comprehensive summary of each code file with its purpose and key functionality
   - `format_bearer_token()` - Format authorization tokens
   - `is_valid_guid()` - Validate GUID format
 
+#### Bond Future Options (`lib/trading/bond_future_options/`)
+- **__init__.py** - Exports BondFutureOption class and analysis functions
+
+- **pricing_engine.py** - Core bond future option pricing engine (CTO-validated):
+  - `BondFutureOption` - Main class for Bachelier model pricing
+  - Future DV01 and convexity-based Greeks calculations
+  - Price/yield volatility conversions
+  - Comprehensive Greeks: delta, gamma, vega, theta, and higher-order
+  - Both F-space (price) and Y-space (yield) Greeks
+
+- **analysis.py** - Refactored analysis utilities:
+  - `solve_implied_volatility()` - Newton-Raphson solver for backing out vol
+  - `calculate_all_greeks()` - Calculate all Greeks with proper scaling
+  - `generate_greek_profiles()` - Generate Greeks across price scenarios (±20 points)
+  - `analyze_bond_future_option_greeks()` - Main analysis function
+  - `validate_refactoring()` - Validation against original implementation
+
+- **demo_profiles.py** - Demonstration code for Greek profile visualization:
+  - Generates Greek profiles across market scenarios
+  - Creates matplotlib plots for key Greeks (delta, gamma, vega, theta)
+  - Exports data to CSV for further analysis
+  - Shows scenario analysis and moneyness effects
+  - Saves outputs to `output/` subdirectory
+
+- **output/** - Directory for generated outputs (CSV, PNG files)
+  - Contains .gitignore to exclude generated files
+  - Greek profile CSV files and visualization plots saved here
+
 ## Applications (`apps/`)
 
 ### Dashboards (`apps/dashboards/`)
@@ -170,6 +199,16 @@ A comprehensive summary of each code file with its purpose and key functionality
 
 #### Main Dashboard (`apps/dashboards/main/`)
 - **app.py** - Main FRGM Trade Accelerator dashboard with PricingMonkey integration
+
+#### Actant Preprocessing Dashboard (`apps/dashboards/actant_preprocessing/`)
+- **__init__.py** - Package initialization for BFO Greek Analysis dashboard
+- **app.py** - Bond Future Options Greek Analysis dashboard:
+  - Interactive Greek profile visualization (Delta, Gamma, Vega, Theta)
+  - 2x2 grid layout using Plotly Graph components
+  - Graph/Table view toggle functionality
+  - Parameter input controls for option analysis
+  - Real-time Greek recalculation based on user inputs
+  - Integration with validated BFO pricing engine
 
 #### Demo Dashboard (`apps/demos/`)
 - **app.py** - UIKitXv2 components demo application showcasing tabs, graphs, and data tables
