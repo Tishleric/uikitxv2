@@ -55,10 +55,10 @@
 | ListBox.className | Input | str | Any string | ListBox(id="lb", className="my-listbox") |
 | ListBox.id | Input | str | Unique string | ListBox(id="item-selector") |
 | ListBox.multi | Input | bool | True or False | ListBox(id="lb", multi=False) |
-| ListBox.options | Input | list[str] &#124; list[dict] | Non-empty list of strings or dicts | ListBox(id="lb", options=["Item A"]) |
+| ListBox.options | Input | list[dict] | List of {"label": str, "value": any} | `[{"label": "PnL", "value": "pnl"}]` |
 | ListBox.style | Input | dict &#124; None | CSS style dictionary | ListBox(id="lb", style={"height": "200px"}) |
 | ListBox.theme | Input | Theme &#124; None | Theme object or None | ListBox(id="lb", theme=my_theme) |
-| ListBox.value | Input | list[str] &#124; str | Subset of options (list if multi, else str) | ListBox(id="lb", value=["Item A"]) |
+| ListBox.value | Input | list[any] | Selected values from options | `["pnl", "dv01"]` |
 | Mermaid.chart_config | Input (to render) | dict | Mermaid configuration options | Mermaid().render(id="m", graph_definition="graph TD; A-->B", chart_config={"theme": "forest"}) |
 | Mermaid.className | Input (to render) | str | Any string | Mermaid().render(id="m", graph_definition="graph TD; A-->B", className="my-diagram") |
 | Mermaid.description | Input (to render) | str &#124; None | Description text for the diagram | Mermaid().render(id="m", graph_definition="graph TD; A-->B", description="My process flow.") |
@@ -349,6 +349,28 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | ActantDataService.get_data_sources | Function | Returns: List[str] | N/A | `sources = service.get_data_sources()` |
 | ActantDataService.is_pm_data_loaded | Function | Returns: bool | N/A | `loaded = service.is_pm_data_loaded()` |
 
+## Bond Future Options
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| BondFutureOption.future_dv01 | Input | float | > 0 | `BondFutureOption(future_dv01=0.063, future_convexity=0.002404)` |
+| BondFutureOption.future_convexity | Input | float | Any float | `BondFutureOption(future_dv01=0.063, future_convexity=0.002404)` |
+| BondFutureOption.yield_level | Input | float | 0.0 - 1.0 | `BondFutureOption(yield_level=0.05)` |
+| bachelier_future_option_price | Function | Returns: float | F, K, T, price_volatility, option_type | `price = model.bachelier_future_option_price(110.789, 110.75, 0.0187, 100.0, 'put')` |
+| convert_price_to_yield_volatility | Function | Returns: float | price_volatility | `yield_vol = model.convert_price_to_yield_volatility(100.0)` |
+| convert_yield_to_future_price_volatility | Function | Returns: float | yield_volatility | `price_vol = model.convert_yield_to_future_price_volatility(1.58)` |
+| delta_F | Function | Returns: float | F, K, T, price_volatility, option_type | `delta = model.delta_F(110.789, 110.75, 0.0187, 100.0, 'put')` |
+| gamma_F | Function | Returns: float | F, K, T, price_volatility | `gamma = model.gamma_F(110.789, 110.75, 0.0187, 100.0)` |
+| vega_price | Function | Returns: float | F, K, T, price_volatility | `vega = model.vega_price(110.789, 110.75, 0.0187, 100.0)` |
+| theta_F | Function | Returns: float | F, K, T, price_volatility | `theta = model.theta_F(110.789, 110.75, 0.0187, 100.0)` |
+| solve_implied_volatility | Function | Returns: tuple[float, float] | option_model, F, K, T, market_price, option_type | `price_vol, error = solve_implied_volatility(model, 110.789, 110.75, 0.0187, 0.359375, 'put')` |
+| calculate_all_greeks | Function | Returns: dict | option_model, F, K, T, price_volatility, option_type | `greeks = calculate_all_greeks(model, 110.789, 110.75, 0.0187, 100.0, 'put')` |
+| generate_greek_profiles | Function | Returns: list[dict] | option_model, base_F, K, T, price_volatility, option_type, range_size, step | `profiles = generate_greek_profiles(model, 110.789, 110.75, 0.0187, 100.0, 'put', 20, 1)` |
+| analyze_bond_future_option_greeks | Function | Returns: dict | future_dv01, future_convexity, yield_level, F, K, T, market_price, option_type | `results = analyze_bond_future_option_greeks()` |
+| greek_scaling_delta_F | Constant | float | 1.0 | delta_F is not scaled (multiplied by 1) |
+| greek_scaling_others | Constant | float | 1000.0 | All other Greeks are multiplied by 1000 for display |
+| theta_daily_conversion | Constant | float | 252.0 | Theta is divided by 252 for daily decay |
+
 # I/O Schema
 
 | Name | Kind* | Type | Allowed values / range | Example Usage |
@@ -408,3 +430,10 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | update_viz_mode_button_styles | Function | Returns: Tuple[Dict, Dict] | Button click inputs | Updates button styles for visual feedback |
 
 ## ActantEOD Dashboard
+
+| Loading.__init__ | Function | Returns: Loading | id, children, type, theme, color, parent_style, fullscreen, debug | `Loading(id="loading", children=content, type="circle")` |
+| Loading.type | Input | str | 'graph', 'cube', 'circle', 'dot', 'default' | `Loading(type="circle")` |
+| Loading.color | Input | str \| None | Any valid CSS color | `Loading(color="#18F0C3")` |
+| Loading.fullscreen | Input | bool | True/False | `Loading(fullscreen=False)` |
+| Loading.render | Function | Returns: dcc.Loading | N/A | `loading.render()` |
+| RadioButton.__init__ | Function | Returns: RadioButton | id, options, value, theme, inline | `RadioButton(id="rb", options=opts)` |
