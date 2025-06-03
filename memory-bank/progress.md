@@ -2,6 +2,33 @@
 
 ## Recent Changes
 
+### SumoMachine Pricing Monkey Automation (February 6, 2025) ✅ COMPLETED
+- **Created Standalone Automation Script**: Built `SumoMachine/PmToExcel.py` for automated data extraction
+- **Browser Automation**: Implemented keyboard navigation using pywinauto:
+  - Tab 8 times, down arrow once
+  - Select data with shift+down 11 times, shift+right 4 times
+  - Copy data to clipboard and close browser
+- **Data Processing Pipeline**:
+  - Parse 5-column clipboard data (Notes, Trade Amount, Price, DV01, DV01 Gamma)
+  - Clean numeric values by removing commas
+  - Convert prices from XXX-YYY format (e.g., "123-456" → 123 + 456/32)
+  - Scale DV01 and DV01 Gamma values by dividing by 1000
+  - Preserve decimal precision with 3 decimal places formatting
+- **Excel Export**: Write processed data to `C:\Users\g.shah\Documents\Pm2Excel\ActantBackend.xlsx` at cell A2 using openpyxl
+- **Robust Implementation**:
+  - Comprehensive error handling and logging
+  - Timestamp-based log files saved to `C:\Users\g.shah\Documents\Pm2Excel\`
+  - Configurable timing delays for reliable browser interaction
+  - Fully standalone - no dependencies on main project code
+  - Automatic directory creation if it doesn't exist
+- **Supporting Files Created**:
+  - `RunPmToExcel.bat` - Main execution batch file
+  - `InstallDependencies.bat` - Automated package installation
+  - `requirements.txt` - Python dependencies list
+  - `OpenOutputFolder.bat` - Quick access to output directory
+  - `README.md` - Complete documentation
+- **Technical Achievement**: Created production-ready automation following patterns from existing pm_auto.py with precise data transformations
+
 ### Actant Preprocessing Dashboard Creation (January 31, 2025) 🚧 IN PROGRESS
 - **Phase 1: Basic Layout** ✅ COMPLETED
   - Created `apps/dashboards/actant_preprocessing/` directory structure
