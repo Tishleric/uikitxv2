@@ -182,6 +182,19 @@ A comprehensive summary of each code file with its purpose and key functionality
   - Contains .gitignore to exclude generated files
   - Greek profile CSV files and visualization plots saved here
 
+## Standalone Tools (`SumoMachine/`)
+
+### Pricing Monkey Automation (`SumoMachine/`)
+- **__init__.py** - Empty init file for SumoMachine module
+- **PmToExcel.py** - Standalone Pricing Monkey to Excel automation:
+  - Automated browser navigation to extract data from Pricing Monkey
+  - Keyboard automation using pywinauto (tab 8x, down 1x, shift+down 11x, shift+right 4x)
+  - Clipboard data parsing for 4-column format (Notes, Trade Description, DV01, DV01 Gamma)
+  - Data transformations: comma removal, futures price conversion (32nds), DV01 scaling (/1000)
+  - Direct Excel writing to ActantBackend.xlsx using openpyxl
+  - Comprehensive logging with timestamp-based log files
+  - No dependencies on main project code - fully standalone
+
 ## Applications (`apps/`)
 
 ### Dashboards (`apps/dashboards/`)

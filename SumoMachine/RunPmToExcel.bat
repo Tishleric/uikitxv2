@@ -1,0 +1,29 @@
+@echo off
+echo Starting PmToExcel Automation...
+echo.
+
+REM Create output directory if it doesn't exist
+set OUTPUT_DIR=C:\Users\g.shah\Documents\Pm2Excel
+if not exist "%OUTPUT_DIR%" (
+    echo Creating output directory: %OUTPUT_DIR%
+    mkdir "%OUTPUT_DIR%"
+)
+
+REM Change to the directory containing the script
+cd /d "%~dp0"
+
+REM Run the Python script
+python PmToExcel.py
+
+REM Keep the window open if there was an error
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo Script failed with error code %ERRORLEVEL%
+    echo Press any key to exit...
+    pause > nul
+) else (
+    echo.
+    echo Script completed successfully!
+    echo Log files saved to: %OUTPUT_DIR%
+    timeout /t 3
+) 
