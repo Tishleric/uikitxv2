@@ -211,7 +211,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **zn_price_tracker.py** - ZN price tracking application
 
 #### Main Dashboard (`apps/dashboards/main/`)
-- **app.py** - Main FRGM Trade Accelerator dashboard with PricingMonkey integration
+- **app.py** - Main unified dashboard integrating all tabs into single application with sidebar navigation system, comprehensive callback management, namespace isolation with prefixed functions per dashboard, advanced state management through data stores, professional UI theming, and complete Actant EOD dashboard implementation with 15+ helper functions and interactive visualizations
 
 #### Actant Preprocessing Dashboard (`apps/dashboards/actant_preprocessing/`)
 - **__init__.py** - Package initialization for BFO Greek Analysis dashboard
