@@ -185,6 +185,18 @@ def serve_doxygen(filename='index.html'):
 
 # --- End App Init ---
 
+# --- Register Actant PnL Callbacks Early ---
+# Import and register Actant PnL callbacks at startup to avoid double-click issue
+try:
+    from apps.dashboards.actant_pnl import register_callbacks as register_actant_pnl_callbacks
+    register_actant_pnl_callbacks(app)
+    app._actant_pnl_callbacks_registered = True
+    logger.info("Actant PnL callbacks registered at startup")
+except Exception as e:
+    logger.error(f"Failed to register Actant PnL callbacks at startup: {e}")
+    app._actant_pnl_callbacks_registered = False
+# --- End Actant PnL Registration ---
+
 # --- UI Constants & Helpers ---
 text_style = {"color": default_theme.text_light, "marginBottom": "5px", "marginTop": "15px"}
 input_style_dcc = {
@@ -2726,6 +2738,7 @@ def create_sidebar():
         {"id": "nav-greek-analysis", "label": "Greek Analysis", "icon": "📈"},
         {"id": "nav-scenario-ladder", "label": "Scenario Ladder", "icon": "📊"},
         {"id": "nav-actant-eod", "label": "Actant EOD", "icon": "📈"},
+        {"id": "nav-actant-pnl", "label": "Actant PnL", "icon": "📉"},
         {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
         {"id": "nav-logs", "label": "Logs", "icon": "📋"}
     ]
@@ -2806,8 +2819,22 @@ def get_page_content(page_name):
         "project-docs": create_project_documentation_content(),
         "scenario-ladder": scl_create_scenario_ladder_content(),
         "actant-eod": aeod_create_actant_eod_content(),
+        "actant-pnl": None,  # Will be populated below
         "logs": create_logs_tab()
     }
+    
+    # Load Actant PnL dashboard dynamically
+    if page_name == "actant-pnl":
+        try:
+            from apps.dashboards.actant_pnl import create_dashboard_content
+            # Callbacks were already registered at app startup
+            return create_dashboard_content()
+        except Exception as e:
+            logger.error(f"Error loading Actant PnL dashboard: {e}")
+            return html.Div(
+                f"Error loading Actant PnL dashboard: {str(e)}", 
+                style={"color": "red", "padding": "20px"}
+            )
     
     return page_content_mapping.get(page_name, pricing_monkey_tab_main_container_rendered)
 
@@ -2854,20 +2881,22 @@ app.layout = html.Div([
      Output("nav-logs", "style"),
      Output("nav-project-docs", "style"),
      Output("nav-scenario-ladder", "style"),
-     Output("nav-actant-eod", "style")],
+     Output("nav-actant-eod", "style"),
+     Output("nav-actant-pnl", "style")],
     [Input("nav-pricing-monkey", "n_clicks"),
      Input("nav-analysis", "n_clicks"),
      Input("nav-greek-analysis", "n_clicks"),
      Input("nav-logs", "n_clicks"),
      Input("nav-project-docs", "n_clicks"),
      Input("nav-scenario-ladder", "n_clicks"),
-     Input("nav-actant-eod", "n_clicks")],
+     Input("nav-actant-eod", "n_clicks"),
+     Input("nav-actant-pnl", "n_clicks")],
     [State("active-page-store", "data")],
     prevent_initial_call=False
 )
 @TraceCloser()
 @TraceTime(log_args=False, log_return=False)
-def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, current_page):
+def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
     # Determine which button was clicked
@@ -2884,7 +2913,8 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
             "nav-logs": "logs",
             "nav-project-docs": "project-docs",
             "nav-scenario-ladder": "scenario-ladder",
-            "nav-actant-eod": "actant-eod"
+            "nav-actant-eod": "actant-eod",
+            "nav-actant-pnl": "actant-pnl"
         }
         active_page = page_mapping.get(trigger_id, current_page or "pricing-monkey")
     
@@ -2932,12 +2962,13 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
         "logs": active_style if active_page == "logs" else inactive_style,
         "project-docs": active_style if active_page == "project-docs" else inactive_style,
         "scenario-ladder": active_style if active_page == "scenario-ladder" else inactive_style,
-        "actant-eod": active_style if active_page == "actant-eod" else inactive_style
+        "actant-eod": active_style if active_page == "actant-eod" else inactive_style,
+        "actant-pnl": active_style if active_page == "actant-pnl" else inactive_style
     }
     
     logger.info(f"Navigation: switched to page '{active_page}'")
     
-    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"]
+    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"]
 
 # Remove old tabs-based layout
 # main_tabs_rendered = Tabs(

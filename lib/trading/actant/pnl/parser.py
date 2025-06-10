@@ -13,7 +13,7 @@ from datetime import datetime
 import re
 from dataclasses import dataclass
 
-from pnl_calculations import OptionGreeks
+from .calculations import OptionGreeks
 
 
 @dataclass

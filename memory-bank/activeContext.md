@@ -6,13 +6,21 @@
 - **Active Task**: COMPLETED - All dashboards operational and demo-ready
 
 ## Recent Work Completed
-1. **Scenario Ladder Final Demo Adjustments** ✅
+1. **Actant PnL Dashboard Integration Fix** ✅
+   - Fixed double-click navigation issue by registering callbacks at app startup
+   - Callbacks now registered before layout rendering (prevents Dash timing issue)
+   - All toggle buttons (Graph/Table, Call/Put) working correctly
+   - Dashboard loads immediately on first click in sidebar
+   - Successfully integrated with main app's sidebar navigation
+   - Preserved all functionality from standalone version
+   
+2. **Scenario Ladder Final Demo Adjustments** ✅
    - Removed green border styling for above/below spot prices
    - Verified blue/red color coding for buy/sell orders
    - Confirmed mathematical accuracy of all calculations
    - Demo mode ON by default with mock data
    
-2. **Scenario Ladder Complete Feature Set** ✅
+3. **Scenario Ladder Complete Feature Set** ✅
    - Demo Mode ON by default (uses mock orders from JSON)
    - Live spot price fetching via Pricing Monkey automation
    - Complete ladder visualization with price levels
@@ -22,14 +30,15 @@
    - Professional UI with dark theme consistency
 
 ## System Overview
-All 7 dashboards are now fully operational:
+All 8 dashboards are now fully operational:
 1. **Option Hedging** - Pricing Monkey automation
 2. **Option Comparison** - Market movement analysis
 3. **Greek Analysis** - CTO-validated options pricing
 4. **Scenario Ladder** - Trading ladder with TT API ✅ DEMO-READY
 5. **Actant EOD** - End-of-day analytics (placeholder)
-6. **Project Documentation** - Interactive docs
-7. **Logs** - Performance monitoring
+6. **Actant PnL** - Option pricing comparison (Actant vs Taylor Series) ✅ FULLY INTEGRATED
+7. **Project Documentation** - Interactive docs
+8. **Logs** - Performance monitoring
 
 ## Next Steps
 - System is ready for demonstration
@@ -37,14 +46,15 @@ All 7 dashboards are now fully operational:
 - Consider adding more content to Actant EOD dashboard when needed
 
 ## Current Focus
-The dashboard refactoring is complete with all 8 navigation items (now 7 after merging Mermaid):
+The dashboard refactoring is complete with all 8 navigation items:
 1. ✅ Option Hedging (formerly Pricing Monkey Setup)
 2. ✅ Option Comparison (formerly Analysis)
 3. ✅ Greek Analysis
 4. ✅ Scenario Ladder  
 5. ✅ Actant EOD
-6. ✅ Project Documentation (now includes Mermaid diagrams)
-7. ✅ Logs
+6. ✅ Actant PnL (NEW - fully integrated)
+7. ✅ Project Documentation (now includes Mermaid diagrams)
+8. ✅ Logs
 
 ## Architecture Highlights
 - **Sidebar Navigation**: Professional fixed sidebar with icon + label design
@@ -55,7 +65,8 @@ The dashboard refactoring is complete with all 8 navigation items (now 7 after m
 - **Interactive Documentation**: File tree with hover tooltips showing code-index descriptions
 
 ## Key Files Modified
-- `apps/dashboards/main/app.py` - Fixed price parsing and verified complete Scenario Ladder implementation
+- `apps/dashboards/main/app.py` - Fixed Actant PnL callback registration timing to prevent double-click issue
+- Early callback registration now happens after app initialization, before layout creation
 
 ## Testing Notes
 - Price parsing now handles all TT bond price formats
