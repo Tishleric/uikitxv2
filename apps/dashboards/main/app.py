@@ -23,6 +23,8 @@ from typing import List, Dict
 import numpy as np
 from pywinauto.keyboard import send_keys
 from typing import List, Dict
+import math
+import requests
 
 # --- Adjust Python path ---
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -44,7 +46,7 @@ if lib_path not in sys.path:
 try:
     from monitoring.logging import setup_logging, shutdown_logging
     from components.themes import default_theme
-    from components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph, RadioButton, Mermaid, Loading, ListBox, RangeSlider, Checkbox
+    from components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph, RadioButton, Mermaid, Loading, ListBox, RangeSlider, Checkbox, Tooltip
     print("Successfully imported logging, theme, and UI components.")
     from trading.pricing_monkey import run_pm_automation, get_market_movement_data_df, SCENARIOS
     print("Successfully imported PM modules.")
@@ -63,6 +65,7 @@ try:
     print("Successfully imported tracing decorators.")
     # Import trading utilities
     from trading.common import format_shock_value_for_display
+    from trading.common.price_parser import parse_treasury_price, decimal_to_tt_bond_format
     # Import Actant modules from new location
     from trading.actant.eod import ActantDataService, get_most_recent_json_file, get_json_file_metadata
 except ImportError as e:
@@ -151,6 +154,35 @@ app = dash.Dash(
     suppress_callback_exceptions=True 
 )
 app.title = "FRGM Trade Accelerator"
+
+# Add route to serve Doxygen documentation files
+@app.server.route('/doxygen-docs/')
+@app.server.route('/doxygen-docs/<path:filename>')
+def serve_doxygen(filename='index.html'):
+    """Serve Doxygen documentation files as static content"""
+    import os
+    from flask import send_from_directory, abort
+    
+    try:
+        # Path to the Doxygen HTML directory
+        doxygen_dir = os.path.join(project_root, 'html', 'html')
+        
+        # Security check - prevent directory traversal
+        safe_path = os.path.join(doxygen_dir, filename)
+        if not os.path.abspath(safe_path).startswith(os.path.abspath(doxygen_dir)):
+            abort(403)
+        
+        # Check if file exists
+        if not os.path.exists(safe_path):
+            abort(404)
+            
+        # Serve the file
+        return send_from_directory(doxygen_dir, filename)
+        
+    except Exception as e:
+        logger.error(f"Error serving Doxygen file {filename}: {e}")
+        abort(500)
+
 # --- End App Init ---
 
 # --- UI Constants & Helpers ---
@@ -203,7 +235,6 @@ Y_AXIS_CHOICES = [
 ]
 # Columns that need scaling by trade_amount for the graph.
 GRAPH_SCALABLE_GREEKS = ['DV01 Gamma', 'Theta', 'Vega']
-
 
 def create_option_input_block(option_index: int) -> Container:
     # This function remains the same as in your provided file
@@ -1143,48 +1174,396 @@ def pdoc_create_overview_section():
         style={'backgroundColor': default_theme.panel_bg, 'padding': '30px', 'marginBottom': '30px', 'borderRadius': '8px', 'border': f'1px solid {default_theme.secondary}'}
     )
 
+def pdoc_parse_code_index():
+    """Parse code-index.md and return a dictionary of file/folder descriptions"""
+    descriptions = {}
+    
+    # Read code-index.md
+    try:
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        code_index_path = os.path.join(project_root, "memory-bank", "code-index.md")
+        
+        with open(code_index_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Parse the file for descriptions
+        lines = content.split('\n')
+        current_section = ""
+        
+        for i, line in enumerate(lines):
+            # Update current section based on headers
+            if line.startswith('### ') or line.startswith('#### '):
+                current_section = line.strip('# ').strip()
+            
+            # Look for file descriptions in the format: - **filename** - description
+            if line.strip().startswith('- **'):
+                match = re.match(r'- \*\*([^*]+)\*\* - (.+)', line.strip())
+                if match:
+                    filename = match.group(1).strip()
+                    description = match.group(2).strip()
+                    descriptions[filename] = description
+            
+            # Also look for directory descriptions in headers
+            if ' (`' in line and '`)' in line:
+                # Extract directory path from headers like "### Components (`lib/components/`)"
+                match = re.match(r'.*\(`([^`]+)`\)', line)
+                if match:
+                    dir_path = match.group(1).strip()
+                    # Get the description from the header
+                    desc_match = re.match(r'^#+\s*([^(]+)', line)
+                    if desc_match:
+                        desc = desc_match.group(1).strip()
+                        descriptions[dir_path] = desc
+    
+    except Exception as e:
+        logger.error(f"Error parsing code-index.md: {e}")
+    
+    # Add some directory descriptions that might be missing
+    descriptions.update({
+        'lib/': 'Main package directory - Core UIKitXv2 library',
+        'lib/components/': 'UI components library with basic and advanced components',
+        'lib/components/basic/': 'Basic UI components - buttons, checkboxes, dropdowns, etc.',
+        'lib/components/advanced/': 'Advanced UI components - data tables, graphs, grids',
+        'lib/components/core/': 'Core component infrastructure and protocols',
+        'lib/components/themes/': 'Theme system and styling configuration',
+        'lib/monitoring/': 'Monitoring and observability tools',
+        'lib/monitoring/decorators/': 'Performance and trace monitoring decorators',
+        'lib/monitoring/logging/': 'Logging configuration and handlers',
+        'lib/trading/': 'Trading domain functionality',
+        'lib/trading/common/': 'Common trading utilities and parsers',
+        'lib/trading/actant/': 'Actant integration modules',
+        'lib/trading/pricing_monkey/': 'Pricing Monkey integration and automation',
+        'lib/trading/tt_api/': 'TT REST API integration',
+        'apps/': 'Application entry points and dashboards',
+        'apps/dashboards/': 'Dashboard applications',
+        'data/': 'Data storage structure',
+        'scripts/': 'Utility and processing scripts',
+        'tests/': 'Test suite for all modules',
+        'SumoMachine/': 'Standalone Pricing Monkey automation tools'
+    })
+    
+    # Add specific file descriptions from code-index.md
+    descriptions.update({
+        # Monitoring decorators
+        'context_vars.py': 'Shared context variables for tracing and logging decorators',
+        'trace_time.py': 'Decorator for logging function execution time and storing in context',
+        'trace_closer.py': 'Decorator for managing resource tracing and flow trace logs',
+        'trace_cpu.py': 'Decorator for measuring CPU usage delta during execution',
+        'trace_memory.py': 'Decorator for measuring RSS memory usage delta',
+        
+        # Logging
+        'config.py': 'Logging configuration with console and SQLite handlers setup',
+        'handlers.py': 'SQLiteHandler processing FLOW_TRACE logs into database tables',
+        
+        # Trading common
+        'price_parser.py': 'Price parsing/formatting utilities for treasury/bond trading',
+        'date_utils.py': 'Trading calendar and date utilities for expiry calculations',
+        
+        # Actant EOD
+        'data_service.py': 'ActantDataService - loads/processes JSON data into SQLite',
+        'file_manager.py': 'File management utilities for JSON discovery and metadata',
+        
+        # Actant SOD  
+        'actant.py': 'Core SOD processing logic for parsing trades and generating Actant format',
+        'pricing_monkey_adapter.py': 'Adapter for converting Pricing Monkey to Actant formats',
+        'browser_automation.py': 'Browser automation for retrieving data from Pricing Monkey',
+        'futures_utils.py': 'Utilities for futures contract date calculations',
+        
+        # Pricing Monkey
+        'pm_auto.py': 'Multi-option workflow automation using openpyxl and browser',
+        'retrieval.py': 'Extended browser automation for ActantEOD data retrieval',
+        'simple_retrieval.py': 'Simple data retrieval with SOD formatting',
+        'processor.py': 'PM data processing utilities and validation',
+        'movement.py': 'Market movement data collection and analysis',
+        
+        # Ladder
+        'price_formatter.py': 'Treasury bond price formatting between decimal and TT formats',
+        'csv_to_sqlite.py': 'Convert CSV files to SQLite tables for efficient querying',
+        
+        # TT API
+        'token_manager.py': 'TTTokenManager for authentication and token management',
+        'utils.py': 'TT API utility functions for GUIDs and request formatting',
+        
+        # Bond Future Options
+        'pricing_engine.py': 'Core bond future option pricing engine (CTO-validated)',
+        'analysis.py': 'Refactored analysis utilities for Greeks calculation',
+        'demo_profiles.py': 'Demonstration code for Greek profile visualization',
+        
+        # Apps
+        'app.py': 'Main dashboard application file',
+        'scenario_ladder.py': 'Scenario ladder dashboard for price visualization',
+        'zn_price_tracker.py': 'ZN price tracking application',
+        
+        # Scripts
+        'process_actant_json.py': 'Processes Actant JSON into flattened CSV/SQLite format',
+        'data_integrity_check.py': 'Comprehensive data integrity verification',
+        'verify_th_pnl.py': 'Verification script for Th PnL data integrity',
+        'pricing_monkey_to_actant.py': 'Integration script for PM data to Actant processing',
+        
+        # Config files
+        'pyproject.toml': 'Package configuration with dependencies and build settings',
+        'README.md': 'Project documentation and setup instructions',
+        '.gitignore': 'Git ignore patterns for Python projects',
+        'conftest.py': 'Shared pytest fixtures and test configuration',
+        'code-index.md': 'Comprehensive file documentation and code structure reference',
+        
+        # Entry points
+        'run_actant_eod.py': 'Entry point for ActantEOD dashboard (port 8050)',
+        'run_actant_sod.py': 'Entry point for ActantSOD processing',
+        'run_scenario_ladder.py': 'Entry point for Scenario Ladder dashboard (port 8051)',
+        
+        # Data directories
+        'data/input/': 'Input data storage for all modules',
+        'data/output/': 'Output data and generated files',
+        'data/input/eod/': 'ActantEOD input JSON files',
+        'data/input/sod/': 'ActantSOD input CSV files',
+        'data/input/ladder/': 'Ladder input and mock data files',
+        'data/output/eod/': 'EOD processing outputs and databases',
+        'data/output/sod/': 'SOD generated CSV files',
+        'data/output/ladder/': 'Ladder SQLite databases',
+        
+        # Test directories
+        'tests/components/': 'Component unit tests',
+        'tests/monitoring/': 'Decorator and logging tests',
+        'tests/trading/': 'Trading utility tests',
+        'tests/integration/': 'Dashboard integration tests',
+        
+        # Memory bank
+        'memory-bank/': 'Project memory and documentation',
+        'memory-bank/PRDeez/': 'Product requirements and specifications',
+        
+        # Assets
+        'assets/': 'Static assets for dashboards',
+        
+        # SumoMachine
+        'PmToExcel.py': 'Standalone PM to Excel automation with keyboard navigation'
+    })
+    
+    return descriptions
+
 def pdoc_create_file_tree_section():
     """Create the file tree section with hover tooltips"""
     
-    file_tree_content = html.Pre([
-        html.Strong("uikitxv2/"), html.Br(),
-        "├── ", html.Strong("lib/"), "                          ", html.Em("# Main package (pip install -e .)"), html.Br(),
-        "│   ├── __init__.py              ", html.Em("# Critical module exposer"), html.Br(),
-        "│   ├── ", html.Strong("components/"), "              ", html.Em("# UI components library"), html.Br(),
-        "│   │   ├── __init__.py", html.Br(),
-        "│   │   ├── ", html.Strong("basic/"), "              ", html.Em("# Simple UI components"), html.Br(),
-        "│   │   │   ├── button.py", html.Br(),
-        "│   │   │   ├── checkbox.py", html.Br(),
-        "│   │   │   ├── combobox.py", html.Br(),
-        "│   │   │   ├── container.py", html.Br(),
-        "│   │   │   ├── listbox.py", html.Br(),
-        "│   │   │   ├── radiobutton.py", html.Br(),
-        "│   │   │   ├── rangeslider.py", html.Br(),
-        "│   │   │   ├── tabs.py", html.Br(),
-        "│   │   │   ├── toggle.py", html.Br(),
-        "│   │   │   └── tooltip.py", html.Br(),
-        "│   │   ├── ", html.Strong("advanced/"), "           ", html.Em("# Complex UI components"), html.Br(),
-        "│   │   │   ├── datatable.py", html.Br(),
-        "│   │   │   ├── graph.py", html.Br(),
-        "│   │   │   ├── grid.py", html.Br(),
-        "│   │   │   └── mermaid.py", html.Br(),
-        "│   │   ├── ", html.Strong("core/"), "               ", html.Em("# Component foundations"), html.Br(),
-        "│   │   │   ├── base_component.py", html.Br(),
-        "│   │   │   └── protocols.py", html.Br(),
-        "│   │   └── ", html.Strong("themes/"), "            ", html.Em("# UI theming"), html.Br(),
-        "│   │       └── colour_palette.py", html.Br(),
-        "│   ├── ", html.Strong("monitoring/"), "              ", html.Em("# Logging & performance"), html.Br(),
-        "│   ├── ", html.Strong("trading/"), "               ", html.Em("# Trading business logic"), html.Br(),
-        "├── ", html.Strong("apps/"), "                       ", html.Em("# Application layer"), html.Br(),
-        "│   ├── ", html.Strong("dashboards/"), html.Br(),
-        "│   │   ├── ", html.Strong("actant_eod/"), "      ", html.Em("# EOD Dashboard"), html.Br(),
-        "│   │   ├── ", html.Strong("ladder/"), html.Br(),
-        "│   │   └── ", html.Strong("main/"), html.Br(),
-        "│   └── ", html.Strong("demos/"), html.Br(),
-        "├── ", html.Strong("scripts/"), "                    ", html.Em("# Utility scripts"), html.Br(),
-        "├── ", html.Strong("data/"), "                       ", html.Em("# Data organization"), html.Br(),
-        "└── ", html.Strong("Entry Points & Configuration")
-    ], style={
+    # Parse code-index for descriptions
+    descriptions = pdoc_parse_code_index()
+    
+    # Counter for unique tooltip IDs
+    tooltip_counter = 0
+    
+    def create_file_element(filename, description=None, is_dir=False):
+        """Create a file/directory element with optional tooltip"""
+        nonlocal tooltip_counter
+        
+        if description:
+            tooltip_counter += 1
+            element_id = f"pdoc-file-{tooltip_counter}"
+            
+            # Create the filename span with ID for tooltip targeting
+            element = html.Span(
+                html.Strong(filename) if is_dir else filename,
+                id=element_id,
+                style={'cursor': 'help', 'textDecoration': 'underline dotted'}
+            )
+            
+            # Create the tooltip
+            tooltip = Tooltip(
+                id=f"{element_id}-tooltip",
+                target=element_id,
+                children=description,
+                theme=default_theme,
+                placement="right"
+            ).render()
+            
+            return [element, tooltip]
+        else:
+            # No tooltip needed
+            return html.Strong(filename) if is_dir else filename
+    
+    # Build the file tree with tooltips
+    tree_elements = []
+    
+    # Helper to add tree line with optional description
+    def add_tree_line(prefix, filename, path=None, is_dir=False, comment=None):
+        """Add a line to the tree with optional tooltip"""
+        line_elements = [prefix]
+        
+        # Try to find description for this file/folder
+        desc = None
+        if path:
+            desc = descriptions.get(path)
+        if not desc and filename:
+            desc = descriptions.get(filename)
+        
+        file_elem = create_file_element(filename, desc, is_dir)
+        if isinstance(file_elem, list):
+            line_elements.extend([file_elem[0], " "])
+            if comment:
+                line_elements.extend([html.Em(comment), " "])
+            line_elements.append(file_elem[1])  # Tooltip
+        else:
+            line_elements.extend([file_elem, " "])
+            if comment:
+                line_elements.append(html.Em(comment))
+        
+        line_elements.append(html.Br())
+        return line_elements
+    
+    # Build the tree structure
+    tree_elements.extend(add_tree_line("", "uikitxv2/", "uikitxv2/", True))
+    tree_elements.extend(add_tree_line("├── ", "lib/", "lib/", True, "# Main package (pip install -e .)"))
+    tree_elements.extend(add_tree_line("│   ├── ", "__init__.py", "lib/__init__.py", False, "# Critical module exposer"))
+    tree_elements.extend(add_tree_line("│   ├── ", "components/", "lib/components/", True, "# UI components library"))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "basic/", "lib/components/basic/", True, "# Simple UI components"))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "button.py", "button.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "checkbox.py", "checkbox.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "combobox.py", "combobox.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "container.py", "container.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "listbox.py", "listbox.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "radiobutton.py", "radiobutton.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "rangeslider.py", "rangeslider.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "tabs.py", "tabs.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "toggle.py", "toggle.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "tooltip.py", "tooltip.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "advanced/", "lib/components/advanced/", True, "# Complex UI components"))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "datatable.py", "datatable.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "graph.py", "graph.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "grid.py", "grid.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "mermaid.py", "mermaid.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "core/", "lib/components/core/", True, "# Component foundations"))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "base_component.py", "base_component.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "protocols.py", "protocols.py", False))
+    tree_elements.extend(add_tree_line("│   │   └── ", "themes/", "lib/components/themes/", True, "# UI theming"))
+    tree_elements.extend(add_tree_line("│   │       └── ", "colour_palette.py", "colour_palette.py", False))
+    tree_elements.extend(add_tree_line("│   ├── ", "monitoring/", "lib/monitoring/", True, "# Logging & performance"))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "__init__.py", "lib/monitoring/__init__.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "decorators/", "lib/monitoring/decorators/", True))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "context_vars.py", "context_vars.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "trace_time.py", "trace_time.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "trace_closer.py", "trace_closer.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "trace_cpu.py", "trace_cpu.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "trace_memory.py", "trace_memory.py", False))
+    tree_elements.extend(add_tree_line("│   │   └── ", "logging/", "lib/monitoring/logging/", True))
+    tree_elements.extend(add_tree_line("│   │       ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │       ├── ", "config.py", "config.py", False))
+    tree_elements.extend(add_tree_line("│   │       └── ", "handlers.py", "handlers.py", False))
+    tree_elements.extend(add_tree_line("│   ├── ", "trading/", "lib/trading/", True, "# Trading business logic"))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "__init__.py", "lib/trading/__init__.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "common/", "lib/trading/common/", True))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "price_parser.py", "price_parser.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "date_utils.py", "date_utils.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "actant/", "lib/trading/actant/", True))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "eod/", "lib/trading/actant/eod/", True))
+    tree_elements.extend(add_tree_line("│   │   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   │   ├── ", "data_service.py", "data_service.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   │   └── ", "file_manager.py", "file_manager.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "sod/", "lib/trading/actant/sod/", True))
+    tree_elements.extend(add_tree_line("│   │   │       ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │       ├── ", "actant.py", "actant.py", False))
+    tree_elements.extend(add_tree_line("│   │   │       ├── ", "pricing_monkey_adapter.py", "pricing_monkey_adapter.py", False))
+    tree_elements.extend(add_tree_line("│   │   │       ├── ", "browser_automation.py", "browser_automation.py", False))
+    tree_elements.extend(add_tree_line("│   │   │       └── ", "futures_utils.py", "futures_utils.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "pricing_monkey/", "lib/trading/pricing_monkey/", True))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "automation/", "lib/trading/pricing_monkey/automation/", True))
+    tree_elements.extend(add_tree_line("│   │   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   │   └── ", "pm_auto.py", "pm_auto.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "retrieval/", "lib/trading/pricing_monkey/retrieval/", True))
+    tree_elements.extend(add_tree_line("│   │   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   │   ├── ", "retrieval.py", "retrieval.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   │   └── ", "simple_retrieval.py", "simple_retrieval.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "processors/", "lib/trading/pricing_monkey/processors/", True))
+    tree_elements.extend(add_tree_line("│   │   │       ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │       ├── ", "processor.py", "processor.py", False))
+    tree_elements.extend(add_tree_line("│   │   │       └── ", "movement.py", "movement.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "ladder/", "lib/trading/ladder/", True))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "price_formatter.py", "price_formatter.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "csv_to_sqlite.py", "csv_to_sqlite.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "tt_api/", "lib/trading/tt_api/", True))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "config.py", "config.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "token_manager.py", "token_manager.py", False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "utils.py", "utils.py", False))
+    tree_elements.extend(add_tree_line("│   │   └── ", "bond_future_options/", "lib/trading/bond_future_options/", True))
+    tree_elements.extend(add_tree_line("│   │       ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │       ├── ", "pricing_engine.py", "pricing_engine.py", False))
+    tree_elements.extend(add_tree_line("│   │       ├── ", "analysis.py", "analysis.py", False))
+    tree_elements.extend(add_tree_line("│   │       └── ", "demo_profiles.py", "demo_profiles.py", False))
+    tree_elements.extend(add_tree_line("│   └── ", "__init__.py", "lib/__init__.py", False, "# Critical module exposer"))
+    tree_elements.extend(add_tree_line("├── ", "apps/", "apps/", True, "# Application layer"))
+    tree_elements.extend(add_tree_line("│   ├── ", "dashboards/", "apps/dashboards/", True))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "actant_eod/", "apps/dashboards/actant_eod/", True, "# EOD Dashboard"))
+    tree_elements.extend(add_tree_line("│   │   │   ├── ", "__init__.py", None, False))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "app.py", "app.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "actant_preprocessing/", "apps/dashboards/actant_preprocessing/", True))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "app.py", "app.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "ladder/", "apps/dashboards/ladder/", True))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "scenario_ladder.py", "scenario_ladder.py", False))
+    tree_elements.extend(add_tree_line("│   │   └── ", "main/", "apps/dashboards/main/", True))
+    tree_elements.extend(add_tree_line("│   │       └── ", "app.py", "app.py", False))
+    tree_elements.extend(add_tree_line("│   ├── ", "demos/", "apps/demos/", True))
+    tree_elements.extend(add_tree_line("│   │   └── ", "zn_price_tracker.py", "zn_price_tracker.py", False))
+    tree_elements.extend(add_tree_line("│   └── ", "unified_dashboard/", "apps/unified_dashboard/", True))
+    tree_elements.extend(add_tree_line("│       ├── ", "components/", None, True))
+    tree_elements.extend(add_tree_line("│       ├── ", "pages/", None, True))
+    tree_elements.extend(add_tree_line("│       └── ", "state/", None, True))
+    tree_elements.extend(add_tree_line("│       └── ", "state/", None, True))
+    tree_elements.extend(add_tree_line("├── ", "scripts/", "scripts/", True, "# Utility scripts"))
+    tree_elements.extend(add_tree_line("│   ├── ", "actant_eod/", "scripts/actant_eod/", True))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "process_actant_json.py", "process_actant_json.py", False))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "data_integrity_check.py", "data_integrity_check.py", False))
+    tree_elements.extend(add_tree_line("│   │   └── ", "verify_th_pnl.py", "verify_th_pnl.py", False))
+    tree_elements.extend(add_tree_line("│   ├── ", "actant_sod/", "scripts/actant_sod/", True))
+    tree_elements.extend(add_tree_line("│   │   └── ", "pricing_monkey_to_actant.py", "pricing_monkey_to_actant.py", False))
+    tree_elements.extend(add_tree_line("│   └── ", "migration/", "scripts/migration/", True))
+    tree_elements.extend(add_tree_line("├── ", "data/", "data/", True, "# Data organization"))
+    tree_elements.extend(add_tree_line("│   ├── ", "cache/", "data/cache/", True))
+    tree_elements.extend(add_tree_line("│   ├── ", "input/", "data/input/", True))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "eod/", "data/input/eod/", True))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "ladder/", "data/input/ladder/", True))
+    tree_elements.extend(add_tree_line("│   │   │   └── ", "Specifications/", None, True))
+    tree_elements.extend(add_tree_line("│   │   ├── ", "reference/", "data/input/reference/", True))
+    tree_elements.extend(add_tree_line("│   │   └── ", "sod/", "data/input/sod/", True))
+    tree_elements.extend(add_tree_line("│   └── ", "output/", "data/output/", True))
+    tree_elements.extend(add_tree_line("│       ├── ", "eod/", "data/output/eod/", True))
+    tree_elements.extend(add_tree_line("│       ├── ", "ladder/", "data/output/ladder/", True))
+    tree_elements.extend(add_tree_line("│       ├── ", "reports/", "data/output/reports/", True))
+    tree_elements.extend(add_tree_line("│       └── ", "sod/", "data/output/sod/", True))
+    tree_elements.extend(add_tree_line("├── ", "tests/", "tests/", True, "# Test suite for all modules"))
+    tree_elements.extend(add_tree_line("│   ├── ", "components/", "tests/components/", True))
+    tree_elements.extend(add_tree_line("│   ├── ", "core/", "tests/core/", True))
+    tree_elements.extend(add_tree_line("│   ├── ", "dashboard/", "tests/dashboard/", True))
+    tree_elements.extend(add_tree_line("│   ├── ", "decorators/", "tests/decorators/", True))
+    tree_elements.extend(add_tree_line("│   ├── ", "integration/", "tests/integration/", True))
+    tree_elements.extend(add_tree_line("│   ├── ", "ladderTest/", "tests/ladderTest/", True))
+    tree_elements.extend(add_tree_line("│   ├── ", "lumberjack/", "tests/lumberjack/", True))
+    tree_elements.extend(add_tree_line("│   ├── ", "ttapi/", "tests/ttapi/", True))
+    tree_elements.extend(add_tree_line("│   └── ", "utils/", "tests/utils/", True))
+    tree_elements.extend(add_tree_line("├── ", "assets/", "assets/", True, "# Static assets for dashboards"))
+    tree_elements.extend(add_tree_line("├── ", "memory-bank/", "memory-bank/", True, "# Project memory and documentation"))
+    tree_elements.extend(add_tree_line("│   └── ", "PRDeez/", "memory-bank/PRDeez/", True, "# Product requirements and specifications"))
+    tree_elements.extend(add_tree_line("├── ", "SumoMachine/", "SumoMachine/", True, "# Standalone Pricing Monkey automation"))
+    tree_elements.extend(add_tree_line("│   └── ", "PmToExcel.py", "PmToExcel.py", False))
+    tree_elements.extend(add_tree_line("├── ", "logs/", "logs/", True, "# Application logs"))
+    tree_elements.extend(add_tree_line("├── ", "TTRestAPI/", "TTRestAPI/", True))
+    tree_elements.extend(add_tree_line("│   └── ", "examples/", None, True))
+    tree_elements.extend(add_tree_line("├── ", "pyproject.toml", "pyproject.toml", False, "# Package configuration"))
+    tree_elements.extend(add_tree_line("├── ", "README.md", "README.md", False, "# Project documentation"))
+    tree_elements.extend(add_tree_line("├── ", ".gitignore", ".gitignore", False, "# Git ignore patterns"))
+    tree_elements.extend(add_tree_line("├── ", "conftest.py", "conftest.py", False, "# Pytest configuration"))
+    tree_elements.extend(add_tree_line("├── ", "run_actant_eod.py", "run_actant_eod.py", False, "# EOD dashboard entry"))
+    tree_elements.extend(add_tree_line("├── ", "run_actant_preprocessing.py", "run_actant_preprocessing.py", False))
+    tree_elements.extend(add_tree_line("├── ", "run_actant_sod.py", "run_actant_sod.py", False, "# SOD processing entry"))
+    tree_elements.extend(add_tree_line("└── ", "run_scenario_ladder.py", "run_scenario_ladder.py", False, "# Ladder dashboard entry"))
+    
+    # Wrap in a pre element for proper formatting
+    file_tree_content = html.Pre(
+        tree_elements,
+        style={
         'fontFamily': '"Consolas", "Monaco", "Courier New", monospace',
         'backgroundColor': '#050505',
         'color': default_theme.text_light,
@@ -1193,13 +1572,14 @@ def pdoc_create_file_tree_section():
         'border': f'1px solid {default_theme.secondary}',
         'overflowX': 'auto',
         'margin': '0'
-    })
+        }
+    )
     
     return Container(
         id="pdoc-file-tree-section",
         children=[
-            html.H2("Project File Tree", style={"color": default_theme.primary, "marginTop": "0", "fontSize": "1.8em"}),
-            html.P("Interactive file tree showing the complete project structure. All components have been successfully migrated to the new package architecture."),
+            html.H2("Interactive Project File Tree", style={"color": default_theme.primary, "marginTop": "0", "fontSize": "1.8em"}),
+            html.P("Hover over files and directories to see their descriptions. All components have been successfully migrated to the new package architecture."),
             
             html.Div(
                 file_tree_content,
@@ -1622,19 +2002,110 @@ def pdoc_create_entry_points_section():
 
 def create_project_documentation_content():
     """Create the complete Project Documentation page content"""
+    
+    # Get Mermaid diagrams from create_mermaid_tab function
+    # First flowchart - Project Architecture
+    project_flowchart = """
+    flowchart LR
+        %% ============ Execution layer ============
+        subgraph ExecutionLayer["Execution Layer"]
+            tt["TT (futures algo)"]
+            cmeDirect["CME Direct (options)"]
+            cme["CME Exchange"]
+
+            tt -->|futures orders| cme
+            
+        end
+
+        %% ============ Data & analytics stack ============
+        md["Market Data feed"]
+        pricing["Pricing Monkey"]
+        actant["ACTANT"]
+        greeks["Greeks"]
+        position["Position"]
+        optimizer["Optimizer"]
+        dashboard["Dashboard"]
+
+        %% ----- Market-data distribution -----
+        md --> tt
+        md --> | options orders |cmeDirect
+        md --> actant
+        md --> pricing
+
+        %% ----- Exchange & options → risk engine -----
+        cme -->|positions| actant
+        cmeDirect -->|positions| actant
+
+        %% ----- Risk & valuation flow -----
+        actant -->|analytics| greeks
+        actant -->|positions| position
+        pricing --> greeks
+        pricing --> dashboard
+
+        %% ----- Optimisation loop -----
+        greeks --> optimizer
+        position --> optimizer
+        optimizer --> dashboard
+    """
+    
+    # Second flowchart - Scenario Ladder Architecture
+    scenario_ladder_flowchart = """
+    flowchart LR
+      %% Execution Layer
+      subgraph TTExecution["Execution Layer"]
+        A[TT ADL Algorithm Lab] -->|Executes trades| B[CME Exchange]
+      end
+
+      %% Data & Analytics Stack
+      subgraph DataStack["Data & Analytics Stack"]
+        B -->|Market & Position Data| C["Actant  (Position, Risk, Market Data)"]
+        D[Pricing Monkey] -->|Spot Price| E["Backend"]
+        C -->|Processed Position via SFTP| E
+      end
+
+      %% REST API feed
+      A -->|Working Orders via TT REST API| E
+
+      %% In-app calculations
+      E -->|"Calculates PnL, Risk, Breakeven, and (later) Gamma"|E
+
+      %% UI Layer
+      F["UI (Simulated Ladder)"]
+      E --> F
+    """
+    
+    # Create Doxygen button - using a simple HTML anchor styled as a button
+    doxygen_button = html.A(
+        "📖 View API Documentation",
+        href="/doxygen-docs",
+        target="_blank",
+        style={
+            'display': 'inline-block',
+            'backgroundColor': default_theme.accent,
+            'color': 'white',
+            'fontSize': '16px',
+            'padding': '10px 20px',
+            'marginBottom': '20px',
+            'textDecoration': 'none',
+            'borderRadius': '4px',
+            'cursor': 'pointer',
+            'border': 'none'
+        }
+    )
+    
     return Container(
         id="pdoc-main-container",
         children=[
             # Header
             html.Div([
-                html.H1("UIKitXv2 Project Structure", style={
+                html.H1("UIKitXv2 Project Documentation", style={
                     "color": default_theme.primary,
                     "fontSize": "2.5em",
                     "margin": "0",
                     "fontWeight": "600",
                     "textAlign": "center"
                 }),
-                html.Div("Comprehensive Architecture & File Documentation", style={
+                html.Div("Architecture Diagrams & Interactive File Tree", style={
                     "color": default_theme.text_light,
                     "marginTop": "10px",
                     "fontSize": "1.2em",
@@ -1648,12 +2119,47 @@ def create_project_documentation_content():
                 "marginBottom": "40px"
             }),
             
-            # Content sections
-            pdoc_create_overview_section().render(),
+            # Doxygen Documentation Button
+            html.Div([
+                doxygen_button
+            ], style={'textAlign': 'center', 'marginBottom': '30px'}),
+            
+            # Mermaid Diagrams Section
+            html.Div([
+                html.H2("System Architecture Diagrams", style={"color": default_theme.primary, "marginBottom": "30px", "fontSize": "1.8em"}),
+                
+                # First diagram
+                Grid(
+                    id="pdoc-project-architecture-grid",
+                    children=[
+                        Mermaid(theme=default_theme).render(
+                            id="pdoc-project-architecture-diagram",
+                            graph_definition=project_flowchart,
+                            title="Project Architecture",
+                            description="System architecture diagram showing data flow and component relationships"
+                        )
+                    ],
+                    style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px'}
+                ).render(),
+                
+                # Second diagram
+                Grid(
+                    id="pdoc-scenario-ladder-grid",
+                    children=[
+                        Mermaid(theme=default_theme).render(
+                            id="pdoc-scenario-ladder-diagram",
+                            graph_definition=scenario_ladder_flowchart,
+                            title="Scenario Ladder Architecture",
+                            description="Architecture diagram showing the flow of data into our simulated ladder"
+                        )
+                    ],
+                    style={'backgroundColor': default_theme.panel_bg, 'padding': '15px', 'borderRadius': '5px', 'marginTop': '20px'}
+                ).render()
+            ], style={'marginBottom': '40px'}),
+            
+            # File tree and other architecture sections
             pdoc_create_file_tree_section().render(),
-            pdoc_create_architecture_section().render(),
-            pdoc_create_eod_sod_section().render(),
-            pdoc_create_entry_points_section().render()
+            pdoc_create_architecture_section().render()
         ],
         theme=default_theme,
         style={'padding': '15px'}
@@ -1664,35 +2170,21 @@ def create_project_documentation_content():
 # --- Scenario Ladder Helper Functions ---
 def scl_parse_and_convert_pm_price(price_str):
     """
-    Parse a price string from Pricing Monkey format "XXX-YY.ZZ" or "XXX-YY.ZZZ"
-    and convert it to both decimal and special string format.
+    Parse a price string from Pricing Monkey format and convert it to both decimal and special string format.
+    
+    Handles formats like:
+    - "110-08.5" (with decimal)
+    - "110-17" (without decimal)
     """
-    # Clean the string (trim whitespace, handle potential CR/LF)
-    price_str = price_str.strip() if price_str else ""
+    # Use the robust parse_treasury_price function from price_parser module
+    decimal_price = parse_treasury_price(price_str)
     
-    # Pattern for "XXX-YY.ZZ" or "XXX-YY.ZZZ" (allowing for 1, 2 or 3 decimal places)
-    pattern = r"(\d+)-(\d{1,2})\.(\d{1,3})"
-    match = re.match(pattern, price_str)
-    
-    if not match:
+    if decimal_price is None:
         logger.error(f"Failed to parse price string: '{price_str}'")
         return None, None
         
-    whole_points = int(match.group(1))
-    thirty_seconds_part = int(match.group(2))
-    fractional_part_str = match.group(3)
-    
-    # Convert fractional part to its decimal value
-    fraction_as_decimal = float("0." + fractional_part_str)
-    
-    # Convert to decimal price: whole_points + (thirty_seconds_part + fraction_as_decimal) / 32.0
-    decimal_price = whole_points + (thirty_seconds_part + fraction_as_decimal) / 32.0
-    
-    # Generate special string format
-    if fractional_part_str == "00" or fractional_part_str == "0":
-        special_string_price = f"{whole_points}'{thirty_seconds_part:02d}0"
-    else:
-        special_string_price = f"{whole_points}'{thirty_seconds_part:02d}{fractional_part_str}"
+    # Convert to special string format using the standard function
+    special_string_price = decimal_to_tt_bond_format(decimal_price)
     
     logger.info(f"Converted '{price_str}' to decimal: {decimal_price}, special format: '{special_string_price}'")
     return decimal_price, special_string_price
@@ -1866,7 +2358,6 @@ def scl_create_scenario_ladder_content():
     # Mock spot price setup
     MOCK_SPOT_PRICE_STR = "110-08.5"
     MOCK_SPOT_DECIMAL_PRICE, MOCK_SPOT_SPECIAL_STRING_PRICE = scl_parse_and_convert_pm_price(MOCK_SPOT_PRICE_STR)
-    USE_MOCK_DATA = False  # Default to live data
     
     return Container(
         id="scl-main-container",
@@ -1874,13 +2365,51 @@ def scl_create_scenario_ladder_content():
             # Stores for state management
             dcc.Store(id='scl-scenario-ladder-store', data={'initial_load_trigger': True}),
             dcc.Store(id='scl-spot-price-store', data={
-                'decimal_price': MOCK_SPOT_DECIMAL_PRICE if USE_MOCK_DATA and MOCK_SPOT_DECIMAL_PRICE is not None else None,
-                'special_string_price': MOCK_SPOT_SPECIAL_STRING_PRICE if USE_MOCK_DATA and MOCK_SPOT_SPECIAL_STRING_PRICE is not None else None
+                'decimal_price': MOCK_SPOT_DECIMAL_PRICE if MOCK_SPOT_DECIMAL_PRICE is not None else None,
+                'special_string_price': MOCK_SPOT_SPECIAL_STRING_PRICE if MOCK_SPOT_SPECIAL_STRING_PRICE is not None else None
             }),
             dcc.Store(id='scl-baseline-store', data={'base_pos': 0, 'base_pnl': 0.0}),
+            dcc.Store(id='scl-demo-mode-store', data={'demo_mode': True}),  # Add demo mode store, default to demo
             
             # Header
             html.H2("Scenario Ladder", style={"textAlign": "center", "color": default_theme.primary, "marginBottom": "20px"}),
+            
+            # Demo Mode Toggle
+            html.Div([
+                html.Div([
+                    html.P("Data Source:", style={
+                        "color": default_theme.text_light, 
+                        "marginRight": "10px", 
+                        "marginBottom": "0",
+                        "display": "inline-block"
+                    }),
+                    html.Div([
+                        Button(
+                            id="scl-demo-mode-btn",
+                            label="Demo Mode",
+                            theme=default_theme,
+                            n_clicks=0,
+                            style={
+                                'borderTopRightRadius': '0',
+                                'borderBottomRightRadius': '0',
+                                'borderRight': 'none',
+                                'backgroundColor': default_theme.primary  # Start with demo selected
+                            }
+                        ).render(),
+                        Button(
+                            id="scl-live-mode-btn",
+                            label="Live Data",
+                            theme=default_theme,
+                            n_clicks=0,
+                            style={
+                                'borderTopLeftRadius': '0',
+                                'borderBottomLeftRadius': '0',
+                                'backgroundColor': default_theme.panel_bg
+                            }
+                        ).render()
+                    ], style={"display": "flex", "marginRight": "20px"})
+                ], style={"display": "flex", "alignItems": "center"})
+            ], style={'display': 'flex', 'justifyContent': 'center', 'marginBottom': '20px'}),
             
             # Refresh button
             html.Div([
@@ -1949,16 +2478,6 @@ def scl_create_scenario_ladder_content():
                                         'if': {'filter_query': '{is_exact_spot} = 1', 'column_id': 'price'},
                                         'backgroundColor': default_theme.success,
                                         'color': 'white'
-                                    },
-                                    # Below spot (green bottom border)
-                                    {
-                                        'if': {'filter_query': '{is_below_spot} = 1', 'column_id': 'price'},
-                                        'borderBottom': f'2px solid {default_theme.success}'
-                                    },
-                                    # Above spot (green top border)
-                                    {
-                                        'if': {'filter_query': '{is_above_spot} = 1', 'column_id': 'price'},
-                                        'borderTop': f'2px solid {default_theme.success}'
                                     },
                                     # Positive PnL (green)
                                     {
@@ -2202,14 +2721,13 @@ def aeod_create_actant_eod_content():
 def create_sidebar():
     """Create the unified sidebar navigation"""
     sidebar_items = [
-        {"id": "nav-pricing-monkey", "label": "Pricing Monkey Setup", "icon": "💰"},
-        {"id": "nav-analysis", "label": "Analysis", "icon": "📊"},
+        {"id": "nav-pricing-monkey", "label": "Option Hedging", "icon": "💰"},
+        {"id": "nav-analysis", "label": "Option Comparison", "icon": "📊"},
         {"id": "nav-greek-analysis", "label": "Greek Analysis", "icon": "📈"},
-        {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
         {"id": "nav-scenario-ladder", "label": "Scenario Ladder", "icon": "📊"},
         {"id": "nav-actant-eod", "label": "Actant EOD", "icon": "📈"},
-        {"id": "nav-logs", "label": "Logs", "icon": "📋"},
-        {"id": "nav-mermaid", "label": "Mermaid", "icon": "🔗"}
+        {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
+        {"id": "nav-logs", "label": "Logs", "icon": "📋"}
     ]
     
     sidebar_style = {
@@ -2288,8 +2806,7 @@ def get_page_content(page_name):
         "project-docs": create_project_documentation_content(),
         "scenario-ladder": scl_create_scenario_ladder_content(),
         "actant-eod": aeod_create_actant_eod_content(),
-        "logs": create_logs_tab(),
-        "mermaid": create_mermaid_tab()
+        "logs": create_logs_tab()
     }
     
     return page_content_mapping.get(page_name, pricing_monkey_tab_main_container_rendered)
@@ -2335,7 +2852,6 @@ app.layout = html.Div([
      Output("nav-analysis", "style"),
      Output("nav-greek-analysis", "style"),
      Output("nav-logs", "style"),
-     Output("nav-mermaid", "style"),
      Output("nav-project-docs", "style"),
      Output("nav-scenario-ladder", "style"),
      Output("nav-actant-eod", "style")],
@@ -2343,7 +2859,6 @@ app.layout = html.Div([
      Input("nav-analysis", "n_clicks"),
      Input("nav-greek-analysis", "n_clicks"),
      Input("nav-logs", "n_clicks"),
-     Input("nav-mermaid", "n_clicks"),
      Input("nav-project-docs", "n_clicks"),
      Input("nav-scenario-ladder", "n_clicks"),
      Input("nav-actant-eod", "n_clicks")],
@@ -2352,7 +2867,7 @@ app.layout = html.Div([
 )
 @TraceCloser()
 @TraceTime(log_args=False, log_return=False)
-def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, mermaid_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, current_page):
+def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
     # Determine which button was clicked
@@ -2367,7 +2882,6 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, mer
             "nav-analysis": "analysis",
             "nav-greek-analysis": "greek-analysis", 
             "nav-logs": "logs",
-            "nav-mermaid": "mermaid",
             "nav-project-docs": "project-docs",
             "nav-scenario-ladder": "scenario-ladder",
             "nav-actant-eod": "actant-eod"
@@ -2416,7 +2930,6 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, mer
         "analysis": active_style if active_page == "analysis" else inactive_style,
         "greek-analysis": active_style if active_page == "greek-analysis" else inactive_style,
         "logs": active_style if active_page == "logs" else inactive_style,
-        "mermaid": active_style if active_page == "mermaid" else inactive_style,
         "project-docs": active_style if active_page == "project-docs" else inactive_style,
         "scenario-ladder": active_style if active_page == "scenario-ladder" else inactive_style,
         "actant-eod": active_style if active_page == "actant-eod" else inactive_style
@@ -2424,7 +2937,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, mer
     
     logger.info(f"Navigation: switched to page '{active_page}'")
     
-    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["mermaid"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"]
+    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"]
 
 # Remove old tabs-based layout
 # main_tabs_rendered = Tabs(
@@ -2480,7 +2993,6 @@ def update_option_blocks(selected_num_options_str: str | None):
         )
         output_children.append(wrapper_div)
     return output_children
-
 
 @app.callback(
     Output("results-display-area-content", "children"), 
@@ -2668,7 +3180,6 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
                         y_axis_data_init_processed = y_axis_data_init_numeric # Use raw numeric if no scaling
                 else: # For "Implied Vol (Daily BP)" or other non-scaled, non-delta
                     y_axis_data_init_processed = pd.to_numeric(y_axis_data_init_raw, errors='coerce')
-
 
                 plot_df_init = pd.DataFrame({'strike': strike_data_init, 'y_data': y_axis_data_init_processed}).dropna()
 
@@ -3424,7 +3935,6 @@ def toggle_logs_tables(flow_clicks, performance_clicks):
     
     return flow_trace_style, performance_style, flow_btn_style, perf_btn_style
 
-
 @app.callback(
     [Output("flow-trace-table", "data"),
      Output("performance-metrics-table", "data")],
@@ -3739,14 +4249,15 @@ def acp_trigger_initial_calculation(container_id):
      Input('scl-spot-price-store', 'data'),
      Input('scl-refresh-data-button', 'n_clicks')],
     [State('scl-scenario-ladder-table', 'data'),
-     State('scl-baseline-store', 'data')],
+     State('scl-baseline-store', 'data'),
+     State('scl-demo-mode-store', 'data')],
     prevent_initial_call=False
 )
 @TraceCloser()
 @TraceCpu()
 @TraceMemory()
 @TraceTime(log_args=False, log_return=False)
-def scl_load_and_display_orders(store_data, spot_price_data, n_clicks, current_table_data, baseline_data):
+def scl_load_and_display_orders(store_data, spot_price_data, n_clicks, current_table_data, baseline_data, demo_mode_data):
     """Load and display working orders from TT API with spot price integration"""
     logger.info("Scenario Ladder callback triggered: load_and_display_orders")
     
@@ -3784,14 +4295,307 @@ def scl_load_and_display_orders(store_data, spot_price_data, n_clicks, current_t
         logger.info("Callback skipped: not triggered by initial load or refresh button")
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
-    # Simple fallback for testing - return empty data with message
-    message_text = "Scenario Ladder integrated - TT API loading implementation in progress"
-    logger.info(message_text)
-    message_style_visible = {'textAlign': 'center', 'color': default_theme.secondary, 'marginBottom': '20px', 'display': 'block'}
-    table_style_hidden = {'display': 'none'}
-    baseline_results = {'base_pos': 0, 'base_pnl': 0.0}
-    baseline_display_text = "Integration successful - data loading to be completed"
+    # Constants for data paths
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    MOCK_DATA_FILE = os.path.join(project_root, "data", "input", "ladder", "my_working_orders_response.json")
+    ACTANT_CSV_FILE = os.path.join(project_root, "data", "input", "sod", "SampleSOD.csv")
+    ACTANT_DB_FILEPATH = os.path.join(project_root, "data", "output", "ladder", "actant_data.db")
+    ACTANT_TABLE_NAME = "actant_sod_fills"
     
+    # Check demo mode state
+    use_demo_mode = demo_mode_data.get('demo_mode', True) if demo_mode_data else True
+    
+    # Price increment for ZN-like instruments
+    PRICE_INCREMENT_DECIMAL = 1.0 / 64.0
+    
+    # TT API constants
+    TT_API_BASE_URL = "https://ttrestapi.trade.tt"
+    
+    orders_data = []
+    error_message_str = ""
+    
+    # Extract spot price
+    spot_decimal_val = None
+    if spot_price_data and 'decimal_price' in spot_price_data:
+        spot_decimal_val = spot_price_data.get('decimal_price')
+        if spot_decimal_val is not None:
+            logger.info(f"Extracted spot_decimal_val: {spot_decimal_val}")
+        else:
+            logger.info("spot_price_data present, but decimal_price is None.")
+    else:
+        logger.info("spot_price_data is None or does not contain 'decimal_price'.")
+    
+    # Fetch or load working orders
+    if use_demo_mode:
+        logger.info(f"Using demo mode - loading mock data from: {MOCK_DATA_FILE}")
+        try:
+            with open(MOCK_DATA_FILE, 'r') as f:
+                api_response = json.load(f)
+            orders_data = api_response.get('orders', [])
+            if not orders_data and isinstance(api_response, list):
+                orders_data = api_response
+            logger.info(f"Loaded {len(orders_data)} orders from mock file.")
+        except Exception as e:
+            error_message_str = f"Error loading mock data: {e}"
+            logger.error(error_message_str)
+            orders_data = []
+    else:
+        logger.info("Fetching live data from TT API...")
+        try:
+            token_manager = TTTokenManager(
+                environment=ENVIRONMENT,
+                token_file_base=TOKEN_FILE,
+                app_name=APP_NAME,
+                company_name=COMPANY_NAME
+            )
+            token = token_manager.get_token()
+            if not token:
+                error_message_str = "Failed to acquire TT API token."
+                logger.error(error_message_str)
+            else:
+                service = "ttledger"
+                endpoint = "/orders"
+                url = f"{TT_API_BASE_URL}/{service}/{token_manager.env_path_segment}{endpoint}"
+                
+                request_id = token_manager.create_request_id()
+                params = {"requestId": request_id}
+                
+                headers = {
+                    "x-api-key": token_manager.api_key,
+                    "accept": "application/json",
+                    "Authorization": f"Bearer {token}"
+                }
+                
+                logger.info(f"Making API request to {url} with params: {params}")
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                response.raise_for_status()
+                
+                api_response = response.json()
+                orders_data = api_response.get('orders', [])
+                if not orders_data and isinstance(api_response, list):
+                    orders_data = api_response
+                logger.info(f"Received {len(orders_data)} orders from API.")
+                
+        except requests.exceptions.HTTPError as http_err:
+            error_message_str = f"HTTP error fetching orders: {http_err} - {http_err.response.text if http_err.response else 'No response text'}"
+            logger.error(error_message_str)
+        except Exception as e:
+            error_message_str = f"Error fetching live orders: {e}"
+            logger.error(error_message_str)
+        
+        if error_message_str:
+            orders_data = []
+    
+    # Process orders and build ladder
+    ladder_table_data = []
+    
+    # Filter for relevant working orders (status '1') and valid price/qty
+    processed_orders = []
+    if isinstance(orders_data, list):
+        for order in orders_data:
+            if isinstance(order, dict) and \
+               order.get('orderStatus') == '1' and \
+               isinstance(order.get('price'), (int, float)) and \
+               isinstance(order.get('leavesQuantity'), (int, float)) and \
+               order.get('leavesQuantity') > 0 and \
+               order.get('side') in ['1', '2']:
+                processed_orders.append({
+                    'price': float(order['price']),
+                    'qty': float(order['leavesQuantity']),
+                    'side': order.get('side')
+                })
+    logger.info(f"Processed {len(processed_orders)} relevant working orders.")
+    
+    # Process Actant fill data to get baseline position and P&L
+    actant_fills = []
+    baseline_results = {'base_pos': 0, 'base_pnl': 0.0}
+    baseline_display_text = "No Actant data available"
+    
+    try:
+        # Check if CSV exists and update the SQLite database
+        if os.path.exists(ACTANT_CSV_FILE):
+            try:
+                # Try to use SQLite first
+                if os.path.exists(ACTANT_DB_FILEPATH):
+                    from trading.ladder import query_sqlite_table
+                    logger.info(f"Loading Actant data from SQLite DB {ACTANT_DB_FILEPATH}")
+                    
+                    # Query the database
+                    columns = ["PRICE_TODAY", "QUANTITY", "LONG_SHORT", "ASSET", "PRODUCT_CODE"]
+                    df = query_sqlite_table(ACTANT_DB_FILEPATH, ACTANT_TABLE_NAME, columns=columns)
+                    
+                    if not df.empty:
+                        # Filter for ZN futures
+                        zn_future_fills = df[(df['ASSET'] == 'ZN') & (df['PRODUCT_CODE'] == 'FUTURE')]
+                        
+                        if not zn_future_fills.empty:
+                            logger.info(f"Found {len(zn_future_fills)} ZN future fills in database")
+                            
+                            # Process each fill
+                            for _, row in zn_future_fills.iterrows():
+                                price_str = row.get('PRICE_TODAY')
+                                price = scl_convert_tt_special_format_to_decimal(price_str)
+                                
+                                if price is None:
+                                    continue
+                                
+                                quantity = float(row.get('QUANTITY', 0))
+                                if pd.isna(quantity) or quantity == 0:
+                                    continue
+                                
+                                side = row.get('LONG_SHORT', '')
+                                if side == 'S':
+                                    quantity = -quantity
+                                
+                                actant_fills.append({
+                                    'price': price,
+                                    'qty': int(quantity)
+                                })
+                else:
+                    # Fall back to CSV
+                    actant_fills = scl_load_actant_zn_fills(ACTANT_CSV_FILE)
+            except Exception as e:
+                logger.error(f"Error loading from SQLite DB: {e}, falling back to CSV")
+                actant_fills = scl_load_actant_zn_fills(ACTANT_CSV_FILE)
+        
+        logger.info(f"Loaded {len(actant_fills)} Actant ZN fills")
+        
+        # Calculate baseline position and P&L if we have fills and spot price
+        if spot_decimal_val is not None and actant_fills:
+            baseline_results = scl_calculate_baseline_from_actant_fills(actant_fills, spot_decimal_val)
+            
+            # Prepare display text
+            pos_str = f"Long {baseline_results['base_pos']}" if baseline_results['base_pos'] > 0 else \
+                     f"Short {-baseline_results['base_pos']}" if baseline_results['base_pos'] < 0 else "FLAT"
+            pnl_str = f"${baseline_results['base_pnl']:.2f}"
+            baseline_display_text = f"Current Position: {pos_str}, Realized P&L @ Spot: {pnl_str}"
+            logger.info(f"Baseline from Actant: {baseline_display_text}")
+        else:
+            logger.info("Either spot price or Actant fills not available for baseline calculation")
+    except Exception as e:
+        logger.error(f"Error processing Actant data: {e}")
+        baseline_display_text = f"Error processing Actant data: {str(e)}"
+    
+    # Handle early exit cases
+    if not processed_orders and not error_message_str and spot_decimal_val is None:
+        message_text = "No working orders or spot price found to display."
+        logger.info(message_text)
+        message_style_visible = {'textAlign': 'center', 'color': default_theme.warning, 'marginBottom': '20px', 'display': 'block'}
+        table_style_hidden = {'display': 'none'}
+        return [], table_style_hidden, message_text, message_style_visible, baseline_results, baseline_display_text
+    elif error_message_str and not processed_orders:
+        message_text = error_message_str
+        logger.info(f"Displaying error: {message_text}")
+        message_style_visible = {'textAlign': 'center', 'color': default_theme.danger, 'marginBottom': '20px', 'display': 'block'}
+        table_style_hidden = {'display': 'none'}
+        return [], table_style_hidden, message_text, message_style_visible, baseline_results, baseline_display_text
+    
+    # Build price ladder
+    if processed_orders or spot_decimal_val is not None:
+        # Calculate overall raw min/max prices
+        current_min_raw_price = None
+        current_max_raw_price = None
+        
+        if processed_orders:
+            order_prices = [o['price'] for o in processed_orders]
+            if order_prices:
+                min_order_val = min(order_prices)
+                max_order_val = max(order_prices)
+                current_min_raw_price = min_order_val
+                current_max_raw_price = max_order_val
+                logger.info(f"Min/Max from orders: {min_order_val}/{max_order_val}")
+        
+        if spot_decimal_val is not None:
+            logger.info(f"Considering spot_decimal_val for range: {spot_decimal_val}")
+            if current_min_raw_price is None or spot_decimal_val < current_min_raw_price:
+                current_min_raw_price = spot_decimal_val
+            if current_max_raw_price is None or spot_decimal_val > current_max_raw_price:
+                current_max_raw_price = spot_decimal_val
+        
+        logger.info(f"Overall raw min/max before rounding: {current_min_raw_price}/{current_max_raw_price}")
+        
+        if current_min_raw_price is None:
+            logger.info("No valid price data (orders or spot) to form ladder. Returning empty.")
+            message_text = "No price data available to display ladder."
+            message_style_visible = {'textAlign': 'center', 'color': default_theme.warning, 'marginBottom': '20px', 'display': 'block'}
+            table_style_hidden = {'display': 'none'}
+            return [], table_style_hidden, message_text, message_style_visible, baseline_results, baseline_display_text
+        
+        # Round to nearest tick
+        ladder_min_price = math.floor(current_min_raw_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        ladder_max_price = math.ceil(current_max_raw_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        
+        logger.info(f"Ladder min/max after initial rounding: {ladder_min_price}/{ladder_max_price}")
+        
+        # Add padding
+        ladder_min_price -= PRICE_INCREMENT_DECIMAL
+        ladder_max_price += PRICE_INCREMENT_DECIMAL
+        
+        # Re-round for precision after padding
+        ladder_min_price = round(ladder_min_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        ladder_max_price = round(ladder_max_price / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        
+        logger.info(f"Ladder min/max after padding and re-rounding: {ladder_min_price}/{ladder_max_price}")
+        
+        # Ensure num_levels is positive
+        num_levels = round((ladder_max_price - ladder_min_price) / PRICE_INCREMENT_DECIMAL) + 1
+        if num_levels <= 0:
+            num_levels = 1
+        
+        logger.info(f"Final Ladder Price Range: {decimal_to_tt_bond_format(ladder_min_price)} to {decimal_to_tt_bond_format(ladder_max_price)}, Levels: {num_levels}")
+        
+        current_price_level = ladder_max_price
+        epsilon = PRICE_INCREMENT_DECIMAL / 100.0
+        
+        for _ in range(num_levels):
+            formatted_price = decimal_to_tt_bond_format(current_price_level)
+            my_qty_at_level = 0
+            side_at_level = ""
+            
+            for order in processed_orders:
+                if abs(order['price'] - current_price_level) < epsilon:
+                    my_qty_at_level += order['qty']
+                    if not side_at_level:
+                        side_at_level = order['side']
+            
+            # Create the row data with spot price indicators
+            row_data = {
+                'price': formatted_price,
+                'my_qty': int(my_qty_at_level) if my_qty_at_level > 0 else "",
+                'working_qty_side': side_at_level if my_qty_at_level > 0 else "",
+                'decimal_price_val': current_price_level,
+                'is_exact_spot': 0,
+                'is_below_spot': 0,
+                'is_above_spot': 0,
+                'projected_pnl': 0,
+                'position_debug': 0,
+                'risk': 0,
+                'breakeven': 0,
+            }
+            
+            ladder_table_data.append(row_data)
+            current_price_level -= PRICE_INCREMENT_DECIMAL
+            current_price_level = round(current_price_level / PRICE_INCREMENT_DECIMAL) * PRICE_INCREMENT_DECIMAL
+        
+        # Apply spot price indicators to the ladder data if spot price is available
+        if spot_price_data and spot_price_data.get('decimal_price') is not None:
+            ladder_table_data = scl_update_data_with_spot_price(
+                ladder_table_data,
+                spot_price_data,
+                base_position=baseline_results['base_pos'],
+                base_pnl=baseline_results['base_pnl']
+            )
+        
+        logger.info(f"Generated {len(ladder_table_data)} rows for the ladder.")
+        message_text = ""
+        message_style_hidden = {'display': 'none'}
+        table_style_visible = {'display': 'block', 'width': '600px', 'margin': 'auto'}
+        return ladder_table_data, table_style_visible, message_text, message_style_hidden, baseline_results, baseline_display_text
+    else:
+        message_text = error_message_str if error_message_str else "No working orders or spot price available to display ladder."
+        logger.info(f"Final fallback: {message_text}")
+        message_style_visible = {'textAlign': 'center', 'color': default_theme.danger if error_message_str else default_theme.text_light, 'marginBottom': '20px', 'display': 'block'}
+        table_style_hidden = {'display': 'none'}
     return [], table_style_hidden, message_text, message_style_visible, baseline_results, baseline_display_text
 
 @app.callback(
@@ -3854,7 +4658,6 @@ def aeod_create_shock_amount_options(shock_values, shock_type=None):
     
     return options
 
-
 def aeod_create_density_aware_marks(shock_values, shock_type):
     """
     Create marks dictionary with mode-specific labeling strategies.
@@ -3895,7 +4698,6 @@ def aeod_create_density_aware_marks(shock_values, shock_type):
     
     return marks
 
-
 def aeod_create_tooltip_config(shock_type):
     """
     Create tooltip configuration that matches label formatting.
@@ -3921,13 +4723,11 @@ def aeod_create_tooltip_config(shock_type):
             "template": "${value:.2f}"  # Try currency format
         }
 
-
 def aeod_get_data_service():
     """Get or create ActantDataService instance"""
     if not hasattr(aeod_get_data_service, '_instance'):
         aeod_get_data_service._instance = ActantDataService()
     return aeod_get_data_service._instance
-
 
 def aeod_get_toggle_state_from_buttons(ctx, button_id_false, button_id_true, default_false=True):
     """Extract toggle state from button clicks using callback context."""
@@ -3943,7 +4743,6 @@ def aeod_get_toggle_state_from_buttons(ctx, button_id_false, button_id_true, def
     else:
         return default_false
 
-
 def aeod_get_global_shock_range_for_metric(selected_scenarios, shock_type):
     """Calculate global shock range across all selected scenarios for a given shock type."""
     data_service = aeod_get_data_service()
@@ -3957,7 +4756,6 @@ def aeod_get_global_shock_range_for_metric(selected_scenarios, shock_type):
     
     return global_min, global_max
 
-
 def aeod_get_global_shock_values_for_metric(selected_scenarios, shock_type):
     """Get unique shock values across all selected scenarios for consistent tick marks."""
     data_service = aeod_get_data_service()
@@ -3968,7 +4766,6 @@ def aeod_get_global_shock_values_for_metric(selected_scenarios, shock_type):
         all_shock_values.update(scenario_shock_values)
     
     return sorted(list(all_shock_values))
-
 
 def aeod_create_scenario_view_grid(selected_scenarios, selected_metrics, is_table_view, is_percentage):
     """Create scenario-based visualization grid (each scenario = one graph)."""
@@ -4087,7 +4884,6 @@ def aeod_create_scenario_view_grid(selected_scenarios, selected_metrics, is_tabl
     
     return Grid(id="aeod-visualization-grid", children=grid_children).render()
 
-
 def aeod_create_metric_view_grid(selected_scenarios, selected_metrics, is_table_view, is_percentage):
     """Create metric-based visualization grid (each metric = one graph)."""
     # Calculate grid layout
@@ -4201,7 +4997,6 @@ def aeod_create_metric_view_grid(selected_scenarios, selected_metrics, is_table_
         grid_children.append((metric_container, {"width": width}))
     
     return Grid(id="aeod-metric-visualization-grid", children=grid_children).render()
-
 
 def aeod_create_dashboard_layout():
     """Create the main dashboard layout with complete Actant EOD functionality."""
@@ -4562,7 +5357,6 @@ def aeod_load_data(n_clicks):
         logger.error(f"Error loading Actant EOD data: {e}")
         return f"Error loading data: {str(e)}", False, [], {}
 
-
 @app.callback(
     [Output("aeod-current-file-display", "children", allow_duplicate=True),
      Output("aeod-pm-data-loaded-store", "data")],
@@ -4583,7 +5377,6 @@ def aeod_load_pm_data(n_clicks):
     except Exception as e:
         logger.error(f"Error loading Actant EOD PM data: {e}")
         return f"Error loading PM data: {str(e)}", False
-
 
 @app.callback(
     Output("aeod-toggle-states-store", "data"),
@@ -4634,7 +5427,6 @@ def aeod_update_toggle_states_store(graph_btn, table_btn, abs_btn, pct_btn, scen
     
     logger.info(f"Actant EOD toggle states updated: {new_states}")
     return new_states
-
 
 @app.callback(
     Output("aeod-dynamic-visualization-grid", "children"),
@@ -4782,7 +5574,6 @@ def aeod_update_metric_categories(metric_categories, prefix_filter):
     
     return category_components
 
-
 @app.callback(
     [Output("aeod-category-delta-container", "style", allow_duplicate=True),
      Output("aeod-category-epsilon-container", "style", allow_duplicate=True),
@@ -4819,7 +5610,6 @@ def aeod_toggle_category_visibility(*checkbox_values):
             styles.append({"display": "none", "marginLeft": "20px", "marginBottom": "10px"})
     
     return styles
-
 
 @app.callback(
     Output("aeod-selected-metrics-store", "data"),
@@ -4976,7 +5766,6 @@ def aeod_update_scenario_graph(selected_metrics, toggle_states, range_values, gr
             )
         }
 
-
 @app.callback(
     [Output({"type": "aeod-scenario-table", "scenario": MATCH}, "data"),
      Output({"type": "aeod-scenario-table", "scenario": MATCH}, "columns")],
@@ -5047,7 +5836,6 @@ def aeod_update_scenario_table(selected_metrics, toggle_states, range_values, ta
     except Exception as e:
         logger.error(f"Error updating scenario table: {e}")
         return [], []
-
 
 @app.callback(
     Output({"type": "aeod-metric-graph", "metric": MATCH}, "figure"),
@@ -5164,7 +5952,6 @@ def aeod_update_metric_graph(selected_scenarios, toggle_states, range_values, gr
                 height=400
             )
         }
-
 
 @app.callback(
     [Output({"type": "aeod-metric-table", "metric": MATCH}, "data"),
@@ -5292,7 +6079,6 @@ def aeod_update_view_mode_button_styles(graph_clicks, table_clicks):
             {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.primary}
         )
 
-
 @app.callback(
     [Output("aeod-percentage-absolute-btn", "style"),
      Output("aeod-percentage-percentage-btn", "style")],
@@ -5330,7 +6116,6 @@ def aeod_update_percentage_button_styles(abs_clicks, pct_clicks):
              'backgroundColor': default_theme.panel_bg},
             {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.primary}
         )
-
 
 @app.callback(
     [Output("aeod-viz-mode-scenario-btn", "style"),
@@ -5371,6 +6156,49 @@ def aeod_update_viz_mode_button_styles(scenario_clicks, metric_clicks):
         )
 
 # --- End Actant EOD Callbacks ---
+
+# Scenario Ladder Demo Mode Toggle Callback
+@app.callback(
+    [Output("scl-demo-mode-store", "data"),
+     Output("scl-demo-mode-btn", "style"), 
+     Output("scl-live-mode-btn", "style")],
+    [Input("scl-demo-mode-btn", "n_clicks"),
+     Input("scl-live-mode-btn", "n_clicks")],
+    prevent_initial_call=False
+)
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
+def scl_toggle_demo_mode(demo_clicks, live_clicks):
+    """Toggle between demo and live mode"""
+    ctx = dash.callback_context
+    
+    # Default to demo mode
+    if not ctx.triggered:
+        return (
+            {'demo_mode': True},
+            {'borderTopRightRadius': '0', 'borderBottomRightRadius': '0', 'borderRight': 'none', 
+             'backgroundColor': default_theme.primary},
+            {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.panel_bg}
+        )
+    
+    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+    
+    if triggered_id == "scl-demo-mode-btn":
+        # Demo mode selected
+        return (
+            {'demo_mode': True},
+            {'borderTopRightRadius': '0', 'borderBottomRightRadius': '0', 'borderRight': 'none', 
+             'backgroundColor': default_theme.primary},
+            {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.panel_bg}
+        )
+    else:
+        # Live mode selected
+        return (
+            {'demo_mode': False},
+            {'borderTopRightRadius': '0', 'borderBottomRightRadius': '0', 'borderRight': 'none', 
+             'backgroundColor': default_theme.panel_bg},
+            {'borderTopLeftRadius': '0', 'borderBottomLeftRadius': '0', 'backgroundColor': default_theme.primary}
+        )
 
 if __name__ == "__main__":
     # Comprehensive logger configuration:
