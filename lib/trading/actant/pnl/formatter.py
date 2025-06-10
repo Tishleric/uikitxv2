@@ -8,7 +8,7 @@ matching the structure from the Excel workbook.
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple
-from pnl_calculations import OptionGreeks, PnLCalculator, TaylorSeriesPricer
+from .calculations import OptionGreeks, PnLCalculator, TaylorSeriesPricer
 
 
 class PnLDataFormatter:

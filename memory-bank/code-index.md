@@ -154,6 +154,24 @@ A comprehensive summary of each code file with its purpose and key functionality
   - `format_bearer_token()` - Format authorization tokens
   - `is_valid_guid()` - Validate GUID format
 
+#### Actant PnL (`lib/trading/actant/pnl/`)
+- **__init__.py** - Main module exports for PnL analysis: OptionGreeks, TaylorSeriesPricer, PnLCalculator
+- **calculations.py** - Core PnL calculation engine:
+  - `OptionGreeks` - Data class for option parameters and Greeks (delta, gamma, vega, theta)
+  - `TaylorSeriesPricer` - Taylor Series approximation for option pricing from neighboring positions
+  - `PnLCalculator` - Calculate PnL using Actant vs Taylor Series methods
+  - `parse_actant_csv_to_greeks()` - Parse Actant CSV data into OptionGreeks objects
+  - Shock multiplier conversion (1 shock = 16 basis points)
+- **parser.py** - CSV file parsing utilities:
+  - `ActantCSVParser` - Parse Actant-formatted CSV files with greek columns
+  - `ActantFileMonitor` - Monitor directories for latest CSV files
+  - `load_latest_data()` - Load most recent CSV and return formatted DataFrame
+  - Automatic expiration detection and Greek extraction
+- **formatter.py** - Data formatting utilities:
+  - `PnLDataFormatter` - Format PnL data for display in tables and graphs
+  - `format_price()` - Format option prices with appropriate precision
+  - `format_pnl()` - Format PnL values with color coding for gains/losses
+
 #### Bond Future Options (`lib/trading/bond_future_options/`)
 - **__init__.py** - Exports BondFutureOption class and analysis functions
 
@@ -211,7 +229,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **zn_price_tracker.py** - ZN price tracking application
 
 #### Main Dashboard (`apps/dashboards/main/`)
-- **app.py** - Main unified dashboard integrating all tabs into single application with sidebar navigation system, comprehensive callback management, namespace isolation with prefixed functions per dashboard, advanced state management through data stores, professional UI theming, and complete Actant EOD dashboard implementation with 15+ helper functions and interactive visualizations
+- **app.py** - Main unified dashboard integrating all tabs into single application with sidebar navigation system, comprehensive callback management, namespace isolation with prefixed functions per dashboard, advanced state management through data stores, professional UI theming, complete Actant EOD dashboard implementation with 15+ helper functions and interactive visualizations, and fixed Actant PnL integration with early callback registration to prevent double-click issue
 
 #### Actant Preprocessing Dashboard (`apps/dashboards/actant_preprocessing/`)
 - **__init__.py** - Package initialization for BFO Greek Analysis dashboard
@@ -230,6 +248,16 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **query_runner.py** - Database query execution utility
 - **run_queries_demo.py** - Demo script for running database queries
 - **queries.yaml** - YAML configuration for demo queries
+
+#### Actant PnL Dashboard (`apps/dashboards/actant_pnl/`)
+- **__init__.py** - Module exports: PnLDashboard, create_dashboard_content, register_callbacks
+- **pnl_dashboard.py** - Interactive dashboard for option PnL analysis:
+  - Side-by-side price and PnL comparison graphs
+  - Toggle between Call/Put options and Graph/Table views
+  - Real-time Taylor Series approximation calculations
+  - Automatic expiration selection from available CSV data
+  - Professional dark theme UI with conditional formatting
+  - Integration functions for main dashboard sidebar
 
 ## Remaining Original Locations
 
@@ -261,6 +289,8 @@ tests/
 - **actant_eod/data_integrity_check.py** - Comprehensive data integrity verification for ActantEOD pipeline
 - **actant_eod/verify_th_pnl.py** - Simple verification script for Th PnL data integrity
 - **actant_sod/pricing_monkey_to_actant.py** - Integration script that retrieves PM data and processes through actant logic
+- **actant_pnl_formula_extractor.py** - Extract Excel formulas from actantpnl.xlsx for analysis
+- **run_actant_pnl_demo.py** - Run the Actant PnL dashboard in standalone mode for testing
 
 ## Data Structure (`data/`)
 ```
@@ -269,7 +299,9 @@ data/
 │   ├── eod/              # ActantEOD input files
 │   ├── sod/              # ActantSOD input files  
 │   ├── ladder/           # Ladder input files
+│   ├── actant_pnl/       # Actant PnL CSV files (e.g., GE_XCME.ZN_*.csv)
 │   └── reference/        # Reference data (actant.csv, SampleZNSOD.csv)
+│       └── actant_pnl/   # Reference Excel files (actantpnl.xlsx)
 └── output/
     ├── eod/              # ActantEOD outputs (databases)
     ├── sod/              # ActantSOD outputs

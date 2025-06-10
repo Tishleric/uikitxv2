@@ -6,55 +6,63 @@ Uses wrapped UIKitXv2 components for consistent theming and styling.
 """
 
 import dash
-from dash import html, dcc, Input, Output, State, callback
+from dash import html, dcc, Input, Output, State, callback_context
 import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
 from pathlib import Path
-
-# Import our wrapped components
-import sys
 import os
+import sys
 
-# Get the directory where this script is located
-SCRIPT_DIR = Path(__file__).parent.resolve()
 
-# Add the lib directory to Python path (it's in the parent directory)
-LIB_PATH = SCRIPT_DIR.parent / "lib"
-sys.path.insert(0, str(LIB_PATH))
 
-# Add the script directory to Python path so we can import local modules
-sys.path.insert(0, str(SCRIPT_DIR))
 
-from components import (
+# Get the project root
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+
+# Add the project root to Python path
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from lib.components import (
     Container, Grid, Button, DataTable, Graph, Loading
 )
-from components.themes import default_theme
+from lib.components.themes import default_theme
 
 # Import our data modules
-from csv_parser import load_latest_data
-from pnl_calculations import PnLCalculator
-from data_formatter import PnLDataFormatter
+from lib.trading.actant.pnl.parser import load_latest_data
+from lib.trading.actant.pnl.calculations import PnLCalculator
+from lib.trading.actant.pnl.formatter import PnLDataFormatter
 
 
 class PnLDashboard:
     """Main PnL Dashboard application."""
     
-    def __init__(self, data_dir: str = "."):
+    def __init__(self, data_dir: str = None, id_prefix: str = ""):
         """
         Initialize dashboard.
         
         Args:
-            data_dir: Directory containing CSV files
+            data_dir: Directory containing CSV files (defaults to data/input/actant_pnl)
+            id_prefix: Prefix for component IDs to avoid conflicts
         """
+        if data_dir is None:
+            # Default to the project's data directory
+            project_root = Path(__file__).parent.parent.parent.parent  # Navigate up to project root
+            data_dir = project_root / "data" / "input" / "actant_pnl"
+        
         self.data_dir = Path(data_dir).resolve()  # Use absolute path
         self.theme = default_theme
+        self.id_prefix = id_prefix  # For unique IDs when embedded
         
         # Load available data
         self.available_expirations = []
         self.all_greeks = {}
         self._load_available_data()
-        
+    
+    def _id(self, base_id: str) -> str:
+        """Generate prefixed ID to avoid conflicts."""
+        return f"{self.id_prefix}{base_id}" if self.id_prefix else base_id
+    
     def _load_available_data(self):
         """Load available data on initialization."""
         try:
@@ -128,7 +136,7 @@ class PnLDashboard:
                                     "fontWeight": "500"
                                 }),
                                 dcc.Dropdown(
-                                    id="expiration-dropdown",
+                                    id=self._id("expiration-dropdown"),
                                     options=expiration_options,
                                     value=default_expiration,
                                     style={
@@ -168,7 +176,7 @@ class PnLDashboard:
                                     }),
                                     html.Div([
                                         Button(
-                                            id="btn-option-call",
+                                            id=self._id("btn-option-call"),
                                             label="Call",
                                             theme=self.theme,
                                             n_clicks=1,  # Default selected
@@ -180,7 +188,7 @@ class PnLDashboard:
                                             }
                                         ).render(),
                                         Button(
-                                            id="btn-option-put",
+                                            id=self._id("btn-option-put"),
                                             label="Put",
                                             theme=self.theme,
                                             n_clicks=0,
@@ -203,7 +211,7 @@ class PnLDashboard:
                                     }),
                                     html.Div([
                                         Button(
-                                            id="btn-view-graph",
+                                            id=self._id("btn-view-graph"),
                                             label="Graph",
                                             theme=self.theme,
                                             n_clicks=1,  # Default selected
@@ -215,7 +223,7 @@ class PnLDashboard:
                                             }
                                         ).render(),
                                         Button(
-                                            id="btn-view-table",
+                                            id=self._id("btn-view-table"),
                                             label="Table",
                                             theme=self.theme,
                                             n_clicks=0,
@@ -245,7 +253,7 @@ class PnLDashboard:
                                     "fontSize": "16px",
                                     "fontWeight": "500"
                                 }),
-                                html.Div(id="data-summary-info", children=[
+                                html.Div(id=self._id("data-summary-info"), children=[
                                     html.P(f"Available: {len(self.available_expirations)} expirations", 
                                           style={"color": self.theme.text_subtle, "fontSize": "14px", "marginBottom": "5px"}),
                                     html.P("Select expiration to view analysis", 
@@ -273,7 +281,7 @@ class PnLDashboard:
                     id="content-loading",
                     children=[
                         html.Div(
-                            id="pnl-display-content",
+                            id=self._id("pnl-display-content"),
                             children=[
                                 html.Div(
                                     "Select data to view analysis",
@@ -298,7 +306,7 @@ class PnLDashboard:
         
         return html.Div([
             # Data storage
-            dcc.Store(id="current-view-state", data={"view": "graph", "option": "call", "expiration": initial_expiration}),
+            dcc.Store(id=self._id("current-view-state"), data={"view": "graph", "option": "call", "expiration": initial_expiration}),
             
             # Dashboard layout
             self.create_header(),
@@ -312,15 +320,17 @@ class PnLDashboard:
     
     def register_callbacks(self, app: dash.Dash):
         """Register all dashboard callbacks."""
+        print(f"[DEBUG] Registering callbacks for PnLDashboard with prefix: '{self.id_prefix}'")
+        print(f"[DEBUG] Available expirations: {self.available_expirations}")
         
         @app.callback(
-            Output("current-view-state", "data"),
-            [Input("btn-view-graph", "n_clicks"),
-             Input("btn-view-table", "n_clicks"),
-             Input("btn-option-call", "n_clicks"),
-             Input("btn-option-put", "n_clicks"),
-             Input("expiration-dropdown", "value")],
-            [State("current-view-state", "data")],
+            Output(self._id("current-view-state"), "data"),
+            [Input(self._id("btn-view-graph"), "n_clicks"),
+             Input(self._id("btn-view-table"), "n_clicks"),
+             Input(self._id("btn-option-call"), "n_clicks"),
+             Input(self._id("btn-option-put"), "n_clicks"),
+             Input(self._id("expiration-dropdown"), "value")],
+            [State(self._id("current-view-state"), "data")],
             prevent_initial_call=False
         )
         def update_view_state(graph_clicks, table_clicks, call_clicks, put_clicks, 
@@ -329,29 +339,29 @@ class PnLDashboard:
             if current_state is None:
                 current_state = {"view": "graph", "option": "call", "expiration": selected_expiration}
             
-            ctx = dash.callback_context
+            ctx = callback_context
             if ctx.triggered:
                 button_id = ctx.triggered[0]["prop_id"].split(".")[0]
                 
-                if button_id == "btn-view-graph":
+                if button_id == self._id("btn-view-graph"):
                     current_state["view"] = "graph"
-                elif button_id == "btn-view-table":
+                elif button_id == self._id("btn-view-table"):
                     current_state["view"] = "table"
-                elif button_id == "btn-option-call":
+                elif button_id == self._id("btn-option-call"):
                     current_state["option"] = "call"
-                elif button_id == "btn-option-put":
+                elif button_id == self._id("btn-option-put"):
                     current_state["option"] = "put"
-                elif button_id == "expiration-dropdown":
+                elif button_id == self._id("expiration-dropdown"):
                     current_state["expiration"] = selected_expiration
             
             return current_state
         
         @app.callback(
-            [Output("btn-view-graph", "style"),
-             Output("btn-view-table", "style"),
-             Output("btn-option-call", "style"),
-             Output("btn-option-put", "style")],
-            [Input("current-view-state", "data")],
+            [Output(self._id("btn-view-graph"), "style"),
+             Output(self._id("btn-view-table"), "style"),
+             Output(self._id("btn-option-call"), "style"),
+             Output(self._id("btn-option-put"), "style")],
+            [Input(self._id("current-view-state"), "data")],
             prevent_initial_call=False
         )
         def update_button_styles(view_state):
@@ -382,12 +392,15 @@ class PnLDashboard:
             return graph_style, table_style, call_style, put_style
         
         @app.callback(
-            Output("pnl-display-content", "children"),
-            [Input("current-view-state", "data")],
+            Output(self._id("pnl-display-content"), "children"),
+            [Input(self._id("current-view-state"), "data")],
             prevent_initial_call=False
         )
         def update_display_content(view_state):
             """Update main display content based on current selections."""
+            print(f"[DEBUG] update_display_content called with view_state: {view_state}")
+            print(f"[DEBUG] Available greeks: {list(self.all_greeks.keys())}")
+            
             if not view_state or not view_state.get("expiration"):
                 return html.Div(
                     "Select an expiration to view analysis",
@@ -423,8 +436,8 @@ class PnLDashboard:
                 return self.create_pnl_table(greeks, option_type)
         
         @app.callback(
-            Output("data-summary-info", "children"),
-            [Input("current-view-state", "data")],
+            Output(self._id("data-summary-info"), "children"),
+            [Input(self._id("current-view-state"), "data")],
             prevent_initial_call=False
         )
         def update_data_summary(view_state):
@@ -853,10 +866,11 @@ class PnLDashboard:
         ).render()
 
 
-def create_app(data_dir: str = ".") -> dash.Dash:
+def create_app(data_dir: str = None) -> dash.Dash:
     """Create and configure the Dash application."""
-    # Get the assets folder path (it's in the parent directory)
-    assets_folder_path = os.path.abspath(os.path.join(SCRIPT_DIR.parent, "assets"))
+    # Find project root and assets folder
+    project_root = Path(__file__).parent.parent.parent.parent  # Navigate up to project root
+    assets_folder_path = str(project_root / "assets")
     
     # Create app with assets folder for CSS styling
     # Note: Using __name__ is crucial for assets to work properly with different runners
@@ -885,10 +899,47 @@ def create_app(data_dir: str = ".") -> dash.Dash:
     return app
 
 
+# Integration functions for main dashboard
+# Create a shared instance for integration
+_shared_dashboard_instance = None
+
+def get_shared_dashboard():
+    """Get or create the shared dashboard instance."""
+    global _shared_dashboard_instance
+    if _shared_dashboard_instance is None:
+        _shared_dashboard_instance = PnLDashboard(id_prefix="actant-pnl-")
+    return _shared_dashboard_instance
+
+
+def create_dashboard_content():
+    """
+    Create dashboard content for integration into main app.
+    This returns the layout without creating a separate app.
+    """
+    dashboard = get_shared_dashboard()
+    return dashboard.create_layout()
+
+
+def register_callbacks(app):
+    """
+    Register callbacks with the main app instance.
+    This allows the dashboard to work within the unified app.
+    """
+    dashboard = get_shared_dashboard()
+    dashboard.register_callbacks(app)
+
+
+# Standalone mode for testing
 if __name__ == "__main__":
-    # Use the script directory as the data directory
-    app = create_app(str(SCRIPT_DIR))
+    # Get the script directory for standalone mode
+    SCRIPT_DIR = Path(__file__).parent.resolve()
+    
+    # Use default data directory
+    project_root = SCRIPT_DIR.parent.parent.parent  # Navigate up to project root
+    data_dir = str(project_root / "data" / "input" / "actant_pnl")
+    
+    app = create_app(data_dir)
     print("Starting PnL Dashboard...")
-    print(f"Looking for CSV files in: {SCRIPT_DIR}")
+    print(f"Looking for CSV files in: {data_dir}")
     print("Open http://localhost:8050 in your browser")
     app.run(debug=True, host="0.0.0.0", port=8050) 

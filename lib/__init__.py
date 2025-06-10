@@ -6,7 +6,7 @@ __version__ = "2.0.0"
 from . import components
 from . import monitoring  
 from . import trading
-from . import utils
+# from . import utils  # Utils module not implemented yet
 
 # Make submodule contents directly accessible
 # This enables: from components import Button
@@ -15,4 +15,4 @@ import sys
 sys.modules['components'] = components
 sys.modules['monitoring'] = monitoring
 sys.modules['trading'] = trading
-sys.modules['utils'] = utils 
+# sys.modules['utils'] = utils  # Utils module not implemented yet 

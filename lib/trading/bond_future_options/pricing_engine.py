@@ -60,13 +60,15 @@ class BondFutureOption:
 
         # Store both DV01 and convexity for calculations
 
-        print(f"Bond Future Characteristics:")
+        # Debug prints commented out
 
-        print(f"  Future DV01: {self.future_dv01:.6f}")
+        # print(f"Bond Future Characteristics:")
 
-        print(f"  Future Convexity: {self.future_convexity:.6f}")
+        # print(f"  Future DV01: {self.future_dv01:.6f}")
 
-        print(f"  Yield Level: {self.yield_level:.4f}")
+        # print(f"  Future Convexity: {self.future_convexity:.6f}")
+
+        # print(f"  Yield Level: {self.yield_level:.4f}")
 
    
 
@@ -108,7 +110,7 @@ class BondFutureOption:
 
         d = (F - K) / sigma_sqrt_T
 
-        print(d)
+        # print(d)  # Debug print commented out
 
         if option_type == 'call':
 
@@ -396,28 +398,26 @@ def solve_bond_future_option(future_dv01=.063, future_convexity=0.002404, yield_
 
             price_volatility = price_volatility- option_price * dx / (option_implied_2 - option_price)
 
-        print(f"Current Price Volatility: {price_volatility:.6f}", option_price)
+        # print(f"Current Price Volatility: {price_volatility:.6f}", option_price)
 
-    print(option_model.convert_price_to_yield_volatility(price_volatility))
+    # print(option_model.convert_price_to_yield_volatility(price_volatility))
 
-    print(f"Final Price Volatility: {price_volatility:.6f}")
+    # print(f"Final Price Volatility: {price_volatility:.6f}")
 
-    print(f"Final Option Price: {option_price:.6f}")    
+    # print(f"Final Option Price: {option_price:.6f}")    
 
-    for greek in ['delta_F', 'delta_y']:
+    # for greek in ['delta_F', 'delta_y']:
 
- 
+    #     greek_value = getattr(option_model, greek)(F, K, T, price_volatility, option_type) * 1000 if greek != 'delta_F' else getattr(option_model, greek)(F, K, T, price_volatility, option_type)
 
-        greek_value = getattr(option_model, greek)(F, K, T, price_volatility, option_type) * 1000 if greek != 'delta_F' else getattr(option_model, greek)(F, K, T, price_volatility, option_type)
+    #     print(f"{greek}: {greek_value:.6f}")    
 
-        print(f"{greek}: {greek_value:.6f}")    
+    # for greek in ['gamma_y','vega_y', 'theta_F', 'volga_price', 'vanna_F_price', 'charm_F', 'speed_F', 'color_F']:  
 
-    for greek in ['gamma_y','vega_y', 'theta_F', 'volga_price', 'vanna_F_price', 'charm_F', 'speed_F', 'color_F']:  
+    #     greek_value = getattr(option_model, greek)(F, K, T, price_volatility) * 1000.
 
-        greek_value = getattr(option_model, greek)(F, K, T, price_volatility) * 1000.
-
-        print(f"{greek}: {greek_value:.6f}")          
+    #     print(f"{greek}: {greek_value:.6f}")          
 
  
 
-solve_bond_future_option()      
+# solve_bond_future_option()  # Commented out - was running at import time
