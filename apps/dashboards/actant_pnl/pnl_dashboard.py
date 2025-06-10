@@ -750,7 +750,7 @@ class PnLDashboard:
         return html.Div(
             id="tables-container",
             children=[
-                # Side-by-side container
+                # Side-by-side container with more width allocation
                 html.Div([
                     # Price comparison table (left)
                     html.Div([
@@ -763,10 +763,10 @@ class PnLDashboard:
                         }),
                         self._create_price_table(pnl_df)
                     ], style={
-                        "width": "49%",
+                        "width": "50%",  # Increased from 49%
                         "display": "inline-block",
                         "verticalAlign": "top",
-                        "paddingRight": "1%"
+                        "paddingRight": "0.5%"  # Reduced from 1%
                     }),
                     
                     # PnL comparison table (right)
@@ -780,10 +780,10 @@ class PnLDashboard:
                         }),
                         self._create_pnl_only_table(pnl_df)
                     ], style={
-                        "width": "49%",
+                        "width": "50%",  # Increased from 49%
                         "display": "inline-block",
                         "verticalAlign": "top",
-                        "paddingLeft": "1%"
+                        "paddingLeft": "0.5%"  # Reduced from 1%
                     })
                 ], style={
                     "width": "100%",
@@ -797,31 +797,35 @@ class PnLDashboard:
     
     def _create_price_table(self, pnl_df: pd.DataFrame):
         """Create price comparison table."""
+        # Reverse the row order so highest shock is at top
+        pnl_df_reversed = pnl_df.iloc[::-1].reset_index(drop=True)
+        
         # Format data for display with shift in the middle
         table_data = []
-        for _, row in pnl_df.iterrows():
+        for _, row in pnl_df_reversed.iterrows():
             ts0_diff = row['ts0_price'] - row['actant_price']
             ts_neighbor_diff = row['ts_neighbor_price'] - row['actant_price']
             
             table_data.append({
                 "Actant": f"${row['actant_price']:.2f}",
-                "TS from ATM": f"${row['ts0_price']:.2f}",
-                "TS from Neighbor": f"${row['ts_neighbor_price']:.2f}",
+                "TS ATM": f"${row['ts0_price']:.2f}",  # Shortened column name
+                "TS Neighbor": f"${row['ts_neighbor_price']:.2f}",  # Shortened column name
                 "Shift (bp)": f"{row['shock_bp']:.0f}",
-                "TS0 vs Actant": f"${ts0_diff:.2f}",
-                "TS-0.25 vs Actant": f"${ts_neighbor_diff:.2f}",
+                "TSATM Error": f"${ts0_diff:.2f}",  # Updated naming consistency
+                "TSNeighbor Error": f"${ts_neighbor_diff:.2f}",  # Updated naming consistency
                 "_ts0_diff_raw": ts0_diff,  # Hidden column for conditional formatting
-                "_ts_neighbor_diff_raw": ts_neighbor_diff  # Hidden column for conditional formatting
+                "_ts_neighbor_diff_raw": ts_neighbor_diff,  # Hidden column for conditional formatting
+                "_shock_bp": row['shock_bp']  # Hidden column for 0 bp highlighting
             })
         
-        # Define columns - prices on left, shift in middle, differences on right
+        # Define columns with consistent naming
         columns = [
             {"name": "Actant", "id": "Actant", "type": "text"},
-            {"name": "TS from ATM", "id": "TS from ATM", "type": "text"},
-            {"name": "TS from Neighbor", "id": "TS from Neighbor", "type": "text"},
+            {"name": "TS ATM", "id": "TS ATM", "type": "text"},
+            {"name": "TS Neighbor", "id": "TS Neighbor", "type": "text"},
             {"name": "Shift (bp)", "id": "Shift (bp)", "type": "text"},
-            {"name": "TS0 vs Actant", "id": "TS0 vs Actant", "type": "text"},
-            {"name": "TS-0.25 vs Actant", "id": "TS-0.25 vs Actant", "type": "text"}
+            {"name": "TSATM Error", "id": "TSATM Error", "type": "text"},
+            {"name": "TSNeighbor Error", "id": "TSNeighbor Error", "type": "text"}
         ]
         
         # Build conditional styling
@@ -834,27 +838,35 @@ class PnLDashboard:
             }
         ]
         
+        # Add faint highlight for 0 bp row
+        for i, row in enumerate(table_data):
+            if abs(row['_shock_bp']) < 0.001:  # 0 bp row
+                style_data_conditional.append({
+                    'if': {'row_index': i},
+                    'backgroundColor': 'rgba(255, 255, 255, 0.1)',  # Faint white highlight
+                })
+        
         # Add conditional formatting for difference columns
         for i, row in enumerate(table_data):
             if row['_ts0_diff_raw'] < 0:
                 style_data_conditional.append({
-                    'if': {'row_index': i, 'column_id': 'TS0 vs Actant'},
+                    'if': {'row_index': i, 'column_id': 'TSATM Error'},
                     'color': '#ff4444'  # Red for negative
                 })
             else:
                 style_data_conditional.append({
-                    'if': {'row_index': i, 'column_id': 'TS0 vs Actant'},
+                    'if': {'row_index': i, 'column_id': 'TSATM Error'},
                     'color': '#44ff44'  # Green for positive
                 })
                 
             if row['_ts_neighbor_diff_raw'] < 0:
                 style_data_conditional.append({
-                    'if': {'row_index': i, 'column_id': 'TS-0.25 vs Actant'},
+                    'if': {'row_index': i, 'column_id': 'TSNeighbor Error'},
                     'color': '#ff4444'  # Red for negative
                 })
             else:
                 style_data_conditional.append({
-                    'if': {'row_index': i, 'column_id': 'TS-0.25 vs Actant'},
+                    'if': {'row_index': i, 'column_id': 'TSNeighbor Error'},
                     'color': '#44ff44'  # Green for positive
                 })
         
@@ -864,40 +876,50 @@ class PnLDashboard:
             columns=columns,
             theme=self.theme,
             page_size=25,
-            style_table={"overflowX": "auto"},
+            style_table={"width": "100%", "minWidth": "0", "overflowX": "visible"},  # Allow more width
             style_cell={
                 'textAlign': 'center',
-                'padding': '8px',
-                'fontFamily': 'monospace'
+                'padding': '6px',  # Reduced padding
+                'fontFamily': 'monospace',
+                'fontSize': '12px',  # Smaller font
+                'width': '16.67%',  # Equal column widths (6 columns = 100/6)
+                'minWidth': '0',
+                'maxWidth': '16.67%',
+                'overflow': 'hidden',
+                'textOverflow': 'ellipsis'
             },
             style_data_conditional=style_data_conditional
         ).render()
     
     def _create_pnl_only_table(self, pnl_df: pd.DataFrame):
         """Create PnL comparison table."""
+        # Reverse the row order so highest shock is at top
+        pnl_df_reversed = pnl_df.iloc[::-1].reset_index(drop=True)
+        
         # Format data for display with shift in the middle
         table_data = []
-        for _, row in pnl_df.iterrows():
+        for _, row in pnl_df_reversed.iterrows():
             table_data.append({
                 "Actant PnL": f"${row['actant_pnl']:.2f}",
-                "TS from ATM": f"${row['ts0_pnl']:.2f}",
-                "TS from Neighbor": f"${row['ts_neighbor_pnl']:.2f}",
+                "TS ATM": f"${row['ts0_pnl']:.2f}",  # Shortened column name
+                "TS Neighbor": f"${row['ts_neighbor_pnl']:.2f}",  # Shortened column name
                 "Shift (bp)": f"{row['shock_bp']:.0f}",
-                "TS0 Error": f"${row['ts0_diff']:.2f}",
-                "TS-0.25 Error": f"${row['ts_neighbor_diff']:.2f}",
+                "TSATM Error": f"${row['ts0_diff']:.2f}",  # Updated naming consistency
+                "TSNeighbor Error": f"${row['ts_neighbor_diff']:.2f}",  # Updated naming consistency
                 # Hidden columns for conditional formatting of error columns only
                 "_ts0_diff_raw": row['ts0_diff'],
-                "_ts_neighbor_diff_raw": row['ts_neighbor_diff']
+                "_ts_neighbor_diff_raw": row['ts_neighbor_diff'],
+                "_shock_bp": row['shock_bp']  # Hidden column for 0 bp highlighting
             })
         
-        # Define columns - PnL on left, shift in middle, errors on right
+        # Define columns with consistent naming
         columns = [
             {"name": "Actant PnL", "id": "Actant PnL", "type": "text"},
-            {"name": "TS from ATM", "id": "TS from ATM", "type": "text"},
-            {"name": "TS from Neighbor", "id": "TS from Neighbor", "type": "text"},
+            {"name": "TS ATM", "id": "TS ATM", "type": "text"},
+            {"name": "TS Neighbor", "id": "TS Neighbor", "type": "text"},
             {"name": "Shift (bp)", "id": "Shift (bp)", "type": "text"},
-            {"name": "TS0 Error", "id": "TS0 Error", "type": "text"},
-            {"name": "TS-0.25 Error", "id": "TS-0.25 Error", "type": "text"}
+            {"name": "TSATM Error", "id": "TSATM Error", "type": "text"},
+            {"name": "TSNeighbor Error", "id": "TSNeighbor Error", "type": "text"}
         ]
         
         # Build conditional styling
@@ -910,29 +932,37 @@ class PnLDashboard:
             }
         ]
         
+        # Add faint highlight for 0 bp row
+        for i, row in enumerate(table_data):
+            if abs(row['_shock_bp']) < 0.001:  # 0 bp row
+                style_data_conditional.append({
+                    'if': {'row_index': i},
+                    'backgroundColor': 'rgba(255, 255, 255, 0.1)',  # Faint white highlight
+                })
+        
         # Add conditional formatting ONLY for error columns
         for i, row in enumerate(table_data):
-            # TS0 Error
+            # TSATM Error
             if row['_ts0_diff_raw'] < 0:
                 style_data_conditional.append({
-                    'if': {'row_index': i, 'column_id': 'TS0 Error'},
+                    'if': {'row_index': i, 'column_id': 'TSATM Error'},
                     'color': '#ff4444'  # Red for negative
                 })
             else:
                 style_data_conditional.append({
-                    'if': {'row_index': i, 'column_id': 'TS0 Error'},
+                    'if': {'row_index': i, 'column_id': 'TSATM Error'},
                     'color': '#44ff44'  # Green for positive
                 })
             
-            # TS-0.25 Error
+            # TSNeighbor Error
             if row['_ts_neighbor_diff_raw'] < 0:
                 style_data_conditional.append({
-                    'if': {'row_index': i, 'column_id': 'TS-0.25 Error'},
+                    'if': {'row_index': i, 'column_id': 'TSNeighbor Error'},
                     'color': '#ff4444'  # Red for negative
                 })
             else:
                 style_data_conditional.append({
-                    'if': {'row_index': i, 'column_id': 'TS-0.25 Error'},
+                    'if': {'row_index': i, 'column_id': 'TSNeighbor Error'},
                     'color': '#44ff44'  # Green for positive
                 })
         
@@ -942,11 +972,17 @@ class PnLDashboard:
             columns=columns,
             theme=self.theme,
             page_size=25,
-            style_table={"overflowX": "auto"},
+            style_table={"width": "100%", "minWidth": "0", "overflowX": "visible"},  # Allow more width
             style_cell={
                 'textAlign': 'center',
-                'padding': '8px',
-                'fontFamily': 'monospace'
+                'padding': '6px',  # Reduced padding
+                'fontFamily': 'monospace',
+                'fontSize': '12px',  # Smaller font
+                'width': '16.67%',  # Equal column widths (6 columns = 100/6)
+                'minWidth': '0',
+                'maxWidth': '16.67%',
+                'overflow': 'hidden',
+                'textOverflow': 'ellipsis'
             },
             style_data_conditional=style_data_conditional
         ).render()
