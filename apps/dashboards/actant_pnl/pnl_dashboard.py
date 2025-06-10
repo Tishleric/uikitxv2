@@ -6,7 +6,7 @@ Uses wrapped UIKitXv2 components for consistent theming and styling.
 """
 
 import dash
-from dash import html, dcc, Input, Output, State, callback_context
+from dash import html, dcc, Input, Output, State, callback_context, no_update
 import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
@@ -57,8 +57,10 @@ class PnLDashboard:
         # Load available data
         self.available_expirations = []
         self.all_greeks = {}
-        self._load_available_data()
-    
+        success, message = self._load_available_data()
+        if not success:
+            print(f"[WARNING] Initial data load failed: {message}")
+        
     def _id(self, base_id: str) -> str:
         """Generate prefixed ID to avoid conflicts."""
         return f"{self.id_prefix}{base_id}" if self.id_prefix else base_id
@@ -79,12 +81,18 @@ class PnLDashboard:
             self.all_greeks = all_greeks
             self.available_expirations = list(all_greeks.keys())
             print(f"[SUCCESS] Loaded data for {len(self.available_expirations)} expirations: {self.available_expirations}")
+            return True, f"Loaded data for {len(self.available_expirations)} expirations"
         except Exception as e:
             print(f"[ERROR] Error loading data: {e}")
             import traceback
             traceback.print_exc()
             self.available_expirations = []
             self.all_greeks = {}
+            return False, f"Error loading data: {str(e)}"
+    
+    def refresh_data(self):
+        """Refresh data from CSV files and return status."""
+        return self._load_available_data()
     
     def create_header(self) -> html.Div:
         """Create dashboard header with title and info."""
@@ -125,6 +133,43 @@ class PnLDashboard:
                 Grid(
                     id="controls-grid",
                     children=[
+                        # Data Refresh Section
+                        (Container(
+                            id="refresh-container",
+                            children=[
+                                html.H4("Data Control", style={
+                                    "color": self.theme.text_light,
+                                    "marginBottom": "10px",
+                                    "fontSize": "16px",
+                                    "fontWeight": "500"
+                                }),
+                                Button(
+                                    id=self._id("refresh-data-button"),
+                                    label="Refresh Data",
+                                    theme=self.theme,
+                                    n_clicks=0,
+                                    style={
+                                        "width": "100%",
+                                        "marginBottom": "10px"
+                                    }
+                                ).render(),
+                                html.Div(
+                                    id=self._id("refresh-status"),
+                                    children=f"Loaded: {len(self.available_expirations)} expirations",
+                                    style={
+                                        "color": self.theme.text_subtle,
+                                        "fontSize": "12px",
+                                        "textAlign": "center"
+                                    }
+                                )
+                            ],
+                            style={
+                                "backgroundColor": self.theme.panel_bg,
+                                "padding": "15px",
+                                "borderRadius": "5px"
+                            }
+                        ).render(), {"xs": 12, "md": 2}),
+                        
                         # Expiration Selection
                         (Container(
                             id="expiration-container",
@@ -241,7 +286,7 @@ class PnLDashboard:
                                 "padding": "15px",
                                 "borderRadius": "5px"
                             }
-                        ).render(), {"xs": 12, "md": 6}),
+                        ).render(), {"xs": 12, "md": 4}),
                         
                         # Summary Info
                         (Container(
@@ -468,6 +513,47 @@ class PnLDashboard:
                     html.P("No data available", 
                           style={"color": self.theme.error, "fontSize": "14px"})
                 ]
+        
+        @app.callback(
+            [Output(self._id("expiration-dropdown"), "options"),
+             Output(self._id("expiration-dropdown"), "value"),
+             Output(self._id("refresh-status"), "children"),
+             Output(self._id("refresh-status"), "style")],
+            [Input(self._id("refresh-data-button"), "n_clicks")],
+            prevent_initial_call=True
+        )
+        def refresh_data_callback(n_clicks):
+            """Handle refresh data button click."""
+            if n_clicks is None or n_clicks == 0:
+                return no_update, no_update, no_update, no_update
+            
+            # Refresh the data
+            success, message = self.refresh_data()
+            
+            # Create new expiration options
+            expiration_options = [{"label": exp, "value": exp} for exp in self.available_expirations]
+            
+            # Set default expiration (first available or None)
+            default_expiration = self.available_expirations[0] if self.available_expirations else None
+            
+            # Update status message and styling
+            if success:
+                status_style = {
+                    "color": self.theme.success,
+                    "fontSize": "12px",
+                    "textAlign": "center"
+                }
+                status_message = f"✓ {message}"
+            else:
+                status_style = {
+                    "color": self.theme.error if hasattr(self.theme, 'error') else "#ff6b6b",
+                    "fontSize": "12px",
+                    "textAlign": "center"
+                }
+                status_message = f"✗ {message}"
+            
+            print(f"[INFO] Data refresh completed: {message}")
+            return expiration_options, default_expiration, status_message, status_style
     
     def create_pnl_graph(self, greeks, option_type: str) -> html.Div:
         """Create both price and PnL comparison graphs using real data."""
@@ -907,7 +993,11 @@ def get_shared_dashboard():
     """Get or create the shared dashboard instance."""
     global _shared_dashboard_instance
     if _shared_dashboard_instance is None:
-        _shared_dashboard_instance = PnLDashboard(id_prefix="actant-pnl-")
+        # Use Z:\RiskCSVs as the data directory
+        _shared_dashboard_instance = PnLDashboard(
+            data_dir=r"Z:\RiskCSVs",
+            id_prefix="actant-pnl-"
+        )
     return _shared_dashboard_instance
 
 
