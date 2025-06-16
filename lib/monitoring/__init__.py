@@ -9,7 +9,7 @@ from .decorators import (
     current_log_data,
     monitor,
 )
-from .logging import configure_logging
+from .logging import setup_logging
 
 from .serializers import SmartSerializer
 from .queues import ObservabilityQueue
@@ -22,7 +22,7 @@ __all__ = [
     "TraceMemory",
     "log_uuid_var",
     "current_log_data",
-    "configure_logging",
+    "setup_logging",
     "monitor",
     "SmartSerializer",
     "ObservabilityQueue",

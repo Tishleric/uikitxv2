@@ -1,4 +1,4 @@
-"""Smart serialization for observability data"""
+"""Serializers for monitoring data"""
 
 from .smart import SmartSerializer
 
