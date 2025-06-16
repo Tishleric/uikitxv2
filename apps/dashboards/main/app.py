@@ -910,17 +910,17 @@ def acp_create_parameter_inputs():
             ]), {"width": 4}),
             (html.Div([
                 html.Label("Future Price", style=label_style),
-                dcc.Input(id="acp-future-price-input", type="number", value=110.789062, step=0.01, style=input_style)
+                dcc.Input(id="acp-future-price-input", type="number", value=110.789062, step=0.0000001, style=input_style)
             ]), {"width": 4}),
             (html.Div([
                 html.Label("Days to Expiry", style=label_style),
-                dcc.Input(id="acp-days-to-expiry-input", type="number", value=4.7, step=0.1, style=input_style)
+                dcc.Input(id="acp-days-to-expiry-input", type="number", value=4.7, step=0.0000001, style=input_style)
             ]), {"width": 4}),
             
             # Row 2: Market Price, DV01, Convexity
             (html.Div([
                 html.Label("Market Price (64ths)", style=label_style),
-                dcc.Input(id="acp-market-price-input", type="number", value=23, step=1, style=input_style)
+                dcc.Input(id="acp-market-price-input", type="number", value=23, step=0.00001, style=input_style)
             ]), {"width": 4}),
             (html.Div([
                 html.Label("Future DV01", style=label_style),

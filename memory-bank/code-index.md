@@ -314,3 +314,103 @@ data/
 - **_backup_transition_20250531_192926/** - Complete backup before final transition
 - **BACKUP_MANIFEST.md** - Documentation of backed up files and restoration instructions
 
+## Core Abstractions (`lib/components/core/`)
+- `base_component.py`: Abstract base class defining the component interface. All UI components must inherit from BaseComponent and implement the render() method.
+- `__init__.py`: Re-exports BaseComponent for easier imports.
+
+## UI Components (`lib/components/`)
+
+### Basic Components (`lib/components/basic/`)
+- `button.py`: Button component wrapping dbc.Button with consistent styling and optional loading states.
+- `card.py`: Card component for content containers with headers and customizable styling.
+- `datatable.py`: Enhanced DataTable component with sorting, filtering, and pagination capabilities.
+- `dropdown.py`: Dropdown selection component with search and multi-select support.
+- `graph.py`: Graph component wrapping dcc.Graph with responsive sizing and theming.
+- `indicator.py`: KPI indicator component showing metrics with optional comparison values.
+- `input.py`: Text input component with validation and error states.
+- `slider.py`: Range slider component for numeric inputs.
+- `__init__.py`: Re-exports all basic components.
+
+### Advanced Components (`lib/components/advanced/`)
+- `grid.py`: Responsive grid layout component using dbc.Row and dbc.Col for flexible layouts.
+- `__init__.py`: Re-exports Grid component.
+
+### Theme Management (`lib/components/themes/`)
+- `theme_manager.py`: Centralized theme configuration for consistent styling across all components.
+
+### Component Initialization
+- `__init__.py`: Main package entry point that re-exports all components for convenient importing.
+
+## Monitoring & Decorators (`lib/monitoring/`)
+
+### Decorators (`lib/monitoring/decorators/`)
+- `context_vars.py`: Defines context variables (log_uuid_var, current_log_data) for sharing data between decorator layers.
+- `trace_closer.py`: TraceCloser decorator that acts as the outermost wrapper, managing database connections and aggregating trace data.
+- `trace_cpu.py`: TraceCpu decorator for monitoring CPU usage during function execution.
+- `trace_memory.py`: TraceMemory decorator for tracking memory allocation and usage.
+- `trace_time.py`: TraceTime decorator for measuring function execution time.
+- `__init__.py`: Re-exports all decorators and context variables.
+
+### Logging Infrastructure (`lib/monitoring/logging/`)
+- `lumberjack_config.py`: Configures the logging system with console and SQLite handlers, providing structured logging capabilities.
+- `sql_log_handler.py`: SQLite handler for persisting structured logs to database for analysis.
+- `__init__.py`: Re-exports logging configuration functions.
+
+## Trading Components (`lib/trading/`)
+
+### Actant Trading System
+- `lib/trading/actant/eod/`: End-of-day processing for Actant
+- `lib/trading/actant/pnl/`: P&L calculation components
+- `lib/trading/actant/sod/`: Start-of-day processing
+
+### Common Trading Utilities (`lib/trading/common/`)
+- Trading-related shared utilities and helpers
+
+### TT API Integration (`lib/trading/tt_api/`)
+- TT REST API client and related functionality
+
+## Applications (`apps/`)
+
+### Dashboards (`apps/dashboards/`)
+- `actant_eod/`: End-of-day dashboard for Actant
+- `actant_pnl/`: P&L analysis dashboard with Excel formula implementation
+- `ladder/`: Ladder trading interface
+- `main/`: Main application entry point
+
+### Unified Dashboard (`apps/unified_dashboard/`)
+- `app.py`: Main Dash application setup
+- `components/`: Reusable dashboard components
+- `pages/`: Individual dashboard pages
+- `state/`: State management utilities
+
+## Utilities
+- `lib/uikitxv2.egg-info/`: Package metadata and entry points
+
+## Testing (`tests/`)
+- Comprehensive test coverage for components, decorators, and trading logic
+- Tests follow the same structure as the source code
+
+## Migration Scripts (`scripts/migration/`)
+- Tools for migrating from old structure to new architecture
+
+## Memory Bank (`memory-bank/`)
+
+### Documentation Files
+- `activeContext.md`: Current development focus and immediate next steps
+- `code-index.md`: This file - comprehensive map of all code modules
+- `io-schema.md`: Canonical list of all inputs, outputs, constants, and environment variables
+- `productContext.md`: Product vision and user experience goals
+- `progress.md`: Development progress tracking
+- `projectBrief.md`: High-level project overview and objectives
+- `systemPatterns.md`: Architectural patterns and design decisions
+- `techContext.md`: Technology stack and constraints
+- `.cursorrules`: Coding standards and AI assistant guidelines
+
+### Feature Documentation (`memory-bank/PRDeez/`)
+- `logsystem.md`: Original observability system design brief
+- `observability-implementation-plan.md`: Refined implementation plan combining original brief with technical review feedback. Includes phases, concrete API specs, performance targets, and migration strategy.
+
+### Actant PnL Analysis (`memory-bank/actant_pnl/`)
+- `analysis/`: Excel formula analysis and documentation
+- `implementation/`: Dashboard implementation notes
+

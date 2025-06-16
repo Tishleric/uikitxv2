@@ -8,6 +8,7 @@ import pyperclip
 from pywinauto.keyboard import send_keys
 import pandas as pd
 from bond_option_pricer import parse_treasury_price
+from datetime import datetime
 
 PM_URL = "https://pricingmonkey.com/b/d815cb0e-74bf-4fc6-8975-550319ca8dad"
 
@@ -43,6 +44,12 @@ def scrape_pm():
     print("Copying to clipboard...")
     send_keys('^c')
     time.sleep(3)  # Wait longer for clipboard
+    
+    # Capture timestamp right after clipboard copy
+    timestamp = datetime.now()
+    with open('pm_timestamp.txt', 'w') as f:
+        f.write(timestamp.strftime('%Y-%m-%d %H:%M:%S'))
+    print(f"Data captured at: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Close browser
     send_keys('^w')

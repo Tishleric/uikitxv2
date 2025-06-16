@@ -5,6 +5,7 @@ Calculate theoretical volatility and compare with Actant and PM
 import pandas as pd
 import numpy as np
 import os
+from datetime import datetime
 from bond_option_pricer import calculate_bond_option_volatility, parse_treasury_price
 
 def create_pivot_table(comparison_df):
@@ -126,16 +127,36 @@ def create_pivot_table(comparison_df):
     return pivot_df
 
 def main():
+    # Capture run timestamp
+    run_timestamp = datetime.now()
+    
     # Load data
     actant_df = pd.read_csv('actant_data.csv') if os.path.exists('actant_data.csv') else pd.DataFrame()
     pm_df = pd.read_csv('pm_data.csv') if os.path.exists('pm_data.csv') else pd.DataFrame()
+    
+    # Read timestamps
+    actant_timestamp = None
+    pm_timestamp = None
+    
+    if os.path.exists('actant_timestamp.txt'):
+        with open('actant_timestamp.txt', 'r') as f:
+            actant_timestamp = f.read().strip()
+    
+    if os.path.exists('pm_timestamp.txt'):
+        with open('pm_timestamp.txt', 'r') as f:
+            pm_timestamp = f.read().strip()
     
     if actant_df.empty:
         print("ERROR: No Actant data found in actant_data.csv")
         return
     
     print(f"Loaded {len(actant_df)} Actant records")
+    if actant_timestamp:
+        print(f"Actant data captured at: {actant_timestamp}")
+    
     print(f"Loaded {len(pm_df)} PM records")
+    if pm_timestamp:
+        print(f"PM data captured at: {pm_timestamp}")
     
     # Create comparison results
     comparison_results = []
@@ -273,11 +294,37 @@ def main():
     # Create pivot table format
     pivot_df = create_pivot_table(comparison_df)
     
+    # Generate timestamped filename
+    filename_timestamp = run_timestamp.strftime('%Y%m%d_%H%M%S')
+    excel_filename = f'volatility_comparison_{filename_timestamp}.xlsx'
+    
     # Save to Excel with enhanced formatting
-    with pd.ExcelWriter('volatility_comparison_formatted.xlsx', engine='openpyxl') as writer:
+    with pd.ExcelWriter(excel_filename, engine='openpyxl') as writer:
         # Save pivot format
         if not pivot_df.empty:
-            pivot_df.to_excel(writer, sheet_name='Volatility_Comparison', index=True)
+            # Add timestamp rows at the top of the pivot table
+            timestamp_data = {}
+            for col in pivot_df.columns:
+                timestamp_data[col] = ''
+            
+            # Create timestamp rows
+            actant_time_row = pd.Series(timestamp_data)
+            pm_time_row = pd.Series(timestamp_data)
+            
+            # Set first column values
+            actant_time_row.iloc[0] = f'Actant Timestamp: {actant_timestamp}' if actant_timestamp else 'Actant Timestamp: N/A'
+            pm_time_row.iloc[0] = f'PM Timestamp: {pm_timestamp}' if pm_timestamp else 'PM Timestamp: N/A'
+            
+            # Insert timestamp rows at the beginning
+            pivot_with_timestamps = pd.DataFrame()
+            pivot_with_timestamps = pd.concat([
+                pd.DataFrame({'Actant_Timestamp': actant_time_row}).T,
+                pd.DataFrame({'PM_Timestamp': pm_time_row}).T,
+                pd.DataFrame({'': pd.Series(timestamp_data)}).T,  # Empty row for spacing
+                pivot_df
+            ])
+            
+            pivot_with_timestamps.to_excel(writer, sheet_name='Volatility_Comparison', index=True)
             
             # Apply comprehensive formatting
             from openpyxl.styles import Border, Side, Alignment, PatternFill, Font
@@ -309,26 +356,35 @@ def main():
                     cell = worksheet.cell(row=row, column=col)
                     cell.border = thin_border
             
-            # Format header row (row 1) - center align
+            # Special formatting for timestamp rows (rows 2 and 3)
+            for row in [2, 3]:  # Timestamp rows
+                for col in range(1, max_col + 1):
+                    cell = worksheet.cell(row=row, column=col)
+                    if col == 1:  # First column with timestamp text
+                        cell.font = Font(bold=True, italic=True)
+                        cell.alignment = Alignment(horizontal='left', vertical='center')
+            
+            # Format headers (now at row 5 after timestamps and empty row)
+            header_row = 5
             for col in range(1, max_col + 1):
-                cell = worksheet.cell(row=1, column=col)
+                cell = worksheet.cell(row=header_row, column=col)
                 cell.alignment = center_align
                 cell.font = Font(bold=True)
             
             # Format index column (column A) - left align, bold
-            for row in range(2, max_row + 1):
+            for row in range(header_row + 1, max_row + 1):
                 cell = worksheet.cell(row=row, column=1)
                 cell.font = Font(bold=True)
                 cell.alignment = Alignment(horizontal='left', vertical='center')
             
-            # Right-align all data cells (columns B onwards, rows 2 onwards)
-            for row in range(2, max_row + 1):
+            # Right-align all data cells (columns B onwards, rows after header)
+            for row in range(header_row + 1, max_row + 1):
                 for col in range(2, max_col + 1):
                     cell = worksheet.cell(row=row, column=col)
                     cell.alignment = right_align
             
             # Highlight Market_Vol and Calculated_Vol rows
-            for row in range(2, max_row + 1):
+            for row in range(header_row + 1, max_row + 1):
                 row_label = worksheet.cell(row=row, column=1).value
                 if row_label == 'Market_Vol':
                     for col in range(1, max_col + 1):
@@ -356,14 +412,21 @@ def main():
                 
                 worksheet.column_dimensions[col_letter].width = min(max_width, 35)
             
-            # Set index column width
-            worksheet.column_dimensions['A'].width = 25
+            # Set index column width - wider to accommodate timestamps
+            worksheet.column_dimensions['A'].width = 30
             
         else:
             # Fallback to original format if pivot fails
             comparison_df.to_excel(writer, sheet_name='Volatility_Comparison', index=False)
     
-    print("\nCreated volatility_comparison_formatted.xlsx with pivot table format")
+    print(f"\nCreated {excel_filename} with pivot table format and timestamps")
+    
+    # Also save a copy with the fixed name for compatibility
+    try:
+        pivot_df.to_excel('volatility_comparison_formatted.xlsx', sheet_name='Volatility_Comparison', index=True)
+        print("Also saved as volatility_comparison_formatted.xlsx for compatibility")
+    except PermissionError:
+        print("Note: Could not save volatility_comparison_formatted.xlsx (file may be open)")
     
     # Print summary
     print("\nVOLATILITY COMPARISON SUMMARY")
