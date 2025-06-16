@@ -6,11 +6,10 @@ import json
 import pandas as pd
 import os
 import glob
+from datetime import datetime
 
 def find_latest_json():
     """Find most recent Actant JSON file - optimized for current day"""
-    from datetime import datetime
-    
     # Try optimized approach first - today's files only
     today = datetime.now().strftime("%Y%m%d")
     todays_pattern = f"Z:/ActantEOD/*_{today}_*.json"
@@ -31,8 +30,15 @@ def find_latest_json():
 
 def parse_json(filepath):
     """Extract F, K, T, Vol for ATM options from JSON"""
+    # Capture timestamp when parsing
+    timestamp = datetime.now()
+    
     with open(filepath, 'r') as f:
         data = json.load(f)
+    
+    # Save timestamp to file
+    with open('actant_timestamp.txt', 'w') as f:
+        f.write(timestamp.strftime('%Y-%m-%d %H:%M:%S'))
     
     results = []
     
@@ -75,6 +81,12 @@ if __name__ == "__main__":
     if json_file:
         print(f"Parsing {json_file}...")
         df = parse_json(json_file)
+        
+        # Read and display timestamp
+        if os.path.exists('actant_timestamp.txt'):
+            with open('actant_timestamp.txt', 'r') as f:
+                timestamp = f.read()
+            print(f"Data captured at: {timestamp}")
         
         if not df.empty:
             df.to_csv('actant_data.csv', index=False)

@@ -1,13 +1,18 @@
 # Volatility Comparison Tool
 
-A comprehensive tool for comparing implied volatilities across three sources:
-1. **Actant Risk** - Risk management system volatilities
-2. **Pricing Monkey** - Market implied volatilities
-3. **Internal Model** - Mathematically derived volatilities using bond future option pricing
+Compare implied volatilities from three sources:
+- **Actant**: Internal system JSON exports
+- **Pricing Monkey (PM)**: External vendor data via clipboard
+- **Calculated**: Theoretical volatilities using internal bond option pricing model
 
-## Overview
+## Features
 
-This tool automates the collection and comparison of option volatilities to help identify pricing discrepancies and validate models. It handles ZN (10-year Treasury Note) options and can be extended to other instruments.
+- Parses Actant JSON exports for ATM option data
+- Automates Pricing Monkey data extraction via clipboard
+- Calculates theoretical volatilities using simplified bond option pricer
+- Outputs formatted Excel pivot table with side-by-side comparison
+- **NEW**: Captures timestamps when data is collected from each source
+- **NEW**: Generates timestamped Excel files for each run
 
 ## Installation
 
@@ -264,4 +269,32 @@ For issues:
 - Real-time monitoring mode
 - Email notifications
 - Database storage
-- Web interface 
+- Web interface
+
+## Timestamp Tracking
+
+The tool now tracks when data is collected:
+- **Actant timestamp**: Captured when JSON is parsed, saved to `actant_timestamp.txt`
+- **PM timestamp**: Captured right after clipboard copy, saved to `pm_timestamp.txt`
+- **Run timestamp**: Used in the Excel filename (e.g., `volatility_comparison_20250613_182219.xlsx`)
+
+These timestamps are displayed:
+- In console output during processing
+- At the top of the Excel pivot table
+- In the filename of each generated Excel file
+
+## Hardcoded Parameters
+
+The bond option pricer uses these fixed values:
+- `dv01 = 0.063`
+- `future_convexity = 0.002404`
+- `yield_level = 0.05`
+- `option_type = 'call'` (always)
+
+## Volatility Differences
+
+Calculated vs market volatilities typically differ by 0.03% to 1.5% due to:
+- Static vs dynamic DV01/convexity parameters
+- Different pricing models
+- Day count conventions (252 business days vs actual/360)
+- Real-time vs slightly stale market data 

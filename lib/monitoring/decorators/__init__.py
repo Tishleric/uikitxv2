@@ -5,6 +5,7 @@ from .trace_time import TraceTime
 from .trace_cpu import TraceCpu
 from .trace_memory import TraceMemory
 from .context_vars import log_uuid_var, current_log_data
+from .monitor import monitor
 
 __all__ = [
     "TraceCloser",
@@ -13,4 +14,5 @@ __all__ = [
     "TraceMemory",
     "log_uuid_var",
     "current_log_data",
+    "monitor",
 ]

@@ -2,7 +2,7 @@
 
 ## Project Status: **PRODUCTION READY** ✅
 
-A comprehensive unified trading dashboard platform that successfully consolidates 5 separate trading applications into a single, professional interface with 8-item sidebar navigation.
+A comprehensive unified trading dashboard platform that successfully consolidates multiple trading applications into a single, professional interface with 8-item sidebar navigation.
 
 ## Current Architecture (January 2025)
 
@@ -46,25 +46,27 @@ uikitxv2/                              ← repo root
 │       ├── common/                    ← Shared utilities
 │       │   ├── price_parser.py
 │       │   └── date_utils.py
-│   │
-│   ├── actant/                    ← Actant integration
-│   │   ├── eod/                   ← End-of-day processing
-│   │   └── sod/                   ← Start-of-day processing
-│   │
-│   ├── pricing_monkey/            ← PM automation
-│   │   ├── automation/, retrieval/, processors/
-│   │
-│   ├── tt_api/                    ← TT REST API
-│   │
-│   ├── ladder/                    ← Ladder functionality
-│   │
-│   └── bond_future_options/       ← BFO pricing engine
+│       │
+│       ├── actant/                    ← Actant integration
+│       │   ├── eod/                   ← End-of-day processing
+│       │   ├── sod/                   ← Start-of-day processing
+│       │   └── pnl/                   ← PnL analysis
+│       │
+│       ├── pricing_monkey/            ← PM automation
+│       │   ├── automation/, retrieval/, processors/
+│       │
+│       ├── tt_api/                    ← TT REST API
+│       │
+│       ├── ladder/                    ← Ladder functionality
+│       │
+│       └── bond_future_options/       ← BFO pricing engine
 │
 ├── apps/                              ← Application layer
 │   ├── dashboards/
 │   │   ├── main/                      ← **UNIFIED DASHBOARD** (port 8052)
-│   │   │   └── app.py                 ← Main application (5,383 lines)
+│   │   │   └── app.py                 ← Main application (6,242 lines)
 │   │   ├── actant_eod/                ← Original EOD dashboard (reference)
+│   │   ├── actant_pnl/                ← Actant PnL dashboard
 │   │   ├── actant_preprocessing/      ← Greek analysis dashboard
 │   │   └── ladder/                    ← Scenario ladder dashboard
 │   │
@@ -95,14 +97,14 @@ uikitxv2/                              ← repo root
 
 The unified dashboard provides professional sidebar navigation to all trading tools:
 
-1. 💰 **Pricing Monkey Setup** - Bond future options pricing with automation
-2. 📊 **Analysis** - Market movement analytics with real-time data
+1. 💰 **Option Hedging** - Bond future options pricing with automation (formerly Pricing Monkey Setup)
+2. 📊 **Option Comparison** - Market movement analytics with real-time data (formerly Analysis)
 3. 📈 **Greek Analysis** - CTO-validated options pricing engine
-4. 📚 **Project Documentation** - Interactive project documentation
-5. 📊 **Scenario Ladder** - Advanced trading ladder with TT API integration
-6. 📈 **Actant EOD** - Complete end-of-day trading analytics dashboard
-7. 📋 **Logs** - Performance monitoring and flow trace analytics
-8. 🔗 **Mermaid** - Interactive architecture diagrams
+4. 📊 **Scenario Ladder** - Advanced trading ladder with TT API integration
+5. 📈 **Actant EOD** - Complete end-of-day trading analytics dashboard
+6. 📉 **Actant PnL** - Option pricing comparison with Taylor Series approximation
+7. 📚 **Project Documentation** - Interactive project documentation with Mermaid diagrams
+8. 📋 **Logs** - Performance monitoring and flow trace analytics
 
 ## Import Pattern
 

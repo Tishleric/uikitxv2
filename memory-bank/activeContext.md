@@ -1,4 +1,47 @@
-# Active Context - FRGM Trade Accelerator
+# Active Context
+
+## Current Focus: Observability System Implementation
+
+### Overview
+Building a comprehensive observability system using Python decorators to monitor all function calls, capturing inputs/outputs in SQLite, and displaying via Dash UI.
+
+### Key Design Decisions
+1. **Foundation First**: Get core decorator + queue + storage perfect before UI
+2. **Smart Serialization**: Handle all data types gracefully with size limits
+3. **Performance Target**: <50µs decorator overhead (realistic)
+4. **Retention**: 6-hour hot storage in SQLite, Phase 3 cold storage to S3
+
+### Implementation Plan Location
+- Master plan: `memory-bank/PRDeez/observability-implementation-plan.md`
+- Original brief: `memory-bank/PRDeez/logsystem.md`
+
+### Next Steps (Week 1)
+1. [ ] Create `lib/monitoring/decorators/monitor.py` 
+2. [ ] Implement smart serializer in `lib/monitoring/serializers/smart.py`
+3. [ ] Build queue + batch writer
+4. [ ] Set up SQLite schema
+5. [ ] Decorate 3 high-risk functions for testing
+
+### Architecture Summary
+```
+@monitor → Queue(10k) → BatchWriter(10Hz) → SQLite → Dash UI
+```
+
+### Previous Work
+- Existing decorators in `lib/monitoring/decorators/` (TraceTime, TraceCpu, etc.)
+- Will be deprecated with shim functions pointing to new @monitor
+
+## Legacy Focus Areas (Still Active)
+
+### Actant PnL Dashboard
+- Location: `apps/dashboards/actant_pnl/`
+- Status: Complete and functional
+- Analysis: Excel formulas mapped in `memory-bank/actant_pnl/analysis/`
+
+### Trading System Components
+- Ladder test scenarios
+- Pricing Monkey automation
+- TT REST API integration
 
 ## Current Status
 - **Project State**: Production-ready unified dashboard with 7 fully integrated tabs
