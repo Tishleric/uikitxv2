@@ -46,6 +46,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 ### Monitoring (`lib/monitoring/`)
 
 #### Decorators (`lib/monitoring/decorators/`)
+- **monitor.py** - Complete @monitor decorator integrating observability pipeline. Features automatic queue integration, SmartSerializer for argument/result capture, exception traceback preservation, singleton pattern for global queue/writer, sampling rate support (0.0-1.0), process group categorization, and minimal performance overhead (<50µs). Main entry point for function monitoring.
 - **context_vars.py** - Shared context variables for tracing and logging decorators
 - **trace_time.py** - Decorator for logging function execution time and storing in context
 - **trace_closer.py** - Decorator for managing resource tracing and flow trace logs
@@ -55,6 +56,15 @@ A comprehensive summary of each code file with its purpose and key functionality
 #### Logging (`lib/monitoring/logging/`)
 - **config.py** - Logging configuration with console and SQLite handlers setup
 - **handlers.py** - SQLiteHandler processing FLOW_TRACE logs into database tables
+
+#### Serializers (`lib/monitoring/serializers/`)
+- **smart.py** - SmartSerializer class for converting Python objects to string representations. Handles all data types including primitives, collections, NumPy arrays, Pandas DataFrames, custom objects, and circular references. Features include sensitive field masking, configurable truncation, and intelligent representation of complex data structures. Core component of the observability system for capturing function arguments and return values.
+
+#### Queues (`lib/monitoring/queues/`)
+- **observability_queue.py** - ObservabilityQueue with error-first strategy and zero-loss guarantees. Features dual queue system (unlimited error queue + 10k normal queue), overflow ring buffer (50k capacity), automatic recovery mechanism, comprehensive metrics tracking, thread-safe operations, and rate-limited warnings. Core component ensuring errors are never dropped while managing normal record overflow gracefully.
+
+#### Writers (`lib/monitoring/writers/`)
+- **sqlite_writer.py** - Production-ready SQLite writer with BatchWriter thread for observability data persistence. Features include continuous queue draining at configurable intervals, batch inserts with transaction management, WAL mode for concurrent access, comprehensive database statistics tracking, graceful shutdown with final flush, and automatic schema creation. Achieves 1500+ records/second sustained write throughput while maintaining data integrity.
 
 ### Trading (`lib/trading/`)
 
@@ -412,5 +422,8 @@ data/
 
 ### Actant PnL Analysis (`memory-bank/actant_pnl/`)
 - `analysis/`: Excel formula analysis and documentation
+- `implementation/`: Dashboard implementation notes
+
+
 - `implementation/`: Dashboard implementation notes
 

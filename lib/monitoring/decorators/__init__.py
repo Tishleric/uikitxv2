@@ -5,7 +5,7 @@ from .trace_time import TraceTime
 from .trace_cpu import TraceCpu
 from .trace_memory import TraceMemory
 from .context_vars import log_uuid_var, current_log_data
-from .monitor import monitor
+from .monitor import monitor, start_observability_writer, stop_observability_writer, get_observability_queue
 
 __all__ = [
     "TraceCloser",
@@ -15,4 +15,7 @@ __all__ = [
     "log_uuid_var",
     "current_log_data",
     "monitor",
+    "start_observability_writer",
+    "stop_observability_writer",
+    "get_observability_queue",
 ]
