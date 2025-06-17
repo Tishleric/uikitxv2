@@ -1,16 +1,17 @@
-"""SQLite writer for observability data - Phase 5"""
+"""SQLite writer with batch processing for observability data - Phase 5"""
 
 import sqlite3
-import threading
-import time
 import os
+import time
+import threading
 import json
-from pathlib import Path
-from typing import List, Optional, Dict, Any
-from contextlib import contextmanager
+from typing import List, Dict, Any, Optional
 from datetime import datetime
+from pathlib import Path
+from contextlib import contextmanager
 
-from lib.monitoring.queues import ObservabilityQueue, ObservabilityRecord
+from ..queues import ObservabilityRecord
+from ..circuit_breaker import CircuitBreaker, CircuitBreakerError
 
 
 class SQLiteWriter:
@@ -56,6 +57,8 @@ class SQLiteWriter:
                     thread_id    INTEGER NOT NULL DEFAULT 0,  -- Thread identifier
                     call_depth   INTEGER NOT NULL DEFAULT 0,  -- Stack depth  
                     start_ts_us  INTEGER NOT NULL DEFAULT 0,  -- Start timestamp in microseconds
+                    cpu_delta    REAL,               -- CPU usage change in percentage
+                    memory_delta_mb REAL,             -- Memory usage change in MB
                     PRIMARY KEY (ts, process)
                 )
             """)
@@ -188,7 +191,9 @@ class SQLiteWriter:
                             record.exception,
                             record.thread_id,
                             record.call_depth,
-                            record.start_ts_us
+                            record.start_ts_us,
+                            record.cpu_delta,
+                            record.memory_delta_mb
                         ))
                         
                         # Data trace records for arguments
@@ -231,7 +236,7 @@ class SQLiteWriter:
                     
                     # Bulk insert process traces
                     cursor.executemany(
-                        "INSERT OR REPLACE INTO process_trace VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT OR REPLACE INTO process_trace VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         process_data
                     )
                     
@@ -287,126 +292,332 @@ class SQLiteWriter:
 
 class BatchWriter(threading.Thread):
     """
-    Background thread that continuously drains the queue and writes to SQLite.
+    Background thread that writes observability records to SQLite.
     
     Features:
-    - 10Hz drain cycle (100ms)
-    - Batch size up to 100 records
-    - Graceful shutdown
-    - Error recovery
-    - Performance metrics
+    - Batch writing for performance
+    - WAL mode for concurrent reads
+    - Automatic schema creation
+    - Thread-safe operation
+    - Circuit breaker for fault tolerance
     """
     
     def __init__(self, 
-                 queue: ObservabilityQueue,
-                 db_path: str = "logs/observability.db",
+                 db_path: str,
+                 queue,
                  batch_size: int = 100,
-                 drain_interval: float = 0.1):  # 10Hz
+                 drain_interval: float = 0.1):
         super().__init__(daemon=True)
+        self.db_path = db_path
         self.queue = queue
-        self.writer = SQLiteWriter(db_path)
         self.batch_size = batch_size
         self.drain_interval = drain_interval
-        
-        # Control flags
         self._stop_event = threading.Event()
-        self._error_count = 0
-        self._total_written = 0
-        self._start_time = time.time()
         
-        # Metrics
-        self.metrics = {
-            'batches_written': 0,
-            'records_written': 0,
-            'errors': 0,
-            'last_error': None,
-            'last_write_time': None,
-            'uptime_seconds': 0
-        }
-        self._metrics_lock = threading.Lock()
+        # Statistics
+        self.total_written = 0
+        self.total_errors = 0
+        self.last_write_time = None
+        self.last_error = None
+        
+        # Circuit breaker for database operations
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=3,  # Open after 3 failures
+            timeout_seconds=30,   # Wait 30s before retry
+            success_threshold=2   # Need 2 successes to close
+        )
+        
+        # Initialize database
+        self._init_database()
     
-    def run(self) -> None:
+    def _init_database(self):
+        """Initialize SQLite database with schema"""
+        # Ensure directory exists
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.execute("PRAGMA journal_mode=WAL")  # Enable WAL mode
+            
+            # Create tables if they don't exist
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS process_trace (
+                    ts TEXT NOT NULL,
+                    process TEXT NOT NULL,
+                    process_group TEXT,
+                    status TEXT NOT NULL,
+                    duration_ms REAL NOT NULL,
+                    exception TEXT,
+                    thread_id INTEGER NOT NULL DEFAULT 0,
+                    call_depth INTEGER NOT NULL DEFAULT 0,
+                    start_ts_us INTEGER NOT NULL DEFAULT 0,
+                    cpu_delta REAL,
+                    memory_delta_mb REAL,
+                    PRIMARY KEY (ts, process, thread_id, start_ts_us)
+                )
+            """)
+            
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS data_trace (
+                    ts TEXT NOT NULL,
+                    process TEXT NOT NULL,
+                    data TEXT NOT NULL,
+                    data_type TEXT NOT NULL,
+                    data_value TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    exception TEXT,
+                    thread_id INTEGER NOT NULL DEFAULT 0,
+                    start_ts_us INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (ts, process, data, data_type, thread_id, start_ts_us)
+                )
+            """)
+            
+            # Create optimized indexes
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_process_ts ON process_trace(process, ts DESC)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_ts_window ON process_trace(ts)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_data_process ON data_trace(process)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_thread_depth ON process_trace(thread_id, call_depth)")
+            
+            # Add view for parent-child relationships
+            conn.execute("""
+                CREATE VIEW IF NOT EXISTS parent_child_traces AS
+                SELECT 
+                    p1.ts as parent_ts,
+                    p1.process as parent_process,
+                    p2.ts as child_ts,
+                    p2.process as child_process,
+                    p2.call_depth - p1.call_depth as depth_diff,
+                    (julianday(p2.ts) - julianday(p1.ts)) * 86400000 as time_diff_ms
+                FROM process_trace p1
+                JOIN process_trace p2 ON p1.thread_id = p2.thread_id
+                WHERE p2.call_depth = p1.call_depth + 1
+                  AND p2.start_ts_us > p1.start_ts_us
+                  AND p2.start_ts_us < p1.start_ts_us + (p1.duration_ms * 1000)
+                ORDER BY p1.ts DESC, p2.ts
+            """)
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to initialize database: {e}")
+            self.last_error = str(e)
+            raise
+    
+    def run(self):
         """Main writer loop"""
-        print(f"[BatchWriter] Starting writer thread (batch_size={self.batch_size}, interval={self.drain_interval}s)")
+        print(f"[INFO] BatchWriter started for {self.db_path}")
         
         while not self._stop_event.is_set():
             try:
-                # Drain records from queue
-                records = self.queue.drain(max_items=self.batch_size)
+                # Drain queue
+                batch = self.queue.drain(self.batch_size)
                 
-                if records:
-                    # Write batch to database
-                    start_write = time.time()
-                    self.writer.write_batch(records)
-                    write_duration = time.time() - start_write
-                    
-                    # Update metrics
-                    with self._metrics_lock:
-                        self.metrics['batches_written'] += 1
-                        self.metrics['records_written'] += len(records)
-                        self.metrics['last_write_time'] = datetime.now().isoformat()
-                        self._total_written += len(records)
-                    
-                    # Log if write was slow
-                    if write_duration > 0.05:  # 50ms warning threshold
-                        print(f"[BatchWriter] Slow write: {len(records)} records in {write_duration:.3f}s")
+                if batch:
+                    # Use circuit breaker for write operation
+                    try:
+                        self.circuit_breaker.call(self._write_batch, batch)
+                    except CircuitBreakerError as e:
+                        # Circuit is open, log and skip
+                        print(f"[WARNING] {e}")
+                        # Put records back in queue if possible
+                        for record in batch:
+                            try:
+                                self.queue.put(record)
+                            except:
+                                pass  # Queue might be full
+                    except Exception as e:
+                        # Other errors are already handled by circuit breaker
+                        self.last_error = str(e)
+                        self.total_errors += 1
                 
                 # Sleep for drain interval
                 time.sleep(self.drain_interval)
                 
             except Exception as e:
-                # Handle errors gracefully
-                with self._metrics_lock:
-                    self.metrics['errors'] += 1
-                    self.metrics['last_error'] = str(e)
-                    self._error_count += 1
-                
-                print(f"[BatchWriter] Error in writer loop: {e}")
-                
-                # Exponential backoff on errors
-                sleep_time = min(2 ** self._error_count, 30)  # Max 30 seconds
-                time.sleep(sleep_time)
+                print(f"[ERROR] Writer thread error: {e}")
+                self.last_error = str(e)
+                self.total_errors += 1
+                time.sleep(1)  # Back off on errors
         
-        print(f"[BatchWriter] Writer thread stopped. Total written: {self._total_written}")
+        # Final flush on shutdown
+        self._final_flush()
+        print(f"[INFO] BatchWriter stopped. Total written: {self.total_written}")
     
-    def stop(self, timeout: float = 5.0) -> None:
-        """Stop the writer thread gracefully"""
-        print("[BatchWriter] Stopping writer thread...")
-        self._stop_event.set()
+    def _write_batch(self, batch: List[ObservabilityRecord]):
+        """Write a batch of records to database (protected by circuit breaker)"""
+        start = time.time()
         
-        # Wait for thread to finish with timeout
-        self.join(timeout)
-        
-        if self.is_alive():
-            print("[BatchWriter] Warning: Writer thread did not stop gracefully")
-        else:
-            # Final drain to ensure no data loss
-            final_records = self.queue.drain(max_items=1000)
-            if final_records:
-                print(f"[BatchWriter] Final drain: writing {len(final_records)} records")
-                self.writer.write_batch(final_records)
-        
-        # Close writer
-        self.writer.close()
-        print("[BatchWriter] Writer thread stopped")
-    
-    def get_metrics(self) -> Dict[str, Any]:
-        """Get writer metrics"""
-        with self._metrics_lock:
-            metrics = self.metrics.copy()
-            metrics['uptime_seconds'] = time.time() - self._start_time
-            metrics['records_per_second'] = (
-                self._total_written / metrics['uptime_seconds'] 
-                if metrics['uptime_seconds'] > 0 else 0
-            )
+        conn = sqlite3.connect(self.db_path)
+        try:
+            # Start transaction
+            conn.execute("BEGIN")
             
-            # Add database stats
+            # Process each record
+            for record in batch:
+                # Determine process_group (backwards compatibility)
+                process_group = getattr(record, 'process_group', None)
+                if not process_group:
+                    # Auto-derive from module name
+                    parts = record.process.split('.')
+                    process_group = '.'.join(parts[:2]) if len(parts) > 1 else parts[0]
+                
+                # Insert process trace
+                conn.execute("""
+                    INSERT OR REPLACE INTO process_trace 
+                    (ts, process, process_group, status, duration_ms, exception, 
+                     thread_id, call_depth, start_ts_us, cpu_delta, memory_delta_mb)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    record.ts,
+                    record.process,
+                    process_group,
+                    record.status,
+                    record.duration_ms,
+                    record.exception,
+                    record.thread_id,
+                    record.call_depth,
+                    record.start_ts_us,
+                    record.cpu_delta,
+                    record.memory_delta_mb
+                ))
+                
+                # Insert data traces for arguments
+                if record.args:
+                    for i, arg_value in enumerate(record.args):
+                        # Handle lazy serialized objects
+                        if isinstance(arg_value, dict) and arg_value.get('__lazy__'):
+                            arg_str = json.dumps(arg_value)
+                        else:
+                            arg_str = str(arg_value)
+                        
+                        conn.execute("""
+                            INSERT OR REPLACE INTO data_trace
+                            (ts, process, data, data_type, data_value, status, exception,
+                             thread_id, start_ts_us)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            record.ts,
+                            record.process,
+                            f"arg{i}",
+                            "INPUT",
+                            arg_str,
+                            record.status,
+                            record.exception,
+                            record.thread_id,
+                            record.start_ts_us
+                        ))
+                
+                # Insert data trace for kwargs
+                if record.kwargs:
+                    for key, value in record.kwargs.items():
+                        # Handle lazy serialized objects
+                        if isinstance(value, dict) and value.get('__lazy__'):
+                            val_str = json.dumps(value)
+                        else:
+                            val_str = str(value)
+                        
+                        conn.execute("""
+                            INSERT OR REPLACE INTO data_trace
+                            (ts, process, data, data_type, data_value, status, exception,
+                             thread_id, start_ts_us)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            record.ts,
+                            record.process,
+                            key,
+                            "INPUT",
+                            val_str,
+                            record.status,
+                            record.exception,
+                            record.thread_id,
+                            record.start_ts_us
+                        ))
+                
+                # Insert data trace for result
+                if record.result is not None:
+                    # Handle lazy serialized objects
+                    if isinstance(record.result, dict) and record.result.get('__lazy__'):
+                        result_str = json.dumps(record.result)
+                    else:
+                        result_str = str(record.result)
+                    
+                    conn.execute("""
+                        INSERT OR REPLACE INTO data_trace
+                        (ts, process, data, data_type, data_value, status, exception,
+                         thread_id, start_ts_us)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        record.ts,
+                        record.process,
+                        "return",
+                        "OUTPUT",
+                        result_str,
+                        record.status,
+                        record.exception,
+                        record.thread_id,
+                        record.start_ts_us
+                    ))
+            
+            # Commit transaction
+            conn.commit()
+            
+            # Update statistics
+            self.total_written += len(batch)
+            self.last_write_time = datetime.now()
+            
+            # Log slow writes
+            duration = (time.time() - start) * 1000
+            if duration > 50:  # More than 50ms is slow
+                print(f"[WARNING] Slow write: {len(batch)} records in {duration:.1f}ms")
+            
+        except Exception as e:
+            # Rollback on error
+            conn.rollback()
+            raise  # Let circuit breaker handle it
+        finally:
+            conn.close()
+    
+    def _final_flush(self):
+        """Flush any remaining records on shutdown"""
+        remaining = self.queue.drain(10000)  # Get everything
+        if remaining:
             try:
-                metrics['database'] = self.writer.get_stats()
+                # Bypass circuit breaker for final flush
+                self._write_batch(remaining)
+                print(f"[INFO] Final flush wrote {len(remaining)} records")
             except Exception as e:
-                metrics['database'] = {'error': str(e)}
+                print(f"[ERROR] Final flush failed: {e}")
+    
+    def stop(self):
+        """Stop the writer thread gracefully"""
+        self._stop_event.set()
+        self.join(timeout=5)  # Wait up to 5 seconds
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get writer statistics"""
+        try:
+            # Get database size
+            db_size = Path(self.db_path).stat().st_size if Path(self.db_path).exists() else 0
             
-            # Add queue stats
-            metrics['queue'] = self.queue.get_queue_stats()
+            # Get row counts
+            conn = sqlite3.connect(self.db_path)
+            process_count = conn.execute("SELECT COUNT(*) FROM process_trace").fetchone()[0]
+            data_count = conn.execute("SELECT COUNT(*) FROM data_trace").fetchone()[0]
+            conn.close()
             
-            return metrics 
+        except Exception as e:
+            db_size = 0
+            process_count = 0
+            data_count = 0
+        
+        return {
+            'total_written': self.total_written,
+            'total_errors': self.total_errors,
+            'last_write_time': self.last_write_time.isoformat() if self.last_write_time else None,
+            'last_error': self.last_error,
+            'db_size_bytes': db_size,
+            'process_trace_count': process_count,
+            'data_trace_count': data_count,
+            'circuit_breaker': self.circuit_breaker.get_stats()
+        } 

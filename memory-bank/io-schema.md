@@ -120,6 +120,12 @@
 | TOKEN_FILE | EnvVar / Config | str | Base filename (e.g., "tt_token.json") | `from trading.tt_api import TOKEN_FILE` |
 | AUTO_REFRESH | EnvVar / Config | bool | True or False | `from trading.tt_api import AUTO_REFRESH` |
 | REFRESH_BUFFER_SECONDS | EnvVar / Config | int | Positive integer (seconds) | `from trading.tt_api import REFRESH_BUFFER_SECONDS` |
+| retention_enabled | Input | bool | True/False | `start_observability_writer(retention_enabled=True)` |
+| retention_hours | Input | int | > 0 (default: 6) | `RetentionManager(db_path, retention_hours=6)` |
+| cleanup_interval | Input | int | > 0 seconds (default: 60) | `RetentionController(manager, cleanup_interval=60)` |
+| max_consecutive_errors | Input | int | > 0 (default: 5) | `RetentionController(manager, max_consecutive_errors=5)` |
+| process_deleted | Output | int | >= 0 | `process_deleted, data_deleted = manager.cleanup_old_records()` |
+| data_deleted | Output | int | >= 0 | `process_deleted, data_deleted = manager.cleanup_old_records()` |
 
 ## Logging Configuration Parameters
 
@@ -438,13 +444,52 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | Loading.render | Function | Returns: dcc.Loading | N/A | `loading.render()` |
 | RadioButton.__init__ | Function | Returns: RadioButton | id, options, value, theme, inline | `RadioButton(id="rb", options=opts)` |
 | ObservabilityRecord.args | Internal | list[str] \| None | Serialized function arguments | ["'hello'", "42"] |
-| ObservabilityRecord.call_depth | Internal | int | Stack depth (≥ 0) | 3 |
+| ObservabilityRecord.call_depth | Internal | int | >= 0 | Stack depth from inspect.stack() |
 | ObservabilityRecord.duration_ms | Internal | float | Execution time (≥ 0) | 123.45 |
 | ObservabilityRecord.exception | Internal | str \| None | Full traceback if error | "Traceback (most recent..." |
 | ObservabilityRecord.kwargs | Internal | dict[str, str] \| None | Serialized keyword args | {"timeout": "30"} |
 | ObservabilityRecord.process | Internal | str | Fully qualified function | "trading.actant.main" |
 | ObservabilityRecord.result | Internal | str \| None | Serialized function result | "'success'" |
-| ObservabilityRecord.start_ts_us | Internal | int | Start time in microseconds | 1734567890123456 |
+| ObservabilityRecord.start_ts_us | Internal | int | >= 0 | Start timestamp in microseconds for precise ordering |
 | ObservabilityRecord.status | Internal | str | OK or ERR | "OK" |
 | ObservabilityRecord.thread_id | Internal | int | Thread identifier | 69572 |
 | ObservabilityRecord.ts | Internal | str | ISO format timestamp | "2024-01-20T10:30:45" |
+| ObservabilityRecord.cpu_delta | Internal | float \| None | Any percentage value | CPU usage change during execution in percentage points |
+| ObservabilityRecord.memory_delta_mb | Internal | float \| None | Any value | Memory usage change during execution in MB |
+| ObservabilityRecord.is_error() | Internal | Callable | Returns bool | Method to check if record is an error |
+| @monitor.capture | Input | dict \| None | Valid keys: args, result, cpu_usage, memory_usage, locals | What data to capture (default: all except locals) |
+| @monitor.process_group | Input | str \| None | Any string or None | Logical grouping (auto-derived from module if None) |
+| ProcessGroupStrategy.assign | Method | Callable[[Callable], str] | Function → process group string | strategy.assign(my_function) → "trading.orders" |
+| ModuleBasedStrategy.depth | Input | int | > 0 | ModuleBasedStrategy(depth=2) extracts first 2 module parts |
+| PatternBasedStrategy.patterns | Input | Dict[str, str] | regex → group mappings | {r'^get_.*': 'data.read', r'^save_.*': 'data.write'} |
+| SemanticStrategy | Class | N/A | Analyzes function names/docs | SemanticStrategy() looks for I/O, compute, API keywords |
+| LayeredStrategy | Class | N/A | Groups by architecture layer | LayeredStrategy() detects presentation/business/data layers |
+| CompositeStrategy.strategies | Input | List[tuple[Strategy, float]] | Strategy + weight pairs | [(PatternStrategy(), 1.0), (ModuleStrategy(), 0.5)] |
+| ProcessGroupStrategies.for_trading_system | Method | Returns ProcessGroupStrategy | N/A | Pre-configured for trading domain patterns |
+| ProcessGroupStrategies.for_microservices | Method | Returns ProcessGroupStrategy | N/A | Pre-configured for microservice patterns |
+| ProcessGroupStrategies.for_data_pipeline | Method | Returns ProcessGroupStrategy | N/A | Pre-configured for ETL patterns |
+| set_global_strategy | Function | None | ProcessGroupStrategy instance | set_global_strategy(SemanticStrategy()) |
+| get_process_group | Function | Returns str | Callable → group string | get_process_group(my_function) → "io.read.data_loader" |
+| @auto_monitor | Decorator | Same as @monitor | Optional kwargs | @auto_monitor() auto-assigns process group |
+| ResourceSnapshot.cpu_percent | Internal | float \| None | Percentage value (0-100) | CPU usage snapshot from resource monitor |
+| ResourceSnapshot.memory_mb | Internal | float \| None | Memory in MB | RSS memory snapshot from resource monitor |
+| ResourceMonitorProtocol | Protocol | Interface | N/A | Defines get_cpu_percent() and get_memory_mb() methods |
+| PsutilMonitor | Class | Implements ResourceMonitorProtocol | N/A | Uses psutil when available, lazy initialization |
+| NullMonitor | Class | Implements ResourceMonitorProtocol | N/A | Returns None for graceful degradation |
+| MockMonitor | Class | Implements ResourceMonitorProtocol | N/A | Returns configurable values for testing |
+| get_resource_monitor | Function | Returns ResourceMonitorProtocol | N/A | Gets current global monitor instance |
+| set_resource_monitor | Function | None | ResourceMonitorProtocol instance | set_resource_monitor(MockMonitor(cpu=25.5)) |
+
+## Circuit Breaker Parameters
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------| 
+| failure_threshold | Input | int | > 0 (default: 5) | `CircuitBreaker(failure_threshold=3)` |
+| timeout_seconds | Input | float | > 0 (default: 60.0) | `CircuitBreaker(timeout_seconds=30)` |
+| success_threshold | Input | int | > 0 (default: 1) | `CircuitBreaker(success_threshold=2)` |
+| state | Output | str | "CLOSED", "OPEN", "HALF_OPEN" | `cb.get_state()` |
+| total_calls | Output | int | >= 0 | `stats['total_calls']` |
+| total_failures | Output | int | >= 0 | `stats['total_failures']` |
+| total_successes | Output | int | >= 0 | `stats['total_successes']` |
+| circuit_opened_count | Output | int | >= 0 | `stats['circuit_opened_count']` |
+| time_until_retry | Output | float | >= 0.0 | `stats['time_until_retry']` |
