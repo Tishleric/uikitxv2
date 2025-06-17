@@ -64,7 +64,15 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **observability_queue.py** - ObservabilityQueue with error-first strategy and zero-loss guarantees. Features dual queue system (unlimited error queue + 10k normal queue), overflow ring buffer (50k capacity), automatic recovery mechanism, comprehensive metrics tracking, thread-safe operations, and rate-limited warnings. Core component ensuring errors are never dropped while managing normal record overflow gracefully.
 
 #### Writers (`lib/monitoring/writers/`)
-- **sqlite_writer.py** - Production-ready SQLite writer with BatchWriter thread for observability data persistence. Features include continuous queue draining at configurable intervals, batch inserts with transaction management, WAL mode for concurrent access, comprehensive database statistics tracking, graceful shutdown with final flush, and automatic schema creation. Achieves 1500+ records/second sustained write throughput while maintaining data integrity.
+- **sqlite_writer.py** - Production-ready SQLite writer with BatchWriter thread for observability data persistence. Features include continuous queue draining at configurable intervals, batch inserts with transaction management, WAL mode for concurrent access, comprehensive database statistics tracking, graceful shutdown with final flush, automatic schema creation, and JSON conversion for lazy-serialized objects. Achieves 1500+ records/second sustained write throughput while maintaining data integrity.
+
+#### Performance (`lib/monitoring/performance/`)
+- **__init__.py** - Performance module exports: FastSerializer, MetadataCache, get_metadata_cache
+- **fast_serializer.py** - Optimized serializer with fast paths for common data types. Features include direct passthrough for primitives (str, int, float, bool, None), lazy serialization for large objects (>10k chars or >1k items), efficient handling of simple collections, fallback to SmartSerializer for complex cases. Achieves < 5µs overhead for common types.
+- **metadata_cache.py** - LRU cache for function metadata and frequently used values. Features include configurable size (default 10k entries) and TTL (default 1 hour), thread-safe operations, automatic eviction of stale entries, caching of module/qualname lookups and source file paths. Reduces repeated metadata calculations.
+
+#### Monitoring Tests & Demos (`tests/monitoring/observability/`)
+- **demo_parent_child.py** - Demonstrates parent-child relationship tracking with nested function calls. Shows how thread_id, call_depth, and microsecond timestamps enable reconstruction of call hierarchies. Includes SQL queries for call tree visualization and exclusive/inclusive timing analysis.
 
 ### Trading (`lib/trading/`)
 

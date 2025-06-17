@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 import threading
+import inspect
 
 
 @dataclass
@@ -47,6 +48,10 @@ class ObservabilityRecord:
     args: Optional[List[str]] = None
     kwargs: Optional[Dict[str, str]] = None
     result: Optional[str] = None
+    # New fields for parent-child tracking
+    thread_id: int = 0  # Thread identifier from threading.get_ident()
+    call_depth: int = 0  # Stack depth from len(inspect.stack())
+    start_ts_us: int = 0  # Start timestamp in microseconds for precise ordering
     
     def is_error(self) -> bool:
         """Check if this is an error record"""
