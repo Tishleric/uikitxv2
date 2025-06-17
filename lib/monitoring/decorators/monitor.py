@@ -1,6 +1,7 @@
 """Monitor decorator for observability system - Phase 8 with performance optimizations"""
 
 import functools
+import os
 import time
 import traceback
 import random
@@ -14,11 +15,14 @@ from lib.monitoring.serializers import SmartSerializer
 from lib.monitoring.queues import ObservabilityQueue, ObservabilityRecord
 from lib.monitoring.writers import BatchWriter
 from lib.monitoring.performance import FastSerializer, MetadataCache, get_metadata_cache
+from lib.monitoring.resource_monitor import get_resource_monitor, ResourceSnapshot
+from lib.monitoring.retention import RetentionManager, RetentionController
 
 
 # Global singleton queue instance
 _observability_queue = None
 _batch_writer = None
+_retention_controller = None
 
 
 def get_observability_queue() -> ObservabilityQueue:
@@ -29,20 +33,63 @@ def get_observability_queue() -> ObservabilityQueue:
     return _observability_queue
 
 
-def start_observability_writer(db_path: str = "logs/observability.db", batch_size: int = 100, drain_interval: float = 0.1):
-    """Start the global batch writer if not already running."""
-    global _batch_writer
+def start_observability_writer(db_path: str = "logs/observability.db", 
+                              batch_size: int = 100, 
+                              drain_interval: float = 0.1,
+                              retention_hours: int = 6,
+                              retention_enabled: bool = True):
+    """Start the global batch writer and optionally the retention controller.
+    
+    Args:
+        db_path: Path to SQLite database
+        batch_size: Number of records to write in each batch
+        drain_interval: Seconds between drain cycles
+        retention_hours: Hours of data to retain (default: 6)
+        retention_enabled: Whether to enable automatic retention (default: True)
+    """
+    global _batch_writer, _retention_controller
+    
+    # Ensure queue exists
+    queue = get_observability_queue()
+    
+    # Start batch writer
     if _batch_writer is None:
-        queue = get_observability_queue()
-        _batch_writer = BatchWriter(queue, db_path, batch_size, drain_interval)
+        # Create writer with updated parameter order
+        _batch_writer = BatchWriter(
+            db_path=db_path,
+            queue=queue,
+            batch_size=batch_size,
+            drain_interval=drain_interval
+        )
+        if retention_enabled:
+            # Also start retention management
+            global _retention_controller
+            retention_manager = RetentionManager(db_path, retention_hours)
+            _retention_controller = RetentionController(retention_manager)
         _batch_writer.start()
         print(f"[MONITOR] Started observability writer → {db_path}")
+    
+    # Start retention controller if enabled
+    if retention_enabled and _retention_controller is None:
+        retention_manager = RetentionManager(db_path, retention_hours)
+        _retention_controller = RetentionController(retention_manager)
+        _retention_controller.start()
+        print(f"[MONITOR] Started retention controller ({retention_hours} hour retention)")
+    
     return _batch_writer
 
 
 def stop_observability_writer():
-    """Stop the global batch writer."""
-    global _batch_writer
+    """Stop the global batch writer and retention controller."""
+    global _batch_writer, _retention_controller
+    
+    # Stop retention controller first
+    if _retention_controller is not None:
+        _retention_controller.stop()
+        _retention_controller = None
+        print("[MONITOR] Stopped retention controller")
+    
+    # Then stop batch writer
     if _batch_writer is not None:
         _batch_writer.stop()
         _batch_writer = None
@@ -50,7 +97,7 @@ def stop_observability_writer():
 
 
 def monitor(
-    process_group: str,
+    process_group: str = None,
     sample_rate: float = 1.0,
     capture: dict = None,
     serializer: str = "smart",
@@ -70,8 +117,10 @@ def monitor(
     
     Args:
         process_group: Logical grouping for the function (e.g., "trading.actant")
+                      If None, automatically derived from module name
         sample_rate: Sampling rate from 0.0 to 1.0 (1.0 = always monitor)
-        capture: Dict specifying what to capture (default: args and result)
+        capture: Dict specifying what to capture (default: EVERYTHING)
+                 Set to False or {} to disable specific captures
         serializer: Serialization strategy (default: "smart")
         max_repr: Maximum length for serialized values
         sensitive_fields: Field names to mask in serialization
@@ -80,8 +129,15 @@ def monitor(
     Returns:
         Decorated function
     """
+    # Default: capture EVERYTHING (Track Everything philosophy)
     if capture is None:
-        capture = {"args": True, "result": True, "locals": False}
+        capture = {
+            "args": True,
+            "result": True,
+            "cpu_usage": True,
+            "memory_usage": True,
+            "locals": False,  # Still opt-in for locals due to verbosity
+        }
     
     def decorator(func_or_descriptor: Any) -> Any:
         # Handle descriptors (classmethod, staticmethod)
@@ -109,16 +165,32 @@ def monitor(
         func_name = func_metadata["name"]
         func_qualname = func_metadata["qualname"]
         
+        # Auto-derive process_group if not provided
+        if process_group is None:
+            # Use module name as process group (e.g., "lib.trading.actant")
+            final_process_group = func_module
+        else:
+            final_process_group = process_group
+        
         # Determine function type
         is_async = asyncio.iscoroutinefunction(func)
         is_async_generator = inspect.isasyncgenfunction(func)
         is_generator = inspect.isgeneratorfunction(func) and not is_async_generator
         
         def create_record(start_time: float, status: str, exception_str: Optional[str], 
-                         args: tuple, kwargs: dict, result: Any = None) -> ObservabilityRecord:
+                         args: tuple, kwargs: dict, result: Any = None, 
+                         start_snapshot: Optional[ResourceSnapshot] = None) -> ObservabilityRecord:
             """Helper to create observability record"""
             # Calculate duration
             duration_ms = (time.perf_counter() - start_time) * 1000
+            
+            # Calculate CPU and memory deltas if enabled
+            cpu_delta = None
+            memory_delta_mb = None
+            
+            if (capture.get("cpu_usage") or capture.get("memory_usage")) and start_snapshot is not None:
+                resource_monitor = get_resource_monitor()
+                cpu_delta, memory_delta_mb = resource_monitor.measure_resources(start_snapshot)
             
             # Get queue and serializer
             queue = get_observability_queue()
@@ -130,7 +202,7 @@ def monitor(
                 serializer_obj = FastSerializer()
             
             # Build process name
-            process = f"{process_group}.{func_module}.{func_name}"
+            process = f"{final_process_group}.{func_name}"
             
             # Serialize captured data
             serialized_args = None
@@ -173,14 +245,15 @@ def monitor(
                 result=serialized_result,
                 thread_id=thread_id,
                 call_depth=call_depth,
-                start_ts_us=start_ts_us
+                start_ts_us=start_ts_us,
+                cpu_delta=cpu_delta,
+                memory_delta_mb=memory_delta_mb
             )
             
             # Send to queue
             queue.put(record)
             
             # Console output (skip if in benchmark mode)
-            import os
             if not os.environ.get("MONITOR_QUIET"):
                 if status == "OK":
                     print(f"[MONITOR] {process} executed in {duration_ms:.3f}ms")
@@ -206,21 +279,39 @@ def monitor(
                     return
                 
                 start_time = time.perf_counter()
+                start_snapshot = None
+                iteration_started = False
+                
+                # Take resource snapshot at start if enabled
+                if capture.get("cpu_usage") or capture.get("memory_usage"):
+                    resource_monitor = get_resource_monitor()
+                    if resource_monitor.is_available():
+                        start_snapshot = resource_monitor.take_snapshot()
                 
                 try:
                     # Create the async generator
                     gen = func(*args, **kwargs)
                     
                     # Record successful creation
-                    create_record(start_time, "OK", None, args, kwargs, gen)
+                    create_record(start_time, "OK", None, args, kwargs, gen, start_snapshot)
                     
                     # Yield all values from the generator
                     async for item in gen:
+                        iteration_started = True
                         yield item
                         
                 except Exception as e:
+                    # Record error with proper timing
                     tb = traceback.format_exc()
-                    create_record(start_time, "ERR", tb, args, kwargs)
+                    # If we were iterating, this is an iteration error
+                    # If not, this is a creation error
+                    # Either way, record it once with the original start time
+                    if not iteration_started:
+                        # Exception during generator creation (before first yield)
+                        create_record(start_time, "ERR", tb, args, kwargs, None, start_snapshot)
+                    else:
+                        # Exception during iteration - record with full duration
+                        create_record(start_time, "ERR", tb, args, kwargs, None, start_snapshot)
                     raise
             
             return async_gen_wrapper
@@ -234,20 +325,27 @@ def monitor(
                     return await func(*args, **kwargs)
                 
                 start_time = time.perf_counter()
+                start_snapshot = None
+                
+                # Take resource snapshot at start if enabled
+                if capture.get("cpu_usage") or capture.get("memory_usage"):
+                    resource_monitor = get_resource_monitor()
+                    if resource_monitor.is_available():
+                        start_snapshot = resource_monitor.take_snapshot()
                 
                 try:
                     # Execute the async function
                     result = await func(*args, **kwargs)
                     
                     # Record success
-                    create_record(start_time, "OK", None, args, kwargs, result)
+                    create_record(start_time, "OK", None, args, kwargs, result, start_snapshot)
                     
                     return result
                     
                 except Exception as e:
                     # Record error
                     tb = traceback.format_exc()
-                    create_record(start_time, "ERR", tb, args, kwargs)
+                    create_record(start_time, "ERR", tb, args, kwargs, None, start_snapshot)
                     raise
             
             return async_wrapper
@@ -262,20 +360,27 @@ def monitor(
                     return
                 
                 start_time = time.perf_counter()
+                start_snapshot = None
+                
+                # Take resource snapshot at start if enabled
+                if capture.get("cpu_usage") or capture.get("memory_usage"):
+                    resource_monitor = get_resource_monitor()
+                    if resource_monitor.is_available():
+                        start_snapshot = resource_monitor.take_snapshot()
                 
                 try:
                     # Create the generator
                     gen = func(*args, **kwargs)
                     
                     # Record successful creation
-                    create_record(start_time, "OK", None, args, kwargs, gen)
+                    create_record(start_time, "OK", None, args, kwargs, gen, start_snapshot)
                     
                     # Yield all values from the generator
                     yield from gen
                     
                 except Exception as e:
                     tb = traceback.format_exc()
-                    create_record(start_time, "ERR", tb, args, kwargs)
+                    create_record(start_time, "ERR", tb, args, kwargs, None, start_snapshot)
                     raise
             
             return gen_wrapper
@@ -289,20 +394,27 @@ def monitor(
                     return func(*args, **kwargs)
                 
                 start_time = time.perf_counter()
+                start_snapshot = None
+                
+                # Take resource snapshot at start if enabled
+                if capture.get("cpu_usage") or capture.get("memory_usage"):
+                    resource_monitor = get_resource_monitor()
+                    if resource_monitor.is_available():
+                        start_snapshot = resource_monitor.take_snapshot()
                 
                 try:
                     # Execute the function
                     result = func(*args, **kwargs)
                     
                     # Record success
-                    create_record(start_time, "OK", None, args, kwargs, result)
+                    create_record(start_time, "OK", None, args, kwargs, result, start_snapshot)
                     
                     return result
                     
                 except Exception as e:
                     # Record error
                     tb = traceback.format_exc()
-                    create_record(start_time, "ERR", tb, args, kwargs)
+                    create_record(start_time, "ERR", tb, args, kwargs, None, start_snapshot)
                     raise
             
             return sync_wrapper

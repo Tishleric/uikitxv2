@@ -46,12 +46,23 @@ A comprehensive summary of each code file with its purpose and key functionality
 ### Monitoring (`lib/monitoring/`)
 
 #### Decorators (`lib/monitoring/decorators/`)
-- **monitor.py** - Complete @monitor decorator integrating observability pipeline. Features automatic queue integration, SmartSerializer for argument/result capture, exception traceback preservation, singleton pattern for global queue/writer, sampling rate support (0.0-1.0), process group categorization, and minimal performance overhead (<50µs). Main entry point for function monitoring.
+- **monitor.py** - Complete @monitor decorator integrating observability pipeline. Features automatic queue integration, SmartSerializer for argument/result capture, exception traceback preservation, singleton pattern for global queue/writer, sampling rate support (0.0-1.0), process group categorization, and minimal performance overhead (<50µs). Main entry point for function monitoring. Fixed async generator exception handling (June 17, 2025).
 - **context_vars.py** - Shared context variables for tracing and logging decorators
 - **trace_time.py** - Decorator for logging function execution time and storing in context
 - **trace_closer.py** - Decorator for managing resource tracing and flow trace logs
 - **trace_cpu.py** - Decorator for measuring CPU usage delta during execution
 - **trace_memory.py** - Decorator for measuring RSS memory usage delta
+- **EXECUTIVE_SUMMARY.md** - Comprehensive overview of the observability system, architecture, features, file locations, migration guide from legacy decorators, and quick start examples. Production-ready documentation for teams adopting the system.
+
+#### Process Groups (`lib/monitoring/`)
+- **process_groups.py** - Intelligent process group assignment strategies. Includes:
+  - ModuleBasedStrategy: Groups by module hierarchy (configurable depth)
+  - PatternBasedStrategy: Regex matching on function names
+  - SemanticStrategy: Analyzes function names and docstrings for I/O, compute, API operations
+  - LayeredStrategy: Groups by architectural layers (presentation, business, data, infrastructure)
+  - CompositeStrategy: Combines multiple strategies with priorities
+  - ProcessGroupStrategies: Pre-configured strategies for microservices, data pipelines, trading systems
+  - auto_monitor decorator: Automatic group assignment without manual specification
 
 #### Logging (`lib/monitoring/logging/`)
 - **config.py** - Logging configuration with console and SQLite handlers setup
@@ -73,6 +84,26 @@ A comprehensive summary of each code file with its purpose and key functionality
 
 #### Monitoring Tests & Demos (`tests/monitoring/observability/`)
 - **demo_parent_child.py** - Demonstrates parent-child relationship tracking with nested function calls. Shows how thread_id, call_depth, and microsecond timestamps enable reconstruction of call hierarchies. Includes SQL queries for call tree visualization and exclusive/inclusive timing analysis.
+- **demo_legacy_migration.py** - Demo showing migration from legacy decorators to unified @monitor with "track everything" approach
+- **demo_process_groups.py** - Demo illustrating process groups for organizing monitored functions - shows auto-derivation, business logic grouping, criticality-based grouping, and service-based grouping
+- **demo_intelligent_process_groups.py** - Advanced demo of intelligent process group assignment strategies including pattern-based, semantic, and composite approaches
+- **test_monitor_comprehensive.py** - Comprehensive test suite for enhanced @monitor decorator with 19 tests covering process groups, CPU/memory tracking, edge cases, sampling rates, and async patterns
+- **test_monitor_edge_cases.py** - Edge case and stress tests covering concurrency, memory pressure, exotic function types, async edge cases, error recovery paths, and generator scenarios
+- **test_monitor_advanced.py** - Tests for advanced monitor features: async functions, generators, class methods (15 tests)
+- **stress_test_concurrency.py** - Comprehensive concurrency stress testing framework with 6 test scenarios: high-frequency calls (20k ops), mixed sync/async, queue contention, error handling under load, memory allocation patterns, and async generator concurrency. Identified SQLite writer as performance bottleneck.
+- **test_async_generator_investigation.py** - Deep dive investigation into async generator exception behavior that uncovered double-recording bug
+- **test_async_generator_deep_dive.py** - Further investigation into async generator wrapper behavior and Python async internals
+
+#### Resource Monitoring (`lib/monitoring/`)
+- **resource_monitor.py** - Resource monitoring abstraction layer providing clean decoupling from psutil. Includes ResourceMonitorProtocol defining the monitoring interface, PsutilMonitor (psutil backend with lazy initialization and graceful error handling), NullMonitor (graceful degradation when monitoring unavailable), MockMonitor (for testing with configurable values and call counting), and global singleton management with get/set_resource_monitor functions. Handles CPU and memory tracking with runtime feature detection and clean separation of concerns.
+
+#### Circuit Breaker (`lib/monitoring/`)
+- **circuit_breaker.py** - Simple circuit breaker implementation for preventing cascading failures. Supports three states (CLOSED, OPEN, HALF_OPEN), configurable failure thresholds, timeout periods, and recovery criteria. Thread-safe with comprehensive statistics tracking.
+
+#### Retention Management (`lib/monitoring/retention/`)
+- **__init__.py** - Package initialization for retention management system. Exports RetentionManager and RetentionController.
+- **manager.py** - Simple, robust retention management for observability data. Implements 6-hour rolling window deletion strategy using basic SQL DELETE operations. Uses WAL mode for better concurrency. No VACUUM operations to avoid spikes in 24/7 trading environments.
+- **controller.py** - Controller for orchestrating retention operations. Runs background thread that calls RetentionManager every 60 seconds. Handles errors gracefully with exponential backoff. Provides statistics and monitoring capabilities. Thread-safe with graceful shutdown.
 
 ### Trading (`lib/trading/`)
 
@@ -298,6 +329,7 @@ tests/
 ├── test_imports.py          # Verify all imports work
 ├── components/              # Component tests
 ├── monitoring/              # Decorator and logging tests
+│   ├── test_resource_monitor.py  # Tests for resource monitoring abstraction (21 tests)
 ├── trading/                 # Trading utility tests
 └── integration/             # Dashboard integration tests
 ```
@@ -414,8 +446,8 @@ data/
 ## Memory Bank (`memory-bank/`)
 
 ### Documentation Files
-- `activeContext.md`: Current development focus and immediate next steps
-- `code-index.md`: This file - comprehensive map of all code modules
+- `activeContext.md`: Current development focus - Phase 8 Production Hardening. Task 4 (Retention Management) completed. Task 5 (Dash UI) is next. Contains current task status, robustness improvements, and recent achievements.
+- `code-index.md`: This file! One-paragraph summary per code file to keep large repos tractable. Essential for understanding project structure at a glance.
 - `io-schema.md`: Canonical list of all inputs, outputs, constants, and environment variables
 - `productContext.md`: Product vision and user experience goals
 - `progress.md`: Development progress tracking
@@ -423,6 +455,13 @@ data/
 - `systemPatterns.md`: Architectural patterns and design decisions
 - `techContext.md`: Technology stack and constraints
 - `.cursorrules`: Coding standards and AI assistant guidelines
+- `observability-robustness-analysis.md`: Critical fragility areas and systematic improvement plan for production-grade robustness
+- `robustness-10-simple-plan.md`: Simple 1-day plan to achieve 10/10 robustness score
+- `future-work-10-robustness.md`: Documented tasks for reaching 10/10 robustness (memory pressure, circuit breaker, performance guide, unsupported patterns)
+- `phase8-handoff-summary.md`: Comprehensive summary of Phase 8 progress, fixes, and handoff notes
+- `performance-guidelines.md`: Performance optimization guide documenting SQLite bottleneck (1,089 ops/sec), sampling strategies, drain interval tuning, and real-world scenarios for HFT, analytics, and batch processing systems.
+- `edge-cases-and-limitations.md`: Comprehensive documentation of known limitations, unsupported patterns, and practical workarounds. Covers multiprocessing, C extensions, generators, performance edge cases, and when NOT to use @monitor.
+- `retention-implementation-summary.md`: Detailed summary of retention management implementation. Documents design decisions (simple DELETE approach chosen over complex alternatives), implementation details, testing results, and production considerations. Shows how simple, well-tested solutions beat complex ones.
 
 ### Feature Documentation (`memory-bank/PRDeez/`)
 - `logsystem.md`: Original observability system design brief
@@ -432,6 +471,53 @@ data/
 - `analysis/`: Excel formula analysis and documentation
 - `implementation/`: Dashboard implementation notes
 
+### Resource Monitoring (`lib/monitoring/queues/`)
+- **queues/** - Queue management subsystem
+- **serializers/** - Data serialization for observability
+- **writers/** - Database writers and output handlers
+- **resource_monitor.py** - Resource monitoring abstraction layer providing clean decoupling from psutil. Includes ResourceMonitorProtocol, PsutilMonitor (psutil backend), NullMonitor (graceful degradation), MockMonitor (testing), and global singleton management. Handles CPU and memory tracking with lazy initialization and runtime feature detection.
 
-- `implementation/`: Dashboard implementation notes
+### Monitoring and Observability
+
+#### lib/monitoring/decorators/monitor.py
+The main @monitor decorator for observability. Supports sync/async functions, generators, and class methods. Captures execution time, arguments, results, and resource usage. Integrates with queue and writer for persistence. Now includes retention controller integration.
+
+#### lib/monitoring/retention/__init__.py
+Package initialization for retention management system. Exports RetentionManager and RetentionController.
+
+#### lib/monitoring/retention/manager.py
+Simple, robust retention management for observability data. Implements 6-hour rolling window deletion strategy using basic SQL DELETE operations. Uses WAL mode for better concurrency. No VACUUM operations to avoid spikes in 24/7 trading environments.
+
+#### lib/monitoring/retention/controller.py
+Controller for orchestrating retention operations. Runs background thread that calls RetentionManager every 60 seconds. Handles errors gracefully with exponential backoff. Provides statistics and monitoring capabilities. Thread-safe with graceful shutdown.
+
+#### tests/monitoring/retention/__init__.py
+Test package for retention management tests.
+
+#### tests/monitoring/retention/test_retention_manager.py
+Unit tests for RetentionManager. Tests initialization, cleanup operations with various data ages, database statistics, steady state estimation, error handling, and concurrent operations. Includes time-warp testing for edge cases.
+
+#### tests/monitoring/retention/test_retention_controller.py
+Unit tests for RetentionController. Tests thread lifecycle, error handling and recovery, database lock handling, statistics collection, manual cleanup triggers, and graceful shutdown. Verifies thread safety and exception resilience.
+
+#### tests/monitoring/retention/test_retention_integration.py
+Integration tests for retention system with real observability data. Tests full system integration, steady state behavior, and error handling with mixed workloads.
+
+#### tests/monitoring/retention/demo_retention.py
+Demo script showing retention management in action. Demonstrates initial growth, automatic cleanup, and steady state operation with visual statistics. Uses accelerated 6-minute retention for demo purposes.
+
+### memory-bank/retention-implementation-summary.md
+Comprehensive summary of retention management implementation. Documents design decisions (simple DELETE approach chosen over complex alternatives), implementation details, testing results, and production considerations. Shows how simple, well-tested solutions beat complex ones.
+
+#### lib/monitoring/circuit_breaker.py
+Simple circuit breaker implementation for preventing cascading failures. Supports three states (CLOSED, OPEN, HALF_OPEN), configurable failure thresholds, timeout periods, and recovery criteria. Thread-safe with comprehensive statistics tracking.
+
+#### tests/monitoring/test_circuit_breaker.py
+Comprehensive unit tests for circuit breaker functionality. Tests state transitions, thread safety, timeout behavior, statistics tracking, and manual reset functionality. Includes 10 test cases covering all circuit breaker behaviors.
+
+#### tests/monitoring/observability/test_circuit_breaker_integration.py
+Integration tests for circuit breaker with observability system. Tests database failure protection, recovery scenarios, statistics availability, and data integrity under circuit breaker conditions.
+
+#### tests/monitoring/observability/demo_circuit_breaker.py
+Demo script showing circuit breaker in action. Demonstrates failure detection, circuit opening, call rejection, timeout-based recovery, and SQLite writer protection under database failures.
 

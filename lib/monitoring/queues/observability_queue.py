@@ -52,6 +52,9 @@ class ObservabilityRecord:
     thread_id: int = 0  # Thread identifier from threading.get_ident()
     call_depth: int = 0  # Stack depth from len(inspect.stack())
     start_ts_us: int = 0  # Start timestamp in microseconds for precise ordering
+    # New fields for CPU/memory tracking
+    cpu_delta: Optional[float] = None  # CPU percentage change during execution
+    memory_delta_mb: Optional[float] = None  # Memory usage change in MB
     
     def is_error(self) -> bool:
         """Check if this is an error record"""
