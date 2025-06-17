@@ -437,3 +437,14 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | Loading.fullscreen | Input | bool | True/False | `Loading(fullscreen=False)` |
 | Loading.render | Function | Returns: dcc.Loading | N/A | `loading.render()` |
 | RadioButton.__init__ | Function | Returns: RadioButton | id, options, value, theme, inline | `RadioButton(id="rb", options=opts)` |
+| ObservabilityRecord.args | Internal | list[str] \| None | Serialized function arguments | ["'hello'", "42"] |
+| ObservabilityRecord.call_depth | Internal | int | Stack depth (≥ 0) | 3 |
+| ObservabilityRecord.duration_ms | Internal | float | Execution time (≥ 0) | 123.45 |
+| ObservabilityRecord.exception | Internal | str \| None | Full traceback if error | "Traceback (most recent..." |
+| ObservabilityRecord.kwargs | Internal | dict[str, str] \| None | Serialized keyword args | {"timeout": "30"} |
+| ObservabilityRecord.process | Internal | str | Fully qualified function | "trading.actant.main" |
+| ObservabilityRecord.result | Internal | str \| None | Serialized function result | "'success'" |
+| ObservabilityRecord.start_ts_us | Internal | int | Start time in microseconds | 1734567890123456 |
+| ObservabilityRecord.status | Internal | str | OK or ERR | "OK" |
+| ObservabilityRecord.thread_id | Internal | int | Thread identifier | 69572 |
+| ObservabilityRecord.ts | Internal | str | ISO format timestamp | "2024-01-20T10:30:45" |

@@ -4,6 +4,7 @@ import sqlite3
 import threading
 import time
 import os
+import json
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from contextlib import contextmanager
@@ -52,6 +53,9 @@ class SQLiteWriter:
                     status       TEXT NOT NULL,      -- OK|ERR
                     duration_ms  REAL NOT NULL,      -- Execution time in milliseconds
                     exception    TEXT,               -- Full traceback if ERR
+                    thread_id    INTEGER NOT NULL DEFAULT 0,  -- Thread identifier
+                    call_depth   INTEGER NOT NULL DEFAULT 0,  -- Stack depth  
+                    start_ts_us  INTEGER NOT NULL DEFAULT 0,  -- Start timestamp in microseconds
                     PRIMARY KEY (ts, process)
                 )
             """)
@@ -75,6 +79,52 @@ class SQLiteWriter:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_data_process ON data_trace(process)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_ts_window ON process_trace(ts)")
             
+            # New indexes for parent-child relationship queries
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_thread_time ON process_trace(thread_id, start_ts_us)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_call_hierarchy ON process_trace(thread_id, call_depth, start_ts_us)")
+            
+            # Create view for parent-child relationships
+            cursor.execute("""
+                CREATE VIEW IF NOT EXISTS parent_child_traces AS
+                WITH potential_parents AS (
+                    -- For each trace, find all potential parent traces
+                    SELECT 
+                        c.ts as child_ts,
+                        c.process as child_process,
+                        c.thread_id as child_thread,
+                        c.call_depth as child_depth,
+                        c.start_ts_us as child_start,
+                        c.start_ts_us + (c.duration_ms * 1000) as child_end,
+                        p.ts as parent_ts,
+                        p.process as parent_process,
+                        p.call_depth as parent_depth,
+                        p.start_ts_us as parent_start,
+                        p.start_ts_us + (p.duration_ms * 1000) as parent_end,
+                        -- Rank by closest parent (deepest call depth that still contains child)
+                        ROW_NUMBER() OVER (
+                            PARTITION BY c.ts, c.process 
+                            ORDER BY p.call_depth DESC
+                        ) as parent_rank
+                    FROM process_trace c
+                    LEFT JOIN process_trace p ON (
+                        c.thread_id = p.thread_id  -- Same thread
+                        AND p.start_ts_us <= c.start_ts_us  -- Parent started before child
+                        AND p.start_ts_us + (p.duration_ms * 1000) >= c.start_ts_us + (c.duration_ms * 1000)  -- Parent ended after child
+                        AND p.call_depth < c.call_depth  -- Parent has lower call depth
+                        AND NOT (c.ts = p.ts AND c.process = p.process)  -- Not the same trace
+                    )
+                )
+                SELECT 
+                    child_ts,
+                    child_process,
+                    parent_ts,
+                    parent_process,
+                    child_thread as thread_id,
+                    child_depth - COALESCE(parent_depth, 0) as relative_depth
+                FROM potential_parents 
+                WHERE parent_rank = 1
+            """)
+            
             conn.commit()
     
     @contextmanager
@@ -91,6 +141,21 @@ class SQLiteWriter:
         finally:
             if conn:
                 conn.close()
+    
+    def _ensure_json_string(self, value: Any) -> str:
+        """Ensure value is a JSON string for SQLite storage"""
+        if value is None:
+            return "null"
+        elif isinstance(value, str):
+            return value
+        elif isinstance(value, (int, float, bool)):
+            return json.dumps(value)
+        elif isinstance(value, (dict, list)):
+            # This handles lazy serialized objects
+            return json.dumps(value)
+        else:
+            # Fallback for any other type
+            return json.dumps(str(value))
     
     def write_batch(self, records: List[ObservabilityRecord]) -> None:
         """
@@ -120,7 +185,10 @@ class SQLiteWriter:
                             record.process,
                             record.status,
                             record.duration_ms,
-                            record.exception
+                            record.exception,
+                            record.thread_id,
+                            record.call_depth,
+                            record.start_ts_us
                         ))
                         
                         # Data trace records for arguments
@@ -131,7 +199,7 @@ class SQLiteWriter:
                                     record.process,
                                     f"arg_{i}",
                                     "INPUT",
-                                    arg_value,
+                                    self._ensure_json_string(arg_value),
                                     record.status,
                                     record.exception
                                 ))
@@ -144,7 +212,7 @@ class SQLiteWriter:
                                     record.process,
                                     key,
                                     "INPUT",
-                                    value,
+                                    self._ensure_json_string(value),
                                     record.status,
                                     record.exception
                                 ))
@@ -156,14 +224,14 @@ class SQLiteWriter:
                                 record.process,
                                 "result",
                                 "OUTPUT",
-                                record.result,
+                                self._ensure_json_string(record.result),
                                 record.status,
                                 record.exception
                             ))
                     
                     # Bulk insert process traces
                     cursor.executemany(
-                        "INSERT OR REPLACE INTO process_trace VALUES (?, ?, ?, ?, ?)",
+                        "INSERT OR REPLACE INTO process_trace VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         process_data
                     )
                     
