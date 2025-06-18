@@ -561,3 +561,52 @@ Following MVC pattern as recommended:
 - Query optimization for large datasets
 - Caching strategy for expensive operations
 - WebSocket updates for real-time monitoring
+
+## Recent Fix (2025-06-18)
+
+### Issue: @monitor decorator not working in production
+- Console showed "[MONITOR] __main__.acp_update_greek_analysis executed in 119.331ms"
+- But no data appeared in Observatory dashboard
+- Tests were passing but implementation wasn't working
+
+### Root Cause: Schema Mismatch
+1. `SQLiteWriter` created `process_trace` table WITHOUT `process_group` column
+2. `BatchWriter` expected `process_trace` table WITH `process_group` column
+3. When BatchWriter tried to insert data, it failed with:
+   ```
+   Last error: table process_trace has no column named process_group
+   ```
+
+### Fix Applied:
+1. Updated `SQLiteWriter` schema in `lib/monitoring/writers/sqlite_writer.py` to include `process_group` column
+2. Updated the `write_batch` method to include process_group in the INSERT statement
+3. Added compatibility aliases for old function names (`start_observability_writer` → `start_observatory_writer`)
+4. Fixed incorrect import path in `apps/dashboards/main/app.py`
+
+### Status: ✅ FIXED
+- Observatory writer now correctly writes to `logs/observatory.db`
+- Data from @monitor decorated functions appears in the database
+- Dashboard should now display monitoring data
+
+## Next Steps
+1. Verify Greek Analysis button in dashboard shows data in Observatory table
+2. Test other @monitor decorated functions
+3. Consider migrating old test files from using `start_observability_writer` to `start_observatory_writer`
+
+## Key Files Modified
+- `lib/monitoring/writers/sqlite_writer.py` - Fixed schema and INSERT statements
+- `lib/monitoring/decorators/monitor.py` - Added compatibility aliases
+- `lib/monitoring/decorators/__init__.py` - Exported compatibility aliases
+- `apps/dashboards/main/app.py` - Fixed import path
+
+## Previous Context
+
+### Current Focus: Observatory Dashboard Implementation
+- Backend complete with @monitor decorator
+- Database path confusion resolved
+- Testing integration with main dashboard
+
+### Pipeline Architecture
+```
+Function with @monitor() → ObservatoryQueue → BatchWriter → SQLite (logs/observatory.db) → Observatory Dashboard
+```

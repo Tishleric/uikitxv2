@@ -5,7 +5,12 @@ from .trace_closer import TraceCloser
 from .trace_cpu import TraceCpu
 from .trace_memory import TraceMemory
 from .trace_time import TraceTime
-from .monitor import monitor, start_observatory_writer, stop_observatory_writer, get_observatory_queue
+from .monitor import (
+    monitor, 
+    start_observatory_writer, stop_observatory_writer, get_observatory_queue,
+    # Compatibility aliases
+    start_observability_writer, stop_observability_writer, get_observability_queue
+)
 
 __all__ = [
     "log_uuid_var",
@@ -18,4 +23,8 @@ __all__ = [
     "start_observatory_writer",
     "stop_observatory_writer",
     "get_observatory_queue",
+    # Compatibility aliases
+    "start_observability_writer",
+    "stop_observability_writer", 
+    "get_observability_queue",
 ]

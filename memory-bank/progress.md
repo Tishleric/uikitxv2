@@ -1048,7 +1048,19 @@ The project migration is **100% COMPLETE** with a clean, professional Python pac
 
 # Progress Tracking
 
-## Completed
+## ✅ Completed (Most Recent First)
+
+### 2025-06-18: Fixed Observatory Dashboard Data Collection
+- **Issue**: @monitor decorator wasn't writing data to observatory.db
+- **Root Cause**: Schema mismatch - `process_trace` table missing `process_group` column
+- **Fix**: Updated SQLiteWriter schema and INSERT statements to match BatchWriter
+- **Impact**: Observatory dashboard now correctly displays monitored function data
+- **Files**: `lib/monitoring/writers/sqlite_writer.py`, `lib/monitoring/decorators/monitor.py`
+
+### 2025-06-17: Observatory Dashboard Integration
+- Renamed all "observability" references to "observatory" for consistency
+- Integrated dashboard with main application
+- All tests passing after comprehensive renaming
 
 ### Infrastructure & Architecture
 - ✅ Migrated from old structure to new package-based architecture
