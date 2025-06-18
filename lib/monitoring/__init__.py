@@ -1,4 +1,4 @@
-"""Monitoring and observability package for UIKitXv2"""
+"""Monitoring and observatory package for UIKitXv2"""
 
 from .decorators import (
     TraceCloser,
@@ -12,7 +12,7 @@ from .decorators import (
 from .logging import setup_logging
 
 from .serializers import SmartSerializer
-from .queues import ObservabilityQueue
+from .queues import ObservatoryQueue
 from .writers import SQLiteWriter
 
 __all__ = [
@@ -25,6 +25,6 @@ __all__ = [
     "setup_logging",
     "monitor",
     "SmartSerializer",
-    "ObservabilityQueue",
+    "ObservatoryQueue",
     "SQLiteWriter",
 ] 

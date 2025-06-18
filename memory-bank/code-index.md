@@ -72,7 +72,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **smart.py** - SmartSerializer class for converting Python objects to string representations. Handles all data types including primitives, collections, NumPy arrays, Pandas DataFrames, custom objects, and circular references. Features include sensitive field masking, configurable truncation, and intelligent representation of complex data structures. Core component of the observability system for capturing function arguments and return values.
 
 #### Queues (`lib/monitoring/queues/`)
-- **observability_queue.py** - ObservabilityQueue with error-first strategy and zero-loss guarantees. Features dual queue system (unlimited error queue + 10k normal queue), overflow ring buffer (50k capacity), automatic recovery mechanism, comprehensive metrics tracking, thread-safe operations, and rate-limited warnings. Core component ensuring errors are never dropped while managing normal record overflow gracefully.
+- **observatory_queue.py** - ObservatoryQueue with error-first strategy and zero-loss guarantees. Features dual queue system (unlimited error queue + 10k normal queue), overflow ring buffer (50k capacity), automatic recovery mechanism, comprehensive metrics tracking, thread-safe operations, and rate-limited warnings. Core component ensuring errors are never dropped while managing normal record overflow gracefully.
 
 #### Writers (`lib/monitoring/writers/`)
 - **sqlite_writer.py** - Production-ready SQLite writer with BatchWriter thread for observability data persistence. Features include continuous queue draining at configurable intervals, batch inserts with transaction management, WAL mode for concurrent access, comprehensive database statistics tracking, graceful shutdown with final flush, automatic schema creation, and JSON conversion for lazy-serialized objects. Achieves 1500+ records/second sustained write throughput while maintaining data integrity.
@@ -83,6 +83,10 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **metadata_cache.py** - LRU cache for function metadata and frequently used values. Features include configurable size (default 10k entries) and TTL (default 1 hour), thread-safe operations, automatic eviction of stale entries, caching of module/qualname lookups and source file paths. Reduces repeated metadata calculations.
 
 #### Monitoring Tests & Demos (`tests/monitoring/observability/`)
+- **test_observatory_db.py** - Tests for Observatory database separation (5 tests verifying database path changes)
+- **test_observatory_models.py** - Tests for Observatory data models (9 tests for data service, metrics aggregator, trace analyzer)
+- **test_observatory_views.py** - Tests for Observatory UI views (9 tests for component rendering and tab creation)
+- **test_observatory_integration.py** - Integration tests for Observatory dashboard (5 tests for app creation, callbacks, data flow, and error handling)
 - **demo_parent_child.py** - Demonstrates parent-child relationship tracking with nested function calls. Shows how thread_id, call_depth, and microsecond timestamps enable reconstruction of call hierarchies. Includes SQL queries for call tree visualization and exclusive/inclusive timing analysis.
 - **demo_legacy_migration.py** - Demo showing migration from legacy decorators to unified @monitor with "track everything" approach
 - **demo_process_groups.py** - Demo illustrating process groups for organizing monitored functions - shows auto-derivation, business logic grouping, criticality-based grouping, and service-based grouping
@@ -278,7 +282,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **zn_price_tracker.py** - ZN price tracking application
 
 #### Main Dashboard (`apps/dashboards/main/`)
-- **app.py** - Main unified dashboard integrating all tabs into single application with sidebar navigation system, comprehensive callback management, namespace isolation with prefixed functions per dashboard, advanced state management through data stores, professional UI theming, complete Actant EOD dashboard implementation with 15+ helper functions and interactive visualizations, and fixed Actant PnL integration with early callback registration to prevent double-click issue
+- **app.py** - Main dashboard Dash application with sidebar navigation for Option Hedging, Option Comparison, Greek Analysis, Scenario Ladder, Actant EOD, Actant PnL, Observatory👀, Project Documentation, and Logs (Legacy). Includes callbacks for all tabs and integrates multiple dashboards including the new Observatory system.
 
 #### Actant Preprocessing Dashboard (`apps/dashboards/actant_preprocessing/`)
 - **__init__.py** - Package initialization for BFO Greek Analysis dashboard
@@ -308,6 +312,15 @@ A comprehensive summary of each code file with its purpose and key functionality
   - Professional dark theme UI with conditional formatting
   - Integration functions for main dashboard sidebar
 
+#### Observatory (`apps/dashboards/observatory/`)
+**New Dashboard** - Simplified observability dashboard following ActantPnL pattern.
+
+- `__init__.py` - Module exports: create_observatory_content, register_callbacks
+- `models.py` - Data access layer with ObservatoryDataService for querying logs/observatory.db
+- `views.py` - Simple dashboard layout with DataTable showing test data, follows ActantPnL pattern
+- `callbacks.py` - Single callback for refreshing table data from database
+- `app.py` - Standalone app for testing (not used in main dashboard integration)
+
 ## Remaining Original Locations
 
 ### TTRestAPI Directory
@@ -319,6 +332,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **run_actant_eod.py** - Entry point for ActantEOD dashboard (port 8050)
 - **run_actant_sod.py** - Entry point for ActantSOD processing
 - **run_scenario_ladder.py** - Entry point for Scenario Ladder dashboard (port 8051)
+- **run_observatory.py** - Entry point for Observatory dashboard (port 8052)
 - **pyproject.toml** - Package configuration with dependencies
 
 ## Tests Directory Structure
@@ -462,6 +476,7 @@ data/
 - `performance-guidelines.md`: Performance optimization guide documenting SQLite bottleneck (1,089 ops/sec), sampling strategies, drain interval tuning, and real-world scenarios for HFT, analytics, and batch processing systems.
 - `edge-cases-and-limitations.md`: Comprehensive documentation of known limitations, unsupported patterns, and practical workarounds. Covers multiprocessing, C extensions, generators, performance edge cases, and when NOT to use @monitor.
 - `retention-implementation-summary.md`: Detailed summary of retention management implementation. Documents design decisions (simple DELETE approach chosen over complex alternatives), implementation details, testing results, and production considerations. Shows how simple, well-tested solutions beat complex ones.
+- `observability-dashboard-plan.md`: Detailed implementation plan for new observability UI
 
 ### Feature Documentation (`memory-bank/PRDeez/`)
 - `logsystem.md`: Original observability system design brief

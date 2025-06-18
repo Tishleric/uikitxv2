@@ -1,8 +1,8 @@
-# Executive Summary: Production-Grade Observability System
+# Executive Summary: Production-Grade Observatory System
 
 ## What We Built
 
-A **zero-config, production-ready observability system** that captures everything by default with <50μs overhead per function call. Just add `@monitor()` to any function and get comprehensive insights into your application's behavior.
+A **zero-config, production-ready observatory system** that captures everything by default with <50μs overhead per function call. Just add `@monitor()` to any function and get comprehensive insights into your application's behavior.
 
 ```python
 from monitoring.decorators import monitor
@@ -49,7 +49,7 @@ Function Call → @monitor → Queue → BatchWriter → SQLite → Dash UI
 
 ### Core Components
 - **Main Decorator**: `lib/monitoring/decorators/monitor.py`
-- **Queue System**: `lib/monitoring/queues/observability_queue.py`
+- **Queue System**: `lib/monitoring/queues/observatory_queue.py`
 - **Data Writer**: `lib/monitoring/writers/sqlite_writer.py`
 - **Serializer**: `lib/monitoring/serializers/smart.py`
 - **Fast Path**: `lib/monitoring/performance/fast_serializer.py`
@@ -61,7 +61,7 @@ Function Call → @monitor → Queue → BatchWriter → SQLite → Dash UI
 - **Process Groups**: `lib/monitoring/process_groups.py`
 
 ### Database
-- **Default Location**: `logs/observability.db`
+- **Default Location**: `logs/observatory.db`
 - **Tables**: `process_trace`, `data_trace`
 - **Retention**: 6 hours rolling window
 
@@ -70,10 +70,10 @@ Function Call → @monitor → Queue → BatchWriter → SQLite → Dash UI
 ### 1. Basic Usage
 ```python
 from monitoring.decorators import monitor
-from monitoring.writers import start_observability_writer
+from monitoring.writers import start_observatory_writer
 
 # Start the writer (once at app startup)
-start_observability_writer()
+start_observatory_writer()
 
 # Monitor any function
 @monitor()
@@ -119,7 +119,7 @@ def modern_function():
 ### Migration Steps
 1. Replace decorator stack with `@monitor()`
 2. Remove old imports
-3. Start observability writer at app startup
+3. Start observatory writer at app startup
 4. Legacy decorators continue working (backwards compatible)
 
 ## Performance Guidelines
@@ -190,7 +190,7 @@ ORDER BY ts DESC LIMIT 10;
 
 ## Summary
 
-The observability system delivers on the promise of "Track Everything":
+The observatory system delivers on the promise of "Track Everything":
 
 - ✅ **Simple**: One decorator, zero config
 - ✅ **Complete**: All metrics captured by default

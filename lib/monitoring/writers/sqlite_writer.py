@@ -1,4 +1,4 @@
-"""SQLite writer with batch processing for observability data - Phase 5"""
+"""SQLite writer with batch processing for observatory data - Phase 5"""
 
 import sqlite3
 import os
@@ -10,13 +10,13 @@ from datetime import datetime
 from pathlib import Path
 from contextlib import contextmanager
 
-from ..queues import ObservabilityRecord
+from ..queues import ObservatoryRecord
 from ..circuit_breaker import CircuitBreaker, CircuitBreakerError
 
 
 class SQLiteWriter:
     """
-    Writes observability data to SQLite database with WAL mode.
+    Writes observatory data to SQLite database with WAL mode.
     
     Features:
     - Automatic schema creation
@@ -26,7 +26,7 @@ class SQLiteWriter:
     - Graceful shutdown
     """
     
-    def __init__(self, db_path: str = "logs/observability.db"):
+    def __init__(self, db_path: str = "logs/observatory.db"):
         self.db_path = db_path
         self._ensure_directory()
         self._create_schema()
@@ -160,7 +160,7 @@ class SQLiteWriter:
             # Fallback for any other type
             return json.dumps(str(value))
     
-    def write_batch(self, records: List[ObservabilityRecord]) -> None:
+    def write_batch(self, records: List[ObservatoryRecord]) -> None:
         """
         Write a batch of records to the database.
         
@@ -292,7 +292,7 @@ class SQLiteWriter:
 
 class BatchWriter(threading.Thread):
     """
-    Background thread that writes observability records to SQLite.
+    Background thread that writes observatory records to SQLite.
     
     Features:
     - Batch writing for performance
@@ -444,7 +444,7 @@ class BatchWriter(threading.Thread):
         self._final_flush()
         print(f"[INFO] BatchWriter stopped. Total written: {self.total_written}")
     
-    def _write_batch(self, batch: List[ObservabilityRecord]):
+    def _write_batch(self, batch: List[ObservatoryRecord]):
         """Write a batch of records to database (protected by circuit breaker)"""
         start = time.time()
         
@@ -499,7 +499,7 @@ class BatchWriter(threading.Thread):
                         """, (
                             record.ts,
                             record.process,
-                            f"arg{i}",
+                            f"arg_{i}",  # Changed from arg{i} to arg_{i}
                             "INPUT",
                             arg_str,
                             record.status,
@@ -550,7 +550,7 @@ class BatchWriter(threading.Thread):
                     """, (
                         record.ts,
                         record.process,
-                        "return",
+                        "result",  # Changed from "return" to "result"
                         "OUTPUT",
                         result_str,
                         record.status,

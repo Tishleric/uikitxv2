@@ -1,0 +1,436 @@
+"""Data models and services for Observatory Dashboard"""
+
+import sqlite3
+import os
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional, Tuple
+from contextlib import contextmanager
+import pandas as pd
+
+from .constants import OBSERVATORY_DB_PATH, DEFAULT_PAGE_SIZE
+
+
+class ObservatoryDataService:
+    """Service for querying observatory data from SQLite database"""
+    
+    def __init__(self, db_path: str = OBSERVATORY_DB_PATH):
+        self.db_path = db_path
+        self._ensure_database_exists()
+    
+    def _ensure_database_exists(self):
+        """Ensure the database file exists"""
+        if not os.path.exists(self.db_path):
+            # Create empty database with schema if it doesn't exist
+            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Create schema
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS process_trace (
+                    ts           TEXT NOT NULL,
+                    process      TEXT NOT NULL,
+                    status       TEXT NOT NULL,
+                    duration_ms  REAL NOT NULL,
+                    exception    TEXT,
+                    thread_id    TEXT,
+                    call_depth   INTEGER,
+                    start_ts_us  INTEGER,
+                    PRIMARY KEY (ts, process)
+                )
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS data_trace (
+                    ts          TEXT NOT NULL,
+                    process     TEXT NOT NULL,
+                    data        TEXT NOT NULL,
+                    data_type   TEXT NOT NULL,
+                    data_value  TEXT NOT NULL,
+                    status      TEXT NOT NULL,
+                    exception   TEXT,
+                    PRIMARY KEY (ts, process, data, data_type)
+                )
+            """)
+            
+            # Create indexes
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_process_ts ON process_trace(process, ts DESC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_data_process ON data_trace(process)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_ts_window ON process_trace(ts)")
+            
+            conn.commit()
+            conn.close()
+        else:
+            # Ensure schema exists even if database file exists
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Check if tables exist
+                tables = cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+                table_names = [t[0] for t in tables]
+                
+                if 'process_trace' not in table_names or 'data_trace' not in table_names:
+                    # Create missing tables
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS process_trace (
+                            ts           TEXT NOT NULL,
+                            process      TEXT NOT NULL,
+                            status       TEXT NOT NULL,
+                            duration_ms  REAL NOT NULL,
+                            exception    TEXT,
+                            thread_id    TEXT,
+                            call_depth   INTEGER,
+                            start_ts_us  INTEGER,
+                            PRIMARY KEY (ts, process)
+                        )
+                    """)
+                    
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS data_trace (
+                            ts          TEXT NOT NULL,
+                            process     TEXT NOT NULL,
+                            data        TEXT NOT NULL,
+                            data_type   TEXT NOT NULL,
+                            data_value  TEXT NOT NULL,
+                            status      TEXT NOT NULL,
+                            exception   TEXT,
+                            PRIMARY KEY (ts, process, data, data_type)
+                        )
+                    """)
+                    
+                    # Create indexes
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_process_ts ON process_trace(process, ts DESC)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_data_process ON data_trace(process)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ts_window ON process_trace(ts)")
+                    
+                    conn.commit()
+    
+    @contextmanager
+    def _get_connection(self):
+        """Get a database connection with proper error handling"""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=10.0)
+            conn.row_factory = sqlite3.Row  # Enable column access by name
+            yield conn
+        finally:
+            if conn:
+                conn.close()
+    
+    def get_trace_data(
+        self,
+        page: int = 1,
+        page_size: int = DEFAULT_PAGE_SIZE,
+        process_filter: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        date_start: Optional[datetime] = None,
+        date_end: Optional[datetime] = None,
+    ) -> Tuple[pd.DataFrame, int]:
+        """
+        Get paginated trace data from data_trace table.
+        
+        Returns:
+            Tuple of (DataFrame with trace data, total row count)
+        """
+        with self._get_connection() as conn:
+            # Build WHERE clause
+            where_conditions = []
+            params = []
+            
+            if process_filter:
+                where_conditions.append("dt.process LIKE ?")
+                params.append(f"%{process_filter}%")
+            
+            if status_filter:
+                where_conditions.append("dt.status = ?")
+                params.append(status_filter)
+            
+            if date_start:
+                where_conditions.append("dt.ts >= ?")
+                params.append(date_start.isoformat())
+            
+            if date_end:
+                where_conditions.append("dt.ts <= ?")
+                params.append(date_end.isoformat())
+            
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+            
+            # Get total count
+            count_query = f"""
+                SELECT COUNT(*) as total
+                FROM data_trace dt
+                WHERE {where_clause}
+            """
+            total_rows = conn.execute(count_query, params).fetchone()["total"]
+            
+            # Get paginated data
+            offset = (page - 1) * page_size
+            data_query = f"""
+                SELECT 
+                    dt.process,
+                    dt.data,
+                    dt.data_type,
+                    dt.data_value,
+                    dt.ts as timestamp,
+                    dt.status,
+                    CASE 
+                        WHEN dt.exception IS NOT NULL THEN '❌'
+                        ELSE ''
+                    END as exception
+                FROM data_trace dt
+                WHERE {where_clause}
+                ORDER BY dt.ts DESC
+                LIMIT ? OFFSET ?
+            """
+            params.extend([page_size, offset])
+            
+            df = pd.read_sql_query(data_query, conn, params=params)
+            return df, total_rows
+    
+    def get_process_metrics(self, hours: int = 1) -> pd.DataFrame:
+        """Get aggregated metrics by process for the last N hours"""
+        with self._get_connection() as conn:
+            cutoff_time = (datetime.now() - timedelta(hours=hours)).isoformat()
+            
+            query = """
+                SELECT 
+                    process,
+                    COUNT(*) as call_count,
+                    AVG(duration_ms) as avg_duration_ms,
+                    MIN(duration_ms) as min_duration_ms,
+                    MAX(duration_ms) as max_duration_ms,
+                    SUM(CASE WHEN status = 'ERR' THEN 1 ELSE 0 END) as error_count,
+                    ROUND(100.0 * SUM(CASE WHEN status = 'ERR' THEN 1 ELSE 0 END) / COUNT(*), 2) as error_rate
+                FROM process_trace
+                WHERE ts >= ?
+                GROUP BY process
+                ORDER BY call_count DESC
+            """
+            
+            return pd.read_sql_query(query, conn, params=[cutoff_time])
+    
+    def get_recent_errors(self, limit: int = 50) -> pd.DataFrame:
+        """Get recent error traces"""
+        with self._get_connection() as conn:
+            query = """
+                SELECT 
+                    ts as timestamp,
+                    process,
+                    duration_ms,
+                    exception
+                FROM process_trace
+                WHERE status = 'ERR'
+                ORDER BY ts DESC
+                LIMIT ?
+            """
+            
+            return pd.read_sql_query(query, conn, params=[limit])
+    
+    def get_system_stats(self) -> Dict[str, Any]:
+        """Get overall system statistics"""
+        with self._get_connection() as conn:
+            stats = {}
+            
+            # Total traces
+            stats["total_traces"] = conn.execute(
+                "SELECT COUNT(*) FROM process_trace"
+            ).fetchone()[0]
+            
+            # Total data points
+            stats["total_data_points"] = conn.execute(
+                "SELECT COUNT(*) FROM data_trace"
+            ).fetchone()[0]
+            
+            # Recent activity (last 5 minutes)
+            recent_cutoff = (datetime.now() - timedelta(minutes=5)).isoformat()
+            stats["recent_traces"] = conn.execute(
+                "SELECT COUNT(*) FROM process_trace WHERE ts >= ?",
+                [recent_cutoff]
+            ).fetchone()[0]
+            
+            # Error rate (last hour)
+            hour_cutoff = (datetime.now() - timedelta(hours=1)).isoformat()
+            cursor = conn.execute(
+                """
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'ERR' THEN 1 ELSE 0 END) as errors
+                FROM process_trace
+                WHERE ts >= ?
+                """,
+                [hour_cutoff]
+            )
+            row = cursor.fetchone()
+            total = row[0] or 1  # Avoid division by zero
+            errors = row[1] or 0
+            stats["error_rate"] = round(100.0 * errors / total, 2)
+            
+            # Database size
+            if os.path.exists(self.db_path):
+                stats["db_size_mb"] = round(os.path.getsize(self.db_path) / (1024 * 1024), 2)
+            else:
+                stats["db_size_mb"] = 0
+            
+            return stats
+    
+    def get_recent_traces(self, limit: int = 100) -> pd.DataFrame:
+        """
+        Get recent traces from the database.
+        
+        Returns:
+            DataFrame with columns: timestamp, process, args, kwargs, result, exception, status
+        """
+        with self._get_connection() as conn:
+            # Query to get recent process traces and their associated data
+            query = """
+                SELECT 
+                    p.ts as timestamp,
+                    p.process,
+                    p.status,
+                    p.exception,
+                    p.duration_ms,
+                    -- Aggregate args as JSON object
+                    (
+                        SELECT json_group_object(d.data, d.data_value)
+                        FROM data_trace d
+                        WHERE d.ts = p.ts 
+                        AND d.process = p.process
+                        AND d.data_type = 'INPUT'
+                        AND d.data NOT LIKE 'arg_%'
+                    ) as kwargs,
+                    -- Aggregate positional args as JSON array
+                    (
+                        SELECT json_group_array(d.data_value)
+                        FROM data_trace d
+                        WHERE d.ts = p.ts 
+                        AND d.process = p.process
+                        AND d.data_type = 'INPUT'
+                        AND d.data LIKE 'arg_%'
+                        ORDER BY d.data
+                    ) as args,
+                    -- Get result
+                    (
+                        SELECT d.data_value
+                        FROM data_trace d
+                        WHERE d.ts = p.ts 
+                        AND d.process = p.process
+                        AND d.data_type = 'OUTPUT'
+                        AND d.data = 'result'
+                        LIMIT 1
+                    ) as result
+                FROM process_trace p
+                ORDER BY p.ts DESC
+                LIMIT ?
+            """
+            
+            df = pd.read_sql_query(query, conn, params=[limit])
+            
+            # Convert JSON strings to actual values where needed
+            if not df.empty:
+                # Replace None with empty strings/objects
+                df['args'] = df['args'].fillna('[]')
+                df['kwargs'] = df['kwargs'].fillna('{}')
+                df['result'] = df['result'].fillna('')
+                df['exception'] = df['exception'].fillna('')
+            
+            return df
+
+
+class MetricsAggregator:
+    """Aggregates metrics for dashboard visualizations"""
+    
+    def __init__(self, data_service: ObservatoryDataService):
+        self.data_service = data_service
+    
+    def get_performance_timeline(self, process: str, hours: int = 1) -> pd.DataFrame:
+        """Get performance metrics over time for a specific process"""
+        with self.data_service._get_connection() as conn:
+            cutoff_time = (datetime.now() - timedelta(hours=hours)).isoformat()
+            
+            query = """
+                SELECT 
+                    datetime(ts, 'unixepoch', 'localtime', 'start of minute') as minute,
+                    COUNT(*) as calls,
+                    AVG(duration_ms) as avg_duration,
+                    MAX(duration_ms) as max_duration,
+                    SUM(CASE WHEN status = 'ERR' THEN 1 ELSE 0 END) as errors
+                FROM process_trace
+                WHERE process = ? AND ts >= ?
+                GROUP BY minute
+                ORDER BY minute
+            """
+            
+            return pd.read_sql_query(query, conn, params=[process, cutoff_time])
+    
+    def get_top_slow_functions(self, limit: int = 10) -> pd.DataFrame:
+        """Get slowest functions by average duration"""
+        with self.data_service._get_connection() as conn:
+            query = """
+                SELECT 
+                    process,
+                    COUNT(*) as call_count,
+                    AVG(duration_ms) as avg_duration_ms,
+                    MAX(duration_ms) as max_duration_ms
+                FROM process_trace
+                WHERE ts >= datetime('now', '-1 hour')
+                GROUP BY process
+                HAVING call_count > 10  -- Only show functions called more than 10 times
+                ORDER BY avg_duration_ms DESC
+                LIMIT ?
+            """
+            
+            return pd.read_sql_query(query, conn, params=[limit])
+
+
+class TraceAnalyzer:
+    """Analyzes traces for patterns and relationships"""
+    
+    def __init__(self, data_service: ObservatoryDataService):
+        self.data_service = data_service
+    
+    def get_parent_child_traces(self, parent_process: str) -> pd.DataFrame:
+        """Get child traces for a given parent process"""
+        with self.data_service._get_connection() as conn:
+            query = """
+                SELECT 
+                    parent_ts,
+                    parent_process,
+                    child_ts,
+                    child_process,
+                    depth_diff,
+                    time_diff_ms
+                FROM parent_child_traces
+                WHERE parent_process = ?
+                ORDER BY child_ts
+            """
+            
+            return pd.read_sql_query(query, conn, params=[parent_process])
+    
+    def detect_stale_processes(self, expected_interval_seconds: int = 60) -> List[Dict[str, Any]]:
+        """Detect processes that haven't run within expected interval"""
+        with self.data_service._get_connection() as conn:
+            # Get last execution time for each process
+            query = """
+                SELECT 
+                    process,
+                    MAX(ts) as last_execution,
+                    julianday('now') - julianday(MAX(ts)) as days_since_last
+                FROM process_trace
+                GROUP BY process
+                HAVING days_since_last * 86400 > ?
+                ORDER BY days_since_last DESC
+            """
+            
+            cursor = conn.execute(query, [expected_interval_seconds])
+            
+            stale_processes = []
+            for row in cursor:
+                stale_processes.append({
+                    "process": row[0],
+                    "last_execution": row[1],
+                    "seconds_since_last": int(row[2] * 86400)
+                })
+            
+            return stale_processes 

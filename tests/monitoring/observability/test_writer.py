@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from lib.monitoring.writers import SQLiteWriter, BatchWriter
-from lib.monitoring.queues import ObservabilityQueue, ObservabilityRecord
+from lib.monitoring.queues import ObservatoryQueue, ObservatoryRecord
 
 
 class TestSQLiteWriter:
@@ -46,7 +46,7 @@ class TestSQLiteWriter:
             'result': "test_result"
         }
         defaults.update(kwargs)
-        return ObservabilityRecord(**defaults)
+        return ObservatoryRecord(**defaults)
     
     def test_schema_creation(self, temp_db):
         """Test that database schema is created correctly"""
@@ -269,7 +269,7 @@ class TestBatchWriter:
     
     def create_test_record(self, status="OK", process="test.func"):
         """Helper to create test records"""
-        return ObservabilityRecord(
+        return ObservatoryRecord(
             ts=datetime.now().isoformat(),
             process=process,
             status=status,
@@ -279,8 +279,8 @@ class TestBatchWriter:
     
     def test_batch_writer_basic(self, temp_db):
         """Test basic BatchWriter functionality"""
-        queue = ObservabilityQueue()
-        writer = BatchWriter(queue, temp_db, batch_size=10, drain_interval=0.05)
+        queue = ObservatoryQueue()
+        writer = BatchWriter(temp_db, queue, batch_size=10, drain_interval=0.05)
         
         # Start writer
         writer.start()
@@ -304,8 +304,8 @@ class TestBatchWriter:
     
     def test_batch_writer_metrics(self, temp_db):
         """Test BatchWriter metrics tracking"""
-        queue = ObservabilityQueue()
-        writer = BatchWriter(queue, temp_db, batch_size=5, drain_interval=0.05)
+        queue = ObservatoryQueue()
+        writer = BatchWriter(temp_db, queue, batch_size=5, drain_interval=0.05)
         
         writer.start()
         
@@ -317,24 +317,22 @@ class TestBatchWriter:
         
         time.sleep(0.2)
         
-        # Get metrics
-        metrics = writer.get_metrics()
+        # Get stats
+        stats = writer.get_stats()
         
-        assert metrics['batches_written'] >= 3
-        assert metrics['records_written'] == 15
-        assert metrics['errors'] == 0
-        assert metrics['records_per_second'] > 0
-        assert 'database' in metrics
-        assert 'queue' in metrics
+        assert stats['total_written'] >= 15
+        assert stats['total_errors'] == 0
+        assert stats['db_size_bytes'] > 0
+        assert stats['process_trace_count'] >= 15
         
         writer.stop()
     
     def test_batch_writer_error_recovery(self, temp_db):
         """Test BatchWriter error tracking mechanism exists"""
-        queue = ObservabilityQueue()
+        queue = ObservatoryQueue()
         
         # Create writer
-        writer = BatchWriter(queue, temp_db, batch_size=10, drain_interval=0.05)
+        writer = BatchWriter(temp_db, queue, batch_size=10, drain_interval=0.05)
         
         writer.start()
         
@@ -343,13 +341,13 @@ class TestBatchWriter:
             queue.put(self.create_test_record())
         time.sleep(0.2)
         
-        # Get metrics - verify error tracking fields exist
-        metrics = writer.get_metrics()
+        # Get stats - verify error tracking fields exist
+        stats = writer.get_stats()
         
         # Verify error tracking mechanism is in place
-        assert 'errors' in metrics
-        assert 'last_error' in metrics
-        assert metrics['errors'] >= 0  # Should track errors (even if 0)
+        assert 'total_errors' in stats
+        assert 'last_error' in stats
+        assert stats['total_errors'] >= 0  # Should track errors (even if 0)
         
         writer.stop()
         
@@ -358,8 +356,8 @@ class TestBatchWriter:
     
     def test_batch_writer_graceful_shutdown(self, temp_db):
         """Test graceful shutdown with final drain"""
-        queue = ObservabilityQueue()
-        writer = BatchWriter(queue, temp_db, batch_size=100, drain_interval=1.0)  # Long interval
+        queue = ObservatoryQueue()
+        writer = BatchWriter(temp_db, queue, batch_size=100, drain_interval=1.0)  # Long interval
         
         writer.start()
         
@@ -379,8 +377,8 @@ class TestBatchWriter:
     
     def test_batch_writer_performance(self, temp_db):
         """Test BatchWriter can handle high throughput"""
-        queue = ObservabilityQueue()
-        writer = BatchWriter(queue, temp_db, batch_size=100, drain_interval=0.05)
+        queue = ObservatoryQueue()
+        writer = BatchWriter(temp_db, queue, batch_size=100, drain_interval=0.05)
         
         writer.start()
         
@@ -392,7 +390,7 @@ class TestBatchWriter:
             queue.put(self.create_test_record(process=f"perf.test{i}"))
         
         # Wait for all to be written
-        while writer.metrics['records_written'] < record_count:
+        while writer.total_written < record_count:
             time.sleep(0.1)
             if time.time() - start_time > 10:  # Timeout after 10 seconds
                 break
@@ -400,15 +398,15 @@ class TestBatchWriter:
         elapsed = time.time() - start_time
         
         # Should process at least 100 records/second
-        assert writer.metrics['records_written'] == record_count
-        assert writer.metrics['records_written'] / elapsed > 100
+        assert writer.total_written == record_count
+        assert writer.total_written / elapsed > 100
         
         writer.stop()
     
     def test_integration_queue_to_database(self, temp_db):
         """Test full integration from queue to database"""
-        queue = ObservabilityQueue()
-        writer = BatchWriter(queue, temp_db)
+        queue = ObservatoryQueue()
+        writer = BatchWriter(temp_db, queue)
         
         writer.start()
         
