@@ -1,18 +1,18 @@
-"""Tests for ObservabilityQueue - Phase 4"""
+"""Tests for ObservatoryQueue - Phase 4"""
 
 import pytest
 import threading
 import time
 from datetime import datetime
-from lib.monitoring.queues import ObservabilityQueue, ObservabilityRecord, QueueMetrics
+from lib.monitoring.queues import ObservatoryQueue, ObservatoryRecord, QueueMetrics
 
 
-class TestObservabilityQueue:
-    """Test suite for ObservabilityQueue with error-first strategy"""
+class TestObservatoryQueue:
+    """Test suite for ObservatoryQueue with error-first strategy"""
     
     def create_record(self, status="OK", process="test.function", duration_ms=10.5):
         """Helper to create test records"""
-        return ObservabilityRecord(
+        return ObservatoryRecord(
             ts=datetime.now().isoformat(),
             process=process,
             status=status,
@@ -22,7 +22,7 @@ class TestObservabilityQueue:
     
     def test_basic_put_and_drain(self):
         """Test basic enqueue and dequeue operations"""
-        queue = ObservabilityQueue()
+        queue = ObservatoryQueue()
         
         # Add some records
         queue.put(self.create_record("OK"))
@@ -40,7 +40,7 @@ class TestObservabilityQueue:
     
     def test_errors_never_dropped(self):
         """Test that error records are never dropped even under load"""
-        queue = ObservabilityQueue(normal_maxsize=10, overflow_maxsize=5)
+        queue = ObservatoryQueue(normal_maxsize=10, overflow_maxsize=5)
         
         # Fill normal queue and overflow
         for i in range(20):
@@ -69,7 +69,7 @@ class TestObservabilityQueue:
     
     def test_normal_overflow_to_buffer(self):
         """Test normal records overflow to ring buffer when queue is full"""
-        queue = ObservabilityQueue(normal_maxsize=5, overflow_maxsize=10)
+        queue = ObservatoryQueue(normal_maxsize=5, overflow_maxsize=10)
         
         # Fill normal queue
         for i in range(5):
@@ -88,7 +88,7 @@ class TestObservabilityQueue:
     
     def test_overflow_recovery(self):
         """Test recovery from overflow buffer back to normal queue"""
-        queue = ObservabilityQueue(normal_maxsize=3, overflow_maxsize=5)
+        queue = ObservatoryQueue(normal_maxsize=3, overflow_maxsize=5)
         
         # Fill normal queue and overflow
         for i in range(7):
@@ -110,7 +110,7 @@ class TestObservabilityQueue:
     
     def test_ring_buffer_overflow(self):
         """Test ring buffer behavior when it reaches capacity"""
-        queue = ObservabilityQueue(normal_maxsize=2, overflow_maxsize=3)
+        queue = ObservatoryQueue(normal_maxsize=2, overflow_maxsize=3)
         
         # Fill everything
         for i in range(10):
@@ -133,7 +133,7 @@ class TestObservabilityQueue:
     
     def test_drain_priority_order(self):
         """Test drain respects error-first priority"""
-        queue = ObservabilityQueue()
+        queue = ObservatoryQueue()
         
         # Add mixed records
         queue.put(self.create_record("OK", "first"))
@@ -153,7 +153,7 @@ class TestObservabilityQueue:
     
     def test_metrics_accuracy(self):
         """Test all metrics are tracked accurately"""
-        queue = ObservabilityQueue(normal_maxsize=5, overflow_maxsize=5)
+        queue = ObservatoryQueue(normal_maxsize=5, overflow_maxsize=5)
         
         # Initial state
         assert queue.metrics.normal_enqueued == 0
@@ -187,7 +187,7 @@ class TestObservabilityQueue:
     
     def test_thread_safety(self):
         """Test queue operations are thread-safe"""
-        queue = ObservabilityQueue(normal_maxsize=100)
+        queue = ObservatoryQueue(normal_maxsize=100)
         errors = []
         
         def producer(thread_id, count):
@@ -218,7 +218,7 @@ class TestObservabilityQueue:
     
     def test_queue_stats(self):
         """Test queue statistics reporting"""
-        queue = ObservabilityQueue(normal_maxsize=10, overflow_maxsize=20)
+        queue = ObservatoryQueue(normal_maxsize=10, overflow_maxsize=20)
         
         # Check initial stats
         stats = queue.get_queue_stats()
@@ -246,7 +246,7 @@ class TestObservabilityQueue:
     
     def test_clear_functionality(self):
         """Test clearing all queues and metrics"""
-        queue = ObservabilityQueue()
+        queue = ObservatoryQueue()
         
         # Add various records
         for i in range(5):
@@ -271,7 +271,7 @@ class TestObservabilityQueue:
     
     def test_warning_thresholds(self):
         """Test warning thresholds are properly tracked"""
-        queue = ObservabilityQueue(
+        queue = ObservatoryQueue(
             normal_maxsize=10, 
             overflow_maxsize=5,
             warning_threshold=8
@@ -308,7 +308,7 @@ class TestObservabilityQueue:
     
     def test_load_handling(self):
         """Test queue handles high load gracefully"""
-        queue = ObservabilityQueue(normal_maxsize=1000, overflow_maxsize=5000)
+        queue = ObservatoryQueue(normal_maxsize=1000, overflow_maxsize=5000)
         
         # Simulate burst load
         start_time = time.time()

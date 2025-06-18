@@ -1,4 +1,4 @@
-"""Database writers for observability system"""
+"""Database writers for observatory system"""
 
 from .sqlite_writer import SQLiteWriter, BatchWriter
 

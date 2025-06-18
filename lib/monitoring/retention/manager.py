@@ -1,4 +1,4 @@
-"""Simple, robust retention management for observability data.
+"""Simple, robust retention management for observatory data.
 
 This module implements a dead-simple retention strategy:
 - Delete records older than retention period
@@ -13,7 +13,7 @@ from typing import Optional, Tuple
 
 
 class RetentionManager:
-    """Manages data retention for observability database.
+    """Manages data retention for observatory database.
     
     Philosophy: Keep it simple. Delete old data, let SQLite handle the rest.
     After 6 hours, the database reaches steady state where deletions = insertions.

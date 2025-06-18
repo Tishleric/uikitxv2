@@ -1,4 +1,86 @@
-# Active Context - Current Development Focus
+# Active Context: Observatory Dashboard - Getting @monitor Working
+
+## Current Focus: Debugging @monitor → Observatory Data Flow
+Tracing why Greek Analysis data isn't appearing in Observatory dashboard.
+
+## Just Fixed (June 17, 2025)
+1. **Database Path Mismatch**: 
+   - Issue: @monitor was writing to `logs/observability.db`
+   - Observatory was reading from `logs/observatory.db`
+   - Fix: Updated `start_observability_writer(db_path="logs/observatory.db")`
+
+2. **Missing Method Error**:
+   - Issue: `ObservatoryDataService` had no `get_recent_traces()` method
+   - Fix: Added method with proper SQL joins to query process_trace and data_trace tables
+
+## Current Investigation
+- Console shows: `[MONITOR] __main__.acp_update_greek_analysis executed in 119.331ms` ✓
+- Observatory shows: "Error loading trace data" (now fixed)
+- Need to verify data is being written to database correctly
+- Need to test refresh button to see if data appears
+
+## Architecture Understanding
+```
+Greek Analysis Button Click
+    ↓
+@monitor() decorator
+    ↓
+ObservabilityQueue (in memory)
+    ↓
+BatchWriter thread (every 0.1s)
+    ↓
+logs/observatory.db
+    ↓
+ObservatoryDataService.get_recent_traces()
+    ↓
+Observatory Dashboard Table
+```
+
+## Next Immediate Steps
+1. Click refresh button in Observatory to see if data appears
+2. Check if data is in database using SQLite browser
+3. Debug SQL query if needed
+4. Once working, apply @monitor to more functions
+
+## Technical Details
+- Using wrapped components from `lib.components`
+- Following the same content creation pattern as ActantPnL
+- Database: `logs/observatory.db`
+- Simple, clean implementation that works
+- Vanilla @monitor() captures all default metrics
+
+## Current Focus: Observability Dashboard Implementation
+**Started**: 2025-01-14  
+**Target**: Integrate new observability dashboard into main app
+
+### In Progress
+- Building multi-tab observability dashboard in `apps/dashboards/main/app.py`
+- Creating UI for existing `@monitor` decorator data visualization
+- Implementing 7-column trace view with parent-child expansion
+- Adding staleness detection based on value comparison
+
+### Key Decisions
+- UI-first approach: Build dashboard before optimizing performance
+- Side-by-side deployment: Keep old logs page until new one is validated
+- MVC architecture: Separate data queries, UI components, and callbacks
+- Robustness priority: Error boundaries, timeouts, graceful degradation
+
+### Next Steps
+1. Add observability to sidebar navigation
+2. Create Overview tab with metrics grid
+3. Build Trace Explorer with server-side pagination
+4. Implement Code Inspector with source view
+5. Add Alerts tab with staleness rules
+
+### References
+- Implementation plan: `memory-bank/observability-dashboard-plan.md`
+- Backend complete: `@monitor` decorator, queue, SQLite writer
+- Tables: `process_trace`, `data_trace` in `logs/main_dashboard_logs.db`
+
+### Previous Context (Archived)
+- ✓ Monitoring system backend implementation
+- ✓ Actant PnL dashboard implementation
+- ✓ Package migration to lib/ structure
 
 ## Current Status: Robustness Complete! (10/10) ✅
 

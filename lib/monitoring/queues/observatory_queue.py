@@ -1,4 +1,4 @@
-"""Observability queue with error-first strategy and zero-loss guarantees - Phase 4"""
+"""Observatory queue with error-first strategy and zero-loss guarantees - Phase 4"""
 
 import queue
 import time
@@ -38,8 +38,8 @@ class QueueMetrics:
 
 
 @dataclass
-class ObservabilityRecord:
-    """Single record to be queued for observability"""
+class ObservatoryRecord:
+    """Single record to be queued for observatory"""
     ts: str  # ISO format timestamp
     process: str  # module.function
     status: str  # OK or ERR
@@ -61,7 +61,7 @@ class ObservabilityRecord:
         return self.status == "ERR"
 
 
-class ObservabilityQueue:
+class ObservatoryQueue:
     """
     Dual queue system with error-first strategy.
     
@@ -97,7 +97,7 @@ class ObservabilityQueue:
         self._last_warning_time = 0
         self._warning_interval = 60  # Warn at most once per minute
     
-    def put(self, record: ObservabilityRecord) -> None:
+    def put(self, record: ObservatoryRecord) -> None:
         """
         Add a record to the appropriate queue.
         
@@ -127,7 +127,7 @@ class ObservabilityQueue:
                     self.metrics.overflowed += 1
                     self._maybe_warn_overflow()
     
-    def drain(self, max_items: int = 100) -> List[ObservabilityRecord]:
+    def drain(self, max_items: int = 100) -> List[ObservatoryRecord]:
         """
         Drain records with error-first priority.
         
@@ -211,7 +211,7 @@ class ObservabilityQueue:
         current_time = time.time()
         if current_time - self._last_warning_time > self._warning_interval:
             queue_size = self.normal_queue.qsize()
-            print(f"[WARNING] ObservabilityQueue normal queue at {queue_size}/{self.normal_maxsize} "
+            print(f"[WARNING] ObservatoryQueue normal queue at {queue_size}/{self.normal_maxsize} "
                   f"({queue_size/self.normal_maxsize*100:.1f}% full)")
             self._last_warning_time = current_time
     
@@ -220,6 +220,6 @@ class ObservabilityQueue:
         current_time = time.time()
         if current_time - self._last_warning_time > self._warning_interval:
             overflow_size = len(self.overflow_buffer)
-            print(f"[WARNING] ObservabilityQueue using overflow buffer: {overflow_size}/{self.overflow_maxsize} "
+            print(f"[WARNING] ObservatoryQueue using overflow buffer: {overflow_size}/{self.overflow_maxsize} "
                   f"({overflow_size/self.overflow_maxsize*100:.1f}% full)")
             self._last_warning_time = current_time 

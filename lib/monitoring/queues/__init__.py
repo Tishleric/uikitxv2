@@ -1,5 +1,5 @@
-"""Queues for monitoring data"""
+"""Queues for the monitoring system"""
 
-from .observability_queue import ObservabilityQueue, ObservabilityRecord, QueueMetrics
+from .observatory_queue import ObservatoryQueue, ObservatoryRecord, QueueMetrics
 
-__all__ = ["ObservabilityQueue", "ObservabilityRecord", "QueueMetrics"] 
+__all__ = ["ObservatoryQueue", "ObservatoryRecord", "QueueMetrics"] 

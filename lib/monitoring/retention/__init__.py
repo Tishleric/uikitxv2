@@ -1,4 +1,4 @@
-"""Retention management for observability data."""
+"""Retention management for observatory data."""
 
 from .manager import RetentionManager
 from .controller import RetentionController

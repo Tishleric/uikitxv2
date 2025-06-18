@@ -224,7 +224,7 @@ class TestIntegrationWithMonitorDecorator:
     
     def test_decorator_uses_resource_monitor(self):
         """Test that monitor decorator properly uses ResourceMonitor."""
-        from lib.monitoring.decorators.monitor import monitor, get_observability_queue
+        from lib.monitoring.decorators.monitor import monitor, get_observatory_queue
         
         # Set up mock monitor
         mock_backend = MockMonitor(cpu_percent=5.0, memory_mb=100.0)
@@ -239,7 +239,7 @@ class TestIntegrationWithMonitorDecorator:
                 time.sleep(0.01)  # Do some work
                 return "result"
             
-            queue = get_observability_queue()
+            queue = get_observatory_queue()
             queue.clear()
             
             # Call function
@@ -264,7 +264,7 @@ class TestIntegrationWithMonitorDecorator:
     
     def test_decorator_graceful_degradation(self):
         """Test decorator works when monitoring unavailable."""
-        from lib.monitoring.decorators.monitor import monitor, get_observability_queue
+        from lib.monitoring.decorators.monitor import monitor, get_observatory_queue
         
         # Use NullMonitor (unavailable)
         test_monitor = ResourceMonitor(backend=NullMonitor())
@@ -277,7 +277,7 @@ class TestIntegrationWithMonitorDecorator:
             def test_function(x):
                 return x * 2
             
-            queue = get_observability_queue()
+            queue = get_observatory_queue()
             queue.clear()
             
             # Function should work normally

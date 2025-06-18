@@ -1,4 +1,4 @@
-"""Smart serializer for observability data - Phase 3 implementation"""
+"""Smart serializer for observatory data - Phase 3 implementation"""
 
 import re
 from typing import Any, Tuple, Set
@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 
 class SmartSerializer:
     """
-    Serializes various data types for observability storage.
+    Serializes various data types for observatory storage.
     
     Phase 3: Full implementation with all data types and edge cases
     """

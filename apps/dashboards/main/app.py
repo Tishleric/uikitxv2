@@ -61,7 +61,8 @@ try:
     )
     print("Successfully imported TT REST API tools.")
     # Import decorator functions
-    from monitoring.decorators import TraceCloser, TraceCpu, TraceTime, TraceMemory
+    from monitoring.decorators import TraceCloser, TraceCpu, TraceTime, TraceMemory, monitor
+    from monitoring.decorators.monitor import start_observatory_writer
     print("Successfully imported tracing decorators.")
     # Import trading utilities
     from trading.common import format_shock_value_for_display
@@ -185,6 +186,15 @@ def serve_doxygen(filename='index.html'):
 
 # --- End App Init ---
 
+# --- Start Observatory Writer ---
+# Start the observatory writer for @monitor decorator
+try:
+    start_observatory_writer(db_path="logs/observatory.db")
+    logger.info("Observatory writer started successfully")
+except Exception as e:
+    logger.error(f"Failed to start observatory writer: {e}")
+# --- End Observatory Writer ---
+
 # --- Register Actant PnL Callbacks Early ---
 # Import and register Actant PnL callbacks at startup to avoid double-click issue
 try:
@@ -196,6 +206,20 @@ except Exception as e:
     logger.error(f"Failed to register Actant PnL callbacks at startup: {e}")
     app._actant_pnl_callbacks_registered = False
 # --- End Actant PnL Registration ---
+
+# --- Register Observatory Callbacks Early ---
+# Import and register Observatory callbacks at startup
+try:
+    from apps.dashboards.observatory.callbacks import register_callbacks as register_observatory_callbacks
+    
+    # Register callbacks (they create their own data service)
+    register_observatory_callbacks(app)
+    app._observatory_callbacks_registered = True
+    logger.info("Observatory callbacks registered at startup")
+except Exception as e:
+    logger.error(f"Failed to register Observatory callbacks at startup: {e}")
+    app._observatory_callbacks_registered = False
+# --- End Observatory Registration ---
 
 # --- UI Constants & Helpers ---
 text_style = {"color": default_theme.text_light, "marginBottom": "5px", "marginTop": "15px"}
@@ -1238,7 +1262,7 @@ def pdoc_parse_code_index():
         'lib/components/advanced/': 'Advanced UI components - data tables, graphs, grids',
         'lib/components/core/': 'Core component infrastructure and protocols',
         'lib/components/themes/': 'Theme system and styling configuration',
-        'lib/monitoring/': 'Monitoring and observability tools',
+                    'lib/monitoring/': 'Monitoring and observatory tools',
         'lib/monitoring/decorators/': 'Performance and trace monitoring decorators',
         'lib/monitoring/logging/': 'Logging configuration and handlers',
         'lib/trading/': 'Trading domain functionality',
@@ -2739,8 +2763,9 @@ def create_sidebar():
         {"id": "nav-scenario-ladder", "label": "Scenario Ladder", "icon": "📊"},
         {"id": "nav-actant-eod", "label": "Actant EOD", "icon": "📈"},
         {"id": "nav-actant-pnl", "label": "Actant PnL", "icon": "📉"},
+        {"id": "nav-observatory", "label": "Observatory", "icon": "👀"},
         {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
-        {"id": "nav-logs", "label": "Logs", "icon": "📋"}
+        {"id": "nav-logs", "label": "Logs (Legacy)", "icon": "📋"}  # Mark as legacy
     ]
     
     sidebar_style = {
@@ -2820,6 +2845,7 @@ def get_page_content(page_name):
         "scenario-ladder": scl_create_scenario_ladder_content(),
         "actant-eod": aeod_create_actant_eod_content(),
         "actant-pnl": None,  # Will be populated below
+        "observatory": None,  # Will be populated below
         "logs": create_logs_tab()
     }
     
@@ -2833,6 +2859,19 @@ def get_page_content(page_name):
             logger.error(f"Error loading Actant PnL dashboard: {e}")
             return html.Div(
                 f"Error loading Actant PnL dashboard: {str(e)}", 
+                style={"color": "red", "padding": "20px"}
+            )
+    
+    # Load Observatory dashboard dynamically
+    if page_name == "observatory":
+        try:
+            from apps.dashboards.observatory.views import create_observatory_content
+            # Callbacks were already registered at app startup
+            return create_observatory_content()
+        except Exception as e:
+            logger.error(f"Error loading Observatory dashboard: {e}")
+            return html.Div(
+                f"Error loading Observatory dashboard: {str(e)}", 
                 style={"color": "red", "padding": "20px"}
             )
     
@@ -2882,7 +2921,8 @@ app.layout = html.Div([
      Output("nav-project-docs", "style"),
      Output("nav-scenario-ladder", "style"),
      Output("nav-actant-eod", "style"),
-     Output("nav-actant-pnl", "style")],
+     Output("nav-actant-pnl", "style"),
+     Output("nav-observatory", "style")],
     [Input("nav-pricing-monkey", "n_clicks"),
      Input("nav-analysis", "n_clicks"),
      Input("nav-greek-analysis", "n_clicks"),
@@ -2890,13 +2930,14 @@ app.layout = html.Div([
      Input("nav-project-docs", "n_clicks"),
      Input("nav-scenario-ladder", "n_clicks"),
      Input("nav-actant-eod", "n_clicks"),
-     Input("nav-actant-pnl", "n_clicks")],
+     Input("nav-actant-pnl", "n_clicks"),
+     Input("nav-observatory", "n_clicks")],
     [State("active-page-store", "data")],
     prevent_initial_call=False
 )
 @TraceCloser()
 @TraceTime(log_args=False, log_return=False)
-def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, current_page):
+def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, observatory_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
     # Determine which button was clicked
@@ -2914,7 +2955,8 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
             "nav-project-docs": "project-docs",
             "nav-scenario-ladder": "scenario-ladder",
             "nav-actant-eod": "actant-eod",
-            "nav-actant-pnl": "actant-pnl"
+            "nav-actant-pnl": "actant-pnl",
+            "nav-observatory": "observatory"
         }
         active_page = page_mapping.get(trigger_id, current_page or "pricing-monkey")
     
@@ -2963,12 +3005,13 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
         "project-docs": active_style if active_page == "project-docs" else inactive_style,
         "scenario-ladder": active_style if active_page == "scenario-ladder" else inactive_style,
         "actant-eod": active_style if active_page == "actant-eod" else inactive_style,
-        "actant-pnl": active_style if active_page == "actant-pnl" else inactive_style
+        "actant-pnl": active_style if active_page == "actant-pnl" else inactive_style,
+        "observatory": active_style if active_page == "observatory" else inactive_style
     }
     
     logger.info(f"Navigation: switched to page '{active_page}'")
     
-    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"]
+    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["observatory"]
 
 # Remove old tabs-based layout
 # main_tabs_rendered = Tabs(
@@ -4100,10 +4143,7 @@ def empty_logs(n_clicks):
      State("acp-convexity-input", "value"),
      State("acp-option-type-selector", "value")]
 )
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, market_price_64ths,
                          dv01, convexity, option_type):
     """Recalculate Greeks based on input parameters"""

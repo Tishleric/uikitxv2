@@ -1,4 +1,4 @@
-"""Monitor decorator for observability system - Phase 8 with performance optimizations"""
+"""Monitor decorator for observatory system - Phase 8 with performance optimizations"""
 
 import functools
 import os
@@ -12,7 +12,7 @@ from typing import Callable, Optional, Any
 from datetime import datetime
 
 from lib.monitoring.serializers import SmartSerializer
-from lib.monitoring.queues import ObservabilityQueue, ObservabilityRecord
+from lib.monitoring.queues import ObservatoryQueue, ObservatoryRecord
 from lib.monitoring.writers import BatchWriter
 from lib.monitoring.performance import FastSerializer, MetadataCache, get_metadata_cache
 from lib.monitoring.resource_monitor import get_resource_monitor, ResourceSnapshot
@@ -20,20 +20,20 @@ from lib.monitoring.retention import RetentionManager, RetentionController
 
 
 # Global singleton queue instance
-_observability_queue = None
+_observatory_queue = None
 _batch_writer = None
 _retention_controller = None
 
 
-def get_observability_queue() -> ObservabilityQueue:
-    """Get or create the global observability queue singleton."""
-    global _observability_queue
-    if _observability_queue is None:
-        _observability_queue = ObservabilityQueue()
-    return _observability_queue
+def get_observatory_queue() -> ObservatoryQueue:
+    """Get or create the global observatory queue singleton."""
+    global _observatory_queue
+    if _observatory_queue is None:
+        _observatory_queue = ObservatoryQueue()
+    return _observatory_queue
 
 
-def start_observability_writer(db_path: str = "logs/observability.db", 
+def start_observatory_writer(db_path: str = "logs/observatory.db", 
                               batch_size: int = 100, 
                               drain_interval: float = 0.1,
                               retention_hours: int = 6,
@@ -50,7 +50,7 @@ def start_observability_writer(db_path: str = "logs/observability.db",
     global _batch_writer, _retention_controller
     
     # Ensure queue exists
-    queue = get_observability_queue()
+    queue = get_observatory_queue()
     
     # Start batch writer
     if _batch_writer is None:
@@ -67,7 +67,7 @@ def start_observability_writer(db_path: str = "logs/observability.db",
             retention_manager = RetentionManager(db_path, retention_hours)
             _retention_controller = RetentionController(retention_manager)
         _batch_writer.start()
-        print(f"[MONITOR] Started observability writer → {db_path}")
+        print(f"[MONITOR] Started observatory writer → {db_path}")
     
     # Start retention controller if enabled
     if retention_enabled and _retention_controller is None:
@@ -79,7 +79,7 @@ def start_observability_writer(db_path: str = "logs/observability.db",
     return _batch_writer
 
 
-def stop_observability_writer():
+def stop_observatory_writer():
     """Stop the global batch writer and retention controller."""
     global _batch_writer, _retention_controller
     
@@ -93,7 +93,7 @@ def stop_observability_writer():
     if _batch_writer is not None:
         _batch_writer.stop()
         _batch_writer = None
-        print("[MONITOR] Stopped observability writer")
+        print("[MONITOR] Stopped observatory writer")
 
 
 def monitor(
@@ -179,8 +179,8 @@ def monitor(
         
         def create_record(start_time: float, status: str, exception_str: Optional[str], 
                          args: tuple, kwargs: dict, result: Any = None, 
-                         start_snapshot: Optional[ResourceSnapshot] = None) -> ObservabilityRecord:
-            """Helper to create observability record"""
+                         start_snapshot: Optional[ResourceSnapshot] = None) -> ObservatoryRecord:
+            """Helper to create observatory record"""
             # Calculate duration
             duration_ms = (time.perf_counter() - start_time) * 1000
             
@@ -193,7 +193,7 @@ def monitor(
                 cpu_delta, memory_delta_mb = resource_monitor.measure_resources(start_snapshot)
             
             # Get queue and serializer
-            queue = get_observability_queue()
+            queue = get_observatory_queue()
             
             # Use FastSerializer for performance, fallback to SmartSerializer for sensitive data
             if sensitive_fields:
@@ -234,7 +234,7 @@ def monitor(
             # Subtract some frames for: create_record, wrapper, decorator, etc.
             call_depth = max(0, len(inspect.stack()) - 5)
             
-            record = ObservabilityRecord(
+            record = ObservatoryRecord(
                 ts=datetime.now().isoformat(),
                 process=process,
                 status=status,
