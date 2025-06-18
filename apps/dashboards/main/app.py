@@ -61,8 +61,8 @@ try:
     )
     print("Successfully imported TT REST API tools.")
     # Import decorator functions
-    from monitoring.decorators import TraceCloser, TraceCpu, TraceTime, TraceMemory, monitor
-    from monitoring.decorators.monitor import start_observatory_writer
+    from lib.monitoring.decorators import TraceCloser, TraceCpu, TraceTime, TraceMemory, monitor
+    from lib.monitoring.decorators.monitor import start_observatory_writer
     print("Successfully imported tracing decorators.")
     # Import trading utilities
     from trading.common import format_shock_value_for_display
@@ -6278,4 +6278,4 @@ if __name__ == "__main__":
     # - All INFO/ERROR/WARNING logs are sent to the database tables
     # - External functions are wrapped with traced versions
     logger.info("Starting Dashboard...")
-    app.run(debug=True, port=8052, use_reloader=False)
+    app.run(debug=True, port=8052, use_reloader=False, host='0.0.0.0')

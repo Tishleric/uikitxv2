@@ -419,4 +419,9 @@ def monitor(
             
             return sync_wrapper
     
-    return decorator 
+    return decorator
+
+# Compatibility aliases for old function names
+start_observability_writer = start_observatory_writer
+stop_observability_writer = stop_observatory_writer
+get_observability_queue = get_observatory_queue 

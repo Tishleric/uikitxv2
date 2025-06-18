@@ -51,6 +51,7 @@ class SQLiteWriter:
                 CREATE TABLE IF NOT EXISTS process_trace (
                     ts           TEXT NOT NULL,      -- ISO format timestamp
                     process      TEXT NOT NULL,      -- module.function
+                    process_group TEXT,              -- Logical grouping (e.g., trading.actant)
                     status       TEXT NOT NULL,      -- OK|ERR
                     duration_ms  REAL NOT NULL,      -- Execution time in milliseconds
                     exception    TEXT,               -- Full traceback if ERR
@@ -182,10 +183,18 @@ class SQLiteWriter:
                     data_trace_records = []
                     
                     for record in records:
+                        # Determine process_group
+                        process_group = getattr(record, 'process_group', None)
+                        if not process_group:
+                            # Auto-derive from module name
+                            parts = record.process.split('.')
+                            process_group = '.'.join(parts[:2]) if len(parts) > 1 else parts[0]
+                        
                         # Process trace record
                         process_data.append((
                             record.ts,
                             record.process,
+                            process_group,
                             record.status,
                             record.duration_ms,
                             record.exception,
@@ -236,7 +245,7 @@ class SQLiteWriter:
                     
                     # Bulk insert process traces
                     cursor.executemany(
-                        "INSERT OR REPLACE INTO process_trace VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT OR REPLACE INTO process_trace VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         process_data
                     )
                     
