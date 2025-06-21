@@ -3,7 +3,6 @@
 from dash import Input, Output, callback
 import pandas as pd
 from datetime import datetime
-import random
 
 from .models import ObservatoryDataService
 
@@ -22,61 +21,29 @@ def register_callbacks(app):
     def refresh_table_data(n_clicks):
         """Refresh the table with latest trace data"""
         try:
-            # Get recent traces from the database
-            df = data_service.get_recent_traces(limit=100)
+            # Get trace data directly - it's already in the perfect format!
+            df, total_rows = data_service.get_trace_data(
+                page=1,
+                page_size=100  # Show last 100 entries
+            )
             
             if df.empty:
-                # Return empty list - no mock data
+                # Return empty list - no data
                 return []
             
-            # Format the dataframe for display - one row per input/output variable
+            # The data is already in the right format from get_trace_data()
+            # Just need to format timestamp and rename columns for display
             formatted_data = []
             for _, row in df.iterrows():
-                timestamp = pd.to_datetime(row["timestamp"]).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-                process = row.get("process", "Unknown")
-                status = "ERROR" if row.get("exception") else "OK"
-                exception = str(row.get("exception", ""))[:100] if row.get("exception") else ""
-                
-                # Parse args - show one row per argument
-                args_str = row.get("args", "{}")
-                try:
-                    import json
-                    args_dict = json.loads(args_str)
-                    for arg_name, arg_value in args_dict.items():
-                        formatted_data.append({
-                            "process": process,
-                            "data": arg_name,
-                            "data_type": "input",
-                            "data_value": str(arg_value)[:200],  # Truncate long values
-                            "timestamp": timestamp,
-                            "status": status,
-                            "exception": exception
-                        })
-                except:
-                    # If args parsing fails, show raw string
-                    if args_str and args_str != "{}":
-                        formatted_data.append({
-                            "process": process,
-                            "data": "args",
-                            "data_type": "input",
-                            "data_value": args_str[:200],
-                            "timestamp": timestamp,
-                            "status": status,
-                            "exception": exception
-                        })
-                
-                # Parse result - show as output
-                result_str = row.get("result", "")
-                if result_str:
-                    formatted_data.append({
-                        "process": process,
-                        "data": "result",
-                        "data_type": "output",
-                        "data_value": str(result_str)[:200],
-                        "timestamp": timestamp,
-                        "status": status,
-                        "exception": exception
-                    })
+                formatted_data.append({
+                    "process": row["process"],
+                    "data": row["data"],
+                    "data_type": row["data_type"],
+                    "data_value": str(row["data_value"])[:200],  # Truncate long values
+                    "timestamp": pd.to_datetime(row["timestamp"]).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                    "status": row["status"],
+                    "exception": row.get("exception", "")
+                })
             
             return formatted_data
             
@@ -86,7 +53,9 @@ def register_callbacks(app):
             return [{
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "process": "Observatory",
-                "function": "refresh_table_data",
-                "duration_ms": 0,
-                "status": f"Error: {str(e)}"
+                "data": "error",
+                "data_type": "ERROR",
+                "data_value": str(e),
+                "status": "ERROR",
+                "exception": str(e)
             }] 

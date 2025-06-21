@@ -55,6 +55,8 @@ class ObservatoryRecord:
     # New fields for CPU/memory tracking
     cpu_delta: Optional[float] = None  # CPU percentage change during execution
     memory_delta_mb: Optional[float] = None  # Memory usage change in MB
+    # New field for parameter mappings (variable-level tracking)
+    parameter_mappings: Optional[List[tuple]] = None  # List of (name, value, type) tuples
     
     def is_error(self) -> bool:
         """Check if this is an error record"""

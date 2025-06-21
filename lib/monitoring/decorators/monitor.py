@@ -8,8 +8,9 @@ import random
 import asyncio
 import inspect
 import threading
-from typing import Callable, Optional, Any
+from typing import Callable, Optional, Any, Dict, List, Tuple
 from datetime import datetime
+from collections import namedtuple
 
 from lib.monitoring.serializers import SmartSerializer
 from lib.monitoring.queues import ObservatoryQueue, ObservatoryRecord
@@ -96,6 +97,186 @@ def stop_observatory_writer():
         print("[MONITOR] Stopped observatory writer")
 
 
+def extract_parameter_names(func: Callable) -> Dict[str, Any]:
+    """
+    Extract parameter names and metadata from a function signature.
+    
+    Returns a dict with:
+    - param_names: List of positional parameter names
+    - param_defaults: Dict of parameter names to default values
+    - varargs_name: Name of *args parameter (if any)
+    - kwargs_name: Name of **kwargs parameter (if any)
+    - has_self: Whether first parameter is 'self'
+    - has_cls: Whether first parameter is 'cls'
+    """
+    metadata = {
+        'param_names': [],
+        'param_defaults': {},
+        'varargs_name': None,
+        'kwargs_name': None,
+        'has_self': False,
+        'has_cls': False,
+    }
+    
+    try:
+        # Get the signature
+        sig = inspect.signature(func)
+        
+        # Process parameters in order
+        for param_name, param in sig.parameters.items():
+            if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                # This is *args
+                metadata['varargs_name'] = param_name
+            elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                # This is **kwargs
+                metadata['kwargs_name'] = param_name
+            elif param.kind in (inspect.Parameter.POSITIONAL_ONLY, 
+                              inspect.Parameter.POSITIONAL_OR_KEYWORD):
+                # Regular positional parameter
+                metadata['param_names'].append(param_name)
+                
+                # Check if it has a default value
+                if param.default != inspect.Parameter.empty:
+                    metadata['param_defaults'][param_name] = param.default
+                
+                # Check for self/cls
+                if len(metadata['param_names']) == 1:
+                    if param_name == 'self':
+                        metadata['has_self'] = True
+                    elif param_name == 'cls':
+                        metadata['has_cls'] = True
+            elif param.kind == inspect.Parameter.KEYWORD_ONLY:
+                # Keyword-only parameter (after *)
+                # Treat as regular parameter for our purposes
+                metadata['param_names'].append(param_name)
+                if param.default != inspect.Parameter.empty:
+                    metadata['param_defaults'][param_name] = param.default
+    
+    except (ValueError, TypeError):
+        # Some functions don't have inspectable signatures (e.g., C extensions)
+        # Fall back to generic names
+        pass
+    
+    return metadata
+
+
+def map_args_to_names(args: tuple, kwargs: dict, param_metadata: Dict[str, Any], skip_self: bool = False) -> List[Tuple[str, Any, str]]:
+    """
+    Map function arguments to their parameter names.
+    
+    Args:
+        args: Positional arguments
+        kwargs: Keyword arguments
+        param_metadata: Metadata from extract_parameter_names
+        skip_self: Whether to skip 'self' parameter
+    
+    Returns:
+        List of tuples: (param_name, value, data_type)
+    """
+    result = []
+    param_names = param_metadata['param_names']
+    varargs_name = param_metadata['varargs_name']
+    
+    # Skip self/cls if needed
+    start_index = 0
+    if skip_self and (param_metadata['has_self'] or param_metadata['has_cls']):
+        start_index = 1
+    
+    # Map positional arguments
+    for i, arg_value in enumerate(args):
+        if i < len(param_names) - start_index:
+            # Regular positional argument
+            param_name = param_names[i + start_index]
+            result.append((param_name, arg_value, "INPUT"))
+        else:
+            # Extra positional argument (part of *args)
+            if varargs_name:
+                param_name = f"{varargs_name}[{i - len(param_names) + start_index}]"
+            else:
+                param_name = f"arg_{i}"
+            result.append((param_name, arg_value, "INPUT"))
+    
+    # Map keyword arguments
+    for key, value in kwargs.items():
+        result.append((key, value, "INPUT"))
+    
+    return result
+
+
+def extract_return_names(func: Callable, result: Any) -> List[Tuple[str, Any, str]]:
+    """
+    Extract names for return values based on type hints, docstrings, or value types.
+    
+    Args:
+        func: The function that returned the value
+        result: The return value
+    
+    Returns:
+        List of tuples: (name, value, data_type)
+    """
+    result_entries = []
+    
+    # Try to get return annotation
+    try:
+        sig = inspect.signature(func)
+        return_annotation = sig.return_annotation
+        
+        # Handle various return annotation types
+        if return_annotation != inspect.Parameter.empty:
+            # Check for typing.Tuple or tuple
+            origin = getattr(return_annotation, '__origin__', None)
+            if origin is tuple:
+                # Get the tuple element types
+                args = getattr(return_annotation, '__args__', ())
+                
+                # Check if result is actually a tuple
+                if isinstance(result, tuple):
+                    for i, (value, type_hint) in enumerate(zip(result, args)):
+                        # Try to extract name from type hint
+                        name = f"return_{i}"
+                        if hasattr(type_hint, '__name__'):
+                            name = type_hint.__name__.lower()
+                        result_entries.append((name, value, "OUTPUT"))
+                    return result_entries
+    except:
+        pass
+    
+    # Check for named tuple
+    if hasattr(result, '_fields'):
+        # It's a named tuple
+        for field_name, value in zip(result._fields, result):
+            result_entries.append((field_name, value, "OUTPUT"))
+        return result_entries
+    
+    # Check for dataclass
+    if hasattr(result, '__dataclass_fields__'):
+        # It's a dataclass
+        for field_name in result.__dataclass_fields__:
+            value = getattr(result, field_name)
+            result_entries.append((field_name, value, "OUTPUT"))
+        return result_entries
+    
+    # Check for dict with specific keys (common pattern)
+    if isinstance(result, dict):
+        for key, value in result.items():
+            result_entries.append((f"result[{key}]", value, "OUTPUT"))
+        return result_entries
+    
+    # Check for tuple/list (multiple return values)
+    if isinstance(result, (tuple, list)) and len(result) > 1:
+        for i, value in enumerate(result):
+            result_entries.append((f"return_{i}", value, "OUTPUT"))
+        return result_entries
+    
+    # Single return value
+    result_entries.append(("result", result, "OUTPUT"))
+    return result_entries
+
+
+# Cache for function parameter metadata
+_param_metadata_cache = {}
+
+
 def monitor(
     process_group: str = None,
     sample_rate: float = 1.0,
@@ -104,6 +285,7 @@ def monitor(
     max_repr: int = 1000,
     sensitive_fields: tuple = (),
     queue_warning_threshold: int = 8000,
+    use_param_names: bool = True,  # New parameter to enable/disable parameter name extraction
 ) -> Callable:
     """
     Decorator to monitor function execution and capture data.
@@ -125,6 +307,7 @@ def monitor(
         max_repr: Maximum length for serialized values
         sensitive_fields: Field names to mask in serialization
         queue_warning_threshold: Queue size to trigger warnings
+        use_param_names: Whether to extract actual parameter names (default: True)
         
     Returns:
         Decorated function
@@ -172,10 +355,19 @@ def monitor(
         else:
             final_process_group = process_group
         
+        # Extract parameter metadata once and cache it
+        func_id = id(func)
+        if use_param_names and func_id not in _param_metadata_cache:
+            _param_metadata_cache[func_id] = extract_parameter_names(func)
+        
         # Determine function type
         is_async = asyncio.iscoroutinefunction(func)
         is_async_generator = inspect.isasyncgenfunction(func)
         is_generator = inspect.isgeneratorfunction(func) and not is_async_generator
+        
+        # Check if this is a method (has self or cls)
+        param_metadata = _param_metadata_cache.get(func_id, {})
+        is_method = param_metadata.get('has_self', False) or param_metadata.get('has_cls', False)
         
         def create_record(start_time: float, status: str, exception_str: Optional[str], 
                          args: tuple, kwargs: dict, result: Any = None, 
@@ -204,28 +396,51 @@ def monitor(
             # Build process name
             process = f"{final_process_group}.{func_name}"
             
-            # Serialize captured data
-            serialized_args = None
-            serialized_kwargs = None
-            serialized_result = None
+            # Map arguments to parameter names if enabled
+            if use_param_names and func_id in _param_metadata_cache:
+                param_metadata = _param_metadata_cache[func_id]
+                param_mappings = map_args_to_names(args, kwargs, param_metadata, skip_self=is_method)
+            else:
+                # Fallback to generic names
+                param_mappings = []
+                for i, arg_value in enumerate(args):
+                    param_mappings.append((f"arg_{i}", arg_value, "INPUT"))
+                for key, value in kwargs.items():
+                    param_mappings.append((key, value, "INPUT"))
             
-            if capture.get("args"):
-                try:
-                    # Use lazy serialization for large arguments
-                    if isinstance(serializer_obj, FastSerializer):
-                        serialized_args = [serializer_obj.lazy_serialize(arg) for arg in args] if args else None
-                        serialized_kwargs = {k: serializer_obj.lazy_serialize(v) for k, v in kwargs.items()} if kwargs else None
-                    else:
-                        serialized_args = [serializer_obj.serialize(arg) for arg in args] if args else None
-                        serialized_kwargs = {k: serializer_obj.serialize(v, k) for k, v in kwargs.items()} if kwargs else None
-                except:
-                    serialized_args = ["<serialization failed>"]
-            
+            # Extract return value names if result is present
+            result_mappings = []
             if capture.get("result") and result is not None:
-                if isinstance(serializer_obj, FastSerializer):
-                    serialized_result = serializer_obj.lazy_serialize(result)
+                if use_param_names:
+                    result_mappings = extract_return_names(func, result)
                 else:
-                    serialized_result = serializer_obj.serialize(result)
+                    result_mappings = [("result", result, "OUTPUT")]
+            
+            # Serialize all values
+            serialized_mappings = []
+            
+            # Serialize input parameters
+            if capture.get("args"):
+                for param_name, value, data_type in param_mappings:
+                    try:
+                        if isinstance(serializer_obj, FastSerializer):
+                            serialized_value = serializer_obj.lazy_serialize(value)
+                        else:
+                            serialized_value = serializer_obj.serialize(value, param_name)
+                        serialized_mappings.append((param_name, serialized_value, data_type))
+                    except:
+                        serialized_mappings.append((param_name, "<serialization failed>", data_type))
+            
+            # Serialize output parameters
+            for param_name, value, data_type in result_mappings:
+                try:
+                    if isinstance(serializer_obj, FastSerializer):
+                        serialized_value = serializer_obj.lazy_serialize(value)
+                    else:
+                        serialized_value = serializer_obj.serialize(value, param_name)
+                    serialized_mappings.append((param_name, serialized_value, data_type))
+                except:
+                    serialized_mappings.append((param_name, "<serialization failed>", data_type))
             
             # Create record with parent-child tracking fields
             start_ts_us = int(start_time * 1_000_000)  # Convert to microseconds
@@ -234,21 +449,25 @@ def monitor(
             # Subtract some frames for: create_record, wrapper, decorator, etc.
             call_depth = max(0, len(inspect.stack()) - 5)
             
+            # Store the parameter mappings in a custom field for the writer
             record = ObservatoryRecord(
                 ts=datetime.now().isoformat(),
                 process=process,
                 status=status,
                 duration_ms=duration_ms,
                 exception=exception_str,
-                args=serialized_args,
-                kwargs=serialized_kwargs,
-                result=serialized_result,
+                args=None,  # We'll use parameter_mappings instead
+                kwargs=None,  # We'll use parameter_mappings instead
+                result=None,  # We'll use parameter_mappings instead
                 thread_id=thread_id,
                 call_depth=call_depth,
                 start_ts_us=start_ts_us,
                 cpu_delta=cpu_delta,
                 memory_delta_mb=memory_delta_mb
             )
+            
+            # Add custom field for parameter mappings
+            record.parameter_mappings = serialized_mappings
             
             # Send to queue
             queue.put(record)

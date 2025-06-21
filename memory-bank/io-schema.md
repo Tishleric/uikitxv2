@@ -493,3 +493,71 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | total_successes | Output | int | >= 0 | `stats['total_successes']` |
 | circuit_opened_count | Output | int | >= 0 | `stats['circuit_opened_count']` |
 | time_until_retry | Output | float | >= 0.0 | `stats['time_until_retry']` |
+
+# Input/Output Schema for UIKitXv2
+
+This document tracks all public constants, configuration values, function parameters, and return shapes across the codebase.
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| batch_size | Input | int | > 0, typically 100-1000 | `BatchWriter(batch_size=100)` |
+| capture | Input | dict | Keys: args, result, cpu_usage, memory_usage, locals | `@monitor(capture={'args': True})` |
+| data | Output | str | Variable name in data_trace | `data='x'` or `data='result[count]'` |
+| data_type | Output | str | "INPUT" or "OUTPUT" | `data_type='INPUT'` |
+| data_value | Output | str | JSON-serialized value | `data_value='{"x": 10}'` |
+| db_path | Input | str | Valid file path | `"logs/observatory.db"` |
+| drain_interval | Input | float | > 0, typically 0.1-1.0 | `drain_interval=0.1` |
+| duration_ms | Output | float | >= 0 | `duration_ms=12.345` |
+| error_rate | Output | float | 0-100 | `error_rate=2.5` |
+| exception | Output | str | Traceback string or None | `exception='ZeroDivisionError...'` |
+| failure_threshold | Input | int | > 0, typically 3-5 | `CircuitBreaker(failure_threshold=3)` |
+| max_repr | Input | int | > 0, typically 1000 | `@monitor(max_repr=1000)` |
+| normal_maxsize | Input | int | > 0, typically 10000 | `ObservatoryQueue(normal_maxsize=10000)` |
+| overflow_maxsize | Input | int | > 0, typically 50000 | `ObservatoryQueue(overflow_maxsize=50000)` |
+| page | Input | int | >= 1 | `get_trace_data(page=1)` |
+| page_size | Input | int | > 0, typically 100 | `get_trace_data(page_size=100)` |
+| parameter_mappings | Internal | List[tuple] | List of (name, value, type) | `[('x', 5, 'INPUT'), ('result', 8, 'OUTPUT')]` |
+| process | Output | str | Module.function format | `process='lib.trading.calculate_delta'` |
+| process_group | Input | str | Dot-separated module path | `@monitor(process_group='lib.trading')` |
+| queue_warning_threshold | Input | int | > 0, typically 8000 | `@monitor(queue_warning_threshold=8000)` |
+| retention_hours | Input | int | > 0, typically 6-24 | `start_observatory_writer(retention_hours=6)` |
+| sample_rate | Input | float | 0.0-1.0 | `@monitor(sample_rate=0.5)` |
+| sensitive_fields | Input | tuple | Field names to mask | `@monitor(sensitive_fields=('password',))` |
+| serializer | Input | str | "smart" or "fast" | `@monitor(serializer="smart")` |
+| status | Output | str | "OK" or "ERR" | `status='OK'` |
+| success_threshold | Input | int | > 0, typically 2 | `CircuitBreaker(success_threshold=2)` |
+| timeout_seconds | Input | float | > 0, typically 30 | `CircuitBreaker(timeout_seconds=30)` |
+| ts | Output | str | ISO format timestamp | `ts='2025-01-06T12:34:56.789'` |
+| use_param_names | Input | bool | True or False | `@monitor(use_param_names=True)` |
+| warning_threshold | Input | int | > 0, typically 8000 | `ObservatoryQueue(warning_threshold=8000)` |
+
+## Common Patterns
+
+### Monitor Decorator
+```python
+@monitor(
+    process_group="lib.trading",  # Optional, auto-derived if not provided
+    sample_rate=1.0,              # 1.0 = always monitor
+    capture={'args': True, 'result': True},  # What to capture
+    use_param_names=True          # Extract actual parameter names
+)
+def calculate_greeks(spot, strike, rate, time, vol):
+    pass
+```
+
+### Observatory Writer
+```python
+start_observatory_writer(
+    db_path="logs/observatory.db",
+    batch_size=100,
+    drain_interval=0.1,
+    retention_hours=6
+)
+```
+
+### Data Trace Format
+With `use_param_names=True`, function parameters are stored individually:
+- Input: `f(x=5, y=3)` → Rows: `(data='x', value=5)`, `(data='y', value=3)`
+- Output: `return (a, b)` → Rows: `(data='return_0', value=a)`, `(data='return_1', value=b)`
+- Named tuple: `Point(x=1, y=2)` → Rows: `(data='x', value=1)`, `(data='y', value=2)`
+- Dict: `{'count': 5}` → Row: `(data='result[count]', value=5)`
