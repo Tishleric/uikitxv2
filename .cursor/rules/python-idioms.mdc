@@ -1,0 +1,73 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Python Idioms
+
+## High-Impact Principles
+
+- **Readability counts:** Code is read far more often than it's written. Optimize for human comprehension even if it means a few extra lines. Python's design emphasizes that *"Readability counts."*  
+- **Explicit is better than implicit:** Don't hide meaning or action. Clear, explicit code (even if a bit verbose) is preferred over terse "magic" that's not obvious to newcomers. For example, be explicit in function arguments and control flow rather than relying on obscure defaults or side effects.  
+- **Simple is better than complex:** Given two solutions, choose the simpler design. *"Simple is better than complex. Complex is better than complicated."* This means solve problems with straightforward approaches and only introduce complexity when absolutely necessary (and even then, manage it).  
+- **One obvious way:** There should ideally be one clear way to do something in code (and it should be the preferred idiom). By using common patterns and idioms, you make your code immediately understandable. (Zen: *"There should be one– and preferably only one –obvious way to do it."*)  
+- **Use Pythonic idioms:** Embrace Python's features for clarity and brevity – e.g., list/dict comprehensions for transforming data, unpacking for clarity, context managers (`with` statements) for resource handling, and generators for lazy data processing. Idiomatic code is typically more readable and concise.  
+- **EAFP (Easier to Ask Forgiveness than Permission):** It's often better to just perform an operation and catch exceptions if something unexpected happens, rather than littering code with checks (LBYL: Look Before You Leap). For instance, call a method and handle an `AttributeError` if an object doesn't support it, instead of checking types upfront. This leads to cleaner, linear code flow in Python.  
+- **Flat is better than nested:** Avoid deeply nested loops or conditionals by refactoring into functions or using loops/ifs in a flat structure when possible. Flat code is easier to follow. For example, use guard clauses to handle edge cases early in a function rather than nesting the main logic in an `if`.  
+- **Meaningful naming and simplicity in APIs:** Use descriptive variable and function names to make code self-documenting. Design functions to do one thing well. This aligns with the idea that if implementation or usage "is hard to explain, it's a bad idea". Aim for code that communicates intent clearly.  
+- **Leverage "batteries included":** Python comes with a rich standard library – use it. Modules like `logging`, `json`, `sqlite3`, `itertools`, etc., provide tested solutions. Using standard library components yields more robust and maintainable code than custom ad-hoc implementations.  
+- **Don't ignore exceptions – handle or propagate:** Python's philosophy is that errors should not pass silently. When an exceptional situation occurs, either handle it (log it, recover if possible) or let the exception propagate (so that it's visible and can be dealt with at a higher level). Never just suppress errors without reason.  
+- **Optimize last, if at all:** "Now is better than never. Although never is often better than *right* now." Write clean, correct code first. Only optimize after profiling shows a need. Python often has high-level constructs that are plenty efficient (e.g., using sum, map, or comprehensions implemented in C). Avoid micro-optimizations that obfuscate code unless you have a proven bottleneck.  
+- **Structured data over ad-hoc parsing:** Use Python's rich data structures (tuples, dataclasses, objects, etc.) to make data relationships clear, rather than, say, packing multiple meanings into a single string or list in ambiguous ways. Code that uses structured data is easier to maintain.  
+- **Modular design:** Organize code into modules and packages. Each module should handle a specific area of functionality (e.g., separate data model, business logic, and UI). This makes it easier to reason about and reuse parts of your code. Namespaces ("one honking great idea – let's do more of those") prevent name collisions and clarify origin of functions and classes.  
+- **Interactive and iterative work style:** Take advantage of Python's interpreter. Test small pieces of code in the REPL or notebooks. This approach encourages rapid feedback and can inform your design (you discover better APIs by playing with the code).  
+- **Embrace the community conventions:** Follow PEP 8 for style (e.g., naming, spacing) and PEP 20 (Zen of Python) for philosophy. These conventions exist to make Python code universally readable and consistent, which is itself a design principle.
+
+## Antipatterns to Avoid
+
+- **Writing C/Java in Python:** Don't use overly verbose or low-level patterns that are unnecessary in Python (e.g., manual memory management, or writing loops where a vectorized library call or comprehension would be clearer). Embrace Python's dynamic and high-level nature; avoid unnecessary boilerplate.  
+- **Mutable default arguments misuse:** Never use a mutable object (like a list or dict) as a default parameter value for a function. It can lead to surprising behavior (the default persists across calls). This is a common Python pitfall – use `None` and inside the function initialize a new object if needed.  
+- **Overusing type checks and casting:** Avoid peppering code with `isinstance()` or type-check conditions to enforce types. This goes against duck typing. Instead, write functions that operate on a protocol (set of methods/attributes). Only use explicit type checks when absolutely required (for example, to prevent an unsafe operation or to distinguish two very different acceptable types).  
+- **Catching broad exceptions blindly:** A bare `except:` (or catching `Exception` without good reason) that just passes or hides the error is an anti-pattern. It silences issues and makes debugging nightmares. Catch only exceptions you expect and know how to handle; at the very least log unexpected exceptions with traceback.  
+- **Deep nesting and long functions:** If you have deeply nested code (many levels of `if/for/try` inside each other), it's likely too complex. This can often be refactored by splitting into smaller functions or using loops/ifs in sequence. Similarly, very long functions (hundreds of lines) usually indicate it should be broken up.  
+- **Premature micro-optimizations:** Avoid tricks like manually inlining loops, caching variables in local scope for speed, or using bit-twiddling hacks unless you've proven the code's too slow and these make a measurable difference. Such code is harder to read and often not necessary thanks to improvements in Python's interpreter and libraries.  
+- **Ignoring Pythonic conventions:** For instance, not using context managers for resource cleanup (and instead using try/finally everywhere), or not using `with open(...) as f` for files. These conventions exist to handle common tasks safely; ignoring them can lead to errors (like forgetting to close files).  
+- **Reinventing the wheel:** Don't write your own object-relational mapper, web server, templating system, etc., without checking existing solutions. Reusing robust library code is usually better. Custom solutions tend to be less tested and divert focus from your core problem.  
+- **Global variables for configuration/state:** Relying on module-level globals that many functions modify/read is dangerous. It makes the code order-dependent and hard to track. Instead, pass parameters, use class attributes, or encapsulate state in objects.  
+- **Mixing concerns:** Avoid writing functions that do too many unrelated things (e.g., processing user input, performing calculation, and printing output all in one). Separate concerns: logic vs I/O vs presentation. This makes code more testable and flexible.  
+- **Neglecting documentation and tests:** Not writing docstrings for public functions/classes and not writing tests for complex logic are antipatterns. It may not affect the code's runtime behavior, but it certainly affects maintainability and robustness. Skipping these is a design smell indicating fragile or developer-hostile code.
+
+## Heuristics & Checklists
+
+- **Zen compliance check:** After writing a module or function, mentally (or literally) go through the Zen of Python aphorisms. Is anything too implicit or obscure? Could it be simpler? Is the code complex where a simpler approach exists? This can be surprisingly effective in spotting design issues (e.g., a function that is doing too much).  
+- **Standard library first:** Before coding a solution, scan the Python standard library or well-known packages. For example, need to parse XML? Try `xml.etree`. Need to time something? Use `timeit` or `profile`. There's a good chance Python already provides the tool you need.  
+- **Idiomatic code check:** Look at your loops and conditionals. Are you using Python idioms? e.g., `for idx, val in enumerate(my_list)` instead of a manual index, or `for key, val in mydict.items()` instead of iterating over keys then indexing the dict. Use list comprehensions or generator expressions for simple transformations instead of accumulating in a loop – but also ensure they remain readable and not overly complex.  
+- **Exception handling checklist:** When catching exceptions, ask: *What will I do with this exception?* If the answer is "nothing" (i.e., just pass), that's usually wrong – either remove the handler so it fails visibly, or handle it (log, retry, etc.). If you do handle it, consider using the `logging` module to record the full traceback and error for later debugging.  
+- **Function length and responsibility:** Each function should ideally do one thing. If you find yourself writing comments like "# step 1", "# step 2" inside a function, that's a hint it could be split into multiple functions. Similarly, if a function requires a lengthy docstring to explain, maybe it's doing too much.  
+- **Data structure choice:** Use Python's rich data structures appropriately. For instance, use a dictionary for lookups by key (instead of scanning a list), use a tuple to represent an immutable sequence, or a namedtuple/dataclass for a record with named fields. The right choice makes code more self-explanatory and often more efficient.  
+- **PEP 8 style audit:** Run a linter or formatter. Check that names are descriptive (`calculate_area` vs `calcA`), constants are uppercase, classes are CapWords, etc. Consistent style reduces cognitive load for readers.  
+- **Unit test coverage:** Ensure that critical modules have unit tests. As you fix bugs, add tests to cover them. Tests not only catch regressions, they also serve as usage examples and thereby documentation for your code's behavior.  
+- **Performance check (when needed):** If performance is a concern, use the right tools: e.g., profile your code with `cProfile` to see where the time is going. Often, a small hotspot can be optimized or a library function can replace Python loops. Optimize based on evidence, not guesswork.  
+- **Documentation and examples:** For any module or complex function, check if you've provided examples or clear explanation in the docstring. If someone else imported your module and ran `help(your_module)` or `help(your_class)`, would they quickly grasp how to use it? If not, improve the docstring to include a usage blurb.
+
+## Key Quotes / Mnemonics
+
+- "Explicit is better than implicit."  
+- "Simple is better than complex."  
+- "Readability counts."  
+- "Errors should never pass silently."  
+- "There should be one… obvious way to do it."
+
+## "When in doubt" Defaults
+
+- **When in doubt, choose clarity:** If you're unsure about a piece of code, err on the side of writing it in the clearest way (even if it's slightly longer or less "clever"). Future maintainers will thank you.  
+- **When in doubt, make it explicit:** Don't assume others (or the computer) will infer what you mean. Spell it out – whether in code structure, parameter names, or control flow. For example, if a function does something non-obvious, consider splitting it or adding a comment.  
+- **When in doubt, use the standard approach:** Follow the principle of least surprise. Use common Python idioms and patterns so that other Python developers can immediately recognize what your code is doing. If you're not sure, doing it "the usual way" is a safe default.  
+- **When in doubt, let errors be known:** It's better to raise an exception or log an error than to soldier on in ambiguity. If a situation is ambiguous or unexpected (e.g., a function got an input it doesn't support), default to failing fast with an error – *"In the face of ambiguity, refuse the temptation to guess."*  
+- **When in doubt, keep it simple:** Apply Occam's razor to your code. A simpler solution that's easy to understand is preferable as a default. Only introduce complexity (like additional layers of abstraction, concurrency, metaprogramming, etc.) if a straightforward solution truly won't suffice.
+
+## Context Reconciliation Notes
+
+- **EAFP vs Design by Contract:** While Python favors EAFP, when working with critical systems or where contracts are clearly defined (as in OOSC principles), it's acceptable to validate preconditions explicitly. The key is consistency within a module or system.
+- **Type Hints:** Modern Python (3.5+) supports type hints which can bridge the gap between Python's duck typing and the strong typing advocated by Stroustrup/Meyer. Use them for documentation and tooling support without sacrificing Python's flexibility.
+

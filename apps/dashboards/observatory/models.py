@@ -275,67 +275,6 @@ class ObservatoryDataService:
             
             return stats
     
-    def get_recent_traces(self, limit: int = 100) -> pd.DataFrame:
-        """
-        Get recent traces from the database.
-        
-        Returns:
-            DataFrame with columns: timestamp, process, args, kwargs, result, exception, status
-        """
-        with self._get_connection() as conn:
-            # Query to get recent process traces and their associated data
-            query = """
-                SELECT 
-                    p.ts as timestamp,
-                    p.process,
-                    p.status,
-                    p.exception,
-                    p.duration_ms,
-                    -- Aggregate args as JSON object
-                    (
-                        SELECT json_group_object(d.data, d.data_value)
-                        FROM data_trace d
-                        WHERE d.ts = p.ts 
-                        AND d.process = p.process
-                        AND d.data_type = 'INPUT'
-                        AND d.data NOT LIKE 'arg_%'
-                    ) as kwargs,
-                    -- Aggregate positional args as JSON array
-                    (
-                        SELECT json_group_array(d.data_value)
-                        FROM data_trace d
-                        WHERE d.ts = p.ts 
-                        AND d.process = p.process
-                        AND d.data_type = 'INPUT'
-                        AND d.data LIKE 'arg_%'
-                        ORDER BY d.data
-                    ) as args,
-                    -- Get result
-                    (
-                        SELECT d.data_value
-                        FROM data_trace d
-                        WHERE d.ts = p.ts 
-                        AND d.process = p.process
-                        AND d.data_type = 'OUTPUT'
-                        AND d.data = 'result'
-                        LIMIT 1
-                    ) as result
-                FROM process_trace p
-                ORDER BY p.ts DESC
-                LIMIT ?
-            """
-            
-            df = pd.read_sql_query(query, conn, params=[limit])
-            
-            # Convert JSON strings to actual values where needed
-            if not df.empty:
-                # Replace None with empty strings/objects
-                df['args'] = df['args'].fillna('[]')
-                df['kwargs'] = df['kwargs'].fillna('{}')
-                df['result'] = df['result'].fillna('')
-                df['exception'] = df['exception'].fillna('')
-            
-            return df
 
 
 class MetricsAggregator:

@@ -1,0 +1,72 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Stroustrup Architecture Principles
+
+## High-Impact Principles
+
+- **Zero-overhead abstraction:** Design abstractions that don't incur runtime cost for features you don't use. In Stroustrup's words, *"What you don't use, you don't pay for."* Aim for implementations as efficient as hand-written low-level code, unless additional cost is justified by clear benefits.  
+- **No lower-level escape needed:** A well-designed system shouldn't require dropping into a lower-level language for performance. C++ was designed so that nothing but assembly can surpass it for efficiency. Likewise, choose tools that let you meet requirements without kludges.  
+- **Express ideas directly:** Code should closely model the concepts of the problem domain. Favor clarity and directness in implementation so that someone reading the code sees the intended ideas plainly.  
+- **Separate independent concerns:** *"Express independent ideas independently in code."* Break down functionality so that each module handles a distinct concern. This yields high cohesion and allows changes in one part without ripple effects in others.  
+- **Simple ideas, simple code:** Strive to implement simple things in a straightforward way. Don't convolute a simple task with over-generalized frameworks. Conversely, tackle complex ideas by combining simpler modules in a clear structure.  
+- **Composition over inheritance:** Favor building functionality by combining objects (has-a relationships) rather than deep class hierarchies whenever possible. Composition tends to be more flexible and transparent than inheritance for code reuse.  
+- **Strong typing for safety:** Leverage the type system (or assertions in dynamic languages) to catch errors early. Design interfaces that make illegal states unrepresentable, and prefer compile-time checks to runtime surprises.  
+- **RAII / Deterministic resource management:** Acquire resources (memory, files, locks) in an object's initialization and release in its destruction. In garbage-collected environments, use context managers or finalizers to ensure timely cleanup. This idiom localizes resource control and prevents leaks.  
+- **Minimal and complete interfaces:** Design interfaces with the fewest methods that cover all needed operations for an abstraction. Extra complexity in an API is a liability – each public method should pull its weight. A smaller interface is easier to learn, test, and maintain.  
+- **Encapsulation:** Hide implementation details. Users of a module/class should rely only on its public interface. By preventing external access to internals, you make it feasible to change the implementation without breaking other parts of the program.  
+- **Use the standard library:** Before custom-coding a data structure or algorithm, check the standard library (or well-vetted libraries). They are likely more optimized and tested. Reinventing the wheel can introduce bugs and technical debt.  
+- **Structured error handling:** Use exceptions (or error codes in languages without exceptions) to handle error conditions separately from normal logic. This keeps code cleaner and forces thinking about error states. Ensure that when exceptions occur, resources are released (use RAII or `finally`) and program invariants remain intact.  
+- **Multi-paradigm design:** C++ supports procedural, object-oriented, generic (template), and functional styles. Use the paradigm that best fits the task – for example, use object-oriented designs for polymorphic behavior at runtime, and generic programming for efficiency and flexibility at compile time. In any language, don't be dogmatic about one approach; mix paradigms if it leads to clearer or more efficient design.  
+- **Module boundaries and contracts:** Define clear contracts for modules (preconditions/postconditions or at least documentation of responsibilities). Each module or class should have a well-defined role, and it should clearly specify what it expects and guarantees. This clarity helps integration and debugging.  
+- **Scalability and adaptability:** Keep in mind the ease of scaling the system up. Whether scaling means handling more load or adding more features, an architecture should have flexibility – e.g., use patterns that allow adding new functionality without modifying existing code (see Open-Closed Principle in OOSC). Design with portability in mind too; avoid needless platform-specific constructs so the code can run in different environments with minimal changes.
+
+## Antipatterns to Avoid
+
+- **Excessive complexity:** Avoid "clever" code that is hard to understand or maintain. If a solution requires intricate tricks or deep nested logic, consider simplifying the approach. Overly complex designs often hide bugs and deter future changes.  
+- **Over-abstraction:** Don't create class hierarchies or abstractions for their own sake. As Stroustrup notes, over-engineering (too many layers, indirections) can be an "inelegant style" that adds runtime overhead and confusion. Use abstraction to solve real problems, not hypothetical ones.  
+- **Global state and singletons:** Uncontrolled global variables or singletons that are used everywhere make the system tightly coupled and context-dependent. They hinder reuse and make testing difficult. Prefer passing needed data as parameters or encapsulating state in objects with well-defined APIs.  
+- **Duplication of code or logic:** Repeating code in multiple places (copy-paste programming) is a sign of poor design. It violates DRY and makes fixes or changes error-prone (you must find every duplicate to update). Refactor common functionality into a single module or utility.  
+- **Manual resource management errors:** In low-level languages, forgetting to free memory or close files is a common bug. In higher-level settings, failing to release locks or not closing database connections similarly cause issues. Avoid patterns that require a lot of manual try/finally or cleanup code; use constructs that automate this (smart pointers, context managers, etc.).  
+- **Ignoring type distinctions:** For example, abusing `void*` in C or extensive casting in C++ undermines type safety. Don't circumvent the type system without strong justification – it's there to catch mistakes. In Python, similarly avoid catching exceptions just to ignore type errors; instead write code that naturally works with the expected "duck type."  
+- **Misusing inheritance:** Using inheritance where composition would suffice can lead to rigid designs and the dreaded "inheritance tax." Don't derive classes just to reuse code without a true is-a relationship. Also avoid very deep or multiple inheritance hierarchies unless absolutely necessary – they can complicate initialization and understanding of the code.  
+- **Premature optimization:** Tuning code for performance before the design is correct and clean can introduce needless complexity. Low-level micro-optimizations (clever caching, unrolled loops, etc.) should not compromise architecture. First ensure the design is clear and correct; optimize later when you have evidence (profiling) of true bottlenecks.  
+- **Mixing abstraction levels:** Avoid writing code where high-level logic and low-level details intermingle. For example, performing file I/O (low-level) inside business logic (high-level) without isolation. Separate layers (e.g., use a data access layer, keep GUI code separate from logic) so changes in low-level details don't force changes in high-level logic.  
+- **"Glorified assembly" coding:** Especially in powerful languages like C++, don't write needlessly low-level code (like manual memory arithmetic or reimplementing data structures) when a higher-level construct would do. If you find yourself doing a lot of pointer math or bit-twiddling in application code, reconsider your approach – you might be prematurely dropping to lower-level than necessary.
+
+## Heuristics & Checklists
+
+- **Class design checklist:** For each class, can you summarize its purpose in one sentence? Does it have a clear invariant (conditions that should always hold true for any object of the class)? If not, the class might be muddled or doing too much.  
+- **Ownership and lifetime:** Examine every resource your code uses (memory, file handles, network sockets). Determine who "owns" it and is responsible for releasing it. Use RAII or similar patterns so that each resource is properly freed exactly once.  
+- **Const-correctness (Immutability):** In C++ or similar, mark methods and data as const if they shouldn't change. In any language, treat immutable data preferentially for values that don't need to change. This prevents accidental modification and clarifies intent.  
+- **Dependency review:** Look at a module's include/import list. Are all those dependencies truly necessary? Each dependency is a liability (it increases coupling and build complexity). Remove or refactor out unnecessary dependencies (e.g., use forward declarations or dependency injection to decouple implementations).  
+- **Interface review:** For each public API, consider misuse scenarios. Is it easy to use correctly and hard to use wrong? If not, maybe introduce safer defaults or split functionality to prevent errors (e.g., separate "init" and "run" steps if calling in wrong order would be catastrophic).  
+- **Exception safety audit:** For critical sections, ask what happens if an error/exception occurs. Does the system remain in a valid state? For example, if an exception is thrown, do we leak resources or leave data partially updated? Adjust code to ensure basic exception safety (no leaks, no corruption) at minimum, and strong exception safety (roll back state) where needed.  
+- **Use standard tools first:** When you find a need for a particular functionality (sorting, parsing JSON, threading, etc.), check standard libraries or common frameworks before writing your own. A vetted library can save time and prevent bugs.  
+- **Polymorphism vs templates vs simple code:** When adding an extension point, decide the mechanism carefully. Could a simple function pointer or strategy object suffice instead of adding a new virtual base class or complex template? Pick the simplest mechanism that achieves flexibility.  
+- **Magic numbers and constants:** Scan for raw literals in code. Each "magic number" should become a named constant or be eliminated. This makes code self-documenting and easier to change.  
+- **Testing and tooling:** Ensure you have unit tests for modules and use tools (like static analyzers, linters, sanitizers) to catch issues early. In C++, tools can catch memory misuse; in Python, linting can catch type errors. Integrate these into your workflow.
+
+## Key Quotes / Mnemonics
+
+- "What you don't use, you don't pay for."  
+- "Express ideas directly in code."  
+- "Express independent ideas independently in code."  
+- "Express simple ideas simply."  
+- "Leave no room for a lower-level language."
+
+## "When in doubt" Defaults
+
+- **When in doubt, favor simplicity:** If torn between a fancy template metaprogramming solution or a straightforward loop, default to the simpler implementation. You can refactor to a more complex solution if profiling shows it's necessary.  
+- **When in doubt, prioritize safety:** Lean towards writing code that is obviously correct and fails visibly if something goes wrong (through assertions or exceptions) rather than something optimized but brittle.  
+- **When in doubt, encapsulate:** If you're not sure whether to expose something (a piece of data or a helper function), don't expose it. It's easier to extend an interface later than to take something back. Hide details by default.  
+- **When in doubt, use the standard tool:** Default to using language-standard features and library components. They are likely more portable and familiar to other developers. Only deviate if you have a compelling reason (and understand the trade-offs).  
+- **When in doubt, get a second opinion:** For tricky architectural decisions, consult a colleague or the community. A fresh perspective can confirm if your simpler approach is acceptable or if there's a known pattern that fits the scenario.
+
+## Modern Application Notes
+
+- **Async/Concurrent Programming:** Apply these principles to concurrent code. RAII is crucial for lock management, minimal interfaces prevent race conditions.
+- **Cross-Language Interop:** When working with multiple languages, the "no lower-level escape" principle guides you to choose languages that complement rather than work around each other.
+

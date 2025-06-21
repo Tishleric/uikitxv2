@@ -206,8 +206,22 @@ class SQLiteWriter:
                         ))
                         
                         # Data trace records for arguments
-                        if record.args:
-                            for i, arg_value in enumerate(record.args):
+                        if hasattr(record, 'parameter_mappings') and record.parameter_mappings:
+                            # Use the new parameter_mappings approach
+                            for param_name, value, data_type in record.parameter_mappings:
+                                data_trace_records.append((
+                                    record.ts,
+                                    record.process,
+                                    param_name,
+                                    data_type,
+                                    self._ensure_json_string(value),
+                                    record.status,
+                                    record.exception
+                                ))
+                        else:
+                            # Fallback to old approach for backward compatibility
+                            if record.args:
+                                for i, arg_value in enumerate(record.args):
                                 data_trace_records.append((
                                     record.ts,
                                     record.process,
@@ -492,6 +506,33 @@ class BatchWriter(threading.Thread):
                 ))
                 
                 # Insert data traces for arguments
+                if hasattr(record, 'parameter_mappings') and record.parameter_mappings:
+                    # Use the new parameter_mappings approach
+                    for param_name, value, data_type in record.parameter_mappings:
+                        # Handle lazy serialized objects
+                        if isinstance(value, dict) and value.get('__lazy__'):
+                            val_str = json.dumps(value)
+                        else:
+                            val_str = str(value)
+                        
+                        conn.execute("""
+                            INSERT OR REPLACE INTO data_trace
+                            (ts, process, data, data_type, data_value, status, exception,
+                             thread_id, start_ts_us)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            record.ts,
+                            record.process,
+                            param_name,
+                            data_type,
+                            val_str,
+                            record.status,
+                            record.exception,
+                            record.thread_id,
+                            record.start_ts_us
+                        ))
+                else:
+                    # Fallback to old approach for backward compatibility
                 if record.args:
                     for i, arg_value in enumerate(record.args):
                         # Handle lazy serialized objects

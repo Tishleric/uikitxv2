@@ -1,0 +1,69 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Pragmatic Programmer Principles
+
+## High-Impact Principles
+
+- **Take responsibility and be proactive:** You have agency in your work – if something is wrong, initiate change or offer solutions (no excuses).  
+- **Fix issues early (Broken Windows):** Don't tolerate small flaws; repair "broken windows" in code to prevent software rot and a culture of neglect.  
+- **DRY – Don't Repeat Yourself:** Eliminate duplication of knowledge in code, documentation, and data. Every piece of information should have a single authoritative representation.  
+- **Design orthogonal systems:** Ensure components are independent. Changes in one module should not affect others (loose coupling), and each module has a single well-defined purpose.  
+- **Tracer Bullets for development:** Build a thin, end-to-end slice of functionality to get quick user feedback and test your architecture. Use these working prototypes to adjust aim before full implementation.  
+- **Prototype to learn:** Create throwaway prototypes (even as simple sketches or mock-ups) to explore uncertain requirements or technologies, but keep production code clean (use prototypes for discovery, not delivery).  
+- **Make reversible decisions:** Assume "There are no final decisions" – design with flexibility so you can change course (e.g. swap a module or library) without massive rewrites.  
+- **Use plain text and automation:** Keep knowledge (config, data) in plain text for longevity and interoperability. Automate repetitive tasks – write code-generators or scripts to eliminate manual, error-prone work (e.g. Tip: *"Write Code That Writes Code"*).  
+- **Invest in your knowledge portfolio:** Continuously learn new languages, tools, and domains. A pragmatic developer is a lifelong learner who diversifies their skills (including communication skills – *"English is just another programming language"*).  
+- **Make quality a requirement:** Treat software quality attributes (like reliability, security, performance) as explicit requirements. Decide with stakeholders what level of imperfection is acceptable for quicker delivery (Tip: *"Make Quality a Requirements Issue"*).  
+- **Use the right tools and version control:** Master your text editor, debugger, and other tools. Always use version control for your code, no matter how small the project. These practices amplify your productivity and prevent catastrophe.  
+- **Test and refactor continuously:** Write tests early to validate behavior, and refactor code when you see duplication or complexity. Small improvements made regularly prevent big problems later.  
+- **Communicate and collaborate:** Explain your ideas clearly (remember that writing and speaking are part of a developer's job). Don't code in isolation – pair program, seek feedback, and share knowledge for collective code ownership.
+
+## Antipatterns to Avoid
+
+- **Programming by coincidence:** Don't write code with a "it somehow works" mindset. Understand *why* your code works; avoid magic and flukes.  
+- **Leaving broken windows:** Never ignore known bugs or poor code thinking "I'll fix it later." Neglect invites more chaos and debt.  
+- **Duplicating logic or data:** Copy-paste coding and parallel implementations violate DRY. Avoid having the same logic in multiple places – it leads to inconsistencies.  
+- **Global variables and tight coupling:** Shared mutable state across components creates hidden dependencies. Avoid global data; if something must be widely accessible, wrap it behind an API or access function (no direct global reads/writes).  
+- **Making excuses instead of providing options:** Don't blame external factors or say "it can't be done" without proposing alternatives. Pragmatic developers offer solutions, not excuses.  
+- **Over-engineering (YAGNI):** Adding complexity or features "you aren't gonna need" is wasteful. Don't design for unlikely future requirements at the cost of simplicity today.  
+- **Ignoring warnings and errors:** Don't gloss over compiler warnings, failing tests, or error logs. Treat these as actionable signals, not annoyances – they often point to real problems.  
+- **Inadequate effort in debugging:** Avoid panic-driven random fixes. Don't skip the systematic diagnosis of a bug. (E.g. anti-pattern: diving into code changes without reading the error message or understanding the root cause.)  
+- **Documentation afterthought:** Not documenting code and decisions is a mistake. Avoid writing code that only you can understand; future maintainers (or you, in a month) will suffer.  
+- **"Not my job" mentality:** Don't silo yourself strictly to your piece. A pragmatic programmer steps up to improve build scripts, deployment processes, tests, etc., rather than saying it's someone else's problem.
+
+## Heuristics & Checklists
+
+- **The DRY check:** Whenever you copy-paste or write similar code, ask if you can refactor to one place. Does every piece of knowledge in your system have a single source of truth?  
+- **The Orthogonality test:** After designing a module, verify that it can be changed without affecting others (and vice versa). Do modules interact only through well-defined interfaces?  
+- **Before coding a feature:** Plan tracer bullet implementation – identify a thin vertical slice (UI to database, for example) to build first and demo. Ensure you're building the *right* thing before fleshing it out fully.  
+- **Debug systematically:** When a bug arises, *reproduce it* with a minimal test case. Read the entire error message or stack trace. Use the **binary chop** method to narrow down the location (by cutting the problem space in half).  
+- **Automate the routine:** If you find yourself performing a manual, repetitive process (build steps, deployments, data setup), script it or use tools. This reduces errors and frees time.  
+- **Version control habits:** Commit early and often. Before making experimental changes, take a snapshot (branch or checkpoint) so you can revert if needed. Review diffs before committing to catch mistakes.  
+- **Refactoring checklist:** Look for common code smells: long functions, large classes, unclear names, duplicate code, and tightly coupled logic. Refactor in small steps, run tests at each step.  
+- **Test early, test often:** Write unit tests for critical code paths. When you fix a bug, add a test to ensure it stays fixed. Use continuous integration so tests run on every commit.  
+- **Communication and learning:** After completing a task, ask yourself if you could explain it to a teammate or new developer. If not, your solution might be too complex or insufficiently documented. Also, regularly schedule time to learn new techniques or read on best practices – a pragmatic programmer keeps improving.
+
+## Key Quotes / Mnemonics
+
+- "Don't live with broken windows."  
+- "Don't Repeat Yourself (DRY)."  
+- "Fix the Problem, Not the Blame."  
+- "Read the Damn Error Message."  
+- "Don't Panic."
+
+## "When in doubt" Defaults
+
+- **When in doubt, choose clarity:** Favor clear, straightforward solutions over clever but confusing ones. It's better to write code that is obvious than to save a few lines with a hack.  
+- **When in doubt, fix it now:** If you notice a small bug or messy code ("broken window"), address it. Small fixes prevent bigger issues; postponing cleanup only accumulates debt.  
+- **When in doubt, do the simplest thing:** Implement the simplest solution that could possibly work. You can iterate from there if needed. Avoid elaborate designs for unproven requirements.  
+- **When in doubt, communicate:** Ask for clarification – with your team about requirements or with users about their needs. Don't sit in confusion; a quick conversation can save hours of wrong work.  
+- **When in doubt, take action:** A pragmatic default is to actively improve the situation (write a test, add logging, refactor something small) rather than assuming someone else will handle it. Small positive actions build momentum for quality.
+
+## Modern Development Context
+
+- **CI/CD Integration:** Apply these principles in continuous integration/deployment pipelines. Broken windows can be caught by automated tests, DRY violations by linters.
+- **Remote Collaboration:** Communication becomes even more critical in distributed teams. Document decisions in shared spaces, not just in code comments.
+
