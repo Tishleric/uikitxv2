@@ -222,15 +222,15 @@ class SQLiteWriter:
                             # Fallback to old approach for backward compatibility
                             if record.args:
                                 for i, arg_value in enumerate(record.args):
-                                data_trace_records.append((
-                                    record.ts,
-                                    record.process,
-                                    f"arg_{i}",
-                                    "INPUT",
-                                    self._ensure_json_string(arg_value),
-                                    record.status,
-                                    record.exception
-                                ))
+                                    data_trace_records.append((
+                                        record.ts,
+                                        record.process,
+                                        f"arg_{i}",
+                                        "INPUT",
+                                        self._ensure_json_string(arg_value),
+                                        record.status,
+                                        record.exception
+                                    ))
                         
                         # Data trace records for kwargs
                         if record.kwargs:
@@ -533,30 +533,30 @@ class BatchWriter(threading.Thread):
                         ))
                 else:
                     # Fallback to old approach for backward compatibility
-                if record.args:
-                    for i, arg_value in enumerate(record.args):
-                        # Handle lazy serialized objects
-                        if isinstance(arg_value, dict) and arg_value.get('__lazy__'):
-                            arg_str = json.dumps(arg_value)
-                        else:
-                            arg_str = str(arg_value)
-                        
-                        conn.execute("""
-                            INSERT OR REPLACE INTO data_trace
-                            (ts, process, data, data_type, data_value, status, exception,
-                             thread_id, start_ts_us)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            record.ts,
-                            record.process,
-                            f"arg_{i}",  # Changed from arg{i} to arg_{i}
-                            "INPUT",
-                            arg_str,
-                            record.status,
-                            record.exception,
-                            record.thread_id,
-                            record.start_ts_us
-                        ))
+                    if record.args:
+                        for i, arg_value in enumerate(record.args):
+                            # Handle lazy serialized objects
+                            if isinstance(arg_value, dict) and arg_value.get('__lazy__'):
+                                arg_str = json.dumps(arg_value)
+                            else:
+                                arg_str = str(arg_value)
+                            
+                            conn.execute("""
+                                INSERT OR REPLACE INTO data_trace
+                                (ts, process, data, data_type, data_value, status, exception,
+                                 thread_id, start_ts_us)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (
+                                record.ts,
+                                record.process,
+                                f"arg_{i}",  # Changed from arg{i} to arg_{i}
+                                "INPUT",
+                                arg_str,
+                                record.status,
+                                record.exception,
+                                record.thread_id,
+                                record.start_ts_us
+                            ))
                 
                 # Insert data trace for kwargs
                 if record.kwargs:

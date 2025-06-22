@@ -1,0 +1,101 @@
+# UIKitXv2 Project Rules
+
+# Architectural Guidelines
+- Always create Abstract Base Classes or Protocols in core/ before implementing concrete classes
+- UI components must inherit from BaseComponent and implement render()
+- Decorators should use context variables from context_vars.py for sharing data
+- Decorators cannot import SQLAlchemy or sqlite3 directly
+- Each UI component gets its own file in components/
+- Keep utility files under 300 LOC; split when they grow too large
+
+# Documentation Practices
+- Update code-index.md immediately after adding, renaming, or deleting a file
+- Update io-schema.md when changing any public interface (inputs, outputs, etc.)
+- All public classes and functions must have Google-style docstrings
+- Use the PLAN mode before making changes that touch multiple files
+
+# Testing Standards
+- All tests must be placed in tests/ directory, never in src/
+- Component tests should verify rendering works properly
+- Decorator tests should verify proper logging and error handling
+- Use conftest.py for shared fixtures
+- All new code must pass mypy --strict and ruff before being considered complete
+
+# Code Style
+- Direct imports are used throughout the codebase (e.g., `from components import Button`)
+- No relative imports going outside the current directory
+- Avoid cyclic imports at all costs
+- Maximum line length is 120 characters
+- Keep commits small (<= 50 LOC) unless explicitly waived
+
+# Updated May 5, 2025
+
+# Percentage Handling
+• PERCENTAGE_NUMERIC_TYPES — When handling percentage values (like Delta %), always ensure they're stored as proper numeric types (not strings) and only formatted with % symbols during display.
+
+# Clean Code Principles (For Readable, Maintainable Code)
+
+## Single Responsibility Principle
+• ONE_FILE_ONE_PURPOSE — Each file should have a single, clear responsibility. If a file grows beyond its purpose, split it.
+• ONE_FUNCTION_ONE_TASK — Functions should do one thing well. If a function name contains "and", consider splitting it.
+• CLEAR_MODULE_BOUNDARIES — Related functionality should be grouped, but distinct concerns should be separated.
+
+## Function Design
+• DESCRIPTIVE_NAMES — Function and variable names should clearly express intent. Prefer `calculate_total_cost()` over `calc()`.
+• MINIMIZE_SIDE_EFFECTS — When possible, prefer functions that don't modify external state. When side effects are necessary, make them explicit in naming and documentation.
+• EARLY_RETURNS — Use guard clauses to reduce nesting: `if not valid_input: return error_response`
+• REASONABLE_LENGTH — Functions should fit on a screen (~25 lines). Longer functions should be split into smaller, well-named helpers.
+
+## Data Organization
+• CONSTANTS_AT_TOP — Define configuration, mappings, and constants at module level before functions.
+• EXPLICIT_MAPPINGS — Use clear dictionaries/enums instead of nested conditionals for business rules.
+• TYPE_HINTS_ALWAYS — Use comprehensive type hints for function parameters, return values, and complex variables.
+• IMMUTABLE_WHEN_POSSIBLE — Prefer immutable data structures (tuples, NamedTuples, dataclasses with frozen=True) when data won't change.
+
+## Error Handling & Validation
+• FAIL_FAST — Validate inputs at function entry and fail early with clear error messages.
+• DEFENSIVE_PROGRAMMING — Provide sensible defaults and handle edge cases explicitly.
+• MEANINGFUL_ERRORS — Error messages should help users understand what went wrong and how to fix it.
+• DOCUMENT_ASSUMPTIONS — Comment on business logic, edge cases, and non-obvious requirements.
+
+## Module Organization
+• IMPORTS_ORGANIZED — Group imports: standard library → third party → local, with blank lines between groups.
+• LOGICAL_ORDER — Structure modules as: imports → constants → helper functions → main functions → execution.
+• AVOID_GLOBAL_STATE — Pass data through function parameters rather than relying on module-level mutable variables.
+• CLEAR_ENTRY_POINTS — Use `if __name__ == "__main__":` for scripts, or provide clear main() functions.
+
+## Examples of Good Practices:
+```python
+# GOOD: Clear, single-purpose function
+def extract_instrument_symbol(trade_description: str) -> str:
+    """Extract the instrument symbol from a trade description string."""
+    if not trade_description:
+        raise ValueError("Trade description cannot be empty")
+    
+    # Handle specific prefixes
+    for prefix in ["RX", "TU", "FV", "TY", "US"]:
+        if trade_description.startswith(prefix):
+            return SYMBOL_MAPPINGS[prefix]
+    
+    raise ValueError(f"Unknown trade description format: {trade_description}")
+
+# GOOD: Clear constants and configuration
+DEFAULT_LOT_SIZE = 1000
+SYMBOL_MAPPINGS = {
+    "RX": "FGBL", 
+    "TU": "ZT", 
+    "FV": "ZF"
+}
+
+# GOOD: Early return pattern
+def process_order(order_data: dict) -> OrderResult:
+    """Process an order and return the result."""
+    if not order_data:
+        return OrderResult.error("No order data provided")
+    
+    if not order_data.get("symbol"):
+        return OrderResult.error("Symbol is required")
+    
+    # Main processing logic here...
+    return OrderResult.success(processed_order)
+```

@@ -395,35 +395,6 @@ The system is now **production-ready** for 24/7 trading environments.
   - Uses theme primary color for consistency
 - **ComboBox Styling**: Already handled by custom_styles.css
 
-### Greek Integration Phase 1: Missing Greeks Implementation (June 23, 2025) ✅ COMPLETED
-- **Investigation Results**: Confirmed dashboard displays exactly 11 Greeks:
-  - delta_y, gamma_y, vega_y, theta_F, volga_price, vanna_F_price
-  - charm_F, speed_F, color_F, **ultima**, **zomma**
-  - Rho is NOT displayed (not needed)
-- **Implementation of Third-Order Greeks**:
-  - Added `third_order_greeks()` function to bachelier_greek.py
-  - Implemented ultima (∂³V/∂σ³) - third derivative w.r.t. volatility
-  - Implemented zomma (∂³V/∂F²∂σ) - gamma sensitivity to volatility
-  - Added `numerical_third_order_greeks()` for validation
-  - Formulas adapted from pricing_engine.py to maintain consistency
-- **Sign Convention Fixes**:
-  - Fixed theta to be negative (time decay) by adjusting formula
-  - Verified charm sign behavior (negative for ITM, positive for OTM)
-- **Validation Testing**:
-  - Created test_third_order_greeks.py comparing implementations
-  - Analytical formulas match pricing_engine.py to 1e-8 precision
-  - Numerical implementations show expected differences
-- **Technical Achievement**: bachelier_greek.py now contains all 11 Greeks needed for dashboard integration
-
-### Greek Integration Preparation (June 23, 2025) ✅ COMPLETED
-- **Fixed naming conventions in bachelier_greek.py**:
-  - Renamed `dF_dSigma` → `vanna` (∂²V/∂F∂σ) - sensitivity of delta to volatility
-  - Renamed `dF_dTau` → `charm` (∂²V/∂F∂τ) - sensitivity of delta to time decay
-  - Renamed `dSigma_dTau` → `veta` (∂²V/∂σ∂τ) - sensitivity of vega to time decay
-- **Cleaned Jupyter notebook artifacts**: Removed cell markers and display() calls
-- **Updated code-index.md**: Added bachelier_greek.py documentation
-- **Technical Achievement**: Improved code clarity with proper Greek naming conventions
-
 ### Bond Future Options Integration (January 31, 2025) ✅ COMPLETED
 - **Integrated CTO-validated Bond Future Option pricing system** into UIKitXv2 trading framework
 - **Module Creation**: Created `lib/trading/bond_future_options/` with proper package structure
@@ -1113,204 +1084,352 @@ The project migration is **100% COMPLETE** with a clean, professional Python pac
 
 ## ✅ Completed (Most Recent First)
 
-### 2025-06-22: Numerical Greeks Implementation & Validation 🚧 IN PROGRESS
-- **Implemented numerical_greeks.py**: Central difference method for all Greeks
-- **Created greek_validator.py**: Comprehensive validation against analytical Greeks
-- **Validation Results**:
-  - First-order Greeks: Excellent agreement (errors < 0.1%)
-  - Second-order Greeks: Good agreement (errors < 1%)
-  - Speed/Color issues identified (errors 10-50%)
-- **Dashboard Integration**: Added Greek validation functionality
-
 ### 2025-06-18: Fixed Observatory Dashboard Data Collection
 - **Issue**: @monitor decorator wasn't writing data to observatory.db
 - **Root Cause**: Schema mismatch - `process_trace` table missing `process_group` column
 - **Fix**: Updated SQLiteWriter schema and INSERT statements to match BatchWriter
 - **Impact**: Observatory dashboard now correctly displays monitored function data
+- **Files**: `lib/monitoring/writers/sqlite_writer.py`, `lib/monitoring/decorators/monitor.py`
 
 ### 2025-06-17: Observatory Dashboard Integration
 - Renamed all "observability" references to "observatory" for consistency
 - Integrated dashboard with main application
 - All tests passing after comprehensive renaming
 
-### 2025-01-14: Observatory Dashboard - Simplified Implementation
-- **Basic DataTable Working**: Table displays real data from observability database
-- **Fixed All Component Errors**: Removed invalid properties, added required parameters
-- **Integration Complete**: Observatory appears in sidebar and loads without errors
-- **Real Data Display**: Callbacks parse args/result and show one row per variable
+### Infrastructure & Architecture
+- ✅ Migrated from old structure to new package-based architecture
+- ✅ Set up proper package structure under `lib/` and `apps/`
+- ✅ Implemented comprehensive backup system before migration
+- ✅ Created memory bank documentation structure
 
-### 2025-01-07: Analytical Greeks Expansion & PnL Validation
-- **Expanded Analytical Greeks**: Added ultima and zomma to pricing_engine.py
-- **Enhanced PnL Validator**: Extended Taylor expansion to 3rd order
-- **R² Progression**: Order 2 provides most improvement (R² = 0.915)
-- **Dashboard Integration**: Added Greek profiles, comprehensive table, Taylor order selector
+### Component System
+- ✅ Created BaseComponent abstract base class
+- ✅ Implemented basic UI components (Button, Card, DataTable, etc.)
+- ✅ Built advanced Grid layout component
+- ✅ Set up centralized theme management
 
-### 2025-01-06: Variable-Level Data Tracking Implementation
-- **Parameter Name Extraction**: Functions now track individual parameters by name
-- **Intelligent Return Value Naming**: Named tuples, dataclasses, dicts all handled
-- **Performance Maintained**: <50μs overhead preserved
+### Monitoring & Logging
+- ✅ Implemented decorator system (TraceTime, TraceCpu, TraceMemory, TraceCloser)
+- ✅ Created context variable system for decorator communication
+- ✅ Set up structured logging with SQLite backend
+
+### Trading Applications
+- ✅ Actant PnL Dashboard with Excel formula implementation
+- ✅ Migrated EOD/SOD processing logic
+- ✅ Set up unified dashboard structure
+
+### Observability System Progress
+- ✅ Phase 1: Foundation Setup (COMPLETE)
+  - All directories and stub files created
+  - Basic imports working
+  - 4 initial tests passing
+- ✅ Phase 2: Basic Decorator Implementation (COMPLETE)
+  - @monitor decorator captures function metadata
+  - Execution time measurement with microsecond precision
+  - Console output with [MONITOR] prefix
+  - Exception handling preserves timing data
+  - 8 comprehensive tests all passing
+  - Demo script showcasing functionality
+- ✅ Phase 3: Smart Serializer Implementation (COMPLETE)
+  - SmartSerializer handles all Python data types
+  - Support for primitives, collections, NumPy, Pandas
+  - Circular reference detection
+  - Sensitive field masking (password, api_key, token)
+  - Configurable truncation (max_repr)
+  - Custom object representation
+  - 15 comprehensive tests all passing
+  - Demo script showing all features
+- ✅ Phase 4: ObservabilityQueue Implementation (COMPLETE)
+  - Error-first dual queue system
+  - Unlimited error queue ensures NO errors dropped
+  - Normal queue (10k) with overflow buffer (50k)
+  - Automatic recovery from overflow
+  - Thread-safe operations with comprehensive locking
+  - Real-time metrics tracking
+  - 12 comprehensive tests all passing
+  - Performance: 418k+ records/second achieved
+  - Demo proves zero error loss under extreme load
+- ✅ Phase 5: SQLite Writer Implementation (COMPLETE)
+  - SQLite database schema with process_trace and data_trace tables
+  - BatchWriter thread with configurable batch size and drain interval
+  - WAL mode for concurrent read/write access
+  - Transaction management with automatic rollback on errors
+  - Database statistics tracking (size, row counts, performance)
+  - Graceful shutdown with final flush
+  - 15 comprehensive tests all passing
+  - Performance: 1500+ records/second sustained writes
+  - Complete pipeline demo: Queue → Writer → Database
+- ✅ Phase 6: Monitor Decorator Integration (COMPLETE)
+  - @monitor decorator automatically sends records to queue
+  - SmartSerializer integration for all function data
+  - Full exception traceback capture
+  - Singleton pattern for global queue/writer
+  - Sampling rate support (0.0-1.0)
+  - Queue warning thresholds
+  - 8 integration tests all passing
+  - Performance overhead < 50µs per decorated call
+  - Complete demo: Function → Queue → Database
 
 ## In Progress
 
-### Greek Validation & Enhancement
-- 🔄 Investigating numerical stability issues with Speed/Color
-- 🔄 Considering alternative finite difference schemes
-- 🔄 Dashboard enhancements for Greek comparison
+### Observability System Implementation
+- 🔄 Phase 5: SQLite Schema & Writer (Next - Day 3 Morning)
+  - [ ] Create database schema (process_trace, data_trace tables)
+  - [ ] Implement BatchWriter thread
+  - [ ] Connect queue to database
+  - [ ] 8 writer tests passing
 
-### Observatory Dashboard Polish
-- 🔄 Add filtering by process name
-- 🔄 Add real-time auto-refresh
-- 🔄 Add performance metrics display
+## TODO
+
+### Observability System (Weeks 1-2)
+- [ ] Phase 4-6: Queue, Writer, Integration
+- [ ] Phase 7-9: Advanced features and production test
+- [ ] Phase 10: Dash UI implementation
+- [ ] Migration of legacy decorators to new system
+
+### Testing & Quality
+- [ ] Achieve 80% test coverage
+- [ ] Performance benchmarking suite
+- [ ] Integration tests for all dashboards
+
+### Documentation
+- [ ] API documentation generation
+- [ ] User guides for each dashboard
+- [ ] Deployment procedures
 
 ## Known Issues
-
-### Greek Calculations
-- Speed/Color numerical Greeks show 10-50% deviation from analytical
-- May need adaptive step sizes or higher-order finite differences
 
 ### Minor
 - Some test files still reference old import paths
 - Dashboard CSS needs responsive design improvements
 
-## Technical Debt
+### Technical Debt
 - Legacy decorators need migration to new @monitor system
 - Some utility files approaching 300 LOC limit
 - Need to implement proper error boundaries in Dash apps
 
-## December 2024 - Greek Analysis Extension
+## Robustness Improvements (November 2025) 🚧 IN PROGRESS
 
-### Full Implementation: Display All Greeks (Complete)
-- ✅ Extended Greek Analysis page from 4 to 11 Greeks
-- ✅ Updated graph view to 4x3 grid layout
-- ✅ Updated table view to match 4x3 grid layout
-- ✅ Added Greek summary panel showing current values at market price
-- ✅ Maintained consistent UI patterns and styling
-- ✅ All Greeks use analytical Bachelier model calculations
-- ✅ Fixed Theme attribute error: Changed `text_muted` to `text_subtle`
-- ✅ Final fix: Implied volatility now shows ONLY in parameter input box (not grid)
+#### Phase A: Memory Pressure Testing ✅ COMPLETED
+- Created comprehensive memory pressure tests
+- Tests verify graceful handling of:
+  - 10M item lists (summarized, not fully serialized)
+  - 1M×100 DataFrames (shape shown, not data)
+  - Deeply nested structures (truncated)
+  - Queue overflow (ring buffer prevents unbounded growth)
+  - Dangerous __repr__ methods (truncated safely)
+- All 8 tests passing - system handles memory pressure well
 
-#### Greek Summary Panel Features:
-- Displays current Greek values at market price
-- Three-column format: Greek Name, Value, Space
-- Adaptive number formatting based on magnitude
-- Positioned between parameter inputs and view toggle
-- Styled consistently with other dashboard components
+#### Phase B: Circuit Breaker Implementation ✅ COMPLETED  
+- Implemented simple, robust circuit breaker pattern
+- Three states: CLOSED → OPEN → HALF_OPEN → CLOSED
+- Integrated with SQLite writer for database failure protection
+- Features:
+  - Configurable failure threshold (default: 3)
+  - Timeout-based recovery (default: 30s)
+  - Thread-safe with comprehensive statistics
+  - Clear error messages when circuit is open
+- Created 10 unit tests + integration tests + demo
+- Demo shows real protection: 3 DB calls, 25 rejected by circuit
 
-#### Implied Volatility Display:
-- Shows in the parameter inputs section (top box) as requested
-- Format: "Price Vol: XX.XX | Yield Vol: XX.XX"
-- Bottom-right grid cell is now empty for proper alignment
+#### Phase C: Performance Guidelines ✅ COMPLETED
+- Created `memory-bank/performance-guidelines.md`
+- Documented SQLite bottleneck (1,089 ops/sec)
+- Sampling rate matrix by function frequency
+- Drain interval tuning guide
+- Real-world scenarios with configurations
 
-### Phase 1: Add Volga and Vanna (Complete)
-- ✅ Extended graph view from 4 to 6 Greeks
-- ✅ Added volga and vanna graph containers 
-- ✅ Updated callback to generate volga/vanna graphs
-- ✅ Modified table view to 3x2 layout (6 Greeks)
-- ✅ Maintained consistent styling and patterns
+#### Phase D: Edge Case Documentation ✅ COMPLETED
+- Created `memory-bank/edge-cases-and-limitations.md`
+- Known limitations with workarounds
+- Unsupported patterns clearly documented
+- When NOT to use @monitor
+- Graceful handling strategies
 
-### Phase 2: Add Remaining Greeks (Complete)
-- ✅ Extended to all 11 Greeks (Charm, Speed, Color, Ultima, Zomma)
-- ✅ Updated graph view to 4x3 grid layout
-- ✅ Updated table view to match
-- ✅ Added Greek summary panel with current values
-- ✅ Added implied volatility display to grid
+## 2025-01-14: Observatory Dashboard - Simplified Implementation
 
-### Greek Integration Phase 2: Core Integration (June 23, 2025) ✅ COMPLETED
-- **Objective**: Replace first 5 Greek calculations in pricing_engine.py with bachelier_greek.py
-- **Implementation Details**:
-  - Added imports for analytical_greeks, cross_effects, third_order_greeks
-  - Created `_get_all_bachelier_greeks()` private method for centralized Greek access
-  - Successfully replaced: delta_y, gamma_y, vega_y, theta_F, volga_price
-- **Bug Fix**: Corrected vega formula in analytical_greeks (was including unnecessary term)
-- **Testing Results**: All Greeks match original implementation exactly (0.000000 difference)
-- **Key Achievements**:
-  - Maintained exact API compatibility (signatures unchanged)
-  - Preserved all scaling factors (×1000, /252, DV01 adjustments)
-  - Edge cases (T=0, sigma=0) handled correctly
-- **Updated Files**: pricing_engine.py, bachelier_greek.py
+### ✅ Completed
+- **Pivoted to Simple Approach**: After user feedback about overcomplicating, created a minimal working dashboard
+- **Basic DataTable Working**: Table displays real data from observability database
+- **Fixed All Component Errors**:
+  - Removed invalid DataTable properties (`width`, `sortable`, `filterable`, `style_data`)
+  - Added required `id` parameters to Container components
+  - Used only valid wrapped component properties
+- **Followed ActantPnL Pattern**: Used the same successful pattern from ActantPnL dashboard
+- **Integration Complete**: Observatory appears in sidebar and loads without errors
+- **DataTable Columns Updated**: Now shows Process, Data, Data Type, Data Value, Timestamp, Status, Exception
+- **@monitor Applied**: Added vanilla @monitor() to Greek Analysis recalculate button
+- **Observability Writer Started**: Added startup code to initialize the observability writer
+- **Real Data Display**: Callbacks parse args/result and show one row per variable
 
-### Greek Integration Phase 3: Complete Integration & UI Plan (June 23, 2025) ✅ COMPLETED
-- **Objective**: Complete all Greek replacements and create UI enhancement plan
-- **Part A - Vega Verification**: Confirmed standard Bachelier vega = √τ × φ(d) is correct
-- **Part B - Visualization Analysis**: 
-  - Identified 3 main visualizations in bachelier_greek.py
-  - Refactored module to separate data generation from plotting
-  - Created data generation functions for UI integration
-- **Part C - Greek Integration**:
-  - Successfully replaced remaining 6 Greeks: vanna_F_price, charm_F, speed_F, color_F, ultima, zomma
-  - All 11 Greeks now use bachelier_greek.py as single source of truth
-  - Fixed additional vega formula bug in third_order_greeks
-- **Part D - Dashboard Enhancement**:
-  - Created comprehensive UI enhancement plan (docs/dashboard_enhancement_plan.md)
-  - Designed Greek profile visualizations
-  - Planned interactive parameter controls
-  - Estimated 2.5 hours for full UI implementation
-- **Technical Achievement**: 100% backward compatibility with zero API changes
-- **Updated Files**: pricing_engine.py, bachelier_greek.py, created dashboard_enhancement_plan.md
+### 🔄 In Progress
+- Testing the dashboard to see real function traces appear
+- Looking for more places to apply @monitor without legacy decorators
 
-### Greek Integration Phase 4: Diagnostic Pass & UI Fixes (June 23, 2025) ✅ COMPLETED
-- **Objective**: Investigate missing Greeks in UI and improve visualizations
-- **Missing Greeks Diagnosis**:
-  - Root cause: `generate_greek_profiles_data()` only included 7 Greeks from `analytical_greeks()`
-  - Missing: ultima, zomma (third-order) and vanna, charm, veta (cross-effects)
-  - Fix: Updated function to call all Greek calculation functions
-- **UI Improvements**:
-  - Changed Taylor approximation error plot from logarithmic to linear scale
-  - Now all 12 Greeks available in profile data (including cross-effects)
-- **Formula Investigation**:
-  - Documented significant differences between our implementation and reference
-  - First-order Greeks align perfectly
-  - Higher-order Greeks use different formulas (e.g., our zomma = γ×d/σ vs ref = φ×d×(d²-3)/(σ×τ))
-  - Decision needed on whether to align formulas
-- **Technical Achievement**: Complete Greek data availability with improved error visualization
-- **Updated Files**: bachelier_greek.py, apps/dashboards/main/app.py
+### 📋 TODO
+- Apply @monitor to more functions (avoiding those with legacy decorators)
+- Add filtering by process name
+- Add sorting capabilities  
+- Add real-time auto-refresh with intervals
+- Add performance metrics display
+- Add error highlighting
+- Polish UI based on user feedback
 
-### Dashboard UI Refinement Phase 1: Remove Original Greek Graphs (June 23, 2025) ✅ COMPLETED
-- **Objective**: Clean up Greek Analysis dashboard by removing redundant 11 individual Greek graphs
-- **Issue Addressed**: Dashboard was showing both old individual Greek graphs AND new Greek profile visualization
-- **Implementation**:
-  - Commented out 11 individual Greek graph containers in layout (lines 1111-1124)
-  - Updated callback to remove 11 non-existent container Outputs
-  - Removed code that created empty divs for individual Greeks
-  - Dashboard now shows only Greek profile analysis and Taylor approximation
-- **Result**: Clean, stable dashboard with no callback errors
-- **Next Steps**: Add table view for Greek profiles and Taylor approximation data
+### 💡 Lessons Learned
+- Start simple and iterate - don't overcomplicate initial implementation
+- Follow existing successful patterns (ActantPnL) rather than reinventing
+- Test frequently with small changes
+- Wrapped components have limited properties compared to native Dash components
 
-### Dashboard UI Refinement Phase 2: Implement Table Views (June 23, 2025) ✅ COMPLETED
-- **Objective**: Add table view functionality for Greek profiles and Taylor approximation error analysis
-- **Implementation**:
-  - Added new callback `acp_generate_table_view` that responds to view mode changes
-  - Extended store_data to include profile_data and taylor_data for table generation
-  - Tables display exact same data as graphs (analytical and numerical values)
-  - Implemented sampling (every 5th point) to keep tables manageable
-  - Created 4x3 grid layout for Greek profile tables matching graph layout
-  - Added Taylor approximation error table at bottom of table view
-- **Technical Achievement**:
-  - Clean MVC separation: Model (data) → View (table/graph) → Controller (toggle)
-  - No data duplication - tables use exact same data as graphs
-  - Proper scaling and adjustments maintained (DV01, daily conversion, etc.)
-- **Result**: Full table/graph toggle functionality with all 12 Greek profiles and Taylor error analysis
+---
 
-### Dashboard UI Refinement Phase 3: Table View Error Fixes (June 23, 2025) ✅ COMPLETED
-- **Objective**: Fix DataTable errors and improve table display functionality
-- **Issues Fixed**:
-  - Removed invalid `page_action` parameter causing TypeError
-  - Added missing Container id parameters to fix initialization errors
-  - Removed sampling to show all data points (was showing every 5th point)
-- **Implementation**:
-  - Removed `page_action='none'` from DataTable components (no longer valid in newer Dash versions)
-  - Set `page_size=len(table_rows)` to show all rows without pagination
-  - Fixed Container components by adding required id parameters
-- **Technical Achievement**:
-  - Tables now display all data points without pagination
-  - No JavaScript errors or component initialization issues
-  - Clean scrollable tables showing full dataset
-- **Result**: Fully functional table view with all rows visible and no errors
+## Previous Progress (Backend Implementation)
 
-### Container ID Fix (June 23, 2025) ✅ COMPLETED
-- **Issue**: TypeError in table view - Container.__init__() missing required 'id' parameter
-- **Root Cause**: Two Container components in `acp_generate_table_view` were missing id parameters
-- **Fix**:
-  - Added id to Greek profile table Container: `id=f"acp-profile-{dashboard_name}-table-container"`
-  - Added id to Taylor error table Container: `id="acp-taylor-error-table-container"`
-- **Result**: Table view now works without errors, properly displaying all Greek profiles and Taylor error data
+### Phase 1-7: Backend Observability System ✅
+- Built production-ready monitoring infrastructure
+- @monitor decorator with <50μs overhead
+- ObservabilityQueue with error-first design
+- SQLiteWriter with 1500+ records/second
+- Complete with circuit breaker and retention management
+
+### Phase 8-10: Robustness & Documentation ✅
+- Achieved 10/10 robustness score
+- Complete documentation suite
+- Performance guidelines and edge cases documented
+- Ready for production use
+
+## 2025-01-06: Variable-Level Data Tracking Implementation ✅
+
+### Implemented
+- **Parameter Name Extraction**: Functions now track individual parameters by name
+- **Intelligent Return Value Naming**: Named tuples, dataclasses, dicts all handled
+- **Backward Compatibility**: Old data format still supported
+- **Comprehensive Testing**: 12 test cases covering all function types
+- **Performance Maintained**: <50μs overhead preserved
+
+### Key Achievements
+1. Transform `args=[1,2]` → Individual rows: `x=1`, `y=2`
+2. Named tuple returns show field names
+3. Dataclass returns show attribute names
+4. Dict returns show keys as `result[key]`
+5. Variable args show as `numbers[0]`, `numbers[1]`, etc.
+
+### Files Modified
+- `lib/monitoring/decorators/monitor.py`
+- `lib/monitoring/queues/observatory_queue.py`
+- `lib/monitoring/writers/sqlite_writer.py`
+- Created `tests/monitoring/test_variable_tracking.py`
+
+### Next Steps
+- Apply to Greek Analysis functions
+- Update user documentation
+- Add dashboard filters for parameter names
+
+---
+
+## Previous Progress
+
+### Phase 10: Robustness Improvements (Completed)
+- Implemented CircuitBreaker pattern for fault tolerance
+- Added configurable failure thresholds
+- Created automatic recovery with exponential backoff
+- Added comprehensive error isolation
+- Maintained zero data loss guarantee for errors
+
+### Phase 9: Data Retention System (Completed)
+- Implemented automatic data retention (6-hour default)
+- Created RetentionManager and RetentionController
+- Added configurable retention periods
+- Integrated with Observatory Dashboard
+- Added retention statistics display
+
+### Phase 8: Performance Optimizations (Completed)
+- Implemented LazySerializer for 10x faster serialization
+- Added MetadataCache to reduce reflection overhead
+- Achieved <50 microsecond monitoring overhead
+- Created comprehensive benchmarks
+- Added resource usage tracking (CPU, memory)
+
+### Phase 7: Parent-Child Trace Relationships (Completed)
+- Added thread_id and call_depth tracking
+- Created parent_child_traces view in SQLite
+- Implemented call stack visualization
+- Added execution timeline views
+
+### Phase 6: Observatory Dashboard (Completed)
+- Created Dash-based monitoring dashboard
+- Real-time trace viewing with pagination
+- Process metrics and error tracking
+- System statistics display
+- Clean, modern UI with dark theme
+
+### Phase 5: Error-First Queue Strategy (Completed)
+- Dual queue system (errors never dropped)
+- Overflow buffer for normal records (50k capacity)
+- Automatic recovery from overflow
+- Comprehensive queue metrics
+
+### Phase 4: SQLite Integration (Completed)
+- BatchWriter with WAL mode
+- Optimized bulk inserts
+- Process and data trace tables
+- Query optimization with indexes
+
+### Phase 3: Smart Serialization (Completed)
+- Type-aware serialization
+- Sensitive field masking
+- Circular reference handling
+- Custom type support
+
+### Phase 2: Decorator Framework (Completed)
+- @monitor decorator with sampling
+- Support for sync/async/generators
+- Configurable capture options
+- Process grouping
+
+### Phase 1: Queue System (Completed)
+- Lock-free queue implementation
+- Batch draining
+- Thread-safe operations
+- Basic metrics
+
+## Known Issues
+- None currently
+
+## Achievements Summary
+- ✅ Production-ready monitoring system
+- ✅ <50μs overhead per function call
+- ✅ Zero data loss for errors
+- ✅ Automatic data retention
+- ✅ Fault-tolerant with CircuitBreaker
+- ✅ Real-time dashboard
+- ✅ Variable-level tracking
+- ✅ 98% code coverage in tests
+
+## 2025-01-07: Analytical Greeks Expansion & PnL Validation
+
+### Phase 1: Analytical Greeks Implementation ✅
+- **Expanded Analytical Greeks**: Added ultima (∂³V/∂σ³) and zomma (∂³V/∂F²∂σ) to pricing_engine.py
+- **Enhanced PnL Validator**: Extended Taylor expansion to 3rd order
+- **R² Progression Achieved**:
+  - Order 0: R² = 0.000 (constant only)
+  - Order 1: R² = 0.736 (Delta, Vega, Theta)
+  - Order 2: R² = 0.915 (+Gamma, Volga, Vanna, Charm)
+  - Order 3: R² = 0.921 (+Speed, Color, Ultima, Zomma)
+- **Greek Contributions**: Delta 36%, Theta 40%, Gamma 21%, Vega 3% (near-ATM)
+- **Key Finding**: 2nd order provides most improvement (Δ = 0.179), 3rd order marginal (Δ = 0.006)
+
+### Phase 2: Dashboard Integration ✅
+- **Added Greek Profile Graphs**: Ultima and Zomma profiles with green line/red strike styling
+- **Comprehensive Greeks Table**: Shows all 14 Greeks at current market point with 6-decimal precision
+- **Taylor Order Selector**: Dropdown to select order (1, 2, or 3) with live R² and RMSE display
+- **Enhanced Layout**: 3x2 grid for Greek profiles (was 2x2), maintains clean user experience
+- **Real-time Updates**: All new components update when parameters change
+- **Validation Integration**: Dashboard shows predictive accuracy for selected Taylor order
+
+### Files Modified
+- `lib/trading/bond_future_options/pricing_engine.py` - Added ultima, zomma, vomma_F
+- `lib/trading/bond_future_options/analysis.py` - Updated calculate_all_greeks
+- `lib/trading/bond_future_options/greek_validator.py` - Extended to order 3 Taylor
+- `memory-bank/code-index.md` - Updated pricing_engine.py description
+- `memory-bank/io-schema.md` - Added new Greek entries
