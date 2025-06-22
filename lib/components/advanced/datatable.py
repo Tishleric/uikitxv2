@@ -89,10 +89,10 @@ class DataTable(BaseComponent):
             style_cell=final_style_cell,
             style_header=final_style_header,
             style_data_conditional=final_style_data_conditional,
-            page_action=default_styles["page_action"],
+            # page_action=default_styles["page_action"],  # REMOVED: No longer valid in newer Dash versions
             sort_action=default_styles["sort_action"],
             filter_action=default_styles["filter_action"],
-            style_as_list_view=default_styles["style_as_list_view"]
+            # style_as_list_view=default_styles["style_as_list_view"]  # REMOVED: No longer valid
             # className=self.className # REMOVED: This argument is not allowed
         )
 

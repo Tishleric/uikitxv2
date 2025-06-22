@@ -26,7 +26,14 @@ if lib_path not in sys.path:
 # --- Imports ---
 from components import Container, Grid, Graph, Button, ComboBox, DataTable, Loading
 from components.themes import default_theme
-from trading.bond_future_options import analyze_bond_future_option_greeks
+from trading.bond_future_options import (
+    BondFutureOption, 
+    analyze_bond_future_option_greeks, 
+    calculate_all_greeks,
+    generate_greek_profiles
+)
+from trading.bond_future_options.greek_validator import GreekPnLValidator
+from trading.bond_future_options.bachelier_greek import generate_greek_profiles_data
 
 # --- Initialize Dash App ---
 assets_folder_path = os.path.join(project_root, 'assets')
@@ -102,6 +109,69 @@ def create_greek_graph(df, greek_col, title, strike_price, current_f=None):
     
     return fig
 
+def create_comprehensive_greeks_table(current_greeks):
+    """Create a comprehensive table showing all Greeks at current market point"""
+    # Define the Greeks to display in order
+    greek_order = [
+        ('delta_F', 'Delta (F-Space)', False),
+        ('delta_y', 'Delta (Y-Space)', True),
+        ('gamma_F', 'Gamma (F-Space)', False),
+        ('gamma_y', 'Gamma (Y-Space)', True),
+        ('vega_price', 'Vega (Price)', False),
+        ('vega_y', 'Vega (Y-Space)', True),
+        ('theta_F', 'Theta (F-Space)', True),
+        ('volga_price', 'Volga (Price)', True),
+        ('vanna_F_price', 'Vanna (F-Price)', True),
+        ('charm_F', 'Charm (F)', True),
+        ('speed_F', 'Speed (F)', True),
+        ('color_F', 'Color (F)', True),
+        ('ultima', 'Ultima', True),
+        ('zomma', 'Zomma', True)
+    ]
+    
+    # Create table data
+    table_data = []
+    for greek_key, greek_name, is_scaled in greek_order:
+        if greek_key in current_greeks:
+            value = current_greeks[greek_key]
+            # Note if the Greek is scaled
+            scaled_note = " (×1000)" if is_scaled else ""
+            table_data.append({
+                'Greek': greek_name + scaled_note,
+                'Value': f"{value:.6f}"
+            })
+    
+    return DataTable(
+        id="comprehensive-greeks-table",
+        data=table_data,
+        columns=[
+            {"name": "Greek", "id": "Greek"},
+            {"name": "Value", "id": "Value"}
+        ],
+        theme=default_theme,
+        style_cell={
+            'backgroundColor': default_theme.base_bg,
+            'color': default_theme.text_light,
+            'textAlign': 'left',
+            'padding': '8px',
+            'border': f'1px solid {default_theme.secondary}'
+        },
+        style_header={
+            'backgroundColor': default_theme.panel_bg,
+            'fontWeight': 'bold',
+            'color': default_theme.primary
+        },
+        style_data_conditional=[
+            {
+                'if': {'column_id': 'Value'},
+                'textAlign': 'right',
+                'fontFamily': 'monospace'
+            }
+        ],
+        page_size=20,
+        style_table={'height': '400px', 'overflowY': 'auto', 'width': '100%'}
+    ).render()
+
 def create_parameter_inputs():
     """Create the parameter input section"""
     input_style = {
@@ -150,7 +220,7 @@ def create_parameter_inputs():
                 dcc.Input(id="convexity-input", type="number", value=0.002404, step=0.000001, style=input_style)
             ]), {"width": 4}),
             
-            # Row 3: Option Type and Calculate Button
+            # Row 3: Option Type and Implied Vol
             (html.Div([
                 html.Label("Option Type", style=label_style),
                 ComboBox(
@@ -186,6 +256,48 @@ def create_parameter_inputs():
                     n_clicks=0,
                     style={'width': '100%'}
                 ).render()
+            ]), {"width": 4}),
+            
+            # Row 4: Taylor Order Selector and Validation Metrics
+            (html.Div([
+                html.Label("Taylor Order", style=label_style),
+                ComboBox(
+                    id="taylor-order-selector",
+                    options=[
+                        {"label": "1st Order", "value": 1},
+                        {"label": "2nd Order", "value": 2},
+                        {"label": "3rd Order", "value": 3}
+                    ],
+                    value=2,
+                    theme=default_theme,
+                    clearable=False
+                ).render()
+            ]), {"width": 4}),
+            (html.Div([
+                html.Label("PnL Validation R²", style=label_style),
+                html.Div(
+                    id="r-squared-display",
+                    style={
+                        **input_style,
+                        'padding': '7px',
+                        'backgroundColor': default_theme.base_bg,
+                        'fontWeight': 'bold',
+                        'color': default_theme.accent
+                    }
+                )
+            ]), {"width": 4}),
+            (html.Div([
+                html.Label("RMSE", style=label_style),
+                html.Div(
+                    id="rmse-display",
+                    style={
+                        **input_style,
+                        'padding': '7px',
+                        'backgroundColor': default_theme.base_bg,
+                        'fontWeight': 'bold',
+                        'color': default_theme.warning
+                    }
+                )
             ]), {"width": 4})
         ],
         theme=default_theme
@@ -251,6 +363,69 @@ def create_greek_table(df, greek_col, title, current_f, strike):
         style_table={'height': '300px', 'overflowY': 'auto'}
     ).render()
 
+def create_comprehensive_greeks_table(current_greeks):
+    """Create a comprehensive table showing all Greeks at current market point"""
+    # Define the Greeks to display in order
+    greek_order = [
+        ('delta_F', 'Delta (F-Space)', False),
+        ('delta_y', 'Delta (Y-Space)', True),
+        ('gamma_F', 'Gamma (F-Space)', False),
+        ('gamma_y', 'Gamma (Y-Space)', True),
+        ('vega_price', 'Vega (Price)', False),
+        ('vega_y', 'Vega (Y-Space)', True),
+        ('theta_F', 'Theta (F-Space)', True),
+        ('volga_price', 'Volga (Price)', True),
+        ('vanna_F_price', 'Vanna (F-Price)', True),
+        ('charm_F', 'Charm (F)', True),
+        ('speed_F', 'Speed (F)', True),
+        ('color_F', 'Color (F)', True),
+        ('ultima', 'Ultima', True),
+        ('zomma', 'Zomma', True)
+    ]
+    
+    # Create table data
+    table_data = []
+    for greek_key, greek_name, is_scaled in greek_order:
+        if greek_key in current_greeks:
+            value = current_greeks[greek_key]
+            # Note if the Greek is scaled
+            scaled_note = " (×1000)" if is_scaled else ""
+            table_data.append({
+                'Greek': greek_name + scaled_note,
+                'Value': f"{value:.6f}"
+            })
+    
+    return DataTable(
+        id="comprehensive-greeks-table",
+        data=table_data,
+        columns=[
+            {"name": "Greek", "id": "Greek"},
+            {"name": "Value", "id": "Value"}
+        ],
+        theme=default_theme,
+        style_cell={
+            'backgroundColor': default_theme.base_bg,
+            'color': default_theme.text_light,
+            'textAlign': 'left',
+            'padding': '8px',
+            'border': f'1px solid {default_theme.secondary}'
+        },
+        style_header={
+            'backgroundColor': default_theme.panel_bg,
+            'fontWeight': 'bold',
+            'color': default_theme.primary
+        },
+        style_data_conditional=[
+            {
+                'if': {'column_id': 'Value'},
+                'textAlign': 'right',
+                'fontFamily': 'monospace'
+            }
+        ],
+        page_size=20,
+        style_table={'height': '400px', 'overflowY': 'auto', 'width': '100%'}
+    ).render()
+
 # --- Layout Definition ---
 app.layout = html.Div([
     # Header
@@ -266,6 +441,8 @@ app.layout = html.Div([
     
     # Store for Greek profiles data
     dcc.Store(id="greek-profiles-store"),
+    # Store for validation metrics
+    dcc.Store(id="validation-metrics-store"),
     
     # Main Container
     Container(
@@ -275,6 +452,12 @@ app.layout = html.Div([
             html.Div([
                 html.H4("Option Parameters", style={"color": default_theme.primary, "marginBottom": "20px"}),
                 create_parameter_inputs().render()
+            ], style={"marginBottom": "30px"}),
+            
+            # Comprehensive Greeks Table Section
+            html.Div([
+                html.H4("Current Greeks at Market Point", style={"color": default_theme.primary, "marginBottom": "20px"}),
+                html.Div(id="comprehensive-greeks-container", style={"marginBottom": "20px"})
             ], style={"marginBottom": "30px"}),
             
             # Toggle Buttons (Graph/Table view)
@@ -320,7 +503,9 @@ app.layout = html.Div([
                                     (html.Div(id="delta-graph-container"), {"width": 6}),
                                     (html.Div(id="gamma-graph-container"), {"width": 6}),
                                     (html.Div(id="vega-graph-container"), {"width": 6}),
-                                    (html.Div(id="theta-graph-container"), {"width": 6})
+                                    (html.Div(id="theta-graph-container"), {"width": 6}),
+                                    (html.Div(id="ultima-graph-container"), {"width": 6}),
+                                    (html.Div(id="zomma-graph-container"), {"width": 6})
                                 ],
                                 theme=default_theme
                             ).render()
@@ -346,7 +531,39 @@ app.layout = html.Div([
                     ).render()
                 ],
                 style={"display": "none"}
-            )
+            ),
+            
+            # Greek Profile Analysis Section
+            html.Div([
+                html.Hr(style={"borderColor": default_theme.secondary, "margin": "30px 0"}),
+                html.H4("Greek Profile Analysis", style={"color": default_theme.primary, "marginBottom": "20px"}),
+                html.P("Analytical Greek profiles across future price scenarios", 
+                       style={"color": default_theme.text_subtle, "marginBottom": "20px"}),
+                
+                # Profile graphs container
+                Loading(
+                    id="profile-loading",
+                    children=[
+                        Grid(
+                            id="greek-profiles-grid",
+                            children=[
+                                # Delta and Gamma profiles
+                                (html.Div(id="profile-delta-container"), {"width": 6}),
+                                (html.Div(id="profile-gamma-container"), {"width": 6}),
+                                # Vega and Theta profiles
+                                (html.Div(id="profile-vega-container"), {"width": 6}),
+                                (html.Div(id="profile-theta-container"), {"width": 6}),
+                                # Volga and Speed profiles (optional row)
+                                (html.Div(id="profile-volga-container"), {"width": 6}),
+                                (html.Div(id="profile-speed-container"), {"width": 6})
+                            ],
+                            theme=default_theme
+                        ).render()
+                    ],
+                    type="circle",
+                    theme=default_theme
+                ).render()
+            ], style={"marginTop": "30px"})
         ],
         theme=default_theme
     ).render()
@@ -360,8 +577,22 @@ app.layout = html.Div([
      Output("gamma-graph-container", "children"),
      Output("vega-graph-container", "children"),
      Output("theta-graph-container", "children"),
-     Output("greek-table-container", "children")],
-    [Input("recalculate-button", "n_clicks")],
+     Output("ultima-graph-container", "children"),
+     Output("zomma-graph-container", "children"),
+     Output("greek-table-container", "children"),
+     Output("comprehensive-greeks-container", "children"),
+     Output("validation-metrics-store", "data"),
+     Output("r-squared-display", "children"),
+     Output("rmse-display", "children"),
+     # Add outputs for Greek profile graphs
+     Output("profile-delta-container", "children"),
+     Output("profile-gamma-container", "children"),
+     Output("profile-vega-container", "children"),
+     Output("profile-theta-container", "children"),
+     Output("profile-volga-container", "children"),
+     Output("profile-speed-container", "children")],
+    [Input("recalculate-button", "n_clicks"),
+     Input("taylor-order-selector", "value")],
     [State("strike-input", "value"),
      State("future-price-input", "value"),
      State("days-to-expiry-input", "value"),
@@ -370,7 +601,7 @@ app.layout = html.Div([
      State("convexity-input", "value"),
      State("option-type-selector", "value")]
 )
-def update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, market_price_64ths,
+def update_greek_analysis(n_clicks, taylor_order, strike, future_price, days_to_expiry, market_price_64ths,
                          dv01, convexity, option_type):
     """Recalculate Greeks based on input parameters"""
     
@@ -425,17 +656,144 @@ def update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, market
         theme=default_theme
     ).render()
     
-    # Create the table view with 2x2 grid of Greek tables
+    ultima_graph = Graph(
+        id="ultima-graph",
+        figure=create_greek_graph(df_profiles, 'ultima', 'Ultima Profile (∂³V/∂σ³)', strike, future_price),
+        theme=default_theme
+    ).render()
+    
+    zomma_graph = Graph(
+        id="zomma-graph",
+        figure=create_greek_graph(df_profiles, 'zomma', 'Zomma Profile (∂³V/∂F²∂σ)', strike, future_price),
+        theme=default_theme
+    ).render()
+    
+    # Create the table view with 3x2 grid of Greek tables (now including ultima and zomma)
     greek_tables_grid = Grid(
         id="greek-tables-grid",
         children=[
-            # Top row: Delta and Gamma tables
+            # Row 1: Delta and Gamma tables
             (create_greek_table(df_profiles, 'delta_y', 'Delta Profile (Y-Space)', future_price, strike), {"width": 6}),
             (create_greek_table(df_profiles, 'gamma_y', 'Gamma Profile (Y-Space)', future_price, strike), {"width": 6}),
-            # Bottom row: Vega and Theta tables
+            # Row 2: Vega and Theta tables
             (create_greek_table(df_profiles, 'vega_y', 'Vega Profile (Y-Space)', future_price, strike), {"width": 6}),
-            (create_greek_table(df_profiles, 'theta_F', 'Theta Profile (F-Space)', future_price, strike), {"width": 6})
+            (create_greek_table(df_profiles, 'theta_F', 'Theta Profile (F-Space)', future_price, strike), {"width": 6}),
+            # Row 3: Ultima and Zomma tables
+            (create_greek_table(df_profiles, 'ultima', 'Ultima Profile', future_price, strike), {"width": 6}),
+            (create_greek_table(df_profiles, 'zomma', 'Zomma Profile', future_price, strike), {"width": 6})
         ],
+        theme=default_theme
+    ).render()
+    
+    # Create comprehensive Greeks table
+    comprehensive_greeks_table = create_comprehensive_greeks_table(current_greeks)
+    
+    # Calculate validation metrics using GreekPnLValidator
+    validator = GreekPnLValidator(results['model'])
+    validation_results = validator.run_validation(
+        F=future_price,
+        K=strike,
+        t=T,  # Note: parameter is lowercase 't'
+        sigma=implied_vol,
+        option_type=option_type,
+        n_samples=100  # Quick validation for dashboard
+    )
+    
+    # Extract metrics for the selected Taylor order
+    if taylor_order == 1:
+        metrics = validation_results['stats_by_order'][1]
+    elif taylor_order == 2:
+        metrics = validation_results['stats_by_order'][2]
+    else:  # taylor_order == 3
+        metrics = validation_results['stats_by_order'][3]
+    
+    r_squared_display = f"{metrics['r_squared']:.3f}"
+    rmse_display = f"{metrics['rmse']:.4f}"
+    
+    # Store validation data
+    validation_data = {
+        'stats_by_order': validation_results['stats_by_order'],
+        'current_order': taylor_order,
+        'contributions': validation_results['contributions']
+    }
+    
+    # Generate Greek profiles using bachelier_greek.py
+    profile_data = generate_greek_profiles_data(
+        K=strike,
+        sigma=implied_vol,
+        tau=T,
+        F_range=(future_price - 10, future_price + 10),
+        num_points=100
+    )
+    
+    # Create profile graphs
+    def create_profile_graph(greek_name, title):
+        """Create a Greek profile graph from bachelier_greek data"""
+        fig = go.Figure()
+        
+        # Add the analytical Greek profile
+        fig.add_trace(go.Scatter(
+            x=profile_data['F_vals'],
+            y=profile_data['greeks_ana'][greek_name],
+            mode='lines',
+            name='Analytical',
+            line=dict(color=default_theme.primary, width=2)
+        ))
+        
+        # Add vertical lines for current price and strike
+        fig.add_vline(x=future_price, line_dash="dash", line_color=default_theme.success,
+                      annotation_text="Current", annotation_position="top")
+        fig.add_vline(x=strike, line_dash="dot", line_color=default_theme.danger,
+                      annotation_text="Strike", annotation_position="top")
+        
+        # Update layout
+        fig.update_layout(
+            title=title,
+            xaxis_title="Future Price",
+            yaxis_title="Greek Value",
+            template="plotly_dark",
+            paper_bgcolor=default_theme.base_bg,
+            plot_bgcolor=default_theme.panel_bg,
+            font=dict(color=default_theme.text_light),
+            showlegend=False
+        )
+        
+        return fig
+    
+    # Create profile graphs for each Greek
+    profile_delta = Graph(
+        id="profile-delta-graph",
+        figure=create_profile_graph('delta', 'Delta Profile'),
+        theme=default_theme
+    ).render()
+    
+    profile_gamma = Graph(
+        id="profile-gamma-graph",
+        figure=create_profile_graph('gamma', 'Gamma Profile'),
+        theme=default_theme
+    ).render()
+    
+    profile_vega = Graph(
+        id="profile-vega-graph",
+        figure=create_profile_graph('vega', 'Vega Profile'),
+        theme=default_theme
+    ).render()
+    
+    profile_theta = Graph(
+        id="profile-theta-graph",
+        figure=create_profile_graph('theta', 'Theta Profile'),
+        theme=default_theme
+    ).render()
+    
+    profile_volga = Graph(
+        id="profile-volga-graph",
+        figure=create_profile_graph('volga', 'Volga Profile'),
+        theme=default_theme
+    ).render()
+    
+    profile_speed = Graph(
+        id="profile-speed-graph",
+        figure=create_profile_graph('speed', 'Speed Profile'),
         theme=default_theme
     ).render()
     
@@ -452,7 +810,11 @@ def update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, market
         }
     }
     
-    return store_data, vol_display, delta_graph, gamma_graph, vega_graph, theta_graph, greek_tables_grid
+    return (store_data, vol_display, delta_graph, gamma_graph, vega_graph, theta_graph, 
+            ultima_graph, zomma_graph, greek_tables_grid, comprehensive_greeks_table,
+            validation_data, r_squared_display, rmse_display,
+            # Greek profile graphs
+            profile_delta, profile_gamma, profile_vega, profile_theta, profile_volga, profile_speed)
 
 @app.callback(
     [Output("graph-view-container", "style"),

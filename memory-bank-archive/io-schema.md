@@ -549,13 +549,6 @@ This document tracks all public constants, configuration values, function parame
 | ultima | Output | float | vega × d × (d²-3) × (d²-1) / σ² | BondFutureOption.ultima |
 | zomma | Output | float | gamma × d / σ | BondFutureOption.zomma |
 | vomma_F | Output | float | Alias for volga_price | BondFutureOption.vomma_F |
-| bachelier_price | Function | Returns: float | F, K, sigma, tau | `from lib.trading.bond_future_options.bachelier_greek import bachelier_price; price = bachelier_price(112, 110, 0.75, 0.25)` |
-| analytical_greeks | Function | Returns: dict | F, K, sigma, tau | `greeks = analytical_greeks(112, 110, 0.75, 0.25)` |
-| numerical_greeks | Function | Returns: dict | F, K, sigma, tau, h=1e-4 | `greeks = numerical_greeks(112, 110, 0.75, 0.25, h=1e-5)` |
-| cross_effects | Function | Returns: dict | F, K, sigma, tau, h=1e-4 | `cross = cross_effects(112, 110, 0.75, 0.25)` - vanna, charm, veta |
-| third_order_greeks | Function | Returns: dict | F, K, sigma, tau | `third = third_order_greeks(112, 110, 0.75, 0.25)` - ultima, zomma |
-| numerical_third_order_greeks | Function | Returns: dict | F, K, sigma, tau, h=1e-4 | `third = numerical_third_order_greeks(112, 110, 0.75, 0.25)` |
-| taylor_expand | Function | Returns: float | g, dF, dSigma, dTau, cross=None | `change = taylor_expand(greeks, 0.1, 0.01, 0.01, cross_effects)` |
 
 ## Common Patterns
 

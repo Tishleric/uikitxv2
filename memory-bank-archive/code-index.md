@@ -245,18 +245,6 @@ A comprehensive summary of each code file with its purpose and key functionality
   - `analyze_bond_future_option_greeks()` - Main analysis function
   - `validate_refactoring()` - Validation against original implementation
 
-- **bachelier_greek.py** - Advanced Greek calculations using analytical and numerical methods (updated with ultima and zomma for third-order Greeks):
-  - `bachelier_price()` - Core Bachelier option pricing formula
-  - `analytical_greeks()` - First and second-order Greeks (delta, gamma, vega, theta, volga, color, speed)
-  - `numerical_greeks()` - Numerical calculation of first and second-order Greeks
-  - `third_order_greeks()` - Third-order Greeks (ultima, zomma) using analytical formulas
-  - `numerical_third_order_greeks()` - Numerical calculation of third-order Greeks
-  - `cross_effects()` - Cross-Greeks (vanna, charm, veta) using finite differences
-  - `taylor_expand()` - Taylor series expansion for option price approximation
-  - `generate_greek_profiles_data()` - Generate all 12 Greek profiles for UI integration
-  - `generate_taylor_summary_data()` - Generate Taylor approximation comparison data
-  - `generate_taylor_error_data()` - Generate Taylor approximation error analysis data
-
 - **numerical_greeks.py** - Numerical Greek calculations using finite differences:
   - `compute_derivatives()` - Core finite difference engine for up to 3rd order derivatives
   - `compute_derivatives_bond_future()` - Bond future wrapper with proper scaling
@@ -312,11 +300,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **zn_price_tracker.py** - ZN price tracking application
 
 #### Main Dashboard (`apps/dashboards/main/`)
-- **app.py** - Main dashboard Dash application with sidebar navigation for Option Hedging, Option Comparison, Greek Analysis (ALL 11 Greeks with summary panel), Scenario Ladder, Actant EOD, Actant PnL, Observatory👀, Project Documentation, and Logs (Legacy). Includes callbacks for all tabs and integrates multiple dashboards including the new Observatory system.
-  - Greek Analysis page: Removed original 11 individual Greek graphs, kept Greek profile visualization with all 12 Greeks
-  - Added `acp_generate_table_view` callback for dynamic table generation when in table view mode
-  - Implements full table/graph toggle for Greek profiles and Taylor approximation error analysis
-  - Legend positioning: Moved legends to be inline with titles (above graph area, right-aligned)
+- **app.py** - Main dashboard Dash application with sidebar navigation for Option Hedging, Option Comparison, Greek Analysis, Scenario Ladder, Actant EOD, Actant PnL, Observatory👀, Project Documentation, and Logs (Legacy). Includes callbacks for all tabs and integrates multiple dashboards including the new Observatory system.
 
 #### Actant Preprocessing Dashboard (`apps/dashboards/actant_preprocessing/`)
 - **__init__.py** - Package initialization for BFO Greek Analysis dashboard
@@ -571,16 +555,4 @@ Integration tests for circuit breaker with observability system. Tests database 
 
 #### tests/monitoring/observability/demo_circuit_breaker.py
 Demo script showing circuit breaker in action. Demonstrates failure detection, circuit opening, call rejection, timeout-based recovery, and SQLite writer protection under database failures.
-
-## Archive Structure
-
-### memory-bank-archive/
-A complete backup of all memory bank contents created on 2025-06-22 for preserving implementation history. The archive is organized into:
-- **core-docs/**: Core project documentation (projectBrief, systemPatterns, etc.)
-- **implementation-history/**: Historical dashboard and implementation documents
-- **analysis-docs/**: Analysis, guidelines, and findings documents
-- **phase-summaries/**: Phase completion summaries from development
-- **actant_pnl/**: Complete copy of the actant_pnl subfolder with all implementation history
-
-This archive preserves all historical context while the main memory-bank folder has been trimmed to focus on active development work.
 

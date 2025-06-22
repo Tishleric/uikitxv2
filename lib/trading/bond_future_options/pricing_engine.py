@@ -8,7 +8,10 @@ import matplotlib.pyplot as plt
 
 from math import exp
 
- 
+# Import new Bachelier Greek calculations
+from lib.trading.bond_future_options.bachelier_greek import (
+    analytical_greeks, cross_effects, third_order_greeks
+)
 
 class BondFutureOption:
 
@@ -71,6 +74,31 @@ class BondFutureOption:
         # print(f"  Yield Level: {self.yield_level:.4f}")
 
    
+    def _get_all_bachelier_greeks(self, F, K, price_volatility, T):
+        """
+        Private method to get all Greeks from bachelier_greek.py
+        
+        Returns a combined dictionary of all Greeks
+        """
+        # Convert T to tau (bachelier_greek uses tau)
+        tau = T
+        
+        # Get analytical Greeks (first and second order)
+        greeks = analytical_greeks(F, K, price_volatility, tau)
+        
+        # Get cross-effect Greeks
+        cross = cross_effects(F, K, price_volatility, tau)
+        
+        # Get third-order Greeks
+        third = third_order_greeks(F, K, price_volatility, tau)
+        
+        # Combine all Greeks into one dictionary
+        all_greeks = {}
+        all_greeks.update(greeks)
+        all_greeks.update(cross)
+        all_greeks.update(third)
+        
+        return all_greeks
 
     def convert_price_to_yield_volatility(self, price_volatility):
 
@@ -171,90 +199,110 @@ class BondFutureOption:
  
 
     def theta_F(self, F, K, T, price_volatility):
-
         if T <= 0:
-
             return 0.0
-
-        sigma_sqrt_T = price_volatility * np.sqrt(T)
-
-        d = (F - K) / sigma_sqrt_T
-
-        return -price_volatility * norm.pdf(d) / (2 * np.sqrt(T))/252.0
+        
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Get theta and apply daily conversion
+        # Note: bachelier_greek returns negative theta (time decay)
+        # We divide by 252 for daily theta
+        return greeks['theta'] / 252.0
 
  
 
     def volga_price(self, F, K, T, price_volatility):
-
         if T <= 0 or price_volatility == 0:
-
             return 0.0
-
-        sigma_sqrt_T = price_volatility * np.sqrt(T)
-
-        d = (F - K) / sigma_sqrt_T
-
-        vega = self.vega_price(F, K, T, price_volatility)
-
-        return vega * d * (d**2 - 1) / price_volatility
+        
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Return volga directly (no scaling needed for volga_price)
+        return greeks['volga']
 
  
 
     def vanna_F_price(self, F, K, T, price_volatility):
-
         if T <= 0:
-
             return 0.0
-
-        sigma_sqrt_T = price_volatility * np.sqrt(T)
-
-        d = (F - K) / sigma_sqrt_T
-
-        return -norm.pdf(d) * d / sigma_sqrt_T if sigma_sqrt_T != 0 else 0.0
+        
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Return vanna directly (no scaling needed for vanna_F_price)
+        return greeks['vanna']
 
  
 
     def charm_F(self, F, K, T, price_volatility):
-
         if T <= 0:
-
             return 0.0
-
-        sigma_sqrt_T = price_volatility * np.sqrt(T)
-
-        d = (F - K) / sigma_sqrt_T
-
-        return norm.pdf(d) * (2*price_volatility*T - d*sigma_sqrt_T) / (2*T*sigma_sqrt_T) if T != 0 and sigma_sqrt_T != 0 else 0.0
+        
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Return charm directly (no scaling needed for charm_F)
+        return greeks['charm']
 
  
 
     def speed_F(self, F, K, T, price_volatility):
-
         if T <= 0:
-
             return 0.0
-
-        gamma = self.gamma_F(F, K, T, price_volatility)
-
-        sigma_sqrt_T = price_volatility * np.sqrt(T)
-
-        d = (F - K) / sigma_sqrt_T
-
-        return -gamma * (d/sigma_sqrt_T + 1/sigma_sqrt_T) if sigma_sqrt_T != 0 else 0.0
+        
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Return speed directly (no scaling needed for speed_F)
+        return greeks['speed']
 
  
 
     def color_F(self, F, K, T, price_volatility):
-
         if T <= 0:
-
             return 0.0
+        
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Return color directly (no scaling needed for color_F)
+        return greeks['color']
 
-        sigma_sqrt_T = price_volatility * np.sqrt(T)
+ 
 
-        d = (F - K) / sigma_sqrt_T
+    def ultima(self, F, K, T, price_volatility):
+        """∂³V/∂σ³ - Third derivative with respect to volatility (vomma convexity)"""
+        if T <= 0 or price_volatility == 0:
+            return 0.0
+        
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Return ultima directly (no scaling needed for ultima)
+        return greeks['ultima']
 
-        return -norm.pdf(d) / (2*T*sigma_sqrt_T) * (2*price_volatility*T + 1 - d**2) if T != 0 and sigma_sqrt_T != 0 else 0.0
+ 
+
+    def zomma(self, F, K, T, price_volatility):
+        """∂³V/∂F²∂σ - Gamma sensitivity to volatility (also called gamma vanna)"""
+        if T <= 0:
+            return 0.0
+        
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Return zomma directly (no scaling needed for zomma)
+        return greeks['zomma']
+
+ 
+
+    def vomma_F(self, F, K, T, price_volatility):
+
+        """∂²V/∂σ² - Alias for volga_price for consistency"""
+
+        return self.volga_price(F, K, T, price_volatility)
 
  
 
@@ -263,28 +311,46 @@ class BondFutureOption:
  
 
     def delta_y(self, F, K, T, price_volatility, option_type='call'):
-
-        return self.delta_F(F, K, T, price_volatility, option_type) * self.future_dv01
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Get call delta from bachelier_greek
+        delta_F = greeks['delta']
+        
+        # Adjust for put option if needed
+        if option_type == 'put':
+            delta_F = delta_F - 1.0
+            
+        # Apply DV01 adjustment for Y-space
+        return delta_F * self.future_dv01
 
  
 
     def gamma_y(self, F, K, T, price_volatility, option_type='call'):
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Get gamma and delta from bachelier_greek
+        gamma_F = greeks['gamma']
+        delta_F = greeks['delta']
+        
+        # Adjust delta for put option if needed
+        if option_type == 'put':
+            delta_F = delta_F - 1.0
 
-        gamma_F = self.gamma_F(F, K, T, price_volatility)
-
-        delta_F = self.delta_F(F, K, T, price_volatility, option_type)
-
+        # Apply DV01 and convexity adjustments for Y-space
         dF_dy = -self.future_dv01
-
         d2F_dy2 = self.future_convexity
-
         return gamma_F * (dF_dy**2) + delta_F * d2F_dy2
 
  
 
     def vega_y(self, F, K, T, price_volatility):
-
-        return self.vega_price(F, K, T, price_volatility) * self.future_dv01
+        # Get analytical Greeks from bachelier_greek
+        greeks = self._get_all_bachelier_greeks(F, K, price_volatility, T)
+        
+        # Get vega from bachelier_greek and apply DV01 adjustment
+        return greeks['vega'] * self.future_dv01
 
  
 

@@ -51,6 +51,7 @@ try:
     from trading.pricing_monkey import run_pm_automation, get_market_movement_data_df, SCENARIOS
     print("Successfully imported PM modules.")
     from trading.bond_future_options import analyze_bond_future_option_greeks
+    from trading.bond_future_options.bachelier_greek import generate_greek_profiles_data, generate_taylor_error_data
     print("Successfully imported bond future options module.")
     from trading.ladder import decimal_to_tt_bond_format, csv_to_sqlite_table, query_sqlite_table
     print("Successfully imported ladder utilities.")
@@ -1070,6 +1071,11 @@ def create_greek_analysis_content():
                 acp_create_parameter_inputs().render()
             ], style={"marginBottom": "30px"}),
             
+            # Greek Summary Panel
+            html.Div(id="acp-greek-summary-container"),
+            
+
+            
             # Toggle Buttons (Graph/Table view)
             html.Div([
                 html.Div([
@@ -1099,30 +1105,13 @@ def create_greek_analysis_content():
                 ], style={"display": "flex", "justifyContent": "center", "marginBottom": "20px"})
             ]),
             
-            # Graph View Container
+            # Graph View Container - Individual Greek graphs removed (replaced by Greek Profile Analysis below)
             html.Div(
                 id="acp-graph-view-container",
                 children=[
-                    Loading(
-                        id="acp-graph-loading",
-                        children=[
-                            Grid(
-                                id="acp-greek-graphs-grid",
-                                children=[
-                                    # Graphs will be updated by callback
-                                    (html.Div(id="acp-delta-graph-container"), {"width": 6}),
-                                    (html.Div(id="acp-gamma-graph-container"), {"width": 6}),
-                                    (html.Div(id="acp-vega-graph-container"), {"width": 6}),
-                                    (html.Div(id="acp-theta-graph-container"), {"width": 6})
-                                ],
-                                theme=default_theme
-                            ).render()
-                        ],
-                        type="circle",
-                        theme=default_theme
-                    ).render()
+                    # Empty container - content moved to Greek Profile Analysis section
                 ],
-                style={"display": "block"}
+                style={"display": "none"}  # Hidden by default since original graphs removed
             ),
             
             # Table View Container
@@ -1139,6 +1128,64 @@ def create_greek_analysis_content():
                     ).render()
                 ],
                 style={"display": "none"}
+            ),
+            
+            # Greek Profile Graphs Container - will be hidden when table view is active
+            html.Div(
+                id="acp-greek-profile-graphs-container",
+                children=[
+                    # Greek Profile Analysis Section
+                    html.Hr(style={"borderColor": default_theme.secondary, "margin": "30px 0"}),
+                    html.H4("Greek Profile Analysis: Analytical vs Numerical", style={"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}),
+                    
+                    # Greek Profile Graphs Grid
+                    Loading(
+                        id="acp-profile-loading",
+                        children=[
+                            Grid(
+                                id="acp-greek-profile-grid",
+                                children=[
+                                    # Row 1: delta_y, gamma_y, vega_y
+                                    (html.Div(id="acp-profile-delta-container"), {"width": 4}),
+                                    (html.Div(id="acp-profile-gamma-container"), {"width": 4}),
+                                    (html.Div(id="acp-profile-vega-container"), {"width": 4}),
+                                    # Row 2: theta_F, volga_price, vanna_F_price
+                                    (html.Div(id="acp-profile-theta-container"), {"width": 4}),
+                                    (html.Div(id="acp-profile-volga-container"), {"width": 4}),
+                                    (html.Div(id="acp-profile-vanna-container"), {"width": 4}),
+                                    # Row 3: charm_F, speed_F, color_F
+                                    (html.Div(id="acp-profile-charm-container"), {"width": 4}),
+                                    (html.Div(id="acp-profile-speed-container"), {"width": 4}),
+                                    (html.Div(id="acp-profile-color-container"), {"width": 4}),
+                                    # Row 4: ultima, zomma, empty
+                                    (html.Div(id="acp-profile-ultima-container"), {"width": 4}),
+                                    (html.Div(id="acp-profile-zomma-container"), {"width": 4}),
+                                    (html.Div(), {"width": 4})  # Empty placeholder
+                                ],
+                                theme=default_theme
+                            ).render()
+                        ],
+                        type="circle",
+                        theme=default_theme
+                    ).render(),
+                    
+                    # Taylor Approximation Accuracy Section
+                    html.Hr(style={"borderColor": default_theme.secondary, "margin": "30px 0"}),
+                    html.H4("Taylor Approximation Accuracy", style={"color": default_theme.primary, "marginBottom": "20px", "textAlign": "center"}),
+                    html.P("Shows how accurately the Greeks predict option price changes for various market movements", 
+                           style={"color": default_theme.text_subtle, "textAlign": "center", "marginBottom": "20px"}),
+                    
+                    # Taylor Error Graph (full width)
+                    Loading(
+                        id="acp-taylor-loading",
+                        children=[
+                            html.Div(id="acp-taylor-error-container")
+                        ],
+                        type="circle",
+                        theme=default_theme
+                    ).render()
+                ],
+                style={"display": "block"}  # Initially visible
             )
         ],
         theme=default_theme,
@@ -4129,11 +4176,22 @@ def empty_logs(n_clicks):
 @app.callback(
     [Output("acp-greek-profiles-store", "data"),
      Output("acp-implied-vol-display", "children"),
-     Output("acp-delta-graph-container", "children"),
-     Output("acp-gamma-graph-container", "children"),
-     Output("acp-vega-graph-container", "children"),
-     Output("acp-theta-graph-container", "children"),
-     Output("acp-greek-table-container", "children")],
+     Output("acp-greek-summary-container", "children"),
+     Output("acp-greek-table-container", "children"),
+     # Greek profile outputs
+     Output("acp-profile-delta-container", "children"),
+     Output("acp-profile-gamma-container", "children"),
+     Output("acp-profile-vega-container", "children"),
+     Output("acp-profile-theta-container", "children"),
+     Output("acp-profile-volga-container", "children"),
+     Output("acp-profile-vanna-container", "children"),
+     Output("acp-profile-charm-container", "children"),
+     Output("acp-profile-speed-container", "children"),
+     Output("acp-profile-color-container", "children"),
+     Output("acp-profile-ultima-container", "children"),
+     Output("acp-profile-zomma-container", "children"),
+     # Taylor error output
+     Output("acp-taylor-error-container", "children")],
     [Input("acp-recalculate-button", "n_clicks")],
     [State("acp-strike-input", "value"),
      State("acp-future-price-input", "value"),
@@ -4174,42 +4232,298 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, ma
     yield_vol = results['model'].convert_price_to_yield_volatility(implied_vol)
     vol_display = f"Price Vol: {implied_vol:.2f} | Yield Vol: {yield_vol:.2f}"
     
-    # Create the graphs
-    delta_graph = Graph(
-        id="acp-delta-graph",
-        figure=acp_create_greek_graph(df_profiles, 'delta_y', 'Delta Profile (Y-Space)', strike, future_price),
-        theme=default_theme
-    ).render()
+    # Individual Greek graphs removed from display
     
-    gamma_graph = Graph(
-        id="acp-gamma-graph",
-        figure=acp_create_greek_graph(df_profiles, 'gamma_y', 'Gamma Profile (Y-Space)', strike, future_price),
-        theme=default_theme
-    ).render()
+    # Placeholder for Greek tables - will be populated later after store_data is created
+    greek_tables_grid = html.Div()
     
-    vega_graph = Graph(
-        id="acp-vega-graph",
-        figure=acp_create_greek_graph(df_profiles, 'vega_y', 'Vega Profile (Y-Space)', strike, future_price),
-        theme=default_theme
-    ).render()
+    # Create Greek Summary Table showing current values at market price
+    greek_summary_data = []
     
-    theta_graph = Graph(
-        id="acp-theta-graph",
-        figure=acp_create_greek_graph(df_profiles, 'theta_F', 'Theta Profile (F-Space)', strike, future_price),
-        theme=default_theme
-    ).render()
+    # Define Greek mapping with proper column names and display names
+    greek_mapping = [
+        ('delta_y', 'Delta (Y-Space)', 'Y-Space'),
+        ('gamma_y', 'Gamma (Y-Space)', 'Y-Space'),
+        ('vega_y', 'Vega (Y-Space)', 'Y-Space'),
+        ('theta_F', 'Theta (F-Space)', 'F-Space'),
+        ('volga_price', 'Volga (Price Vol)', 'Price'),
+        ('vanna_F_price', 'Vanna (F-Price)', 'F-Price'),
+        ('charm_F', 'Charm (F-Space)', 'F-Space'),
+        ('speed_F', 'Speed (F-Space)', 'F-Space'),
+        ('color_F', 'Color (F-Space)', 'F-Space'),
+        ('ultima', 'Ultima', ''),
+        ('zomma', 'Zomma', '')
+    ]
     
-    # Create the table view with 2x2 grid of Greek tables
-    greek_tables_grid = Grid(
-        id="acp-greek-tables-grid",
-        children=[
-            # Top row: Delta and Gamma tables
-            (acp_create_greek_table(df_profiles, 'delta_y', 'Delta Profile (Y-Space)', future_price, strike), {"width": 6}),
-            (acp_create_greek_table(df_profiles, 'gamma_y', 'Gamma Profile (Y-Space)', future_price, strike), {"width": 6}),
-            # Bottom row: Vega and Theta tables
-            (acp_create_greek_table(df_profiles, 'vega_y', 'Vega Profile (Y-Space)', future_price, strike), {"width": 6}),
-            (acp_create_greek_table(df_profiles, 'theta_F', 'Theta Profile (F-Space)', future_price, strike), {"width": 6})
+    # Extract current Greek values
+    for greek_key, greek_name, space_type in greek_mapping:
+        if greek_key in current_greeks:
+            value = current_greeks[greek_key]
+            # Format the value based on its magnitude
+            if abs(value) < 0.0001:
+                formatted_value = f"{value:.6f}"
+            elif abs(value) < 0.01:
+                formatted_value = f"{value:.4f}"
+            else:
+                formatted_value = f"{value:.2f}"
+            
+            row = {
+                'Greek': greek_name,
+                'Value': formatted_value,
+                'Space': space_type
+            }
+            greek_summary_data.append(row)
+    
+    # Create the summary table
+    greek_summary_table = DataTable(
+        id="acp-greek-summary-table",
+        data=greek_summary_data,
+        columns=[
+            {"name": "Greek", "id": "Greek"},
+            {"name": "Value", "id": "Value"},
+            {"name": "Space", "id": "Space"}
         ],
+        theme=default_theme,
+        style_cell={
+            'backgroundColor': default_theme.base_bg,
+            'color': default_theme.text_light,
+            'textAlign': 'left',
+            'padding': '10px',
+            'whiteSpace': 'normal',
+            'height': 'auto',
+            'minWidth': '100px',
+            'width': '120px',
+            'maxWidth': '150px',
+        },
+        style_header={
+            'backgroundColor': default_theme.secondary,
+            'color': default_theme.primary,
+            'fontWeight': '500',
+            'textAlign': 'center'
+        },
+        style_data_conditional=[
+            {
+                'if': {'column_id': 'Value'},
+                'textAlign': 'right',
+                'fontWeight': 'bold'
+            },
+            {
+                'if': {'column_id': 'Space'},
+                'textAlign': 'center',
+                'fontStyle': 'italic',
+                'color': default_theme.text_subtle
+            }
+        ],
+        style_table={
+            'width': '100%',
+            'maxWidth': '500px',
+            'margin': 'auto'
+        }
+    ).render()
+    
+    # Create the summary container
+    greek_summary_container = Container(
+        id="acp-greek-summary-panel",
+        children=[
+            html.H4("Current Greek Values at Market Price", 
+                   style={"color": default_theme.primary, "marginBottom": "15px", "textAlign": "center"}),
+            greek_summary_table
+        ],
+        theme=default_theme,
+        style={'padding': '20px', 'marginBottom': '20px', 'backgroundColor': default_theme.panel_bg, 
+               'borderRadius': '4px', 'border': f'1px solid {default_theme.secondary}'}
+    ).render()
+    
+    # Generate Greek profile data from bachelier_greek.py
+    tau = days_to_expiry / 252.0  # Convert to years
+    F_range = (future_price - 10, future_price + 10)  # ±10 from current price
+    
+    # Generate profile data
+    profile_data = generate_greek_profiles_data(
+        K=strike,
+        sigma=implied_vol,
+        tau=tau,
+        F_range=F_range
+    )
+    
+    # Generate Taylor error data
+    taylor_data = generate_taylor_error_data(
+        K=strike,
+        sigma=implied_vol,
+        tau=tau,
+        dF=0.1,  # Standard shock sizes
+        dSigma=0.01,
+        dTau=0.01,
+        F_range=F_range
+    )
+    
+    # Create profile graphs with appropriate mapping and scaling
+    # Map bachelier names to dashboard names and apply scaling
+    greek_profile_mapping = [
+        ('delta', 'delta_y', 'Delta (Y-Space)', dv01),
+        ('gamma', 'gamma_y', 'Gamma (Y-Space)', dv01 * dv01),
+        ('vega', 'vega_y', 'Vega (Y-Space)', dv01),
+        ('theta', 'theta_F', 'Theta (F-Space)', 1.0),
+        ('volga', 'volga_price', 'Volga (Price Vol)', 1.0),
+        ('vanna', 'vanna_F_price', 'Vanna (F-Price)', 1.0),
+        ('charm', 'charm_F', 'Charm (F-Space)', 1.0),
+        ('speed', 'speed_F', 'Speed (F-Space)', 1.0),
+        ('color', 'color_F', 'Color (F-Space)', 1.0),
+        ('ultima', 'ultima', 'Ultima', 1.0),
+        ('zomma', 'zomma', 'Zomma', 1.0)
+    ]
+    
+    profile_graphs = []
+    for bachelier_name, dashboard_name, title, scale_factor in greek_profile_mapping:
+        if bachelier_name in profile_data.get('greeks_ana', {}):
+            # Create data with scaling applied
+            F_values = profile_data['F_vals']
+            greek_values = np.array(profile_data['greeks_ana'][bachelier_name])
+            
+            # Apply option type adjustment for delta
+            if bachelier_name == 'delta' and option_type == 'put':
+                greek_values = greek_values - 1.0
+            
+            # Apply daily conversion for theta
+            if bachelier_name == 'theta':
+                greek_values = greek_values / 252.0
+            
+            # Apply scaling
+            greek_values = greek_values * scale_factor * 1000  # Apply scale and ×1000
+            
+            # Create the figure with both analytical and numerical profiles
+            fig = go.Figure()
+            
+            # Add analytical profile
+            fig.add_trace(go.Scatter(
+                x=F_values,
+                y=greek_values,
+                mode='lines',
+                name='Analytical (Bachelier Model)',
+                line=dict(color=default_theme.primary, width=2)
+            ))
+            
+            # Add numerical profile if available
+            if bachelier_name in profile_data.get('greeks_num', {}):
+                greek_values_num = np.array(profile_data['greeks_num'][bachelier_name])
+                
+                # Apply same adjustments for numerical
+                if bachelier_name == 'delta' and option_type == 'put':
+                    greek_values_num = greek_values_num - 1.0
+                if bachelier_name == 'theta':
+                    greek_values_num = greek_values_num / 252.0
+                    
+                greek_values_num = greek_values_num * scale_factor * 1000
+                
+                fig.add_trace(go.Scatter(
+                    x=F_values,
+                    y=greek_values_num,
+                    mode='lines',
+                    name='Numerical (Finite Differences)',
+                    line=dict(color=default_theme.accent, width=2, dash='dash')
+                ))
+            
+            # Add vertical lines for current price and strike
+            fig.add_vline(x=future_price, line_dash="dash", line_color=default_theme.accent, 
+                         annotation_text="Current", annotation_position="top")
+            fig.add_vline(x=strike, line_dash="dot", line_color=default_theme.danger, 
+                         annotation_text="Strike", annotation_position="bottom")
+            
+            # Update layout
+            fig.update_layout(
+                title=title,
+                xaxis_title="Future Price",
+                yaxis_title=dashboard_name,
+                plot_bgcolor=default_theme.base_bg,
+                paper_bgcolor=default_theme.panel_bg,
+                font_color=default_theme.text_light,
+                xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                yaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+                margin=dict(l=60, r=20, t=60, b=50),
+                height=300,
+                legend=dict(
+                    orientation='h',  # Horizontal layout
+                    x=1.0,  # Right edge
+                    y=1.15,  # Above the plot area, inline with title
+                    xanchor='right',
+                    yanchor='bottom',
+                    bgcolor='rgba(0,0,0,0)',  # Transparent background
+                    bordercolor=default_theme.text_subtle,
+                    borderwidth=0
+                )
+            )
+            
+            # Create Graph component
+            graph = Graph(
+                id=f"acp-profile-{dashboard_name}-graph",
+                figure=fig,
+                theme=default_theme
+            ).render()
+            
+            profile_graphs.append(graph)
+        else:
+            profile_graphs.append(html.Div("Greek not available", style={"color": default_theme.text_subtle}))
+    
+    # Create Taylor error graph
+    taylor_fig = go.Figure()
+    
+    # Add lines for different approximation methods
+    F_values = taylor_data['F_vals']
+    colors = {
+        'errors_ana': default_theme.primary,
+        'errors_ana_cross': default_theme.accent,
+        'errors_num_cross': default_theme.danger
+    }
+    
+    method_names = {
+        'errors_ana': 'Analytical',
+        'errors_ana_cross': 'Analytical + Cross',
+        'errors_num_cross': 'Numerical + Cross'
+    }
+    
+    for method_key, display_name in method_names.items():
+        if method_key in taylor_data:
+            taylor_fig.add_trace(go.Scatter(
+                x=F_values,
+                y=taylor_data[method_key],
+                mode='lines',
+                name=display_name,
+                line=dict(color=colors[method_key], width=2)
+            ))
+    
+    # Add vertical lines
+    taylor_fig.add_vline(x=future_price, line_dash="dash", line_color=default_theme.accent, 
+                        annotation_text="Current", annotation_position="top")
+    taylor_fig.add_vline(x=strike, line_dash="dot", line_color=default_theme.danger, 
+                        annotation_text="Strike", annotation_position="bottom")
+    
+    # Update layout
+    taylor_fig.update_layout(
+        title="Taylor Approximation Error Analysis",
+        xaxis_title="Future Price",
+        yaxis_title="Absolute Prediction Error",
+        plot_bgcolor=default_theme.base_bg,
+        paper_bgcolor=default_theme.panel_bg,
+        font_color=default_theme.text_light,
+        xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
+        yaxis=dict(showgrid=True, gridcolor=default_theme.secondary, type='linear'),  # Linear scale for errors
+        margin=dict(l=60, r=20, t=60, b=50),
+        height=400,
+        legend=dict(
+            orientation='h',  # Horizontal layout
+            x=1.0,  # Right edge
+            y=1.12,  # Above the plot area, inline with title
+            xanchor='right',
+            yanchor='bottom',
+            bgcolor='rgba(0,0,0,0)',  # Transparent background
+            bordercolor=default_theme.text_subtle,
+            borderwidth=0
+        )
+    )
+    
+    taylor_graph = Graph(
+        id="acp-taylor-error-graph",
+        figure=taylor_fig,
         theme=default_theme
     ).render()
     
@@ -4217,20 +4531,261 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, ma
     store_data = {
         'profiles': df_profiles.to_dict('records'),
         'current_greeks': current_greeks,
+        'profile_data': profile_data,  # Add profile data for table generation
+        'taylor_data': taylor_data,     # Add taylor data for table generation
         'parameters': {
             'strike': strike,
             'future_price': future_price,
             'days_to_expiry': days_to_expiry,
             'option_type': option_type,
-            'implied_vol': implied_vol
+            'implied_vol': implied_vol,
+            'dv01': dv01
         }
     }
     
-    return store_data, vol_display, delta_graph, gamma_graph, vega_graph, theta_graph, greek_tables_grid
+    # Return all outputs including new profile graphs
+    return (store_data, vol_display, greek_summary_container, greek_tables_grid,
+            # Profile graphs
+            profile_graphs[0], profile_graphs[1], profile_graphs[2], profile_graphs[3],
+            profile_graphs[4], profile_graphs[5], profile_graphs[6], profile_graphs[7],
+            profile_graphs[8], profile_graphs[9], profile_graphs[10],
+            # Taylor error graph
+            taylor_graph)
+
+@app.callback(
+    Output("acp-greek-table-container", "children", allow_duplicate=True),
+    [Input("acp-greek-profiles-store", "data"),
+     Input("acp-view-mode-table-btn", "n_clicks")],
+    [State("acp-view-mode-graph-btn", "n_clicks")],
+    prevent_initial_call=True
+)
+@TraceCloser()
+@TraceTime(log_args=False, log_return=False)
+def acp_generate_table_view(store_data, table_clicks, graph_clicks):
+    """Generate table view content when in table mode"""
+    # Determine if we're in table view
+    ctx = dash.callback_context
+    if not store_data:
+        return html.Div()
+    
+    # Check which button was clicked last
+    is_table_view = False
+    if ctx.triggered:
+        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        if triggered_id == "acp-view-mode-table-btn":
+            is_table_view = True
+    else:
+        # Check click counts
+        table_clicks = table_clicks or 0
+        graph_clicks = graph_clicks or 0
+        is_table_view = table_clicks > graph_clicks
+    
+    if not is_table_view:
+        return html.Div()
+    
+    # Generate tables from stored data
+    profile_data = store_data.get('profile_data', {})
+    taylor_data = store_data.get('taylor_data', {})
+    parameters = store_data.get('parameters', {})
+    
+    if not profile_data:
+        return html.Div("No profile data available", style={"color": default_theme.text_subtle})
+    
+    # Extract parameters
+    dv01 = parameters.get('dv01', 100.0)
+    option_type = parameters.get('option_type', 'call')
+    
+    # Create tables from the profile data
+    greek_profile_tables = []
+    
+    # Greek profile mapping (same as used for graphs)
+    greek_profile_mapping = [
+        ('delta', 'delta_y', 'Delta (Y-Space)', dv01),
+        ('gamma', 'gamma_y', 'Gamma (Y-Space)', dv01 * dv01),
+        ('vega', 'vega_y', 'Vega (Y-Space)', dv01),
+        ('theta', 'theta_F', 'Theta (F-Space)', 1.0),
+        ('volga', 'volga_price', 'Volga (Price Vol)', 1.0),
+        ('vanna', 'vanna_F_price', 'Vanna (F-Price)', 1.0),
+        ('charm', 'charm_F', 'Charm (F-Space)', 1.0),
+        ('speed', 'speed_F', 'Speed (F-Space)', 1.0),
+        ('color', 'color_F', 'Color (F-Space)', 1.0),
+        ('ultima', 'ultima', 'Ultima', 1.0),
+        ('zomma', 'zomma', 'Zomma', 1.0),
+        ('veta', 'veta', 'Veta', 1.0)  # Include veta if available
+    ]
+    
+    # Generate table for each Greek profile
+    for bachelier_name, dashboard_name, title, scale_factor in greek_profile_mapping:
+        if bachelier_name in profile_data.get('greeks_ana', {}):
+            # Create table data
+            table_rows = []
+            F_values = profile_data['F_vals']
+            greek_ana = np.array(profile_data['greeks_ana'][bachelier_name])
+            
+            # Apply option type and daily conversion adjustments
+            if bachelier_name == 'delta' and option_type == 'put':
+                greek_ana = greek_ana - 1.0
+            if bachelier_name == 'theta':
+                greek_ana = greek_ana / 252.0
+                
+            # Apply scaling
+            greek_ana = greek_ana * scale_factor * 1000
+            
+            # Get numerical values if available
+            greek_num = None
+            if bachelier_name in profile_data.get('greeks_num', {}):
+                greek_num = np.array(profile_data['greeks_num'][bachelier_name])
+                if bachelier_name == 'delta' and option_type == 'put':
+                    greek_num = greek_num - 1.0
+                if bachelier_name == 'theta':
+                    greek_num = greek_num / 252.0
+                greek_num = greek_num * scale_factor * 1000
+            
+            # Create table rows (show all points)
+            for i in range(len(F_values)):
+                row = {
+                    'Future Price': f"{F_values[i]:.3f}",
+                    'Analytical': f"{greek_ana[i]:.6f}",
+                }
+                if greek_num is not None:
+                    row['Numerical'] = f"{greek_num[i]:.6f}"
+                table_rows.append(row)
+            
+            # Create columns
+            columns = [
+                {"name": "Future Price", "id": "Future Price"},
+                {"name": "Analytical", "id": "Analytical"},
+            ]
+            if greek_num is not None:
+                columns.append({"name": "Numerical", "id": "Numerical"})
+            
+            # Create the table
+            table = Container(
+                id=f"acp-profile-{dashboard_name}-table-container",
+                children=[
+                    html.H6(title, style={"color": default_theme.primary, "marginBottom": "10px"}),
+                    DataTable(
+                        id=f"acp-profile-{dashboard_name}-table",
+                        data=table_rows,
+                        columns=columns,
+                        theme=default_theme,
+                        page_size=len(table_rows),  # Show all rows without pagination
+                        style_cell={
+                            'backgroundColor': default_theme.base_bg,
+                            'color': default_theme.text_light,
+                            'textAlign': 'right',
+                            'padding': '5px',
+                            'fontSize': '12px'
+                        },
+                        style_header={
+                            'backgroundColor': default_theme.secondary,
+                            'color': default_theme.primary,
+                            'fontWeight': '500',
+                            'textAlign': 'center'
+                        },
+                        style_table={
+                            'overflowY': 'auto'  # Removed fixed height to show all rows
+                        },
+                        style_data_conditional=[
+                            {
+                                'if': {'column_id': 'Future Price'},
+                                'fontWeight': 'bold'
+                            }
+                        ]
+                    ).render()
+                ],
+                theme=default_theme,
+                style={'marginBottom': '20px'}
+            ).render()
+            
+            greek_profile_tables.append((table, {"width": 4}))
+    
+    # Create Taylor error table
+    if taylor_data:
+        taylor_rows = []
+        F_values = taylor_data.get('F_vals', [])
+        
+        # Show all points
+        for i in range(len(F_values)):
+            row = {'Future Price': f"{F_values[i]:.3f}"}
+            if 'errors_ana' in taylor_data:
+                row['Analytical'] = f"{taylor_data['errors_ana'][i]:.6f}"
+            if 'errors_ana_cross' in taylor_data:
+                row['Analytical + Cross'] = f"{taylor_data['errors_ana_cross'][i]:.6f}"
+            if 'errors_num_cross' in taylor_data:
+                row['Numerical + Cross'] = f"{taylor_data['errors_num_cross'][i]:.6f}"
+            taylor_rows.append(row)
+        
+        # Create columns
+        taylor_columns = [{"name": "Future Price", "id": "Future Price"}]
+        if 'errors_ana' in taylor_data:
+            taylor_columns.append({"name": "Analytical", "id": "Analytical"})
+        if 'errors_ana_cross' in taylor_data:
+            taylor_columns.append({"name": "Analytical + Cross", "id": "Analytical + Cross"})
+        if 'errors_num_cross' in taylor_data:
+            taylor_columns.append({"name": "Numerical + Cross", "id": "Numerical + Cross"})
+        
+        # Create Taylor error table
+        taylor_table = Container(
+            id="acp-taylor-error-table-container",
+            children=[
+                html.H5("Taylor Approximation Error Analysis", 
+                       style={"color": default_theme.primary, "marginBottom": "15px", "textAlign": "center"}),
+                DataTable(
+                    id="acp-taylor-error-table",
+                    data=taylor_rows,
+                    columns=taylor_columns,
+                    theme=default_theme,
+                    page_size=len(taylor_rows),  # Show all rows without pagination
+                    style_cell={
+                        'backgroundColor': default_theme.base_bg,
+                        'color': default_theme.text_light,
+                        'textAlign': 'right',
+                        'padding': '5px'
+                    },
+                    style_header={
+                        'backgroundColor': default_theme.secondary,
+                        'color': default_theme.primary,
+                        'fontWeight': '500',
+                        'textAlign': 'center'
+                    },
+                    style_table={
+                        'overflowY': 'auto',  # Removed fixed height to show all rows
+                        'margin': 'auto'
+                    },
+                    style_data_conditional=[
+                        {
+                            'if': {'column_id': 'Future Price'},
+                            'fontWeight': 'bold'
+                        }
+                    ]
+                ).render()
+            ],
+            theme=default_theme,
+            style={'marginTop': '30px'}
+        ).render()
+        
+        # Combine all tables in a grid
+        return html.Div([
+            Grid(
+                id="acp-greek-profile-tables-grid",
+                children=greek_profile_tables,
+                theme=default_theme
+            ).render(),
+            taylor_table
+        ])
+    else:
+        # Just Greek tables
+        return Grid(
+            id="acp-greek-profile-tables-grid",
+            children=greek_profile_tables,
+            theme=default_theme
+        ).render()
 
 @app.callback(
     [Output("acp-graph-view-container", "style"),
      Output("acp-table-view-container", "style"),
+     Output("acp-greek-profile-graphs-container", "style"),
      Output("acp-view-mode-graph-btn", "style"),
      Output("acp-view-mode-table-btn", "style")],
     [Input("acp-view-mode-graph-btn", "n_clicks"),
@@ -4245,7 +4800,7 @@ def acp_toggle_view_mode(graph_clicks, table_clicks):
     if not ctx.triggered:
         # Default to graph view
         return (
-            {"display": "block"}, {"display": "none"},
+            {"display": "block"}, {"display": "none"}, {"display": "block"},
             {
                 'borderTopRightRadius': '0',
                 'borderBottomRightRadius': '0',
@@ -4262,9 +4817,9 @@ def acp_toggle_view_mode(graph_clicks, table_clicks):
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
     
     if triggered_id == "acp-view-mode-graph-btn":
-        # Show graph view
+        # Show graph view - show Greek profile graphs
         return (
-            {"display": "block"}, {"display": "none"},
+            {"display": "block"}, {"display": "none"}, {"display": "block"},
             {
                 'borderTopRightRadius': '0',
                 'borderBottomRightRadius': '0',
@@ -4278,9 +4833,9 @@ def acp_toggle_view_mode(graph_clicks, table_clicks):
             }
         )
     else:
-        # Show table view
+        # Show table view - hide Greek profile graphs
         return (
-            {"display": "none"}, {"display": "block"},
+            {"display": "none"}, {"display": "block"}, {"display": "none"},
             {
                 'borderTopRightRadius': '0',
                 'borderBottomRightRadius': '0',

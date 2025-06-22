@@ -48,6 +48,17 @@ def calculate_all_greeks(option_model, F, K, T, price_volatility, option_type='p
         greek_value = getattr(option_model, greek)(F, K, T, price_volatility) * 1000.
         greeks[greek] = greek_value
     
+    # Add new 3rd order Greeks (scaled by 1000 for consistency)
+    for greek in ['ultima', 'zomma']:
+        greek_value = getattr(option_model, greek)(F, K, T, price_volatility) * 1000.
+        greeks[greek] = greek_value
+    
+    # Add F-space Greeks for numerical comparison (not in original)
+    # These are needed for comparing with numerical differentiation
+    greeks['gamma_F'] = option_model.gamma_F(F, K, T, price_volatility)
+    greeks['vega_price'] = option_model.vega_price(F, K, T, price_volatility)
+    greeks['vomma_F'] = option_model.vomma_F(F, K, T, price_volatility)
+    
     return greeks 
 
 def generate_greek_profiles(option_model, base_F, K, T, price_volatility, 
