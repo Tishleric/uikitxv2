@@ -24,6 +24,8 @@ from pywinauto.keyboard import send_keys
 import logging
 import re # Import regex for cleaning
 
+from monitoring.decorators import monitor
+
 logger = logging.getLogger(__name__) 
 
 # --- Configuration Constants ---
@@ -495,6 +497,7 @@ def write_dataframes_to_sheet1(
             workbook.close()
 
 
+@monitor()
 def run_pm_automation(options_data_from_dashboard: list):
     """Run the full Pricing Monkey automation workflow.
 

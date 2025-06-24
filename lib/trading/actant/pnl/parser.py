@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass
 
 from .calculations import OptionGreeks
+from monitoring.decorators import monitor
 
 
 @dataclass
@@ -75,6 +76,7 @@ class ActantCSVParser:
         """
         self.shock_multiplier = shock_multiplier
     
+    @monitor()
     def parse_file(self, filepath: Path) -> pd.DataFrame:
         """
         Read and validate CSV file.
@@ -300,6 +302,7 @@ class ActantFileMonitor:
 
 
 # Convenience function
+@monitor()
 def load_latest_data(watch_dir: Path, symbol: Optional[str] = None,
                     expiration: Optional[str] = None) -> Tuple[pd.DataFrame, Dict[str, OptionGreeks]]:
     """

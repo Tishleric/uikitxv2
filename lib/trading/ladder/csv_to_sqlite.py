@@ -3,6 +3,8 @@ import pandas as pd
 import sqlite3
 import logging
 
+from monitoring.decorators import monitor
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +46,7 @@ def df_to_sqlite(df, db_filepath, table_name, if_exists='replace', index=False):
         logger.error(f"Error writing DataFrame to SQLite: {e}")
         return False
 
+@monitor()
 def csv_to_sqlite_table(csv_filepath, db_filepath, table_name, if_exists='replace'):
     """
     Read a CSV file and load it into a SQLite database table.

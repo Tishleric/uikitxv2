@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 # Use relative import for sqlite_handler assuming it's in the same directory
 from .handlers import SQLiteHandler
+# Import monitor decorator from parent monitoring module
+from ..decorators import monitor
 
 # Store handlers globally within this module to facilitate cleanup if needed,
 # although returning them from setup_logging is often cleaner.
@@ -19,6 +21,7 @@ config_logger = logging.getLogger(__name__)
 # --- Ensure config_logger has a level set early ---
 config_logger.setLevel(logging.DEBUG) # Set level here to capture all setup messages
 
+@monitor()
 def setup_logging(
     log_level_main=logging.DEBUG,
     log_level_console=logging.DEBUG,
@@ -133,6 +136,7 @@ def setup_logging(
 
     return console_h, db_h # Return successfully created handlers
 
+@monitor()
 def shutdown_logging():
     """Safely closes logging handlers, especially the database handler."""
     global _db_handler, _console_handler # Include console handler for completeness if needed

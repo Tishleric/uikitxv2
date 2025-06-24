@@ -12,6 +12,8 @@ import pyperclip
 import logging
 from pywinauto.keyboard import send_keys
 
+from monitoring.decorators import monitor
+
 logger = logging.getLogger(__name__)
 
 # Configuration Constants
@@ -362,6 +364,7 @@ def split_dataframe_by_expiry_and_underlying(df):
     
     return final_result
 
+@monitor()
 def get_market_movement_data_df():
     """
     Convenience function that returns the market movement data as a nested dictionary of DataFrames 
@@ -403,6 +406,7 @@ def get_market_movement_data_df():
         # Return an empty dictionary with the same structure
         return {'data': {'base': {'1st': pd.DataFrame(columns=COLUMN_HEADERS)}}, 'metadata': {'base_underlying_values': [], 'plus_1bp_values': [], 'minus_1bp_values': []}}
 
+@monitor()
 def get_market_movement_data(num_rows=NUM_ROWS_TO_SELECT, num_columns=NUM_COLUMNS_TO_SELECT, save_to_csv=True):
     """
     Main function to retrieve market movement data from Pricing Monkey.

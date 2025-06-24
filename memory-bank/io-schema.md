@@ -587,3 +587,10 @@ With `use_param_names=True`, function parameters are stored individually:
 - Output: `return (a, b)` → Rows: `(data='return_0', value=a)`, `(data='return_1', value=b)`
 - Named tuple: `Point(x=1, y=2)` → Rows: `(data='x', value=1)`, `(data='y', value=2)`
 - Dict: `{'count': 5}` → Row: `(data='result[count]', value=5)`
+
+### Navigation Function Output Pattern
+Navigation functions like `handle_navigation` that return (content, active_page, style1, style2, ...) tuples are handled specially:
+- Content array → `data='content'`
+- Active page → `data='active_page'`
+- Style dictionaries → `data='{nav_name}_style'` (e.g., `pricing_monkey_style`, `analysis_style`)
+- Based on navigation button IDs extracted from style dictionaries
