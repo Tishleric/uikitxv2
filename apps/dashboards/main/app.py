@@ -48,28 +48,28 @@ try:
     from components.themes import default_theme
     from components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph, RadioButton, Mermaid, Loading, ListBox, RangeSlider, Checkbox, Tooltip
     print("Successfully imported logging, theme, and UI components.")
-    from trading.pricing_monkey import run_pm_automation, get_market_movement_data_df, SCENARIOS
+    from lib.trading.pricing_monkey import run_pm_automation, get_market_movement_data_df, SCENARIOS
     print("Successfully imported PM modules.")
-    from trading.bond_future_options import analyze_bond_future_option_greeks
-    from trading.bond_future_options.bachelier_greek import generate_greek_profiles_data, generate_taylor_error_data
+    from lib.trading.bond_future_options import analyze_bond_future_option_greeks
+    from lib.trading.bond_future_options.bachelier_greek import generate_greek_profiles_data, generate_taylor_error_data
     print("Successfully imported bond future options module.")
-    from trading.ladder import decimal_to_tt_bond_format, csv_to_sqlite_table, query_sqlite_table
+    from lib.trading.ladder import decimal_to_tt_bond_format, csv_to_sqlite_table, query_sqlite_table
     print("Successfully imported ladder utilities.")
-    from trading.tt_api import (
+    from lib.trading.tt_api import (
         TTTokenManager, 
         TT_API_KEY, TT_API_SECRET, TT_SIM_API_KEY, TT_SIM_API_SECRET,
         APP_NAME, COMPANY_NAME, ENVIRONMENT, TOKEN_FILE
     )
     print("Successfully imported TT REST API tools.")
     # Import decorator functions
-    from lib.monitoring.decorators import TraceCloser, TraceCpu, TraceTime, TraceMemory, monitor
+    from lib.monitoring.decorators import monitor
     from lib.monitoring.decorators.monitor import start_observatory_writer
     print("Successfully imported tracing decorators.")
     # Import trading utilities
-    from trading.common import format_shock_value_for_display
-    from trading.common.price_parser import parse_treasury_price, decimal_to_tt_bond_format
+    from lib.trading.common import format_shock_value_for_display
+    from lib.trading.common.price_parser import parse_treasury_price, decimal_to_tt_bond_format
     # Import Actant modules from new location
-    from trading.actant.eod import ActantDataService, get_most_recent_json_file, get_json_file_metadata
+    from lib.trading.actant.eod import ActantDataService, get_most_recent_json_file, get_json_file_metadata
 except ImportError as e:
     print(f"Error importing from packages: {e}")
     traceback.print_exc()
@@ -86,32 +86,18 @@ LOG_DB_PATH = os.path.join(logs_dir, 'main_dashboard_logs.db')
 os.makedirs(logs_dir, exist_ok=True)
 logger_root = logging.getLogger()
 
-# Wrapper function to trace logging setup
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
-def setup_logging_traced():
-    """Wrapper to trace the execution time of setup_logging."""
-    return setup_logging(
+# Call setup_logging directly - it already has @monitor applied
+if not logger_root.handlers: 
+    console_handler, db_handler = setup_logging(
         db_path=LOG_DB_PATH, 
         log_level_console=logging.DEBUG, 
         log_level_db=logging.INFO, 
         log_level_main=logging.DEBUG
     )
-
-# Wrapper function to trace logging shutdown
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
-def shutdown_logging_traced():
-    """Wrapper to trace the execution time of shutdown_logging."""
-    return shutdown_logging()
-
-if not logger_root.handlers: 
-    console_handler, db_handler = setup_logging_traced()
-    atexit.register(shutdown_logging_traced)
+    atexit.register(shutdown_logging)
 logger = logging.getLogger(__name__)
 
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def verify_log_database():
     """Verify that the logging database tables exist and can be accessed."""
     try:
@@ -508,8 +494,7 @@ analysis_tab_content = Container(
 ).render()
 
 # --- Logs Database Utilities ---
-@TraceCloser()
-@TraceTime(log_args=True, log_return=False)
+@monitor()
 def query_flow_trace_logs(limit=100):
     """
     Query the flowTrace table from the SQLite log database.
@@ -547,8 +532,7 @@ def query_flow_trace_logs(limit=100):
         logger.error(f"Error querying flow trace logs: {e}", exc_info=True)
         return []
 
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def query_performance_metrics():
     """
     Query the AveragePerformance table from the SQLite log database.
@@ -2982,8 +2966,7 @@ app.layout = html.Div([
     [State("active-page-store", "data")],
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, observatory_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
@@ -3088,8 +3071,7 @@ logger.info("UI layout defined with sidebar navigation.")
     Output("dynamic-options-area", "children"),
     Input("num-options-selector", "value")
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def update_option_blocks(selected_num_options_str: str | None):
     # This function remains the same as in your provided file
     if selected_num_options_str is None:
@@ -3123,10 +3105,7 @@ def update_option_blocks(selected_num_options_str: str | None):
     prevent_initial_call=True
 )
 # This is a key user action we want to trace for performance monitoring
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     if n_clicks is None or n_clicks == 0: raise PreventUpdate
 
@@ -3184,7 +3163,8 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     list_of_option_dfs_from_pm = None 
     try:
         logger.info(f"Calling run_pm_automation with: {ui_options_data_for_pm}")
-        list_of_option_dfs_from_pm = run_pm_automation_traced(ui_options_data_for_pm) 
+        # Call the PricingMonkey automation function directly - it already has @monitor applied
+        list_of_option_dfs_from_pm = run_pm_automation(ui_options_data_for_pm) 
     except Exception as e:
         logger.error(f"Error in run_pm_automation: {e}", exc_info=True)
         return [html.P(f"Error during automation: {str(e)[:200]}...", style={'color': 'red'})]
@@ -3357,8 +3337,7 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     State({"type": "option-data-store", "index": MATCH}, "data"), 
     prevent_initial_call=True 
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def update_graph_from_combobox(selected_y_column_value: str, stored_option_data: dict):
     if not selected_y_column_value or not stored_option_data or 'df_json' not in stored_option_data or 'trade_amount' not in stored_option_data:
         logger.warning("ComboBox callback triggered with no selection or incomplete stored data.")
@@ -3445,10 +3424,7 @@ def update_graph_from_combobox(selected_y_column_value: str, stored_option_data:
     State("market-movement-data-store", "data"),
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_underlying, stored_data):
     """Unified callback to handle all Analysis tab interactions"""
     # Determine which input triggered the callback
@@ -3480,7 +3456,8 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
         logger.info("Refresh Data button clicked. Fetching market movement data...")
         try:
             # Get market movement data (nested dictionary by underlying and expiry)
-            result_dict = get_market_movement_data_df_traced()
+            # Call the function directly - it already has @monitor applied
+            result_dict = get_market_movement_data_df()
             
             if not result_dict or 'data' not in result_dict:
                 logger.warning("Retrieved empty data dictionary from market movement data")
@@ -3702,10 +3679,7 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
     
     return data_json, fig, underlying_options, underlying_value, table_data, table_columns
 
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scenario_values=None):
     """
     Helper function to create the analysis graph figure with multiple series from different expiries
@@ -3873,10 +3847,7 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scena
     
     return fig
 
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def prepare_table_data(data_dict, underlying_key, y_axis_column):
     """
     Transform nested dictionary data to a flat format suitable for DataTable display.
@@ -3972,8 +3943,7 @@ def prepare_table_data(data_dict, underlying_key, y_axis_column):
      Input("view-toggle-table", "n_clicks")],
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def toggle_view(graph_clicks, table_clicks):
     # Determine which button was clicked last
     ctx = dash.callback_context
@@ -4009,8 +3979,7 @@ def toggle_view(graph_clicks, table_clicks):
      Input("logs-toggle-performance", "n_clicks")],
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def toggle_logs_tables(flow_clicks, performance_clicks):
     """Toggle visibility between Flow Trace and Performance tables."""
     # Set basic styles
@@ -4062,10 +4031,7 @@ def toggle_logs_tables(flow_clicks, performance_clicks):
     [Input("logs-refresh-button", "n_clicks")],
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=True, log_return=False)
+@monitor()
 def refresh_log_data(n_clicks):
     """
     Refresh log data by querying the SQLite database.
@@ -4087,29 +4053,9 @@ def refresh_log_data(n_clicks):
         logger.error(f"Error refreshing log data: {e}", exc_info=True)
         return [], []
 
-# --- Add Wrapped External Functions ---
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=True, log_return=False)
-def run_pm_automation_traced(ui_options_data_for_pm):
-    """Traced wrapper for run_pm_automation."""
-    return run_pm_automation(ui_options_data_for_pm)
-
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
-def get_market_movement_data_df_traced():
-    """Traced wrapper for get_market_movement_data_df."""
-    return get_market_movement_data_df()
-
-# --- End Function Wrappers ---
-
 # --- End Callbacks ---
 
-@TraceCloser()
-@TraceTime(log_args=True, log_return=False)
+@monitor()
 def empty_log_tables():
     """
     Empty the flowTrace and AveragePerformance tables in the SQLite log database.
@@ -4146,10 +4092,7 @@ def empty_log_tables():
     Input("logs-empty-button", "n_clicks"),
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=True, log_return=False)
+@monitor()
 def empty_logs(n_clicks):
     """
     Empty the logs database tables when the Empty Table button is clicked.
@@ -4559,8 +4502,7 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, ma
     [State("acp-view-mode-graph-btn", "n_clicks")],
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def acp_generate_table_view(store_data, table_clicks, graph_clicks):
     """Generate table view content when in table mode"""
     # Determine if we're in table view
@@ -4792,8 +4734,7 @@ def acp_generate_table_view(store_data, table_clicks, graph_clicks):
      Input("acp-view-mode-table-btn", "n_clicks")],
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def acp_toggle_view_mode(graph_clicks, table_clicks):
     """Toggle between graph and table views"""
     ctx = dash.callback_context
@@ -4855,8 +4796,7 @@ def acp_toggle_view_mode(graph_clicks, table_clicks):
     Input("acp-main-container", "id"),
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def acp_trigger_initial_calculation(container_id):
     """Trigger calculation on page load"""
     return 1
@@ -4879,10 +4819,7 @@ def acp_trigger_initial_calculation(container_id):
      State('scl-demo-mode-store', 'data')],
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def scl_load_and_display_orders(store_data, spot_price_data, n_clicks, current_table_data, baseline_data, demo_mode_data):
     """Load and display working orders from TT API with spot price integration"""
     logger.info("Scenario Ladder callback triggered: load_and_display_orders")
@@ -5043,7 +4980,7 @@ def scl_load_and_display_orders(store_data, spot_price_data, n_clicks, current_t
             try:
                 # Try to use SQLite first
                 if os.path.exists(ACTANT_DB_FILEPATH):
-                    from trading.ladder import query_sqlite_table
+                    from lib.trading.ladder import query_sqlite_table
                     logger.info(f"Loading Actant data from SQLite DB {ACTANT_DB_FILEPATH}")
                     
                     # Query the database
@@ -5230,10 +5167,7 @@ def scl_load_and_display_orders(store_data, spot_price_data, n_clicks, current_t
     [Input('scl-refresh-data-button', 'n_clicks')],
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceCpu() 
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def scl_fetch_spot_price_callback(n_clicks):
     """Fetch spot price from Pricing Monkey"""
     if n_clicks is None or n_clicks == 0:
@@ -5944,10 +5878,7 @@ def aeod_create_dashboard_layout():
     Input("aeod-load-data-button", "n_clicks"),
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_load_data(n_clicks):
     """Load the most recent JSON file and populate filter options."""
     try:
@@ -5989,10 +5920,7 @@ def aeod_load_data(n_clicks):
     Input("aeod-load-pm-button", "n_clicks"),
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_load_pm_data(n_clicks):
     """Load PM data for Actant EOD"""
     try:
@@ -6015,8 +5943,7 @@ def aeod_load_pm_data(n_clicks):
     State("aeod-toggle-states-store", "data"),
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_toggle_states_store(graph_btn, table_btn, abs_btn, pct_btn, scenario_btn, metric_btn, current_states):
     """Update toggle states store for Actant EOD dashboard"""
     if current_states is None:
@@ -6062,10 +5989,7 @@ def aeod_update_toggle_states_store(graph_btn, table_btn, abs_btn, pct_btn, scen
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceCpu()
-@TraceMemory()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_create_dynamic_visualization_grid(selected_scenarios, selected_metrics, toggle_states, data_loaded):
     """Create dynamic visualization grid based on current selections and toggle states."""
     if not data_loaded:
@@ -6135,8 +6059,7 @@ def aeod_create_dynamic_visualization_grid(selected_scenarios, selected_metrics,
      Input("aeod-prefix-filter-listbox", "value")],
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_metric_categories(metric_categories, prefix_filter):
     """Create metric category checkboxes and listboxes."""
     if not metric_categories:
@@ -6223,8 +6146,7 @@ def aeod_update_metric_categories(metric_categories, prefix_filter):
      Input("aeod-category-misc-checkbox", "value")],
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_toggle_category_visibility(*checkbox_values):
     """Toggle visibility of metric listboxes based on checkbox state."""
     styles = []
@@ -6261,8 +6183,7 @@ def aeod_toggle_category_visibility(*checkbox_values):
      Input("aeod-category-misc-checkbox", "value")],
     prevent_initial_call=True
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_collect_selected_metrics(*inputs):
     """Collect selected metrics from category listboxes, but only if the category checkbox is checked."""
     # Split inputs into listbox values and checkbox states
@@ -6291,8 +6212,7 @@ def aeod_collect_selected_metrics(*inputs):
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_scenario_graph(selected_metrics, toggle_states, range_values, graph_id, data_loaded):
     """Update graph for a specific scenario based on selected metrics and range."""
     if not data_loaded or not selected_metrics or not range_values:
@@ -6402,8 +6322,7 @@ def aeod_update_scenario_graph(selected_metrics, toggle_states, range_values, gr
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_scenario_table(selected_metrics, toggle_states, range_values, table_id, data_loaded):
     """Update table for a specific scenario based on selected metrics and range."""
     if not data_loaded or not selected_metrics or not range_values:
@@ -6472,8 +6391,7 @@ def aeod_update_scenario_table(selected_metrics, toggle_states, range_values, ta
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_metric_graph(selected_scenarios, toggle_states, range_values, graph_id, data_loaded):
     """Update graph for a specific metric based on selected scenarios and range."""
     if not data_loaded or not selected_scenarios or not range_values:
@@ -6589,8 +6507,7 @@ def aeod_update_metric_graph(selected_scenarios, toggle_states, range_values, gr
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_metric_table(selected_scenarios, toggle_states, range_values, table_id, data_loaded):
     """Update table for a specific metric based on selected scenarios and range."""
     if not data_loaded or not selected_scenarios or not range_values:
@@ -6674,8 +6591,7 @@ def aeod_update_metric_table(selected_scenarios, toggle_states, range_values, ta
      Input("aeod-view-mode-table-btn", "n_clicks")],
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_view_mode_button_styles(graph_clicks, table_clicks):
     """Update button styles for view mode toggle."""
     ctx = dash.callback_context
@@ -6712,8 +6628,7 @@ def aeod_update_view_mode_button_styles(graph_clicks, table_clicks):
      Input("aeod-percentage-percentage-btn", "n_clicks")],
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_percentage_button_styles(abs_clicks, pct_clicks):
     """Update button styles for percentage toggle."""
     ctx = dash.callback_context
@@ -6750,8 +6665,7 @@ def aeod_update_percentage_button_styles(abs_clicks, pct_clicks):
      Input("aeod-viz-mode-metric-btn", "n_clicks")],
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def aeod_update_viz_mode_button_styles(scenario_clicks, metric_clicks):
     """Update button styles for visualization mode toggle."""
     ctx = dash.callback_context
@@ -6792,8 +6706,7 @@ def aeod_update_viz_mode_button_styles(scenario_clicks, metric_clicks):
      Input("scl-live-mode-btn", "n_clicks")],
     prevent_initial_call=False
 )
-@TraceCloser()
-@TraceTime(log_args=False, log_return=False)
+@monitor()
 def scl_toggle_demo_mode(demo_clicks, live_clicks):
     """Toggle between demo and live mode"""
     ctx = dash.callback_context
@@ -6828,7 +6741,7 @@ def scl_toggle_demo_mode(demo_clicks, live_clicks):
 
 if __name__ == "__main__":
     # Comprehensive logger configuration:
-    # - All user interactions are traced with @TraceCloser, @TraceCpu, @TraceTime
+    # - All user interactions are traced with @monitor decorator
     # - All data processing functions include full tracing
     # - All INFO/ERROR/WARNING logs are sent to the database tables
     # - External functions are wrapped with traced versions

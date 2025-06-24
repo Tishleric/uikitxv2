@@ -188,7 +188,13 @@ class SQLiteWriter:
                         if not process_group:
                             # Auto-derive from module name
                             parts = record.process.split('.')
-                            process_group = '.'.join(parts[:2]) if len(parts) > 1 else parts[0]
+                            # For __main__.function, we want just __main__
+                            # For lib.trading.module.function, we want lib.trading.module
+                            if len(parts) > 1 and parts[-1][0].islower():
+                                # Last part is likely a function name (starts with lowercase)
+                                process_group = '.'.join(parts[:-1])
+                            else:
+                                process_group = parts[0]
                         
                         # Process trace record
                         process_data.append((
@@ -483,7 +489,13 @@ class BatchWriter(threading.Thread):
                 if not process_group:
                     # Auto-derive from module name
                     parts = record.process.split('.')
-                    process_group = '.'.join(parts[:2]) if len(parts) > 1 else parts[0]
+                    # For __main__.function, we want just __main__
+                    # For lib.trading.module.function, we want lib.trading.module
+                    if len(parts) > 1 and parts[-1][0].islower():
+                        # Last part is likely a function name (starts with lowercase)
+                        process_group = '.'.join(parts[:-1])
+                    else:
+                        process_group = parts[0]
                 
                 # Insert process trace
                 conn.execute("""

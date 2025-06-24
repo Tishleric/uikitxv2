@@ -3,7 +3,7 @@
 import dash
 from dash import html, dcc
 
-from .views import ObservatoryViews
+from .views import create_observatory_content
 from .callbacks import register_callbacks
 
 
@@ -16,11 +16,8 @@ def create_observatory_app():
         assets_folder="../../../assets",  # Use main project assets
     )
     
-    # Create views
-    views = ObservatoryViews()
-    
     # Set layout - just the simple DataTable
-    app.layout = views.create_layout()
+    app.layout = create_observatory_content()
     
     # Register callbacks
     register_callbacks(app)
@@ -31,4 +28,4 @@ def create_observatory_app():
 # For standalone testing
 if __name__ == "__main__":
     app = create_observatory_app()
-    app.run_server(debug=True, port=8052) 
+    app.run(debug=True, port=8052) 

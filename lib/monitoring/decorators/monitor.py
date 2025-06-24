@@ -216,6 +216,10 @@ def extract_return_names(func: Callable, result: Any) -> List[Tuple[str, Any, st
     """
     result_entries = []
     
+    # Handle None explicitly - don't create entry
+    if result is None:
+        return []
+    
     # Try to get return annotation
     try:
         sig = inspect.signature(func)
@@ -225,50 +229,148 @@ def extract_return_names(func: Callable, result: Any) -> List[Tuple[str, Any, st
         if return_annotation != inspect.Parameter.empty:
             # Check for typing.Tuple or tuple
             origin = getattr(return_annotation, '__origin__', None)
-            if origin is tuple:
-                # Get the tuple element types
-                args = getattr(return_annotation, '__args__', ())
+            args = getattr(return_annotation, '__args__', [])
                 
-                # Check if result is actually a tuple
-                if isinstance(result, tuple):
-                    for i, (value, type_hint) in enumerate(zip(result, args)):
-                        # Try to extract name from type hint
-                        name = f"return_{i}"
-                        if hasattr(type_hint, '__name__'):
-                            name = type_hint.__name__.lower()
-                        result_entries.append((name, value, "OUTPUT"))
+            # If it's a Tuple annotation, try to extract individual names
+            if origin is tuple and args:
+                if isinstance(result, tuple) and len(result) == len(args):
+                    # Try to get names from docstring
+                    doc = func.__doc__ or ""
+                    # Look for "Returns: (name1, name2, ...)" pattern
+                    import re
+                    returns_match = re.search(r'Returns?:\s*\(([^)]+)\)', doc)
+                    if returns_match:
+                        names = [n.strip() for n in returns_match.group(1).split(',')]
+                        if len(names) == len(result):
+                            for name, value in zip(names, result):
+                                result_entries.append((name, value, "OUTPUT"))
                     return result_entries
     except:
         pass
     
-    # Check for named tuple
-    if hasattr(result, '_fields'):
-        # It's a named tuple
-        for field_name, value in zip(result._fields, result):
-            result_entries.append((field_name, value, "OUTPUT"))
+    # Special handling for common return types
+    if isinstance(result, tuple):
+        # Handle navigation pattern (content, active_page, style1, style2, ...)
+        if len(result) >= 3:
+            # Check if this looks like a navigation return (content list, page string, style dicts)
+            if (isinstance(result[0], list) and 
+                isinstance(result[1], str) and
+                all(isinstance(item, dict) and any(k in item for k in ('backgroundColor', 'color', 'border', 'padding')) 
+                    for item in result[2:])):
+                # It's a navigation pattern
+                result_entries.append(("content", result[0], "OUTPUT"))
+                result_entries.append(("active_page", result[1], "OUTPUT"))
+                
+                # Name the styles based on common navigation button names
+                nav_names = ["pricing_monkey", "analysis", "greek_analysis", "logs", 
+                            "project_docs", "scenario_ladder", "actant_eod", "actant_pnl", "observatory"]
+                
+                for i, (style, nav_name) in enumerate(zip(result[2:], nav_names)):
+                    if i < len(nav_names):
+                        result_entries.append((f"{nav_name}_style", style, "OUTPUT"))
+                    else:
+                        result_entries.append((f"nav_style_{i}", style, "OUTPUT"))
+                
+                return result_entries
+        
+        # Handle 2-item tuples with common patterns
+        if len(result) == 2:
+            # Check for (value, status) pattern
+            if isinstance(result[1], bool):
+                result_entries.append(("value", result[0], "OUTPUT"))
+                result_entries.append(("status", result[1], "OUTPUT"))
+                return result_entries
+            # Check for (result, error) pattern
+            elif result[1] is None or isinstance(result[1], Exception):
+                result_entries.append(("result", result[0], "OUTPUT"))
+                result_entries.append(("error", result[1], "OUTPUT"))
+                return result_entries
+        # Handle 3-item tuples (value, status, message)
+        elif len(result) == 3:
+            if isinstance(result[1], (int, bool)) and isinstance(result[2], str):
+                result_entries.append(("value", result[0], "OUTPUT"))
+                result_entries.append(("status", result[1], "OUTPUT"))
+                result_entries.append(("message", result[2], "OUTPUT"))
+                return result_entries
+        
+        # Special handling for Dash component returns
+        if isinstance(result, (list, tuple)):
+            component_names = []
+            for i, item in enumerate(result):
+                if hasattr(item, '__class__'):
+                    class_name = item.__class__.__name__
+                    # Check if it's a Dash component
+                    if hasattr(item, 'id') and class_name in ['Div', 'Graph', 'DataTable', 'Container', 'Button', 'Input', 'Dropdown']:
+                        comp_id = getattr(item, 'id', None)
+                        if comp_id:
+                            component_names.append((f"{class_name}[{comp_id}]", str(item)[:100], "OUTPUT"))
+                        else:
+                            component_names.append((f"{class_name}_{i}", str(item)[:100], "OUTPUT"))
+                    else:
+                        component_names.append((f"result_{i}", item, "OUTPUT"))
+                else:
+                    component_names.append((f"result_{i}", item, "OUTPUT"))
+            return component_names
+        
+        # Default tuple handling
+        for i, value in enumerate(result):
+            result_entries.append((f"result_{i}", value, "OUTPUT"))
         return result_entries
     
-    # Check for dataclass
-    if hasattr(result, '__dataclass_fields__'):
-        # It's a dataclass
-        for field_name in result.__dataclass_fields__:
-            value = getattr(result, field_name)
-            result_entries.append((field_name, value, "OUTPUT"))
+    # Handle named tuples (check if it has _fields attribute)
+    elif hasattr(result, '_fields'):
+        for field in result._fields:
+            value = getattr(result, field)
+            result_entries.append((field, value, "OUTPUT"))
         return result_entries
     
-    # Check for dict with specific keys (common pattern)
-    if isinstance(result, dict):
+    # Handle dataclasses
+    elif hasattr(result, '__dataclass_fields__'):
+        for field in result.__dataclass_fields__:
+            value = getattr(result, field)
+            result_entries.append((field, value, "OUTPUT"))
+        return result_entries
+    
+    # Handle dictionaries
+    elif isinstance(result, dict):
         for key, value in result.items():
             result_entries.append((f"result[{key}]", value, "OUTPUT"))
         return result_entries
     
-    # Check for tuple/list (multiple return values)
-    if isinstance(result, (tuple, list)) and len(result) > 1:
-        for i, value in enumerate(result):
-            result_entries.append((f"return_{i}", value, "OUTPUT"))
+    # Handle custom objects with meaningful attributes
+    elif hasattr(result, '__dict__') and not isinstance(result, type):
+        # Use the class name as a prefix
+        class_name = result.__class__.__name__
+        result_entries.append((class_name, result, "OUTPUT"))
         return result_entries
     
-    # Single return value
+    # Special handling for Dash components with ID
+    if isinstance(result, dict):
+        # Check if it's a Dash component (has 'props' with 'id')
+        if 'props' in result and isinstance(result['props'], dict):
+            if 'id' in result['props']:
+                component_type = result.get('type', 'Component')
+                component_id = result['props']['id']
+                return [(f"{component_type}[{component_id}]", result, "OUTPUT")]
+            elif 'children' in result['props'] and isinstance(result['props']['children'], str):
+                # Component with text content
+                component_type = result.get('type', 'Component')
+                text_preview = result['props']['children'][:30]
+                return [(f"{component_type}[{text_preview}...]", result, "OUTPUT")]
+        
+        # Check if it's a style dictionary (common in Dash)
+        style_keys = {'width', 'height', 'color', 'backgroundColor', 'display', 
+                      'margin', 'padding', 'border', 'fontSize', 'textAlign'}
+        if any(key in result for key in style_keys):
+            # It's likely a style dictionary
+            if 'cursor' in result and result.get('cursor') == 'pointer':
+                return [("button_style", result, "OUTPUT")]
+            elif 'display' in result and result.get('display') == 'flex':
+                return [("flex_style", result, "OUTPUT")]
+            else:
+                return [("style", result, "OUTPUT")]
+    
+    # Default: single return value
     result_entries.append(("result", result, "OUTPUT"))
     return result_entries
 
@@ -319,7 +421,7 @@ def monitor(
             "result": True,
             "cpu_usage": True,
             "memory_usage": True,
-            "locals": False,  # Still opt-in for locals due to verbosity
+            "locals": True,  # Changed to True - capture everything by default
         }
     
     def decorator(func_or_descriptor: Any) -> Any:

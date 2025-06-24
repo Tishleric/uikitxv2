@@ -10,6 +10,8 @@ import pandas as pd
 from dataclasses import dataclass
 from typing import Optional, Tuple, Dict
 
+from monitoring.decorators import monitor
+
 
 @dataclass
 class OptionGreeks:
@@ -199,6 +201,7 @@ class PnLCalculator:
         return results_df
 
 
+@monitor()
 def parse_actant_csv_to_greeks(df: pd.DataFrame, expiration: str = 'XCME.ZN') -> OptionGreeks:
     """
     Parse Actant CSV data into OptionGreeks object.

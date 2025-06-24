@@ -119,75 +119,56 @@ class ObservatoryDataService:
             if conn:
                 conn.close()
     
-    def get_trace_data(
-        self,
-        page: int = 1,
-        page_size: int = DEFAULT_PAGE_SIZE,
-        process_filter: Optional[str] = None,
-        status_filter: Optional[str] = None,
-        date_start: Optional[datetime] = None,
-        date_end: Optional[datetime] = None,
-    ) -> Tuple[pd.DataFrame, int]:
-        """
-        Get paginated trace data from data_trace table.
-        
-        Returns:
-            Tuple of (DataFrame with trace data, total row count)
-        """
+    def get_trace_data(self, page: int = 1, page_size: int = 100) -> pd.DataFrame:
+        """Get trace data with pagination"""
         with self._get_connection() as conn:
-            # Build WHERE clause
-            where_conditions = []
-            params = []
-            
-            if process_filter:
-                where_conditions.append("dt.process LIKE ?")
-                params.append(f"%{process_filter}%")
-            
-            if status_filter:
-                where_conditions.append("dt.status = ?")
-                params.append(status_filter)
-            
-            if date_start:
-                where_conditions.append("dt.ts >= ?")
-                params.append(date_start.isoformat())
-            
-            if date_end:
-                where_conditions.append("dt.ts <= ?")
-                params.append(date_end.isoformat())
-            
-            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
-            
-            # Get total count
-            count_query = f"""
-                SELECT COUNT(*) as total
-                FROM data_trace dt
-                WHERE {where_clause}
-            """
-            total_rows = conn.execute(count_query, params).fetchone()["total"]
-            
-            # Get paginated data
             offset = (page - 1) * page_size
-            data_query = f"""
+            
+            # Join data_trace with process_trace to get process_group and duration_ms
+            query = """
                 SELECT 
-                    dt.process,
+                    dt.ts,
+                    CASE 
+                        WHEN pt.process_group LIKE '%.%' AND 
+                             SUBSTR(pt.process_group, INSTR(pt.process_group, '.') + 1) GLOB '[a-z]*'
+                        THEN SUBSTR(pt.process_group, 1, INSTR(pt.process_group, '.') - 1)
+                        ELSE pt.process_group
+                    END as process_group,
+                    CASE 
+                        WHEN pt.process_group IS NOT NULL AND pt.process != pt.process_group
+                        THEN 
+                            CASE 
+                                WHEN pt.process = pt.process_group || '.' || SUBSTR(pt.process, LENGTH(pt.process_group) + 2)
+                                THEN SUBSTR(pt.process, LENGTH(pt.process_group) + 2)
+                                ELSE pt.process
+                            END
+                        ELSE pt.process
+                    END as process,
                     dt.data,
                     dt.data_type,
                     dt.data_value,
-                    dt.ts as timestamp,
+                    pt.duration_ms,
                     dt.status,
-                    CASE 
-                        WHEN dt.exception IS NOT NULL THEN '❌'
-                        ELSE ''
-                    END as exception
+                    dt.exception
                 FROM data_trace dt
-                WHERE {where_clause}
+                INNER JOIN process_trace pt ON dt.ts = pt.ts AND dt.process = pt.process
                 ORDER BY dt.ts DESC
                 LIMIT ? OFFSET ?
             """
-            params.extend([page_size, offset])
             
-            df = pd.read_sql_query(data_query, conn, params=params)
-            return df, total_rows
+            df = pd.read_sql_query(query, conn, params=(page_size, offset))
+            
+            if df.empty:
+                return df
+                
+            # Format timestamp
+            df['ts'] = pd.to_datetime(df['ts']).dt.strftime('%Y-%m-%d %H:%M:%S.%f').str[:-3]
+            
+            # Format duration_ms to show as milliseconds with 1 decimal place
+            if 'duration_ms' in df.columns:
+                df['duration_ms'] = df['duration_ms'].apply(lambda x: f"{x:.1f} ms" if pd.notna(x) else "")
+            
+            return df
     
     def get_process_metrics(self, hours: int = 1) -> pd.DataFrame:
         """Get aggregated metrics by process for the last N hours"""
@@ -275,6 +256,113 @@ class ObservatoryDataService:
             
             return stats
     
+    def get_unique_process_groups(self) -> List[str]:
+        """Get unique process groups from the data"""
+        with self._get_connection() as conn:
+            # Extract the proper process group from potentially incorrect values
+            query = """
+                SELECT DISTINCT 
+                    CASE 
+                        WHEN process_group LIKE '%.%' AND 
+                             SUBSTR(process_group, INSTR(process_group, '.') + 1) GLOB '[a-z]*'
+                        THEN SUBSTR(process_group, 1, INSTR(process_group, '.') - 1)
+                        ELSE process_group
+                    END as clean_process_group
+                FROM process_trace
+                WHERE process_group IS NOT NULL
+                ORDER BY clean_process_group
+            """
+            
+            result = conn.execute(query).fetchall()
+            return [row[0] for row in result if row[0]]
+    
+    def filter_by_group(self, group: str) -> pd.DataFrame:
+        """Filter data by process group"""
+        with self._get_connection() as conn:
+            if group == "all":
+                # Show all data
+                query = """
+                    SELECT 
+                        dt.ts,
+                        CASE 
+                            WHEN pt.process_group LIKE '%.%' AND 
+                                 SUBSTR(pt.process_group, INSTR(pt.process_group, '.') + 1) GLOB '[a-z]*'
+                            THEN SUBSTR(pt.process_group, 1, INSTR(pt.process_group, '.') - 1)
+                            ELSE pt.process_group
+                        END as process_group,
+                        CASE 
+                            WHEN pt.process_group IS NOT NULL AND pt.process != pt.process_group
+                            THEN 
+                                CASE 
+                                    WHEN pt.process = pt.process_group || '.' || SUBSTR(pt.process, LENGTH(pt.process_group) + 2)
+                                    THEN SUBSTR(pt.process, LENGTH(pt.process_group) + 2)
+                                    ELSE pt.process
+                                END
+                            ELSE pt.process
+                        END as process,
+                        dt.data,
+                        dt.data_type,
+                        dt.data_value,
+                        pt.duration_ms,
+                        dt.status,
+                        dt.exception
+                    FROM data_trace dt
+                    INNER JOIN process_trace pt ON dt.ts = pt.ts AND dt.process = pt.process
+                    ORDER BY dt.ts DESC
+                    LIMIT 1000
+                """
+                df = pd.read_sql_query(query, conn)
+            else:
+                # Filter by specific process group
+                query = """
+                    SELECT 
+                        dt.ts,
+                        CASE 
+                            WHEN pt.process_group LIKE '%.%' AND 
+                                 SUBSTR(pt.process_group, INSTR(pt.process_group, '.') + 1) GLOB '[a-z]*'
+                            THEN SUBSTR(pt.process_group, 1, INSTR(pt.process_group, '.') - 1)
+                            ELSE pt.process_group
+                        END as process_group,
+                        CASE 
+                            WHEN pt.process_group IS NOT NULL AND pt.process != pt.process_group
+                            THEN 
+                                CASE 
+                                    WHEN pt.process = pt.process_group || '.' || SUBSTR(pt.process, LENGTH(pt.process_group) + 2)
+                                    THEN SUBSTR(pt.process, LENGTH(pt.process_group) + 2)
+                                    ELSE pt.process
+                                END
+                            ELSE pt.process
+                        END as process,
+                        dt.data,
+                        dt.data_type,
+                        dt.data_value,
+                        pt.duration_ms,
+                        dt.status,
+                        dt.exception
+                    FROM data_trace dt
+                    INNER JOIN process_trace pt ON dt.ts = pt.ts AND dt.process = pt.process
+                    WHERE CASE 
+                        WHEN pt.process_group LIKE '%.%' AND 
+                             SUBSTR(pt.process_group, INSTR(pt.process_group, '.') + 1) GLOB '[a-z]*'
+                        THEN SUBSTR(pt.process_group, 1, INSTR(pt.process_group, '.') - 1)
+                        ELSE pt.process_group
+                    END = ?
+                    ORDER BY dt.ts DESC
+                    LIMIT 1000
+                """
+                df = pd.read_sql_query(query, conn, params=(group,))
+            
+            if df.empty:
+                return df
+                
+            # Format timestamp
+            df['ts'] = pd.to_datetime(df['ts']).dt.strftime('%Y-%m-%d %H:%M:%S.%f').str[:-3]
+            
+            # Format duration_ms to show as milliseconds with 1 decimal place
+            if 'duration_ms' in df.columns:
+                df['duration_ms'] = df['duration_ms'].apply(lambda x: f"{x:.1f} ms" if pd.notna(x) else "")
+            
+            return df
 
 
 class MetricsAggregator:

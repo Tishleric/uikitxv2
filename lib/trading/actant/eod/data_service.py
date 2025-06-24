@@ -21,6 +21,8 @@ from components.core import DataServiceProtocol
 from trading.pricing_monkey.retrieval import get_extended_pm_data, PMRetrievalError
 from trading.pricing_monkey.processors import process_pm_for_separate_table, validate_pm_data
 
+from monitoring.decorators import monitor
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +51,7 @@ class ActantDataService(DataServiceProtocol):
         self._current_file = None
         self._pm_data_loaded = False
         
+    @monitor()
     def load_data_from_json(self, json_file_path: Path) -> bool:
         """
         Load and process data from a JSON file into SQLite database.
@@ -562,6 +565,7 @@ class ActantDataService(DataServiceProtocol):
             logger.error(f"Error getting data summary: {e}")
             return {}
     
+    @monitor()
     def load_pricing_monkey_data(self) -> bool:
         """
         Load data from PricingMonkey via browser automation.

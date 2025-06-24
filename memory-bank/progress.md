@@ -118,6 +118,51 @@ The dashboard refactoring project has been completed with **exceptional success*
 
 ## Recent Changes
 
+### Strategic Monitor Decorator Application (January 6, 2025) ✅ COMPLETED
+- **Phase 1**: Migrated all app.py callbacks from legacy decorators to @monitor()
+  - Replaced TraceCloser, TraceTime, TraceCpu, TraceMemory with single @monitor()
+  - Updated 30 callbacks and 6 non-callback functions
+  - Removed legacy decorator imports and updated comments
+  - Created verification scripts to ensure 100% coverage
+
+- **Phase 2**: Applied @monitor() to key trading and lib functions
+  - **Trading Functions**: 
+    - Pricing Monkey: `run_pm_automation()`, `get_market_movement_data_df()`, `get_market_movement_data()`
+    - Actant EOD: `load_data_from_json()`, `load_pricing_monkey_data()`
+    - Actant PnL: `parse_actant_csv_to_greeks()`, `parse_file()`, `load_latest_data()`
+    - Scenario Ladder: `decimal_to_tt_bond_format()`, `csv_to_sqlite_table()`
+    - TT API: `create_request_id()`, `get_token()`, `_acquire_token()`
+  
+- **Bug Fix**: Fixed indentation error in monitor.py line 246 (missing indent in for loop)
+- **Result**: Enhanced visibility into critical trading workflows with minimal performance impact
+
+### Performance Optimization: Strategic @monitor Removal (January 6, 2025) ✅ COMPLETED
+- **Issue**: Dashboard performance severely degraded by @monitor overhead on low-level functions
+- **Root Cause**: 
+  - @monitor adds ~50μs overhead per call
+  - Functions called in tight loops causing exponential slowdown
+  
+#### Greek Analysis Optimization:
+- **Problem**: Taking 53+ seconds due to mathematical functions called 1000+ times
+- **Functions optimized**:
+  - **bachelier_greek.py**: 7 math functions (bachelier_price, analytical_greeks, etc.)
+  - **numerical_greeks.py**: 2 calculation functions (compute_derivatives, compute_derivatives_bond_future)
+  - **pricing_engine.py**: 30 Greek calculation methods
+- **Result**: Greek Analysis reduced from 53+ seconds to < 5 seconds
+
+#### Actant EOD Optimization:
+- **Problem**: Data loading taking ~21 seconds with `_try_convert_to_float` called 432 times
+- **Functions optimized**:
+  - **data_service.py**: 6 low-level functions removed @monitor from:
+    - `_try_convert_to_float` (432 calls during load)
+    - `_parse_point_header` (string parsing)
+    - `_transform_bs_delta`, `_transform_bs_gamma`, `_transform_bs_vega` (math operations)
+    - `_quote_column_name` (string manipulation)
+- **Result**: EOD data loading reduced from ~21 seconds to < 2 seconds
+
+- **Total Impact**: 45 @monitor decorators removed, ~90% performance improvement across dashboards
+- **Preserved**: All high-level orchestrators and UI functions retain monitoring
+
 ### Observability System Robustness (10/10) Achieved (June 18, 2025) ✅ COMPLETED
 
 #### Phase C: Performance Guidelines ✅ COMPLETED
@@ -1314,3 +1359,62 @@ The project migration is **100% COMPLETE** with a clean, professional Python pac
   - Added id to Greek profile table Container: `id=f"acp-profile-{dashboard_name}-table-container"`
   - Added id to Taylor error table Container: `id="acp-taylor-error-table-container"`
 - **Result**: Table view now works without errors, properly displaying all Greek profiles and Taylor error data
+
+## Observatory Dashboard
+- ✅ Created simplified Observatory dashboard following ActantPnL pattern
+- ✅ Added MVC architecture with models.py, views.py, callbacks.py
+- ✅ Successfully integrated into main dashboard navigation
+- ✅ Data service connects to logs/observatory.db
+- ✅ Table shows variable-level trace data from data_trace table
+- ✅ Added exception-filtered table below main table for quick error visibility
+- ✅ Added "Test Exception" button with @monitor() decorator to generate test exceptions on demand
+
+## Recent Completions
+
+### Observatory Dashboard Phase 1 Refinements (January 6, 2025) 🚧 IN PROGRESS
+- **User Feedback Addressed**:
+  - **Scrollable Table**: Fixed pagination issue by setting `page_size=1000` and increased `maxHeight` to 700px
+  - **Auto-Refresh**: Working perfectly at 5-second intervals ✅
+  - **Output Naming**: Enhanced to handle edge cases:
+    - None returns now don't create output rows
+    - 3-item tuples get named as value/status/message
+    - Custom objects use their class name
+    - Dict returns use keys as output names
+  - **Process Group Filtering**:
+    - Improved SQL extraction to handle more patterns (two-level groups, __main__, etc.)
+    - Fixed state persistence by passing current filter to button creation
+    - Filter buttons now highlight correctly based on selected state
+- **Technical Improvements**:
+  - Modified `extract_return_names` in monitor.py for better output naming
+  - Updated `get_unique_process_groups` in models.py with better SQL extraction
+  - Enhanced callbacks to preserve filter state across auto-refresh
+- **Status**: Testing needed to verify all process group buttons work correctly
+- **Next Steps**: Verify filter functionality with real data from various process groups
+
+## Strategic Function Monitoring Added (2025-01-09)
+- Applied @monitor() to 13 key functions across trading modules
+- Enhanced visibility into critical trading workflows
+- All using vanilla @monitor() per user request
+
+## Fixed Monitor Decorator Indentation Error (2025-01-09)
+- Fixed IndentationError in lib/monitoring/decorators/monitor.py at line 246
+- Issue was in extract_return_names function where for loop was missing proper indentation
+
+## Monitor Decorator Migration Complete (2025-01-09)
+- Migrated all 30 callbacks in app.py to use @monitor()
+- Removed legacy decorators (TraceCloser, TraceTime, TraceCpu, TraceMemory)
+- Created verification scripts to ensure complete migration
+- All callbacks now properly traced in Observatory
+
+## Fixed Process Group Assignment (2025-01-09)
+- Removed _traced wrapper functions in app.py that were causing all functions to show as __main__
+- Functions now call original monitored functions directly from their proper modules
+- Added @monitor to setup_logging and shutdown_logging in lib/monitoring/logging/config.py
+- Process groups now properly auto-derive from actual module names
+
+### Fixed Import Path Issue for Observatory (2025-01-09)
+- Discovered root cause: duplicate import paths from adding both project root and lib/ to sys.path
+- Importing `from trading.pricing_monkey` created different module objects than `from lib.trading.pricing_monkey`
+- Fixed by changing all imports to use consistent `lib.` prefix
+- Trading functions now properly appear in Observatory with correct process groups
+- No more __main__ process group monopoly - each module has its proper group

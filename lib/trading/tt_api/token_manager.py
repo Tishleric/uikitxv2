@@ -9,6 +9,8 @@ import os
 import time
 from datetime import datetime, timedelta
 
+from monitoring.decorators import monitor
+
 class TTTokenManager:
     """
     Token manager for Trading Technologies REST API.
@@ -99,6 +101,7 @@ class TTTokenManager:
         guid = self.generate_guid()
         return f"{app_name_clean}-{company_name_clean}--{guid}"
     
+    @monitor()
     def get_token(self, force_refresh=False):
         """
         Get a valid token, refreshing if necessary.
@@ -123,6 +126,7 @@ class TTTokenManager:
                 
         return self.token
     
+    @monitor()
     def _acquire_token(self):
         """
         Acquire a new token from the TT REST API.

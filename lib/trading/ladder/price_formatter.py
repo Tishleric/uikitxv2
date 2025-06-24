@@ -1,3 +1,6 @@
+from monitoring.decorators import monitor
+
+@monitor()
 def decimal_to_tt_bond_format(decimal_price):
     """
     Converts a decimal price to the TT bond style string format (e.g., 110.015625 -> "110'005").

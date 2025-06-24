@@ -46,7 +46,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 ### Monitoring (`lib/monitoring/`)
 
 #### Decorators (`lib/monitoring/decorators/`)
-- **monitor.py** - Complete @monitor decorator integrating observability pipeline. Features automatic queue integration, SmartSerializer for argument/result capture, exception traceback preservation, singleton pattern for global queue/writer, sampling rate support (0.0-1.0), process group categorization, and minimal performance overhead (<50µs). Main entry point for function monitoring. Fixed async generator exception handling (June 17, 2025).
+- **monitor.py** - Complete @monitor decorator integrating observability pipeline. Features automatic queue integration, SmartSerializer for argument/result capture, exception traceback preservation, singleton pattern for global queue/writer, sampling rate support (0.0-1.0), process group categorization, enhanced output naming (handles None, tuples, custom objects, dicts, Dash components with IDs), and minimal performance overhead (<50µs). Main entry point for function monitoring. Fixed async generator exception handling (June 17, 2025). Enhanced output naming for Dash components (January 6, 2025).
 - **context_vars.py** - Shared context variables for tracing and logging decorators
 - **trace_time.py** - Decorator for logging function execution time and storing in context
 - **trace_closer.py** - Decorator for managing resource tracing and flow trace logs
@@ -65,7 +65,7 @@ A comprehensive summary of each code file with its purpose and key functionality
   - auto_monitor decorator: Automatic group assignment without manual specification
 
 #### Logging (`lib/monitoring/logging/`)
-- **config.py** - Logging configuration with console and SQLite handlers setup
+- **config.py** - Logging configuration with console and SQLite handlers setup (@monitor applied to setup_logging, shutdown_logging)
 - **handlers.py** - SQLiteHandler processing FLOW_TRACE logs into database tables
 
 #### Serializers (`lib/monitoring/serializers/`)
@@ -317,6 +317,7 @@ A comprehensive summary of each code file with its purpose and key functionality
   - Added `acp_generate_table_view` callback for dynamic table generation when in table view mode
   - Implements full table/graph toggle for Greek profiles and Taylor approximation error analysis
   - Legend positioning: Moved legends to be inline with titles (above graph area, right-aligned)
+  - **Monitor Migration (January 6, 2025)**: Migrated all 30 callbacks and 6 utility functions from legacy decorators (@TraceCloser, @TraceTime, @TraceCpu, @TraceMemory) to single @monitor() decorator for simplified observability
 
 #### Actant Preprocessing Dashboard (`apps/dashboards/actant_preprocessing/`)
 - **__init__.py** - Package initialization for BFO Greek Analysis dashboard
@@ -347,13 +348,11 @@ A comprehensive summary of each code file with its purpose and key functionality
   - Integration functions for main dashboard sidebar
 
 #### Observatory (`apps/dashboards/observatory/`)
-**New Dashboard** - Simplified observability dashboard following ActantPnL pattern.
-
-- `__init__.py` - Module exports: create_observatory_content, register_callbacks
-- `models.py` - Data access layer with ObservatoryDataService for querying logs/observatory.db
-- `views.py` - Simple dashboard layout with DataTable showing test data, follows ActantPnL pattern
-- `callbacks.py` - Single callback for refreshing table data from database
-- `app.py` - Standalone app for testing (not used in main dashboard integration)
+- **views.py** - Observatory dashboard UI with data, exception tables including Duration column (execution time in ms)
+- **callbacks.py** - Dash callbacks for refreshing tables, filter persistence, and child process display
+- **models.py** - ObservatoryDataService for querying SQLite observatory.db, includes duration_ms formatting
+- **constants.py** - Configuration constants for Observatory
+- **app.py** - Standalone entry point for Observatory dashboard
 
 ## Remaining Original Locations
 
@@ -481,106 +480,4 @@ data/
 - `pages/`: Individual dashboard pages
 - `state/`: State management utilities
 
-## Utilities
-- `lib/uikitxv2.egg-info/`: Package metadata and entry points
-
-## Testing (`tests/`)
-- Comprehensive test coverage for components, decorators, and trading logic
-- Tests follow the same structure as the source code
-
-## Migration Scripts (`scripts/migration/`)
-- Tools for migrating from old structure to new architecture
-
-## Memory Bank (`memory-bank/`)
-
-### Documentation Files
-- `activeContext.md`: Current development focus - Phase 8 Production Hardening. Task 4 (Retention Management) completed. Task 5 (Dash UI) is next. Contains current task status, robustness improvements, and recent achievements.
-- `code-index.md`: This file! One-paragraph summary per code file to keep large repos tractable. Essential for understanding project structure at a glance.
-- `io-schema.md`: Canonical list of all inputs, outputs, constants, and environment variables
-- `productContext.md`: Product vision and user experience goals
-- `progress.md`: Development progress tracking
-- `projectBrief.md`: High-level project overview and objectives
-- `systemPatterns.md`: Architectural patterns and design decisions
-- `techContext.md`: Technology stack and constraints
-- `.cursorrules`: Coding standards and AI assistant guidelines
-- `observability-robustness-analysis.md`: Critical fragility areas and systematic improvement plan for production-grade robustness
-- `robustness-10-simple-plan.md`: Simple 1-day plan to achieve 10/10 robustness score
-- `future-work-10-robustness.md`: Documented tasks for reaching 10/10 robustness (memory pressure, circuit breaker, performance guide, unsupported patterns)
-- `phase8-handoff-summary.md`: Comprehensive summary of Phase 8 progress, fixes, and handoff notes
-- `performance-guidelines.md`: Performance optimization guide documenting SQLite bottleneck (1,089 ops/sec), sampling strategies, drain interval tuning, and real-world scenarios for HFT, analytics, and batch processing systems.
-- `edge-cases-and-limitations.md`: Comprehensive documentation of known limitations, unsupported patterns, and practical workarounds. Covers multiprocessing, C extensions, generators, performance edge cases, and when NOT to use @monitor.
-- `retention-implementation-summary.md`: Detailed summary of retention management implementation. Documents design decisions (simple DELETE approach chosen over complex alternatives), implementation details, testing results, and production considerations. Shows how simple, well-tested solutions beat complex ones.
-- `observability-dashboard-plan.md`: Detailed implementation plan for new observability UI
-- `numerical_greeks_findings.md`: Investigation results comparing analytical vs numerical Greeks. Documents step size analysis showing no step size can bridge the ~24-25x difference between Bachelier model Greeks and pure mathematical derivatives. Includes recommended balanced step sizes and dashboard implementation guidance.
-- `greek_validation_findings.md`: Complete results from Greek PnL prediction validation. Shows R² = 0.90 accuracy with second-order Taylor expansion. Includes Greek contribution analysis (Delta 37%, Theta 39%, Gamma 21%, Vega 4% near-ATM) and dashboard integration recommendations.
-
-### Feature Documentation (`memory-bank/PRDeez/`)
-- `logsystem.md`: Original observability system design brief
-- `observability-implementation-plan.md`: Refined implementation plan combining original brief with technical review feedback. Includes phases, concrete API specs, performance targets, and migration strategy.
-
-### Actant PnL Analysis (`memory-bank/actant_pnl/`)
-- `analysis/`: Excel formula analysis and documentation
-- `implementation/`: Dashboard implementation notes
-
-### Resource Monitoring (`lib/monitoring/queues/`)
-- **queues/** - Queue management subsystem
-- **serializers/** - Data serialization for observability
-- **writers/** - Database writers and output handlers
-- **resource_monitor.py** - Resource monitoring abstraction layer providing clean decoupling from psutil. Includes ResourceMonitorProtocol, PsutilMonitor (psutil backend), NullMonitor (graceful degradation), MockMonitor (testing), and global singleton management. Handles CPU and memory tracking with lazy initialization and runtime feature detection.
-
-### Monitoring and Observability
-
-#### lib/monitoring/decorators/monitor.py
-The main @monitor decorator for observability. Supports sync/async functions, generators, and class methods. Captures execution time, arguments, results, and resource usage. Integrates with queue and writer for persistence. Now includes retention controller integration.
-
-#### lib/monitoring/retention/__init__.py
-Package initialization for retention management system. Exports RetentionManager and RetentionController.
-
-#### lib/monitoring/retention/manager.py
-Simple, robust retention management for observability data. Implements 6-hour rolling window deletion strategy using basic SQL DELETE operations. Uses WAL mode for better concurrency. No VACUUM operations to avoid spikes in 24/7 trading environments.
-
-#### lib/monitoring/retention/controller.py
-Controller for orchestrating retention operations. Runs background thread that calls RetentionManager every 60 seconds. Handles errors gracefully with exponential backoff. Provides statistics and monitoring capabilities. Thread-safe with graceful shutdown.
-
-#### tests/monitoring/retention/__init__.py
-Test package for retention management tests.
-
-#### tests/monitoring/retention/test_retention_manager.py
-Unit tests for RetentionManager. Tests initialization, cleanup operations with various data ages, database statistics, steady state estimation, error handling, and concurrent operations. Includes time-warp testing for edge cases.
-
-#### tests/monitoring/retention/test_retention_controller.py
-Unit tests for RetentionController. Tests thread lifecycle, error handling and recovery, database lock handling, statistics collection, manual cleanup triggers, and graceful shutdown. Verifies thread safety and exception resilience.
-
-#### tests/monitoring/retention/test_retention_integration.py
-Integration tests for retention system with real observability data. Tests full system integration, steady state behavior, and error handling with mixed workloads.
-
-#### tests/monitoring/retention/demo_retention.py
-Demo script showing retention management in action. Demonstrates initial growth, automatic cleanup, and steady state operation with visual statistics. Uses accelerated 6-minute retention for demo purposes.
-
-### memory-bank/retention-implementation-summary.md
-Comprehensive summary of retention management implementation. Documents design decisions (simple DELETE approach chosen over complex alternatives), implementation details, testing results, and production considerations. Shows how simple, well-tested solutions beat complex ones.
-
-#### lib/monitoring/circuit_breaker.py
-Simple circuit breaker implementation for preventing cascading failures. Supports three states (CLOSED, OPEN, HALF_OPEN), configurable failure thresholds, timeout periods, and recovery criteria. Thread-safe with comprehensive statistics tracking.
-
-#### tests/monitoring/test_circuit_breaker.py
-Comprehensive unit tests for circuit breaker functionality. Tests state transitions, thread safety, timeout behavior, statistics tracking, and manual reset functionality. Includes 10 test cases covering all circuit breaker behaviors.
-
-#### tests/monitoring/observability/test_circuit_breaker_integration.py
-Integration tests for circuit breaker with observability system. Tests database failure protection, recovery scenarios, statistics availability, and data integrity under circuit breaker conditions.
-
-#### tests/monitoring/observability/demo_circuit_breaker.py
-Demo script showing circuit breaker in action. Demonstrates failure detection, circuit opening, call rejection, timeout-based recovery, and SQLite writer protection under database failures.
-
-## Archive Structure
-
-### memory-bank-archive/
-A complete backup of all memory bank contents created on 2025-06-22 for preserving implementation history. The archive is organized into:
-- **core-docs/**: Core project documentation (projectBrief, systemPatterns, etc.)
-- **implementation-history/**: Historical dashboard and implementation documents
-- **analysis-docs/**: Analysis, guidelines, and findings documents
-- **phase-summaries/**: Phase completion summaries from development
-- **actant_pnl/**: Complete copy of the actant_pnl subfolder with all implementation history
-
-This archive preserves all historical context while the main memory-bank folder has been trimmed to focus on active development work.
-
+## Utilities- `

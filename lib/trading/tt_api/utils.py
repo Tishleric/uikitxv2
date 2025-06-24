@@ -5,6 +5,8 @@ Utilities for working with the Trading Technologies REST API.
 import uuid
 import re
 
+from monitoring.decorators import monitor
+
 def generate_guid():
     """
     Generate a new GUID/UUID for use in request IDs.
@@ -14,6 +16,7 @@ def generate_guid():
     """
     return str(uuid.uuid4())
 
+@monitor()
 def create_request_id(app_name, company_name):
     """
     Create a request ID in the format required by the TT REST API.
