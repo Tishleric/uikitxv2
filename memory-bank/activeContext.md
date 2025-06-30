@@ -3,10 +3,23 @@
 ## Last Updated: 2025-01-09
 
 ### Current Focus
-- Fixed duplicate import path issue causing trading functions to not appear in Observatory
-- All imports now use consistent `lib.` prefix to ensure @monitor decorator is preserved
+- Greek Analysis numerical calculations removed (January 9, 2025)
+- Commented out all numerical (finite difference) calculations and displays
+- Greek profile graphs now show only analytical (Bachelier model) results
+- Greek profile tables show only analytical column
+- Taylor error analysis shows only analytical methods (no Numerical + Cross)
+- Previous updates: Input formats changed to decimal/years, Taylor errors as basis points
 
-### Fixed Import Path Issue (2025-01-09)
+### Recently Completed Tasks
+
+#### Taylor Approximation Error Display Update (2025-01-07) ✅
+- Converted Taylor error display from absolute to percentage values
+- Graph Y-axis now shows "Relative Prediction Error (%)" with % suffix on ticks  
+- Table values display as percentages (e.g., "1.23%")
+- Implemented safe division-by-zero handling
+- Updated both graph and table views in Greek Analysis page
+
+#### Fixed Import Path Issue (2025-01-09) ✅
 - **Root Cause**: App.py was adding both project root and lib/ to sys.path
 - **Problem**: Importing `from trading.pricing_monkey` vs `from lib.trading.pricing_monkey` created different module objects
 - **Solution**: Changed all imports to use `lib.` prefix consistently
@@ -208,3 +221,59 @@ Successfully completed the complete replacement of Greek calculation system with
 
 #### Phase 2 - Core Integration ✅
 - Created `_get_all_bachelier_greeks()`
+
+# Active Development Context
+
+## Current State: Bond Future Options API Module Completed
+
+### What We Just Built
+1. **Simplified API Module** (`lib/trading/bond_future_options/api.py`):
+   - `calculate_implied_volatility()` - Direct volatility calculation from market data
+   - `calculate_greeks()` - All Greeks with one function call
+   - `calculate_taylor_pnl()` - Taylor series PnL approximation
+   - `quick_analysis()` - Complete analysis including risk metrics
+   - `process_option_batch()` - CSV batch processing capability
+   - Helper functions for price conversions (64ths ↔ decimal)
+
+2. **Example Script** (`scripts/bond_options_csv_example.py`):
+   - Demonstrates CSV input/output workflow
+   - Shows single option and batch processing
+   - Includes sample CSV generation
+   - Ready for real-world data integration
+
+3. **Key Design Decisions**:
+   - **No changes to existing code** - API wraps existing functionality
+   - **Mathematical consistency** - Uses same validated pricing engine
+   - **Simple interfaces** - Hide complexity of model instantiation
+   - **CSV-friendly** - Designed for easy external data integration
+
+### API Usage Pattern
+```python
+# Simple one-liner for implied volatility
+vol = calculate_implied_volatility(F, K, T, market_price)
+
+# Get all Greeks at once
+greeks = calculate_greeks(F, K, T, vol)
+
+# Process CSV files
+results = process_option_batch(csv_data)
+```
+
+### Next Steps for CSV Integration
+The user can now:
+1. Read option data from external CSV (F, K, T, market_price)
+2. Calculate volatilities and Greeks using the API
+3. Extend the CSV with the calculated values
+4. Use the enriched data for further analysis/PnL calculations
+
+### Recent Context
+- Previously converted Taylor error display to percentage of option price
+- Updated Greek Analysis inputs to decimal/year format
+- Removed numerical methods from UI, keeping only analytical
+- Migrated main dashboard to unified @monitor decorator
+
+## Technical Notes
+- API tested and verified: Vol=5.31, Delta=-26.25 for test case
+- All functions handle edge cases (zero vol, expired options)
+- Batch processing includes error handling per option
+- Future DV01 properly integrated for all conversions

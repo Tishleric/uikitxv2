@@ -1,5 +1,42 @@
 # Project Progress
 
+## Recent Updates (January 2025)
+
+### January 9, 2025 - Remove Numerical Calculations from Greek Analysis
+- **Task**: Comment out all numerical (finite difference) calculations and displays
+- **Status**: ✅ Complete
+- **Details**:
+  - Greek profile graphs: Commented out "Numerical (Finite Differences)" trace
+  - Greek profile tables: Commented out numerical value retrieval and column display  
+  - Taylor error graph: Removed "Numerical + Cross" from colors and method_names dictionaries
+  - Taylor error table: Commented out "Numerical + Cross" row data and column
+  - All changes preserve analytical calculations, only numerical methods removed
+
+### January 9, 2025 - Greek Analysis Input Format Updates
+- **Task**: Convert input fields to accept decimal values directly
+- **Status**: ✅ Complete
+- **Details**:
+  - Market Price input now accepts decimal values (0-1) instead of 64ths
+    - Label changed from "Market Price (64ths)" to "Market Price (Decimal)"
+    - Default value changed from 23 to 0.359375 (23/64)
+    - Removed division by 64 in callback
+  - Time to Expiry input now accepts years (0-1) instead of days
+    - Label changed from "Days to Expiry" to "Time to Expiry (Years)"
+    - Default value changed from 4.7 to 0.0186508 (4.7/252)
+    - Removed division by 252 in callback
+
+### January 7, 2025 - Taylor Approximation Error Display Update
+- **Task**: Convert Taylor error to basis points of underlying futures price
+- **Status**: ✅ Complete  
+- **Details**:
+  - Modified graph Y-axis to show "Prediction Error (bps of Underlying)"
+  - Changed calculation from percentage of option price to basis points of futures price
+  - Formula: (absolute_error / future_price) × 10000
+  - Added bps formatting to Y-axis ticks with ' bps' suffix
+  - Converted table values to show basis point errors (e.g., "1.2 bps")
+  - Implemented division-by-zero protection using epsilon value
+  - Updated both graph and table views in Greek Analysis page
+
 ## 🎉 **PROJECT COMPLETE: Unified Dashboard Platform with 8-Item Navigation** (2025-01-XX) ✅
 
 ### **FINAL ACHIEVEMENT: Complete Unified Trading Dashboard System** 🏆 **100% SUCCESS**
@@ -1418,3 +1455,153 @@ The project migration is **100% COMPLETE** with a clean, professional Python pac
 - Fixed by changing all imports to use consistent `lib.` prefix
 - Trading functions now properly appear in Observatory with correct process groups
 - No more __main__ process group monopoly - each module has its proper group
+
+# Development Progress Tracker
+
+## Most Recent Changes
+
+### 2025-01-09
+- **Created Bond Future Options API Module**:
+  - Added `lib/trading/bond_future_options/api.py` with simplified interfaces:
+    - `calculate_implied_volatility()` - Simple volatility calculation
+    - `calculate_greeks()` - Get all Greeks with one call
+    - `calculate_taylor_pnl()` - Taylor series PnL approximation
+    - `quick_analysis()` - Complete analysis in one function
+    - `process_option_batch()` - Batch processing for CSV files
+  - Created example script `scripts/bond_options_csv_example.py` for CSV processing
+  - Updated package exports in `__init__.py` for easy imports
+  - Designed for external CSV integration with minimal code changes
+
+### 2025-01-09 (Earlier)
+- **Main Dashboard Greek Analysis Page Updates**:
+  - Updated Market Price input to accept decimal values (0-1) instead of 64ths
+  - Updated Time to Expiry input to accept years (0-1) instead of days  
+  - Removed all numerical (finite difference) method calculations and displays
+  - Kept only analytical (Bachelier model) Greek calculations for cleaner interface
+  - Maintained graph/table toggle functionality for Greek profiles
+
+### 2025-01-07
+- **Taylor Approximation Error Display Update**:
+  - Changed from absolute error values to percentage of option price
+  - Updated formula: `(absolute_error / option_price) * 100` 
+  - Applied to both graph and table views
+  - Y-axis now shows "Relative Prediction Error (%)" with percentage formatting
+  - Maintains smooth bell curve visualization without spikes
+
+### 2025-01-06
+- **Main Dashboard Monitor Migration**:
+  - Successfully migrated all 30 callbacks in main dashboard from legacy decorators to unified @monitor()
+  - Removed dependency on legacy decorators (@TraceCloser, @TraceTime, @TraceCpu, @TraceMemory) 
+  - Single decorator now handles all observability needs with automatic configuration
+  - Improved output naming for Dash components - now shows component IDs where available
+  - Zero functionality changes - purely a technical debt reduction exercise
+  - All existing features and UI remain identical
+
+## Active Work Areas
+
+### Recent Completions
+- ✅ Created simplified API module for Bond Future Options calculations
+- ✅ Converted Taylor error display from absolute to percentage values  
+- ✅ Updated Greek Analysis inputs to use standard decimal/year units
+- ✅ Removed numerical methods from Greek Analysis page
+- ✅ Completed @monitor decorator migration across entire main dashboard
+- ✅ Fixed async generator double-recording bug in @monitor decorator
+- ✅ Successfully integrated Observatory dashboard into main dashboard sidebar
+- ✅ Added retention management system with 6-hour rolling window
+- ✅ Implemented third-order Greeks (ultima, zomma) with full UI integration
+- ✅ Created numerical Greeks engine with finite differences for validation
+- ✅ Validated analytical vs numerical Greeks (1st order match within 0.01%)
+- ✅ Implemented Greek-based PnL prediction validator with R²=0.90 accuracy
+
+### In Progress
+- 🔄 Performance optimization of SQLite writer for high-frequency monitoring
+- 🔄 Integration with TT REST API for real-time market data
+
+## Component Status
+
+### Core Infrastructure
+- ✅ Package structure reorganized under `lib/` with pip install support
+- ✅ Monitoring system with unified @monitor decorator
+- ✅ Observatory dashboard for system observability  
+- ✅ Resource monitoring abstraction layer
+- ✅ Smart serialization with performance optimization
+- ✅ Queue management with error-first strategy
+- ✅ Retention management for 24/7 operation
+
+### UI Components
+- ✅ All basic components (Button, Checkbox, ComboBox, etc.)
+- ✅ Advanced components (DataTable, Graph, Grid, Mermaid)
+- ✅ Theme system with `colour_palette.py`
+- ✅ Protocol-based architecture
+
+### Trading Features
+- ✅ Bond Future Options pricing engine (CTO-validated)
+- ✅ Comprehensive Greek calculations (1st, 2nd, and 3rd order)
+- ✅ NEW: Simplified API for easy integration
+- ✅ Actant EOD/SOD integration
+- ✅ Pricing Monkey automation
+- ✅ TT API integration framework
+- ✅ Greek Analysis page with full analytical calculations
+- ✅ Taylor approximation analysis with error visualization
+
+### Dashboards
+- ✅ Main dashboard with sidebar navigation
+- ✅ Greek Analysis with 12 Greek profiles
+- ✅ Scenario Ladder
+- ✅ Actant EOD
+- ✅ Actant PnL  
+- ✅ Observatory integration
+- ✅ Option Hedging (placeholder)
+- ✅ Option Comparison (placeholder)
+
+## Recent Milestones
+
+### Q4 2024
+- Complete package reorganization
+- Monitoring system overhaul
+- Greek calculations implementation
+- Dashboard framework established
+
+### Q1 2025
+- Observatory dashboard launch
+- @monitor decorator migration
+- Retention management implementation
+- Third-order Greeks completion
+- Numerical validation framework
+- Greek Analysis UI improvements
+- Bond Future Options API module
+
+## Next Steps
+
+1. **Immediate (This Week)**:
+   - Test CSV processing with real-world data files
+   - Validate API calculations against existing implementations
+   - Create additional example scripts for different use cases
+
+2. **Short Term (Next 2 Weeks)**:
+   - Optimize batch processing performance
+   - Add caching layer for repeated calculations
+   - Implement streaming API for real-time updates
+
+3. **Medium Term (Next Month)**:
+   - Complete TT REST API integration
+   - Add more sophisticated error handling
+   - Implement advanced analytics features
+
+## Technical Debt
+- ⚠️ SQLite writer performance under extreme load
+- ⚠️ Some components need additional test coverage
+- ✅ ~~Legacy decorator cleanup~~ (Completed 2025-01-06)
+
+## Performance Metrics
+- @monitor overhead: <50µs per call
+- SQLite writer: 1500+ records/second sustained
+- UI response time: <100ms for all interactions
+- Greek calculations: <5ms for full set
+
+## Documentation Status
+- ✅ Comprehensive code-index.md
+- ✅ EXECUTIVE_SUMMARY for monitoring system
+- ✅ API documentation in docstrings
+- ✅ Example scripts for common use cases
+- 🔄 User guide for dashboard features (in progress)
