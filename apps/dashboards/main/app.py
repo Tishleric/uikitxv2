@@ -922,14 +922,14 @@ def acp_create_parameter_inputs():
                 dcc.Input(id="acp-future-price-input", type="number", value=110.789062, step=0.0000001, style=input_style)
             ]), {"width": 4}),
             (html.Div([
-                html.Label("Days to Expiry", style=label_style),
-                dcc.Input(id="acp-days-to-expiry-input", type="number", value=4.7, step=0.0000001, style=input_style)
+                html.Label("Time to Expiry (Years)", style=label_style),
+                dcc.Input(id="acp-days-to-expiry-input", type="number", value=0.0186508, step=0.0000001, style=input_style)
             ]), {"width": 4}),
             
             # Row 2: Market Price, DV01, Convexity
             (html.Div([
-                html.Label("Market Price (64ths)", style=label_style),
-                dcc.Input(id="acp-market-price-input", type="number", value=23, step=0.00001, style=input_style)
+                html.Label("Market Price (Decimal)", style=label_style),
+                dcc.Input(id="acp-market-price-input", type="number", value=0.359375, step=0.00001, style=input_style)
             ]), {"width": 4}),
             (html.Div([
                 html.Label("Future DV01", style=label_style),
@@ -4145,15 +4145,15 @@ def empty_logs(n_clicks):
      State("acp-option-type-selector", "value")]
 )
 @monitor()
-def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, market_price_64ths,
+def acp_update_greek_analysis(n_clicks, strike, future_price, time_to_expiry, market_price_decimal,
                          dv01, convexity, option_type):
     """Recalculate Greeks based on input parameters"""
     
-    # Convert market price from 64ths to decimal
-    market_price = market_price_64ths / 64.0
+    # Market price is already in decimal format
+    market_price = market_price_decimal
     
-    # Convert days to expiry to years
-    T = days_to_expiry / 252.0
+    # Time to expiry is already in years
+    T = time_to_expiry
     
     # Run analysis
     results = analyze_bond_future_option_greeks(
@@ -4278,7 +4278,7 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, ma
     ).render()
     
     # Generate Greek profile data from bachelier_greek.py
-    tau = days_to_expiry / 252.0  # Convert to years
+    tau = time_to_expiry  # Already in years
     F_range = (future_price - 10, future_price + 10)  # ±10 from current price
     
     # Generate profile data
@@ -4347,24 +4347,25 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, ma
             ))
             
             # Add numerical profile if available
-            if bachelier_name in profile_data.get('greeks_num', {}):
-                greek_values_num = np.array(profile_data['greeks_num'][bachelier_name])
-                
-                # Apply same adjustments for numerical
-                if bachelier_name == 'delta' and option_type == 'put':
-                    greek_values_num = greek_values_num - 1.0
-                if bachelier_name == 'theta':
-                    greek_values_num = greek_values_num / 252.0
-                    
-                greek_values_num = greek_values_num * scale_factor * 1000
-                
-                fig.add_trace(go.Scatter(
-                    x=F_values,
-                    y=greek_values_num,
-                    mode='lines',
-                    name='Numerical (Finite Differences)',
-                    line=dict(color=default_theme.accent, width=2, dash='dash')
-                ))
+            # COMMENTED OUT: Numerical calculations display
+            # if bachelier_name in profile_data.get('greeks_num', {}):
+            #     greek_values_num = np.array(profile_data['greeks_num'][bachelier_name])
+            #     
+            #     # Apply same adjustments for numerical
+            #     if bachelier_name == 'delta' and option_type == 'put':
+            #         greek_values_num = greek_values_num - 1.0
+            #     if bachelier_name == 'theta':
+            #         greek_values_num = greek_values_num / 252.0
+            #         
+            #     greek_values_num = greek_values_num * scale_factor * 1000
+            #     
+            #     fig.add_trace(go.Scatter(
+            #         x=F_values,
+            #         y=greek_values_num,
+            #         mode='lines',
+            #         name='Numerical (Finite Differences)',
+            #         line=dict(color=default_theme.accent, width=2, dash='dash')
+            #     ))
             
             # Add vertical lines for current price and strike
             fig.add_vline(x=future_price, line_dash="dash", line_color=default_theme.accent, 
@@ -4415,20 +4416,42 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, ma
     colors = {
         'errors_ana': default_theme.primary,
         'errors_ana_cross': default_theme.accent,
-        'errors_num_cross': default_theme.danger
+        # 'errors_num_cross': default_theme.danger  # Commented out numerical
     }
     
     method_names = {
         'errors_ana': 'Analytical',
         'errors_ana_cross': 'Analytical + Cross',
-        'errors_num_cross': 'Numerical + Cross'
+        # 'errors_num_cross': 'Numerical + Cross'  # Commented out numerical
     }
+    
+    # Get future prices for basis points calculation
+    F_values = taylor_data.get('F_vals', None)
     
     for method_key, display_name in method_names.items():
         if method_key in taylor_data:
+            # Convert absolute error to basis points of underlying
+            if F_values is not None:
+                # Calculate error in basis points: (absolute_error / future_price) * 10000
+                # Avoid division by zero by using a small epsilon
+                epsilon = 1e-10
+                basis_points_errors = []
+                for i, abs_error in enumerate(taylor_data[method_key]):
+                    future_price = F_values[i]
+                    if abs(future_price) > epsilon:
+                        basis_points_error = (abs_error / abs(future_price)) * 10000
+                    else:
+                        basis_points_error = 0.0  # Set to 0 when future price is near zero
+                    basis_points_errors.append(basis_points_error)
+                
+                y_data = basis_points_errors
+            else:
+                # Fallback: if F_values not available, multiply by 10000 assuming already normalized
+                y_data = [val * 10000 for val in taylor_data[method_key]]
+            
             taylor_fig.add_trace(go.Scatter(
                 x=F_values,
-                y=taylor_data[method_key],
+                y=y_data,
                 mode='lines',
                 name=display_name,
                 line=dict(color=colors[method_key], width=2)
@@ -4444,12 +4467,18 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, ma
     taylor_fig.update_layout(
         title="Taylor Approximation Error Analysis",
         xaxis_title="Future Price",
-        yaxis_title="Absolute Prediction Error",
+        yaxis_title="Prediction Error (bps of Underlying)",
         plot_bgcolor=default_theme.base_bg,
         paper_bgcolor=default_theme.panel_bg,
         font_color=default_theme.text_light,
         xaxis=dict(showgrid=True, gridcolor=default_theme.secondary),
-        yaxis=dict(showgrid=True, gridcolor=default_theme.secondary, type='linear'),  # Linear scale for errors
+        yaxis=dict(
+            showgrid=True, 
+            gridcolor=default_theme.secondary, 
+            type='linear',
+            tickformat='.1f',  # Format ticks to 1 decimal place
+            ticksuffix=' bps'  # Add bps suffix to tick labels
+        ),
         margin=dict(l=60, r=20, t=60, b=50),
         height=400,
         legend=dict(
@@ -4479,7 +4508,7 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, days_to_expiry, ma
         'parameters': {
             'strike': strike,
             'future_price': future_price,
-            'days_to_expiry': days_to_expiry,
+            'time_to_expiry': time_to_expiry,
             'option_type': option_type,
             'implied_vol': implied_vol,
             'dv01': dv01
@@ -4574,14 +4603,16 @@ def acp_generate_table_view(store_data, table_clicks, graph_clicks):
             greek_ana = greek_ana * scale_factor * 1000
             
             # Get numerical values if available
-            greek_num = None
-            if bachelier_name in profile_data.get('greeks_num', {}):
-                greek_num = np.array(profile_data['greeks_num'][bachelier_name])
-                if bachelier_name == 'delta' and option_type == 'put':
-                    greek_num = greek_num - 1.0
-                if bachelier_name == 'theta':
-                    greek_num = greek_num / 252.0
-                greek_num = greek_num * scale_factor * 1000
+            # Commented out numerical calculations - showing analytical only
+            # greek_num = None
+            # if bachelier_name in profile_data.get('greeks_num', {}):
+            #     greek_num = np.array(profile_data['greeks_num'][bachelier_name])
+            #     if bachelier_name == 'delta' and option_type == 'put':
+            #         greek_num = greek_num - 1.0
+            #     if bachelier_name == 'theta':
+            #         greek_num = greek_num / 252.0
+            #     greek_num = greek_num * scale_factor * 1000
+            greek_num = None  # Force None to skip numerical display
             
             # Create table rows (show all points)
             for i in range(len(F_values)):
@@ -4650,12 +4681,34 @@ def acp_generate_table_view(store_data, table_clicks, graph_clicks):
         # Show all points
         for i in range(len(F_values)):
             row = {'Future Price': f"{F_values[i]:.3f}"}
-            if 'errors_ana' in taylor_data:
-                row['Analytical'] = f"{taylor_data['errors_ana'][i]:.6f}"
-            if 'errors_ana_cross' in taylor_data:
-                row['Analytical + Cross'] = f"{taylor_data['errors_ana_cross'][i]:.6f}"
-            if 'errors_num_cross' in taylor_data:
-                row['Numerical + Cross'] = f"{taylor_data['errors_num_cross'][i]:.6f}"
+            
+            # Convert absolute errors to basis points of underlying
+            if F_values:
+                # Calculate basis points error with division by zero protection
+                epsilon = 1e-10
+                future_price = F_values[i]
+                abs_future_price = abs(future_price) if abs(future_price) > epsilon else epsilon
+                
+                if 'errors_ana' in taylor_data:
+                    basis_points_error = (taylor_data['errors_ana'][i] / abs_future_price) * 10000
+                    row['Analytical'] = f"{basis_points_error:.1f} bps"
+                if 'errors_ana_cross' in taylor_data:
+                    basis_points_error = (taylor_data['errors_ana_cross'][i] / abs_future_price) * 10000
+                    row['Analytical + Cross'] = f"{basis_points_error:.1f} bps"
+                # Commented out numerical + cross error display
+                # if 'errors_num_cross' in taylor_data:
+                #     basis_points_error = (taylor_data['errors_num_cross'][i] / abs_future_price) * 10000
+                #     row['Numerical + Cross'] = f"{basis_points_error:.1f} bps"
+            else:
+                # Fallback: assume values are already normalized, multiply by 10000
+                if 'errors_ana' in taylor_data:
+                    row['Analytical'] = f"{taylor_data['errors_ana'][i] * 10000:.1f} bps"
+                if 'errors_ana_cross' in taylor_data:
+                    row['Analytical + Cross'] = f"{taylor_data['errors_ana_cross'][i] * 10000:.1f} bps"
+                # Commented out numerical + cross error display
+                # if 'errors_num_cross' in taylor_data:
+                #     row['Numerical + Cross'] = f"{taylor_data['errors_num_cross'][i] * 10000:.1f} bps"
+            
             taylor_rows.append(row)
         
         # Create columns
@@ -4664,8 +4717,9 @@ def acp_generate_table_view(store_data, table_clicks, graph_clicks):
             taylor_columns.append({"name": "Analytical", "id": "Analytical"})
         if 'errors_ana_cross' in taylor_data:
             taylor_columns.append({"name": "Analytical + Cross", "id": "Analytical + Cross"})
-        if 'errors_num_cross' in taylor_data:
-            taylor_columns.append({"name": "Numerical + Cross", "id": "Numerical + Cross"})
+        # Commented out numerical + cross column
+        # if 'errors_num_cross' in taylor_data:
+        #     taylor_columns.append({"name": "Numerical + Cross", "id": "Numerical + Cross"})
         
         # Create Taylor error table
         taylor_table = Container(

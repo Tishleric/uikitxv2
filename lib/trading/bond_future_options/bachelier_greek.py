@@ -235,12 +235,13 @@ def generate_taylor_error_data(K=112, sigma=0.75, tau=0.25,
     Generate Taylor approximation error data across F values
     
     Returns:
-        dict with F_vals, model_changes, and error arrays
+        dict with F_vals, model_changes, option_prices, and error arrays
     """
     F_vals = np.linspace(F_range[0], F_range[1], num_points)
     
     # Storage
     model_changes = []
+    option_prices = []  # Add storage for option prices
     errors_ana = []
     errors_ana_cross = []
     errors_num_cross = []
@@ -251,6 +252,7 @@ def generate_taylor_error_data(K=112, sigma=0.75, tau=0.25,
         C1 = bachelier_price(F + dF, K, sigma + dSigma, tau + dTau)
         model_change = C1 - C0
         model_changes.append(model_change)
+        option_prices.append(C0)  # Store the option price at current F
 
         g_ana = analytical_greeks(F, K, sigma, tau)
         g_num = numerical_greeks(F, K, sigma, tau)
@@ -267,6 +269,7 @@ def generate_taylor_error_data(K=112, sigma=0.75, tau=0.25,
     return {
         'F_vals': F_vals,
         'model_changes': model_changes,
+        'option_prices': option_prices,  # Include option prices in returned data
         'errors_ana': errors_ana,
         'errors_ana_cross': errors_ana_cross,
         'errors_num_cross': errors_num_cross,

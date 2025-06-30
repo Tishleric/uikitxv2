@@ -226,7 +226,8 @@ A comprehensive summary of each code file with its purpose and key functionality
   - `format_pnl()` - Format PnL values with color coding for gains/losses
 
 #### Bond Future Options (`lib/trading/bond_future_options/`)
-- **__init__.py** - Exports BondFutureOption class and analysis functions
+- **__init__.py** - Exports BondFutureOption class, analysis functions, and convenience API
+- **api.py** - Simplified API for volatility, Greeks, and Taylor PnL calculations
 
 - **pricing_engine.py** - Core bond future option pricing engine (CTO-validated):
   - `BondFutureOption` - Main class for Bachelier model pricing
@@ -318,6 +319,9 @@ A comprehensive summary of each code file with its purpose and key functionality
   - Implements full table/graph toggle for Greek profiles and Taylor approximation error analysis
   - Legend positioning: Moved legends to be inline with titles (above graph area, right-aligned)
   - **Monitor Migration (January 6, 2025)**: Migrated all 30 callbacks and 6 utility functions from legacy decorators (@TraceCloser, @TraceTime, @TraceCpu, @TraceMemory) to single @monitor() decorator for simplified observability
+  - **Taylor Error Update (January 7, 2025)**: Converted Taylor approximation error display from absolute values to basis points of underlying futures price (abs_error / future_price × 10000) for both graph and table views
+  - **Greek Analysis Inputs (January 9, 2025)**: Updated Market Price input to accept decimal values (0-1) instead of 64ths, and Time to Expiry to accept years (0-1) instead of days
+  - **Numerical Methods Removal (January 9, 2025)**: Commented out all numerical (finite difference) calculations and displays from Greek Analysis page, keeping only analytical (Bachelier model) results
 
 #### Actant Preprocessing Dashboard (`apps/dashboards/actant_preprocessing/`)
 - **__init__.py** - Package initialization for BFO Greek Analysis dashboard
@@ -388,6 +392,7 @@ tests/
 - **actant_sod/pricing_monkey_to_actant.py** - Integration script that retrieves PM data and processes through actant logic
 - **actant_pnl_formula_extractor.py** - Extract Excel formulas from actantpnl.xlsx for analysis
 - **run_actant_pnl_demo.py** - Run the Actant PnL dashboard in standalone mode for testing
+- **bond_options_csv_example.py** - Example script for processing option data from CSV using simplified API
 
 ## Data Structure (`data/`)
 ```
