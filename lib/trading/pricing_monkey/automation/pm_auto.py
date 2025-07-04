@@ -29,7 +29,7 @@ from monitoring.decorators import monitor
 logger = logging.getLogger(__name__) 
 
 # --- Configuration Constants ---
-FILE_PATH = r"\\ERIC-HOST-PC\FRGMSharedSpace\PnL Scanrios - US Rates.4.30.25.xlsx"
+FILE_PATH = r"\\100.95.155.81\FRGMSharedSpace\PnL Scanrios - US Rates.4.30.25.xlsx"
 SHEET_NAME_PM_SETUP = "Sheet2" # Sheet used for PM interaction
 PNL_SCENARIO_BUY_SHEET_NAME = "PnL Scenario - Buy"
 PRICING_MONKEY_URL_FOR_PASTE = "https://pricingmonkey.com/b/3580a62f-daf9-49bd-bf2e-01120ff59371"

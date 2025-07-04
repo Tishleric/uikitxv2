@@ -1,5 +1,11 @@
 # Code Index
 
+## Component Factory (NEW)
+- `lib/components/factory/__init__.py` - Factory module exports, provides DashComponentFactory class
+- `lib/components/factory/component_factory.py` - Main factory class that creates components with sensible defaults, supports theme injection and config overrides
+- `lib/components/factory/defaults.py` - Default configurations for all component types (data=[], page_size=10, etc.)
+- `lib/components/factory/templates.py` - Template methods for common patterns like datatable_in_grid, form_grid, dashboard_layout
+
 ## Overview
 This index provides a quick reference to all code files in the UIKitXv2 project, organized by the new package structure.
 
@@ -485,4 +491,13 @@ data/
 - `pages/`: Individual dashboard pages
 - `state/`: State management utilities
 
-## Utilities- `
+## Standalone Packages
+
+### scenario_ladder_standalone/
+- **run_scenario_ladder.py** - Standalone version of scenario ladder with minimal dependencies, modified imports for lib/ structure
+- **lib/** - Minimal subset of UIKitXv2 libraries needed for scenario ladder
+- **data/** - Input/output data directories for mock data and Actant integration
+- **requirements.txt** - Python dependencies (dash, pandas, requests, pywinauto, pyperclip)
+- **README.md** - Comprehensive setup and usage instructions for standalone deployment
+
+## Utilities

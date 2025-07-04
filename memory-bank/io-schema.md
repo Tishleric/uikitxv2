@@ -594,3 +594,17 @@ Navigation functions like `handle_navigation` that return (content, active_page,
 - Active page → `data='active_page'`
 - Style dictionaries → `data='{nav_name}_style'` (e.g., `pricing_monkey_style`, `analysis_style`)
 - Based on navigation button IDs extracted from style dictionaries
+
+## Component Factory Methods (NEW)
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| DashComponentFactory.__init__ | Input | theme: Optional[Dict], config: Optional[Dict] | Any dict for theme/config | `factory = DashComponentFactory(theme=dark_theme)` |
+| factory.create_datatable | Input | id: str, **kwargs | Valid component ID string | `factory.create_datatable("my-table", page_size=20)` |
+| factory.create_grid | Input | id: str, **kwargs | Valid component ID string | `factory.create_grid("my-grid", children=[...])` |
+| factory.create_button | Input | id: str, **kwargs | Valid component ID string | `factory.create_button("btn1", label="Click")` |
+| factory.create_graph | Input | id: str, **kwargs | Valid component ID string | `factory.create_graph("graph1", figure={})` |
+| factory.create_container | Input | id: str, **kwargs | Valid component ID string | `factory.create_container("main", fluid=True)` |
+| factory.create_datatable_in_grid | Input | grid_id: str, table_id: str, grid_width: Optional | IDs as strings, width as dict/int | `factory.create_datatable_in_grid("g1", "t1", {"xs": 12})` |
+| factory.create_form_grid | Input | grid_id: str, form_elements: List[Dict], submit_button_text: str | Valid IDs and element configs | `factory.create_form_grid("form1", elements, "Submit")` |
+| factory.create_dashboard_layout | Input | container_id: str, title: str, sections: List[Dict] | Valid ID, title string, section configs | `factory.create_dashboard_layout("dash1", "Sales", sections)` |
