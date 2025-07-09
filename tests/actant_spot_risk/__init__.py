@@ -1,0 +1,1 @@
+"""Tests for Actant spot risk module.""" 

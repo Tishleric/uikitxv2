@@ -1,0 +1,45 @@
+# UIKitXv2 Requirements
+# Python 3.10+ required
+# Generated for production deployment and development
+
+# Core Web Framework & UI Components
+dash==2.17.1
+dash-bootstrap-components==1.6.0
+dash-daq==0.5.0
+dash-table==5.0.0
+plotly==5.22.0
+Flask==3.0.3  # Used directly for static file serving in main dashboard
+
+# Data Processing & Scientific Computing
+pandas==2.1.4  # Stable version with excellent Windows wheel support
+numpy==1.26.4  # More compatible with pandas 2.1.x
+scipy==1.13.1  # Compatible with numpy 1.26.x
+matplotlib==3.8.4  # Stable version matching the ecosystem
+
+# System & Automation
+psutil==6.0.0
+pyautogui==0.9.54
+pyperclip==1.9.0
+pywinauto==0.6.8  # Essential for keyboard automation in trading workflows
+
+# File Handling
+openpyxl==3.1.5  # Excel file processing
+
+# HTTP & Date Utilities
+requests==2.32.3
+python-dateutil==2.9.0.post0
+
+# Configuration
+PyYAML==6.0.1  # Used in demo query runner
+
+# Development Tools
+pytest==8.2.2
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+ruff==0.5.0
+mypy==1.10.1
+
+# Type Stubs for Static Analysis
+plotly-stubs==0.1.8.0
+types-python-dateutil==2.9.0.20240316
+types-requests==2.32.0.20240622 
