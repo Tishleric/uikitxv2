@@ -1,180 +1,253 @@
-# Bond Future Options Analytics
+# Bond Future Options Pricing Library
 
-Production-ready Bachelier model implementation for bond future options Greeks and Taylor series P&L analysis.
+A comprehensive library for pricing bond future options using the Bachelier (normal distribution) model, with support for full Greek calculations and multiple model versions.
 
-## Package Contents
-This minimal package contains 8 essential files:
-- Core implementation: `pricing_engine.py`, `analysis.py`, `bachelier_greek.py`
-- Clean API interface: `api.py`
-- Package setup: `__init__.py`, `requirements.txt`
-- Documentation: `README.md`, `example_usage.py`
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Client Code                          │
+│         (Your application, dashboard, scripts)          │
+└────────────────────┬───────────────────────────────────┘
+                     │ Uses
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│            GreekCalculatorAPI (Facade)                  │
+│         Simple, high-level interface                    │
+└────────────────────┬───────────────────────────────────┘
+                     │ Delegates to
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│              ModelFactory                               │
+│         Creates model instances                         │
+└────────────────────┬───────────────────────────────────┘
+                     │ Creates
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│         Model Implementation (e.g., BachelierV1)        │
+│         Implements OptionModelInterface                 │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## Quick Start
 
-```python
-# Current dashboard usage pattern
-from lib.trading.bond_future_options import analyze_bond_future_option_greeks
-from lib.trading.bond_future_options.bachelier_greek import generate_greek_profiles_data, generate_taylor_error_data
-
-# Analyze option and get all Greeks
-results = analyze_bond_future_option_greeks(
-    future_dv01=0.063,
-    future_convexity=0.002404,
-    F=110.789062,        # Future price
-    K=110.75,            # Strike price  
-    T=0.0186508,         # Time to expiry (years)
-    market_price=0.359375,  # Option price (decimal)
-    option_type='put'
-)
-
-# Future cleaner API usage
-from lib.trading.bond_future_options.api import quick_analysis
-analysis = quick_analysis(110.789062, 110.75, 0.0186508, 0.359375)
-```
-
-## Core Files
-
-### 1. `pricing_engine.py` (322 lines)
-**Core Bachelier model implementation with all Greek calculations**
-
-| Function/Class | Lines | Description |
-|---------------|-------|-------------|
-| `BondFutureOption` | 15-322 | Main pricing engine class |
-| `__init__()` | 27-48 | Initialize with DV01, convexity, yield |
-| `price()` | 50-73 | Bachelier option pricing |
-| `implied_volatility()` | 75-95 | Newton-Raphson implied vol solver |
-| `delta_F()` | 97-106 | Delta w.r.t. future price |
-| `delta_y()` | 108-113 | Delta w.r.t. yield |
-| `gamma_F()` | 115-124 | Gamma w.r.t. future price |
-| `gamma_y()` | 126-131 | Gamma w.r.t. yield (key metric) |
-| `vega_price()` | 133-142 | Vega w.r.t. price volatility |
-| `vega_y()` | 144-149 | Vega w.r.t. yield volatility |
-| `theta_F()` | 151-162 | Theta in future price space |
-| `volga_price()` | 170-179 | Second-order vega (volga) |
-| `vanna_F_price()` | 181-190 | Cross-Greek: delta-vega |
-| `charm_F()` | 192-201 | Cross-Greek: delta-theta |
-| `speed_F()` | 203-212 | Third-order price Greek |
-| `color_F()` | 214-223 | Third-order time Greek |
-| `ultima()` | 225-237 | Third-order vol Greek |
-| `zomma()` | 239-251 | Cross-Greek: gamma-vega |
-
-### 2. `analysis.py` (178 lines)
-**High-level analysis functions used by dashboard**
-
-| Function | Lines | Description |
-|----------|-------|-------------|
-| `solve_implied_volatility()` | 11-59 | Robust implied vol solver with diagnostics |
-| `calculate_all_greeks()` | 61-111 | Calculate complete Greek set (scaled by 1000) |
-| `analyze_bond_future_option_greeks()` | 113-178 | **Main dashboard function** - complete analysis |
-
-### 3. `bachelier_greek.py` (335 lines)
-**Greek profile and Taylor error analysis**
-
-| Function | Lines | Description |
-|----------|-------|-------------|
-| `bachelier_price()` | 12-14 | Basic Bachelier formula |
-| `analytical_greeks()` | 17-50 | Analytical Greek calculations |
-| `numerical_greeks()` | 53-103 | Finite difference Greeks |
-| `taylor_expand()` | 132-144 | Taylor series expansion |
-| `generate_greek_profiles_data()` | 200-241 | **Dashboard function** - Greek curves |
-| `generate_taylor_error_data()` | 244-305 | **Dashboard function** - Taylor accuracy |
-
-### 4. `api.py` (389 lines) 
-**Clean API for future use (not yet integrated in dashboard)**
-
-| Function | Lines | Description |
-|----------|-------|-------------|
-| `calculate_implied_volatility()` | 28-87 | User-friendly vol calculation |
-| `calculate_greeks()` | 90-143 | Simple Greek calculation interface |
-| `calculate_taylor_pnl()` | 146-209 | Taylor P&L predictions |
-| `quick_analysis()` | 212-283 | All-in-one analysis function |
-| `process_option_batch()` | 286-359 | Batch processing for multiple options |
-
-### 5. `__init__.py`
-**Package initialization - exports key functions for convenient importing**
-- Exports `analyze_bond_future_option_greeks` from analysis module
-- Provides `BondFutureOption` class from pricing_engine
-
-### 6. `example_usage.py`
-**Complete working examples showing both current and future usage patterns**
-- Demonstrates current dashboard pattern (what production uses)
-- Shows future API pattern (cleaner interface)
-- Includes verification that both patterns produce identical results
-- Provides batch processing example with multiple strikes
-
-### 7. `requirements.txt`
-**Minimal dependencies needed to run the package**
-```
-numpy>=1.20.0
-pandas>=1.3.0
-scipy>=1.7.0
-matplotlib>=3.4.0  # Optional, for visualization
-```
-
-## Example: Current Dashboard Pattern
+### Simplest Usage - High-Level API
 
 ```python
-# This is what the dashboard currently does
-from lib.trading.bond_future_options import analyze_bond_future_option_greeks
-from lib.trading.bond_future_options.bachelier_greek import generate_greek_profiles_data, generate_taylor_error_data
+from lib.trading.bond_future_options import GreekCalculatorAPI
 
-# 1. Full Greek analysis at current point
-results = analyze_bond_future_option_greeks(
-    future_dv01=0.063,
-    future_convexity=0.002404,
-    F=110.789062,
-    K=110.75,
-    T=0.0186508,
+# Create API instance
+api = GreekCalculatorAPI()
+
+# Single option
+result = api.analyze({
+    'F': 110.75,            # Future price
+    'K': 110.5,             # Strike price
+    'T': 0.05,              # Time to expiry (years)
+    'market_price': 0.359375,  # Market price (decimal)
+    'option_type': 'put'    # 'put' or 'call'
+})
+
+print(f"Implied Vol: {result['volatility']:.2f}")
+print(f"Delta: {result['greeks']['delta_y']:.2f}")
+
+# Batch processing
+options = [
+    {'F': 110.75, 'K': 110.5, 'T': 0.05, 'market_price': 0.359375},
+    {'F': 110.75, 'K': 111.0, 'T': 0.05, 'market_price': 0.453125},
+]
+results = api.analyze(options)
+```
+
+### Direct API Functions (Legacy Support)
+
+```python
+from lib.trading.bond_future_options import calculate_implied_volatility, calculate_greeks
+
+# Calculate implied volatility
+vol = calculate_implied_volatility(
+    F=110.75, K=110.5, T=0.05, 
     market_price=0.359375,
-    option_type='put'
+    future_dv01=0.063  # Optional parameters
 )
 
-print(f"Implied Vol: {results['implied_volatility']:.2f}")
-print(f"Delta (Y-space): {results['current_greeks']['delta_y']:.2f}")
-print(f"Gamma (Y-space): {results['current_greeks']['gamma_y']:.2f}")
-
-# 2. Generate Greek profiles across price range
-profile_data = generate_greek_profiles_data(
-    K=110.75,
-    sigma=results['implied_volatility'],
-    tau=0.0186508,
-    F_range=(108, 113)
-)
-
-# 3. Generate Taylor approximation error analysis
-taylor_data = generate_taylor_error_data(
-    K=110.75,
-    sigma=results['implied_volatility'],
-    tau=0.0186508,
-    dF=0.1,      # 10 cent shock
-    dSigma=0.01, # 1 vol point shock
-    dTau=0.01,   # Time decay
-    F_range=(108, 113)
+# Calculate Greeks
+greeks = calculate_greeks(
+    F=110.75, K=110.5, T=0.05,
+    volatility=vol
 )
 ```
 
-## Key Greek Definitions
+### Model Selection (Future-Proof)
 
-**First Order:**
-- `delta_y`: Change in option value per basis point yield change (×1000)
-- `gamma_y`: Change in delta per basis point yield change (×1000)
-- `vega_y`: Change in option value per yield vol point (×1000)
-- `theta_F`: Daily time decay (×1000)
+```python
+# Use specific model version
+result = api.analyze(option_data, model='bachelier_v1')
 
-**Second Order:**
-- `volga_price`: Convexity of vega
-- `vanna_F_price`: Cross-sensitivity of delta to volatility
-- `charm_F`: Cross-sensitivity of delta to time
+# Custom model parameters
+result = api.analyze(
+    option_data,
+    model_params={'future_dv01': 0.08, 'future_convexity': 0.003}
+)
+```
 
-**Third Order:**
-- `speed_F`, `color_F`, `ultima`, `zomma`: Higher-order sensitivities
+## File Descriptions
 
-## Dependencies
-- numpy, pandas, scipy
-- matplotlib (optional, for visualization examples)
+### Core Files
 
-## Notes
-- All Greeks are scaled by 1000 for display (except delta_F)
-- Bachelier model assumes normal distribution (not lognormal)
-- Suitable for bond futures where negative prices are theoretically possible
-- Time to expiry should be in years (e.g., 7 days = 7/365) 
+- **`pricing_engine.py`** - Core BondFutureOption class with Bachelier pricing formulas
+- **`bachelier.py`** - Pure Bachelier model mathematical implementation
+- **`analysis.py`** - Newton-Raphson solver and high-level analysis functions
+
+### API Layer
+
+- **`api.py`** - Direct API functions with all safeguards (implied vol, Greeks, batch)
+- **`greek_calculator_api.py`** - High-level facade for simple usage (**RECOMMENDED**)
+- **`option_model_interface.py`** - Protocol defining standard model interface
+
+### Factory/Models
+
+- **`model_factory.py`** - Factory for creating model instances by name
+- **`models/bachelier_v1.py`** - Current Bachelier implementation (v1.0)
+
+### Greek Calculations
+
+- **`bachelier_greek.py`** - Analytical Greek calculations and profile generation
+- **`numerical_greeks.py`** - Finite difference methods (validation only)
+- **`greek_validator.py`** - Greek validation and PnL attribution tools
+
+## Greeks Calculated
+
+All Greeks are calculated analytically using the Bachelier model:
+
+- **delta_F** - Price delta (∂V/∂F)
+- **delta_y** - Yield delta (∂V/∂y) - scaled by 1000
+- **gamma_y** - Yield gamma (∂²V/∂y²) - scaled by 1000
+- **vega_y** - Yield vega (∂V/∂σ_y) - scaled by 1000
+- **theta_F** - Price theta (∂V/∂t) - daily, scaled by 1000
+- **volga_price** - Volatility gamma (∂²V/∂σ²) - scaled by 1000
+- **vanna_F_price** - Cross derivative (∂²V/∂F∂σ) - scaled by 1000
+- **charm_F** - Delta decay (∂²V/∂F∂t) - scaled by 1000
+- **speed_F** - Gamma derivative (∂³V/∂F³) - scaled by 1000
+- **color_F** - Gamma decay (∂³V/∂F²∂t) - scaled by 1000
+- **ultima** - Vomma derivative (∂³V/∂σ³) - scaled by 1000
+- **zomma** - Gamma sensitivity to vol (∂³V/∂F²∂σ) - scaled by 1000
+
+## Key Parameters
+
+### Default Bond Future Parameters
+- **future_dv01**: 0.063 (10-year Treasury note typical)
+- **future_convexity**: 0.002404
+- **yield_level**: 0.05
+
+### Solver Parameters
+- **tolerance**: 1e-6 (convergence criterion)
+- **max_iterations**: 100
+- **min_price_safeguard**: 1/64 (deep OTM protection)
+- **max_implied_vol**: 1000
+
+## Error Handling
+
+All functions include comprehensive error handling:
+
+```python
+result = api.analyze(option_data)
+
+if result['success']:
+    print(f"Vol: {result['volatility']}")
+else:
+    print(f"Error: {result['error_message']}")
+```
+
+Common errors:
+- Arbitrage violations (price < 95% intrinsic value)
+- Convergence failures
+- Price below minimum safeguard
+- Volatility outside bounds
+
+## Advanced Usage
+
+### Creating Models Directly
+
+```python
+from lib.trading.bond_future_options import ModelFactory
+
+# Create model with custom parameters
+model = ModelFactory.create_model(
+    'bachelier_v1',
+    future_dv01=0.08,
+    future_convexity=0.003
+)
+
+# Use model directly
+vol = model.calculate_implied_vol(F=110.75, K=110.5, T=0.05, market_price=0.359375)
+greeks = model.calculate_greeks(F=110.75, K=110.5, T=0.05, volatility=vol)
+```
+
+### Price Conversions
+
+```python
+from lib.trading.bond_future_options import convert_price_to_64ths, convert_64ths_to_price
+
+# Convert decimal to 64ths
+price_64ths = convert_price_to_64ths(0.359375)  # Returns 23.0
+
+# Convert 64ths to decimal
+price_decimal = convert_64ths_to_price(23.0)    # Returns 0.359375
+```
+
+## Example: Complete Workflow
+
+```python
+from lib.trading.bond_future_options import GreekCalculatorAPI
+
+# Initialize
+api = GreekCalculatorAPI()
+
+# Option data
+option = {
+    'F': 110.7890625,       # 110 + 25.25/32
+    'K': 110.75,            # 110 + 24/32
+    'T': 0.018650794,       # 4.7/252
+    'market_price': 0.359375,  # 23/64
+    'option_type': 'put'
+}
+
+# Analyze
+result = api.analyze(option)
+
+# Display results
+if result['success']:
+    print(f"Implied Volatility: {result['volatility']:.2f}")
+    print(f"Model Version: {result['model_version']}")
+    print("\nGreeks:")
+    for name, value in result['greeks'].items():
+        print(f"  {name}: {value:.4f}")
+else:
+    print(f"Calculation failed: {result['error_message']}")
+```
+
+## Testing
+
+Run tests to verify functionality:
+
+```bash
+# Test API alignment
+python tests/bond_future_options/test_api_alignment.py
+
+# Test factory/facade
+python tests/bond_future_options/test_factory_facade.py
+```
+
+## Future Model Versions
+
+To add a new model version:
+
+1. Create a class implementing `OptionModelInterface`
+2. Register it with the factory
+3. Use it via the API:
+
+```python
+# Future usage
+result = api.analyze(option_data, model='bachelier_v2')
+``` 

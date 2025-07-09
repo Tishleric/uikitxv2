@@ -376,6 +376,9 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | greek_scaling_delta_F | Constant | float | 1.0 | delta_F is not scaled (multiplied by 1) |
 | greek_scaling_others | Constant | float | 1000.0 | All other Greeks are multiplied by 1000 for display |
 | theta_daily_conversion | Constant | float | 252.0 | Theta is divided by 252 for daily decay |
+| model | Input | str | Any registered model name | Model version to use for Greek calculations (default: 'bachelier_v1') |
+| model_params | Input | dict | Dict with model-specific params | Additional parameters for the selected model |
+| model_version | Output | str | Model name and version | Version of model used for calculation (e.g., 'bachelier_v1.0') |
 | GREEK_NAME_MAPPING | Constant | dict | Numerical to analytical Greek mapping | `{'delta': 'delta_F', 'vega': 'vega_price', ...}` |
 | GREEK_ORDER | Constant | list[str] | Ordered list of Greek names | `['delta_F', 'gamma_F', 'vega_price', 'theta_F', ...]` |
 | GREEK_DESCRIPTIONS | Constant | dict | Greek name to description mapping | `{'delta_F': '∂V/∂F - Price sensitivity', ...}` |
@@ -387,11 +390,12 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | format_greek_comparison | Function | Returns: list[dict] | analytical_greeks, numerical_greeks | `table_data = format_greek_comparison(analytical, numerical)` |
 | create_error_table | Function | Returns: list[dict] | N/A | `table_data = create_error_table()` returns error table structure |
 | numerical-greeks-table | Output | DataTable data | List of Greek comparison rows | DataTable showing analytical vs numerical Greeks |
+| GreekCalculatorAPI.analyze | Function | Returns: dict or list[dict] | options_data, model, model_params | `api.analyze(option_data, model='bachelier_v1')` returns Greek results |
+| GreekCalculatorAPI.default_model | Input | str | Any registered model name | `GreekCalculatorAPI(default_model='bachelier_v1')` |
+| ModelFactory.register | Function | None | model_name, model_class | `ModelFactory.register('bachelier_v2', BachelierV2)` |
+| ModelFactory.create | Function | Returns: OptionModelInterface | model_name | `model = ModelFactory.create('bachelier_v1')` |
+| ModelFactory.get_available_models | Function | Returns: list[str] | N/A | `models = ModelFactory.get_available_models()` |
 | h_F | Input | float | > 0, adaptive default | Finite difference step size for F (default: max(0.01, F*1e-4)) |
-| h_sigma | Input | float | > 0, adaptive default | Finite difference step size for sigma (default: max(0.001, sigma*1e-3)) |
-| h_t | Input | float | > 0, adaptive default | Finite difference step size for t (default: max(1e-6, t*1e-4)) |
-| suppress_output | Input | bool | True/False | `compute_derivatives_bond_future(..., suppress_output=True)` |
-| _color | Internal | str | 'green', 'yellow', 'red', 'none' | Color coding for percentage error display |
 
 # I/O Schema
 
@@ -608,3 +612,16 @@ Navigation functions like `handle_navigation` that return (content, active_page,
 | factory.create_datatable_in_grid | Input | grid_id: str, table_id: str, grid_width: Optional | IDs as strings, width as dict/int | `factory.create_datatable_in_grid("g1", "t1", {"xs": 12})` |
 | factory.create_form_grid | Input | grid_id: str, form_elements: List[Dict], submit_button_text: str | Valid IDs and element configs | `factory.create_form_grid("form1", elements, "Submit")` |
 | factory.create_dashboard_layout | Input | container_id: str, title: str, sections: List[Dict] | Valid ID, title string, section configs | `factory.create_dashboard_layout("dash1", "Sales", sections)` |
+
+## GreekCalculatorAPI Methods
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|-------------|
+| analyze | Input | Union[Dict, List[Dict]] | Single option dict or list of option dicts | `api.analyze({'F': 110.5, 'K': 112, 'T': 0.25, 'market_price': 0.5, 'option_type': 'call'})` |
+| model | Input | str | Model name from registry | `api.analyze(options, model='bachelier_v1')` |
+| model_params | Input | Dict[str, Any] | Model-specific parameters | `api.analyze(options, model_params={'future_dv01': 0.063})` |
+| success | Output | bool | True if calculation succeeded | `result['success']` |
+| error_message | Output | Optional[str] | Error description if failed | `result['error_message']` |
+| volatility | Output | float | Implied volatility (0 < v < 1000) | `result['volatility']` |
+| greeks | Output | Dict[str, float] | All calculated Greeks | `result['greeks']['delta_F']` |
+| model_version | Output | str | Version of model used | `result['model_version']` |
