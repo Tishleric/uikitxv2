@@ -1,23 +1,9 @@
-"""
-Bond Future Option pricing and analysis using Bachelier model.
+"""Bond Future Options pricing package using the Bachelier model."""
 
-This module provides tools for:
-- Pricing bond future options using the Bachelier (normal distribution) model
-- Calculating comprehensive Greeks (delta, gamma, vega, theta, and higher-order)
-- Converting between price and yield volatilities using Future DV01
-- Generating Greek profiles across market scenarios
-"""
-
+# Core pricing engine
 from .pricing_engine import BondFutureOption
-from .analysis import (
-    solve_implied_volatility,
-    calculate_all_greeks,
-    generate_greek_profiles,
-    analyze_bond_future_option_greeks,
-    validate_refactoring
-)
 
-# Import convenience API functions
+# API functions
 from .api import (
     calculate_implied_volatility,
     calculate_greeks,
@@ -28,21 +14,48 @@ from .api import (
     convert_64ths_to_price
 )
 
+# Analysis functions
+from .analysis import (
+    analyze_bond_future_option_greeks,
+    solve_implied_volatility,
+    calculate_all_greeks
+)
+
+# Greek profiles
+from .bachelier_greek import (
+    generate_greek_profiles_data,
+    generate_taylor_error_data
+)
+
+# Factory/Facade pattern (new)
+from .greek_calculator_api import GreekCalculatorAPI
+from .model_factory import ModelFactory
+from .models import BachelierV1
+
 __all__ = [
-    # Core classes and functions
+    # Core
     'BondFutureOption',
-    'solve_implied_volatility',
-    'calculate_all_greeks',
-    'generate_greek_profiles',
-    'analyze_bond_future_option_greeks',
-    'validate_refactoring',
     
-    # Convenience API functions
+    # API
     'calculate_implied_volatility',
     'calculate_greeks',
     'calculate_taylor_pnl',
     'quick_analysis',
     'process_option_batch',
     'convert_price_to_64ths',
-    'convert_64ths_to_price'
+    'convert_64ths_to_price',
+    
+    # Analysis
+    'analyze_bond_future_option_greeks',
+    'solve_implied_volatility',
+    'calculate_all_greeks',
+    
+    # Greek profiles
+    'generate_greek_profiles_data',
+    'generate_taylor_error_data',
+    
+    # Factory/Facade
+    'GreekCalculatorAPI',
+    'ModelFactory',
+    'BachelierV1'
 ] 

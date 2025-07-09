@@ -1,4 +1,4 @@
-# Code Index
+# Code Index (uikitxv2)
 
 ## Table of Contents
 1. [Core System Components](#core-system-components)
@@ -74,17 +74,23 @@ Observability and monitoring infrastructure for tracking function execution, per
 ## Trading Modules
 
 ### lib/trading/bond_future_options/
-Bond future options pricing using the Bachelier model.
+Bond future options pricing using the Bachelier model with factory/facade architecture.
 
-- **pricing_engine.py**: Core BondFutureOption class with Bachelier pricing formulas
-- **bachelier.py**: Pure Bachelier model implementation for European options
-- **bachelier_greek.py**: Greek calculations and profile generation using Bachelier
-- **numerical_greeks.py**: Finite difference methods for Greek validation
-- **analysis.py**: High-level analysis functions including implied volatility solver
-- **api.py**: Clean API facade for all bond future options calculations with safeguards matching app.py
-- **greek_validator.py**: Greek validation and PnL attribution tools
-- **demo_profiles.py**: Demo functions for Greek profile visualization
-- **example_usage.py**: Usage examples and documentation
+**api.py**: Main API for Greek calculations using Bachelier model. Provides `calculate_greeks()` for single option and `batch_calculate_greeks()` for multiple options. Contains all safeguards including MIN_PRICE_SAFEGUARD=1/64, MAX_IMPLIED_VOL=1000, tolerance=1e-6, and moneyness-based initial guesses.
+
+**analysis.py**: Core implementation of Black-Scholes-Merton model adapted for bond futures. Contains the `ImpliedVolCalculator` class with Newton-Raphson solver and all Greek calculation methods. Handles edge cases with safeguards.
+
+**bond.py**: Bond pricing and yield calculation utilities. Provides methods for bond price/yield conversions and duration calculations using continuous compounding.
+
+**futures.py**: Bond futures contract specifications and pricing. Handles conversion factors and delivery option calculations.
+
+**option_model_interface.py**: Protocol defining the standard interface that all option pricing models must implement. Ensures consistent API across different model implementations.
+
+**models/bachelier_v1.py**: Wrapper implementing OptionModelInterface for the existing Bachelier implementation. Translates between the generic interface and the specific API of the current model.
+
+**model_factory.py**: Factory pattern implementation for creating option pricing models. Maintains a registry of available models and provides methods to instantiate them by name.
+
+**greek_calculator_api.py**: High-level facade providing a simple interface for Greek calculations. Handles model selection, parameter validation, and provides both single and batch processing capabilities.
 
 ### lib/trading/actant/
 Actant trading system integration modules.
@@ -108,7 +114,7 @@ Actant trading system integration modules.
 
 #### lib/trading/actant/spot_risk/
 - **parser.py**: CSV parser for spot risk analysis files with mixed futures/options
-- **calculator.py**: Greek calculator for spot risk positions using bond_future_options engine
+- **calculator.py**: Greek calculator for spot risk positions using GreekCalculatorAPI; extracts future prices from DataFrame and processes options in batch
 - **time_calculator.py**: Time to expiry calculations with CME conventions
 
 ### lib/trading/ladder/
@@ -156,11 +162,18 @@ The main integrated dashboard application combining all features:
 - **test_pnl_models.py**: P&L data model tests
 
 ### tests/actant_spot_risk/
-- **test_greek_calculator.py**: Greek calculation tests for spot risk
-- **test_parser.py**: CSV parser tests for spot risk files
+
+**test_greek_calculator.py**: Unit tests for SpotRiskGreekCalculator. Tests single option calculation, batch processing with multiple options, and error handling for edge cases. Validates all Greek outputs and column additions.
+
+**test_calculator_error_handling.py**: Tests error handling in the SpotRiskGreekCalculator. Validates that the calculator raises ValueError when no future price is found, providing clear error messages about what was searched.
+
+**test_full_pipeline.py**: End-to-end integration test processing actual CSV file (bav_analysis_20250708_104022.csv). Tests the complete pipeline from CSV parsing through Greek calculations to output file creation. Handles column name case differences correctly.
 
 ### tests/bond_future_options/
-- **test_api_alignment.py**: Comprehensive tests verifying api.py matches app.py implementation exactly
+
+**test_api_alignment.py**: Comprehensive tests validating that api.py implementation matches app.py behavior exactly. Tests tolerance=1e-6, MAX_IMPLIED_VOL=1000, MIN_PRICE_SAFEGUARD=1/64, moneyness-based initial guesses, and all safeguards.
+
+**test_factory_pattern.py**: Tests for the factory/facade architecture. Validates ModelFactory registration and instantiation, OptionModelInterface implementation, and GreekCalculatorAPI functionality including model selection and batch processing.
 
 ### tests/components/
 - **test_button_render.py**: Button component rendering tests
