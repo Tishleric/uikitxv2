@@ -4,28 +4,71 @@ import pandas as pd
 from .pricing_engine import BondFutureOption
 
 def solve_implied_volatility(option_model, F, K, T, market_price, option_type='put', 
-                           initial_guess=100.0, tolerance=1e-9):
+                           initial_guess=100.0, tolerance=1e-9, max_iterations=100):
     """
     Extract Newton-Raphson solver from solve_bond_future_option()
-    EXACT copy of lines 376-387, parameterized
+    with added safeguards to prevent infinite loops
     
     Returns: (price_volatility, final_error) tuple
     """
-    # VERBATIM COPY of solving logic from original
-    price_volatility = initial_guess
-    dx = 1
+    # Use better initial guess based on typical values
+    price_volatility = initial_guess if initial_guess != 100.0 else 20.0
+    
+    # Use smaller step size for better convergence
+    dx = 0.1
+    
+    # Track iterations to prevent infinite loops
+    iteration = 0
     
     # Initialize option_price for the while loop
     option_price = option_model.bachelier_future_option_price(F, K, T, price_volatility, option_type) - market_price
     
-    while abs(option_price) > tolerance:
+    # Store convergence history for debugging
+    convergence_history = []
+    
+    while abs(option_price) > tolerance and iteration < max_iterations:
+        iteration += 1
         option_price = option_model.bachelier_future_option_price(F, K, T, price_volatility, option_type) - market_price
         
-        if abs(option_price) > tolerance:
-            option_implied_2 = option_model.bachelier_future_option_price(F, K, T, price_volatility+dx, option_type) - market_price
-            price_volatility = price_volatility - option_price * dx / (option_implied_2 - option_price)
+        # Store convergence info
+        convergence_history.append((iteration, price_volatility, option_price))
         
-        print(f"Current Price Volatility: {price_volatility:.6f}", option_price)
+        if abs(option_price) > tolerance:
+            # Calculate numerical derivative
+            option_implied_2 = option_model.bachelier_future_option_price(F, K, T, price_volatility+dx, option_type) - market_price
+            derivative = (option_implied_2 - option_price) / dx
+            
+            # Check for zero derivative to prevent division by zero
+            if abs(derivative) < 1e-10:
+                print(f"WARNING: Derivative too small ({derivative:.2e}) at iteration {iteration}, vol={price_volatility:.6f}")
+                break
+            
+            # Newton-Raphson update
+            new_volatility = price_volatility - option_price / derivative
+            
+            # Bound volatility to reasonable values to prevent divergence
+            # Min: 0.1 (very low vol), Max: 1000.0 (extremely high vol)
+            new_volatility = max(0.1, min(1000.0, new_volatility))
+            
+            # Check for large jumps that might indicate instability
+            if abs(new_volatility - price_volatility) > 50.0:
+                print(f"WARNING: Large volatility jump from {price_volatility:.2f} to {new_volatility:.2f} at iteration {iteration}")
+            
+            price_volatility = new_volatility
+        
+        print(f"Current Price Volatility: {price_volatility:.6f}, Error: {option_price:.9f}")
+    
+    # Check convergence status
+    if iteration >= max_iterations:
+        print(f"WARNING: Newton-Raphson failed to converge after {max_iterations} iterations")
+        print(f"Final error: {abs(option_price):.9f}, Final volatility: {price_volatility:.6f}")
+        print(f"Inputs: F={F:.6f}, K={K:.6f}, T={T:.6f}, market_price={market_price:.6f}, type={option_type}")
+        
+        # Print last few iterations for debugging
+        if len(convergence_history) > 5:
+            print("Last 5 iterations:")
+            for i, vol, err in convergence_history[-5:]:
+                print(f"  Iter {i}: vol={vol:.6f}, error={err:.9f}")
     
     return price_volatility, option_price
 

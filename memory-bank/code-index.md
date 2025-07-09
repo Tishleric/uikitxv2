@@ -151,6 +151,18 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **browser_automation.py** - Browser automation for retrieving data from Pricing Monkey
 - **futures_utils.py** - Utilities for futures contract date calculations and expiry handling
 
+##### Spot Risk (`lib/trading/actant/spot_risk/`)
+- **__init__.py** - Package initialization with exports for parser and time calculator functions
+- **parser.py** - CSV parser for Actant spot risk data (bav_analysis files):
+  - `extract_datetime_from_filename()` - Extract datetime from bav_analysis_YYYYMMDD_HHMMSS.csv format
+  - `parse_expiry_from_key()` - Parse expiry dates from instrument keys (futures and options)
+  - `parse_spot_risk_csv()` - Main parser that normalizes columns, converts numeric data, calculates midpoint prices, extracts expiry dates, sorts by instrument type, and optionally calculates time to expiry
+- **time_calculator.py** - Time to expiry calculator using bachelier business day logic:
+  - `parse_series_from_key()` - Extract series code (VY, WY, ZN) from instrument key
+  - `parse_expiry_date_full()` - Parse expiry date string to datetime
+  - `build_expiry_datetime()` - Build full expiry datetime with CME conventions (VY/WY: 14:00, ZN: 16:30)
+  - `calculate_vtexp_for_dataframe()` - Calculate time to expiry in years for all options using CSV timestamp
+
 #### Pricing Monkey (`lib/trading/pricing_monkey/`)
 
 ##### Automation (`lib/trading/pricing_monkey/automation/`)
@@ -226,63 +238,61 @@ A comprehensive summary of each code file with its purpose and key functionality
   - `format_pnl()` - Format PnL values with color coding for gains/losses
 
 #### Bond Future Options (`lib/trading/bond_future_options/`)
+- **README.md** - Comprehensive documentation with function listings, line numbers, and usage examples. Designed for self-contained sharing of the bond analytics package.
+
+- **requirements.txt** - Minimal Python dependencies (numpy, pandas, scipy, matplotlib)
+
+- **example_usage.py** - Complete examples demonstrating current dashboard pattern and future API pattern with verification
+
 - **__init__.py** - Exports BondFutureOption class, analysis functions, and convenience API
-- **api.py** - Simplified API for volatility, Greeks, and Taylor PnL calculations
+
+- **api.py** - Clean API for future use (not yet integrated in dashboard):
+  - `calculate_implied_volatility()` - User-friendly vol calculation (lines 28-87)
+  - `calculate_greeks()` - Simple Greek calculation interface (lines 90-143)
+  - `calculate_taylor_pnl()` - Taylor P&L predictions (lines 146-209)
+  - `quick_analysis()` - All-in-one analysis function (lines 212-283)
+  - `process_option_batch()` - Batch processing for multiple options (lines 286-359)
 
 - **pricing_engine.py** - Core bond future option pricing engine (CTO-validated):
-  - `BondFutureOption` - Main class for Bachelier model pricing
-  - Future DV01 and convexity-based Greeks calculations
+  - `BondFutureOption` - Main class for Bachelier model pricing (lines 15-322)
   - Price/yield volatility conversions
   - Comprehensive Greeks through 3rd order:
-    - 1st: delta, vega, theta
-    - 2nd: gamma, volga, vanna, charm
+    - 1st: delta_F/delta_y, vega_price/vega_y, theta_F
+    - 2nd: gamma_F/gamma_y, volga, vanna, charm
     - 3rd: speed, color, ultima, zomma
-  - Both F-space (price) and Y-space (yield) Greeks
 
-- **analysis.py** - Refactored analysis utilities:
-  - `solve_implied_volatility()` - Newton-Raphson solver for backing out vol
-  - `calculate_all_greeks()` - Calculate all Greeks with proper scaling
-  - `generate_greek_profiles()` - Generate Greeks across price scenarios (±20 points)
-  - `analyze_bond_future_option_greeks()` - Main analysis function
-  - `validate_refactoring()` - Validation against original implementation
+- **analysis.py** - High-level analysis functions used by dashboard:
+  - `solve_implied_volatility()` - Robust implied vol solver (lines 11-59)
+  - `calculate_all_greeks()` - Calculate complete Greek set scaled by 1000 (lines 61-111)
+  - `analyze_bond_future_option_greeks()` - Main dashboard function (lines 113-178)
 
-- **bachelier_greek.py** - Advanced Greek calculations using analytical and numerical methods (updated with ultima and zomma for third-order Greeks):
-  - `bachelier_price()` - Core Bachelier option pricing formula
-  - `analytical_greeks()` - First and second-order Greeks (delta, gamma, vega, theta, volga, color, speed)
-  - `numerical_greeks()` - Numerical calculation of first and second-order Greeks
-  - `third_order_greeks()` - Third-order Greeks (ultima, zomma) using analytical formulas
-  - `numerical_third_order_greeks()` - Numerical calculation of third-order Greeks
-  - `cross_effects()` - Cross-Greeks (vanna, charm, veta) using finite differences
-  - `taylor_expand()` - Taylor series expansion for option price approximation
-  - `generate_greek_profiles_data()` - Generate all 12 Greek profiles for UI integration
-  - `generate_taylor_summary_data()` - Generate Taylor approximation comparison data
-  - `generate_taylor_error_data()` - Generate Taylor approximation error analysis data
+- **bachelier_greek.py** - Greek profile and Taylor error analysis (used by dashboard):
+  - `bachelier_price()` - Basic Bachelier formula (lines 12-14)
+  - `analytical_greeks()` - Analytical Greek calculations (lines 17-50)
+  - `numerical_greeks()` - Finite difference Greeks (lines 53-103)
+  - `taylor_expand()` - Taylor series expansion (lines 132-144)
+  - `generate_greek_profiles_data()` - Dashboard function for Greek curves (lines 200-241)
+  - `generate_taylor_error_data()` - Dashboard function for Taylor accuracy (lines 244-305)
 
 - **numerical_greeks.py** - Numerical Greek calculations using finite differences:
   - `compute_derivatives()` - Core finite difference engine for up to 3rd order derivatives
   - `compute_derivatives_bond_future()` - Bond future wrapper with proper scaling
   - `format_greek_comparison()` - Format Greeks for side-by-side comparison table
-  - Adaptive step sizes, error handling, and support for all standard Greeks
-  - Validated against analytical Greeks (1st order match within 0.01%)
 
 - **greek_validator.py** - Greek-based PnL prediction validator:
   - `GreekPnLValidator` - Tests how well analytical Greeks predict actual price changes
-  - `generate_scenarios()` - Random market scenarios focused on near-ATM moves (±2% F, ±20% σ)
-  - `calculate_taylor_pnl()` - Taylor expansion using first and second-order Greeks
-  - `calculate_actual_pnl()` - Actual PnL via full option repricing
-  - `analyze_predictions()` - Statistical analysis (R², RMSE, max error)
   - Validates Greek predictive power: R²=0.74 (first-order), R²=0.90 (second-order)
 
-- **demo_profiles.py** - Demonstration code for Greek profile visualization:
-  - Generates Greek profiles across market scenarios
-  - Creates matplotlib plots for key Greeks (delta, gamma, vega, theta)
-  - Exports data to CSV for further analysis
-  - Shows scenario analysis and moneyness effects
-  - Saves outputs to `output/` subdirectory
+- **demo_profiles.py** - Demonstration code for Greek profile visualization
+
+- **bachelier.py** - Time to expiry calculation utilities (moved from root directory):
+  - `minutes_until_expiry_excluding_cme_holidays()` - Calculate business minutes to expiry excluding CME holidays
+  - `time_to_expiry_years()` - Calculate exact time to expiry in years from evaluation datetime (business year fraction)
+  - `OptionBachelier` - Bachelier model option pricing class
+  - `calculate_implied_volatility()` - Calculate implied vol using Bachelier model
+  - Supports custom evaluation datetime for historical analysis
 
 - **output/** - Directory for generated outputs (CSV, PNG files)
-  - Contains .gitignore to exclude generated files
-  - Greek profile CSV files and visualization plots saved here
 
 ## Standalone Tools (`SumoMachine/`)
 
@@ -371,6 +381,7 @@ A comprehensive summary of each code file with its purpose and key functionality
 - **run_scenario_ladder.py** - Entry point for Scenario Ladder dashboard (port 8051)
 - **run_observatory.py** - Entry point for Observatory dashboard (port 8052)
 - **pyproject.toml** - Package configuration with dependencies
+- **requirements.txt** - Exact version dependencies for all Python packages used in production and development
 
 ## Tests Directory Structure
 ```
@@ -382,6 +393,10 @@ tests/
 ├── monitoring/              # Decorator and logging tests
 │   ├── test_resource_monitor.py  # Tests for resource monitoring abstraction (21 tests)
 ├── trading/                 # Trading utility tests
+├── actant_spot_risk/        # Spot risk parser tests
+│   ├── __init__.py
+│   ├── test_parser.py       # Comprehensive tests for parser module (18 tests)
+│   └── test_real_csv.py     # Test script for real CSV file verification
 └── integration/             # Dashboard integration tests
 ```
 
@@ -402,6 +417,7 @@ data/
 │   ├── sod/              # ActantSOD input files  
 │   ├── ladder/           # Ladder input files
 │   ├── actant_pnl/       # Actant PnL CSV files (e.g., GE_XCME.ZN_*.csv)
+│   ├── actant_spot_risk/ # Spot risk CSV files (bav_analysis_*.csv)
 │   └── reference/        # Reference data (actant.csv, SampleZNSOD.csv)
 │       └── actant_pnl/   # Reference Excel files (actantpnl.xlsx)
 └── output/

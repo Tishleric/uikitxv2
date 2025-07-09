@@ -2,6 +2,53 @@
 
 ## Recent Updates (January 2025)
 
+### January 20, 2025 - Spot Risk Parser Implementation
+- **Task**: Create parser module for Actant spot risk CSV files (bav_analysis format)
+- **Status**: ✅ Complete
+- **Details**:
+  - Created `lib/trading/actant/spot_risk/` package structure
+  - Implemented parser.py with three core functions:
+    - `extract_datetime_from_filename()` - Parse datetime from bav_analysis_YYYYMMDD_HHMMSS.csv format
+    - `parse_expiry_from_key()` - Extract expiry dates from instrument keys (futures/options)
+    - `parse_spot_risk_csv()` - Main parser with column normalization, numeric conversion, midpoint calculation
+  - Features implemented:
+    - Automatic column name normalization (handles uppercase CSV columns)
+    - Numeric conversion for bid, ask, strike columns
+    - Midpoint price calculation: (bid + ask) / 2
+    - Expiry date extraction from instrument keys
+    - Intelligent sorting (futures first, then by expiry, then by strike)
+    - Comprehensive exception handling
+  - Created test suite with 18 tests covering all edge cases
+  - Tested with real CSV file (52 rows processed successfully)
+  - Files moved to appropriate locations:
+    - bachelier.py → lib/trading/bond_future_options/
+    - bav_analysis_20250708_104022.csv → data/input/actant_spot_risk/
+  - Updated memory bank documentation
+
+### January 20, 2025 - Time to Expiry (vtexp) Implementation
+- **Task**: Add time to expiry calculation using bachelier logic with CSV timestamp
+- **Status**: ✅ Complete
+- **Details**:
+  - Enhanced bachelier.py with `time_to_expiry_years()` function:
+    - Accepts evaluation_datetime parameter instead of using current time
+    - Calculates business minutes excluding CME holidays
+    - Returns fraction of business year (minutes / 1440 / 252)
+  - Created time_calculator.py module:
+    - `parse_series_from_key()` - Extract VY/WY/ZN from instrument keys
+    - `build_expiry_datetime()` - Apply CME time conventions (VY/WY: 14:00, ZN: 16:30)
+    - `calculate_vtexp_for_dataframe()` - Efficient dictionary-based calculation
+  - Updated parser.py:
+    - Added `calculate_time_to_expiry` parameter to `parse_spot_risk_csv()`
+    - Integrates time calculator when requested
+    - Uses CSV timestamp as evaluation time (Chicago timezone)
+  - Results verified:
+    - 09JUL25 (WY): 0.004519 years (1.14 business days)
+    - 11JUL25 (ZN): 0.012869 years (3.24 business days)
+    - 14JUL25 (VY): 0.016424 years (4.14 business days)
+    - 16JUL25 (WY): 0.024361 years (6.14 business days)
+    - 18JUL25 (ZN): 0.032711 years (8.24 business days)
+  - All 50 options successfully calculated vtexp
+
 ### January 9, 2025 - Remove Numerical Calculations from Greek Analysis
 - **Task**: Comment out all numerical (finite difference) calculations and displays
 - **Status**: ✅ Complete
@@ -1605,3 +1652,42 @@ The project migration is **100% COMPLETE** with a clean, professional Python pac
 - ✅ API documentation in docstrings
 - ✅ Example scripts for common use cases
 - 🔄 User guide for dashboard features (in progress)
+
+## Spot Risk Integration Project
+
+### Completed ✅
+1. **CSV Parser** (2025-01-09)
+   - Parses Actant CSV with 52 rows of mixed data
+   - Column normalization and numeric conversion
+   - Intelligent sorting (futures first)
+   - Strike notation handling (110:25 → 110.25)
+
+2. **Time to Expiry Calculator** (2025-01-09)
+   - Integrated bachelier.py logic
+   - CME expiry conventions implementation
+   - Business day calculations
+   - Successfully calculates vtexp for all options
+
+3. **Greek Calculator with Robust Solver** (2025-01-09)
+   - Fixed Newton-Raphson convergence issues
+   - Added safeguards: iteration limits, bounds checking, zero derivative checks
+   - Better initial guesses based on moneyness
+   - Successfully calculates full Greek suite for all 50 options
+   - Performance: ~11ms per option
+
+### In Progress 🚧
+- Data service layer with caching
+
+### Todo 📋
+- Add 'Spot Risk Monitor' tab to dashboard
+- Implement DataTable component
+- Add filtering controls
+- Create summary cards
+- Implement file watcher
+- Comprehensive test suite
+
+## Key Technical Decisions
+- Using bond_future_options API (not direct pricing engine)
+- Default DV01=63.0, convexity=0.0042 for ZN futures
+- Tolerance=1e-6 for practical convergence
+- Max iterations=100-200 based on time to expiry
