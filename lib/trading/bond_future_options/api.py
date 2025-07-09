@@ -18,6 +18,7 @@ from .analysis import solve_implied_volatility as _solve_implied_volatility
 from .analysis import calculate_all_greeks as _calculate_all_greeks
 from .greek_validator import GreekPnLValidator
 from .bachelier_greek import generate_greek_profiles_data, generate_taylor_error_data
+from lib.monitoring.decorators import monitor
 
 
 # Default bond future parameters (10-year Treasury note futures typical values)
@@ -25,7 +26,13 @@ DEFAULT_FUTURE_DV01 = 0.063
 DEFAULT_FUTURE_CONVEXITY = 0.002404
 DEFAULT_YIELD_LEVEL = 0.05
 
+# Solver parameters matching app.py
+DEFAULT_TOLERANCE = 1e-6  # Changed from 1e-9
+MAX_IMPLIED_VOL = 1000.0
+MIN_PRICE_SAFEGUARD = 1/64  # Deep OTM options minimum price
 
+
+@monitor()
 def calculate_implied_volatility(
     F: float,
     K: float, 
@@ -35,8 +42,9 @@ def calculate_implied_volatility(
     future_dv01: float = DEFAULT_FUTURE_DV01,
     future_convexity: float = DEFAULT_FUTURE_CONVEXITY,
     yield_level: float = DEFAULT_YIELD_LEVEL,
-    initial_guess: float = 100.0,
-    tolerance: float = 1e-9,
+    initial_guess: Optional[float] = None,
+    tolerance: float = DEFAULT_TOLERANCE,
+    max_iterations: int = 100,
     suppress_output: bool = True
 ) -> float:
     """
@@ -51,12 +59,16 @@ def calculate_implied_volatility(
         future_dv01: DV01 of the bond future (default: 0.063)
         future_convexity: Convexity of the bond future (default: 0.002404)
         yield_level: Current yield level (default: 0.05)
-        initial_guess: Initial volatility guess (default: 100.0)
-        tolerance: Convergence tolerance (default: 1e-9)
+        initial_guess: Initial volatility guess (default: None, uses moneyness-based logic)
+        tolerance: Convergence tolerance (default: 1e-6)
+        max_iterations: Maximum iterations (default: 100)
         suppress_output: Whether to suppress iteration output (default: True)
         
     Returns:
         float: Implied price volatility
+        
+    Raises:
+        ValueError: If arbitrage violations detected or solver fails to converge
         
     Example:
         >>> vol = calculate_implied_volatility(110.75, 110.5, 0.05, 0.359375)
@@ -64,6 +76,25 @@ def calculate_implied_volatility(
     """
     # Create option model
     option_model = BondFutureOption(future_dv01, future_convexity, yield_level)
+    
+    # Check for minimum price safeguard (deep OTM options)
+    if market_price < MIN_PRICE_SAFEGUARD:
+        raise ValueError(f"Market price {market_price:.6f} below minimum safeguard {MIN_PRICE_SAFEGUARD:.6f}")
+    
+    # Calculate intrinsic value for arbitrage check
+    intrinsic_value = max(0, F - K) if option_type == 'call' else max(0, K - F)
+    
+    # Arbitrage violation check (market price should be >= 95% of intrinsic value)
+    if market_price < intrinsic_value * 0.95:
+        raise ValueError(f"Arbitrage violation: market price {market_price:.6f} < 95% of intrinsic value {intrinsic_value:.6f}")
+    
+    # Moneyness-based initial guess if not provided
+    if initial_guess is None:
+        moneyness = (F - K) / F if option_type == 'call' else (K - F) / F
+        if abs(moneyness) < 0.02:  # Near ATM
+            initial_guess = 20.0
+        else:  # Far OTM
+            initial_guess = 50.0
     
     # Solve for implied volatility
     if suppress_output:
@@ -73,21 +104,30 @@ def calculate_implied_volatility(
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
-            price_volatility, _ = _solve_implied_volatility(
+            price_volatility, final_error = _solve_implied_volatility(
                 option_model, F, K, T, market_price, option_type, 
-                initial_guess, tolerance
+                initial_guess, tolerance, max_iterations
             )
         finally:
             sys.stdout = old_stdout
     else:
-        price_volatility, _ = _solve_implied_volatility(
+        price_volatility, final_error = _solve_implied_volatility(
             option_model, F, K, T, market_price, option_type,
-            initial_guess, tolerance
+            initial_guess, tolerance, max_iterations
         )
+    
+    # Check if solver converged
+    if abs(final_error) > tolerance:
+        raise ValueError(f"Failed to converge: final error {abs(final_error):.9f} > tolerance {tolerance:.9f}")
+    
+    # Bounds check on final volatility
+    if price_volatility < 0.1 or price_volatility > MAX_IMPLIED_VOL:
+        raise ValueError(f"Implied volatility {price_volatility:.2f} outside reasonable bounds [0.1, {MAX_IMPLIED_VOL}]")
     
     return price_volatility
 
 
+@monitor()
 def calculate_greeks(
     F: float,
     K: float,
@@ -148,6 +188,7 @@ def calculate_greeks(
     return greeks
 
 
+@monitor()
 def calculate_taylor_pnl(
     F: float,
     K: float,
@@ -209,6 +250,7 @@ def calculate_taylor_pnl(
     return pnl
 
 
+@monitor()
 def quick_analysis(
     F: float,
     K: float,
@@ -301,6 +343,7 @@ def quick_analysis(
     }
 
 
+@monitor()
 def process_option_batch(
     options_data: List[Dict],
     future_dv01: float = DEFAULT_FUTURE_DV01,
@@ -365,6 +408,7 @@ def process_option_batch(
             result['volatility'] = implied_vol
             result['greeks'] = greeks
             result['success'] = True
+            result['error_message'] = None
             
         except Exception as e:
             # If calculation fails, add error information
@@ -372,7 +416,7 @@ def process_option_batch(
             result['volatility'] = None
             result['greeks'] = None
             result['success'] = False
-            result['error'] = str(e)
+            result['error_message'] = str(e)
         
         results.append(result)
     

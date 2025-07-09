@@ -26,6 +26,10 @@ def solve_implied_volatility(option_model, F, K, T, market_price, option_type='p
     # Store convergence history for debugging
     convergence_history = []
     
+    # Track if we've hit zero derivative
+    zero_derivative_count = 0
+    max_zero_derivative_attempts = 3
+    
     while abs(option_price) > tolerance and iteration < max_iterations:
         iteration += 1
         option_price = option_model.bachelier_future_option_price(F, K, T, price_volatility, option_type) - market_price
@@ -40,8 +44,24 @@ def solve_implied_volatility(option_model, F, K, T, market_price, option_type='p
             
             # Check for zero derivative to prevent division by zero
             if abs(derivative) < 1e-10:
+                zero_derivative_count += 1
                 print(f"WARNING: Derivative too small ({derivative:.2e}) at iteration {iteration}, vol={price_volatility:.6f}")
-                break
+                
+                # Try to escape zero derivative by perturbing volatility
+                if zero_derivative_count <= max_zero_derivative_attempts:
+                    # Perturb volatility in direction of error
+                    if option_price > 0:  # Price too high, need lower vol
+                        price_volatility *= 0.9
+                    else:  # Price too low, need higher vol
+                        price_volatility *= 1.1
+                    print(f"Attempting to escape zero derivative, new vol={price_volatility:.6f}")
+                    continue
+                else:
+                    print(f"ERROR: Unable to escape zero derivative after {max_zero_derivative_attempts} attempts")
+                    break
+            
+            # Reset zero derivative count on successful derivative
+            zero_derivative_count = 0
             
             # Newton-Raphson update
             new_volatility = price_volatility - option_price / derivative
@@ -53,6 +73,8 @@ def solve_implied_volatility(option_model, F, K, T, market_price, option_type='p
             # Check for large jumps that might indicate instability
             if abs(new_volatility - price_volatility) > 50.0:
                 print(f"WARNING: Large volatility jump from {price_volatility:.2f} to {new_volatility:.2f} at iteration {iteration}")
+                # Dampen the update for stability
+                new_volatility = price_volatility + 0.5 * (new_volatility - price_volatility)
             
             price_volatility = new_volatility
         
