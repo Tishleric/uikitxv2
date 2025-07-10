@@ -1208,3 +1208,30 @@ The system is now **production-ready** for 24/7 trading environments.
 - Applied same filtering logic to both table and graph views
 - Added filter status to graph info text (shows active filters)
 - Handles edge case when no data matches filters
+
+## Recent Completed Work
+
+### Spot Risk Tab Performance Optimization (2025-01-21)
+- **Goal**: Replace synchronous Greek calculations with async reading from processed CSV
+- **Implementation**:
+  - Added `read_processed_greeks()` method to SpotRiskController
+  - Modified `process_greeks()` to prioritize reading from processed files
+  - Maintained fallback to synchronous calculation for backward compatibility
+  - Updated processing script to preserve timestamps in output filenames
+  - Successfully processed `bav_analysis_20250709_193912.csv` with current logic
+  - Fixed sorting preservation in backend (removed re-sort by 'key')
+- **Key Features Applied**:
+  - Adjtheor column as primary price source (fallback to midpoint)
+  - Minimum price safeguard of 1/512 for deep OTM options
+  - Timestamp preservation: input `bav_analysis_YYYYMMDD_HHMMSS.csv` → output `bav_analysis_processed_YYYYMMDD_HHMMSS.csv`
+  - Correct sorting order: Futures → Calls → Puts (by expiry, then strike)
+- **Benefits**:
+  - Faster loading of Greek data
+  - Reduced computational overhead
+  - Same data accuracy (reading pre-calculated values)
+  - Better file tracking with preserved timestamps
+  - Intuitive data ordering maintained
+- **Files Modified**:
+  - `apps/dashboards/spot_risk/controller.py`
+  - `tests/actant_spot_risk/test_full_pipeline.py`
+  - Created `run_spot_risk_processing.bat` for consistent Python usage

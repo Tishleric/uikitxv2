@@ -235,6 +235,12 @@ Comprehensive test suite for monitoring decorators and observatory functionality
 ### scripts/
 - **bond_options_csv_example.py**: Example script for bond options CSV processing
 - **actant_pnl_formula_extractor.py**: Extracts formulas from Actant P&L files
+- **process_spot_risk.py**: User-friendly command-line script for processing spot risk CSV files with Greek calculations. Preserves timestamps in output filenames and uses adjtheor as primary price source
+- **run_spot_risk_processing.bat**: Windows batch file that ensures Anaconda Python is used for spot risk processing. Resolves Python path conflicts between standalone and Anaconda installations
+
+### volatility_comparison/
+- **compare_volatilities.py**: Calculates theoretical volatility and compares with Actant and PM data. Creates pivot tables and comparison outputs with proper timestamp tracking
+- **volatility_tester.py**: Tests volatility calculations for bond future options. Includes comparison with different models and CSV output generation
 
 ---
 
@@ -257,7 +263,7 @@ Project knowledge base and documentation:
 - **io-schema.md**: Input/output schemas and data contracts
 - **PRDeez/**: Product requirement documents
 
-# apps/dashboards/observatory
+## Monitoring & Logging
 
 **app.py**: Standalone observatory dashboard application for development and testing. Creates a simple dashboard with flow trace table from the observatory monitoring system. Uses port 8052 for development.
 
@@ -265,9 +271,7 @@ Project knowledge base and documentation:
 
 **views.py**: Observatory dashboard view components. Creates the layout with a DataTable showing recent function traces, message details, and execution context from the monitoring system.
 
-# apps/dashboards/spot_risk
-
-**__init__.py**: Spot Risk dashboard module initialization. Exports create_spot_risk_content and register_callbacks functions for integration with the main dashboard.
+**app.py**: Spot Risk dashboard module initialization. Exports create_spot_risk_content and register_callbacks functions for integration with the main dashboard.
 
 **app.py**: Standalone Spot Risk dashboard application for development and testing. Creates a Dash app with proper assets configuration. Uses port 8055 for development.
 
@@ -275,4 +279,4 @@ Project knowledge base and documentation:
 
 **callbacks.py**: Spot Risk dashboard callbacks (currently placeholder). Will handle refresh data, filter updates, Greek selection, export functionality, and auto-refresh toggle.
 
-**controller.py**: Spot Risk dashboard controller following MVC pattern. Manages CSV file discovery, data loading, Greek calculations using SpotRiskGreekCalculator, filtering by expiry/type/strike range, and timestamp extraction. Provides clean interface between data layer and views.
+**controller.py**: Spot Risk Dashboard Controller - handles data loading, processing, and state management. Core controller that manages CSV discovery, data loading, Greek calculations, filtering, and profile generation. Supports both synchronous Greek calculation and asynchronous reading from pre-calculated CSV files for better performance.
