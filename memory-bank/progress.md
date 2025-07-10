@@ -37,6 +37,19 @@
     - ATM strike indicator line
     - Error handling with placeholder graph fallback
 
+### January 21, 2025 - Spot Risk CSV Parser Fix
+- **Task**: Fix "No valid future price found" error when processing new spot risk CSV files
+- **Status**: ✅ Complete
+- **Details**:
+  - **Issue**: Greek calculations failing for new dataset `bav_analysis_20250709_193912.csv`
+  - **Root Cause**: Parser using `skiprows=[1]` for all CSV files, accidentally skipping future row in processed files
+  - **Solution Implemented**:
+    - Modified parser to conditionally skip rows based on filename
+    - Processed files (containing 'processed') don't skip any rows
+    - Original files skip row 1 (type row in original format)
+  - **Result**: Future row with `itype='F'` correctly parsed, Greek calculations working
+  - **Technical Note**: Legacy code assumption about CSV format caused parsing issue
+
 ### January 21, 2025 - Spot Risk Dashboard Structural Fix
 - **Task**: Fix graph container not displaying when switching to graph view
 - **Status**: ✅ Complete

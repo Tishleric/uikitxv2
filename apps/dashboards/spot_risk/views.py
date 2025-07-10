@@ -732,7 +732,7 @@ def create_spot_risk_content(controller=None):
                                     html.Div(
                                         id='spot-risk-graph-info',
                                         style={
-                                            'color': default_theme.text_subtle,
+                                            'color': default_theme.text_light,
                                             'fontSize': '14px'
                                         }
                                     )

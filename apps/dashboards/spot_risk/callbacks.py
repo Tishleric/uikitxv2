@@ -722,7 +722,7 @@ def register_callbacks(app):
         if not selected_greeks:
             # If no Greeks selected but we're switching to graph view, show message
             return [html.P('Please select Greek groups to display', 
-                          style={'color': default_theme.text_subtle, 'textAlign': 'center'})], ''
+                          style={'color': default_theme.text_light, 'textAlign': 'center'})], ''
         
         # Generate Greek profiles
         try:
@@ -775,7 +775,7 @@ def register_callbacks(app):
                             f'Net: {profile_data["total_position"]:.0f} | '
                             f'ATM: {profile_data["atm_strike"]:.2f}',
                             style={
-                                'color': default_theme.text_subtle,
+                                'color': default_theme.text_light,  # Changed from text_subtle to text_light
                                 'margin': '5px 0 0 0',
                                 'fontSize': '14px'
                             }
@@ -798,8 +798,24 @@ def register_callbacks(app):
                             continue
                         
                         # Create figure for this Greek
+                        # Get the actual column name used for this Greek
+                        greek_columns_used = profile_data.get('greek_columns_used', {})
+                        actual_column = greek_columns_used.get(greek, greek)
+                        
+                        # Extract the suffix (F or y) from column name for display
+                        display_suffix = ''
+                        if '_F' in actual_column:
+                            display_suffix = '_F'
+                        elif '_y' in actual_column:
+                            display_suffix = '_y'
+                        elif actual_column == 'vega_price':
+                            display_suffix = '_price'
+                        
+                        # Create display name with suffix
+                        greek_display_name = f'{greek}{display_suffix}'
+                        
                         fig_dict = create_greek_profile_graph(
-                            greek_name=f'{greek} ({expiry})',  # Include expiry in title
+                            greek_name=f'{greek_display_name} ({expiry})',  # Include suffix and expiry
                             strikes=profile_data['strikes'],
                             values=profile_data['greeks'][greek],
                             positions=profile_data['positions'],

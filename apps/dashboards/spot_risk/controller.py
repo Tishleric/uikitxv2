@@ -658,6 +658,41 @@ class SpotRiskController:
                     if greek in profile_data.get('greeks_ana', {}):
                         filtered_greeks[greek] = profile_data['greeks_ana'][greek]
                 
+                # Track which Greek columns were actually used
+                greek_columns_used = {}
+                for _, pos in expiry_df.iterrows():
+                    for greek in selected_greeks:
+                        if greek in greek_columns_used:
+                            continue  # Already determined
+                        
+                        # Check primary column
+                        greek_column_map = {
+                            'delta': 'delta_F',
+                            'gamma': 'gamma_F', 
+                            'vega': 'vega_price',
+                            'theta': 'theta_F',
+                            'volga': 'volga_price',
+                            'vanna': 'vanna_F_price',
+                            'charm': 'charm_F',
+                            'speed': 'speed_F',
+                            'color': 'color_F',
+                            'ultima': 'ultima',
+                            'zomma': 'zomma'
+                        }
+                        
+                        primary_col = greek_column_map.get(greek, greek)
+                        if primary_col in pos and pos.get(primary_col) is not None:
+                            greek_columns_used[greek] = primary_col
+                        # Check fallbacks
+                        elif greek == 'delta' and 'delta_y' in pos and pos.get('delta_y') is not None:
+                            greek_columns_used[greek] = 'delta_y'
+                        elif greek == 'gamma' and 'gamma_y' in pos and pos.get('gamma_y') is not None:
+                            greek_columns_used[greek] = 'gamma_y'
+                        elif greek == 'vega' and 'vega_y' in pos and pos.get('vega_y') is not None:
+                            greek_columns_used[greek] = 'vega_y'
+                        else:
+                            greek_columns_used[greek] = primary_col  # Default
+                
                 profiles_by_expiry[expiry] = {
                     'strikes': profile_data['F_vals'],
                     'greeks': filtered_greeks,
@@ -668,7 +703,8 @@ class SpotRiskController:
                         'tau': tau,
                         'F': F
                     },
-                    'total_position': total_position
+                    'total_position': total_position,
+                    'greek_columns_used': greek_columns_used  # Add this info
                 }
                 
                 logger.info(f"Generated profile for {expiry}: {len(position_info)} positions, net={total_position:.0f}")
@@ -688,12 +724,18 @@ class SpotRiskController:
         Returns:
             ATM strike or None if not found
         """
-        # Look for positions with delta closest to 0.5
+        # Look for CALL positions with delta closest to 0.5
+        # (For puts, delta would be negative and approach -0.5 at ATM)
         atm_candidates = []
         
         for _, row in expiry_df.iterrows():
-            delta_f = row.get('delta_f')
-            delta_y = row.get('delta_y')
+            # Skip if not a call option
+            option_type = row.get('itype', '').upper()
+            if option_type != 'C':
+                continue
+            # Check both cases for column names
+            delta_f = row.get('delta_F') if 'delta_F' in row else row.get('delta_f')
+            delta_y = row.get('delta_Y') if 'delta_Y' in row else row.get('delta_y')
             strike = row.get('strike')
             
             # Use either delta_f or delta_y
@@ -716,9 +758,19 @@ class SpotRiskController:
         if atm_candidates:
             # Sort by distance from 0.5 delta
             atm_candidates.sort(key=lambda x: x['distance'])
-            return atm_candidates[0]['strike']
+            
+            # Log the candidates for debugging
+            logger.info(f"ATM candidates for expiry: {len(atm_candidates)} found")
+            for i, candidate in enumerate(atm_candidates[:5]):  # Show top 5
+                logger.info(f"  Candidate {i+1}: Strike={candidate['strike']:.2f}, Delta={candidate['delta']:.4f}, Distance from 0.5={candidate['distance']:.4f}")
+            
+            selected_atm = atm_candidates[0]['strike']
+            logger.info(f"Selected ATM strike: {selected_atm:.2f} (delta={atm_candidates[0]['delta']:.4f})")
+            
+            return selected_atm
         
         # Fallback: use average strike for this expiry
+        logger.warning(f"No valid ATM candidates found using delta, falling back to average strike")
         valid_strikes = []
         for _, row in expiry_df.iterrows():
             strike = row.get('strike')
@@ -731,8 +783,11 @@ class SpotRiskController:
                     continue
         
         if valid_strikes:
-            return sum(valid_strikes) / len(valid_strikes)
+            avg_strike = sum(valid_strikes) / len(valid_strikes)
+            logger.warning(f"Using average strike as ATM: {avg_strike:.2f} from {len(valid_strikes)} strikes")
+            return avg_strike
         
+        logger.error("No valid strikes found for ATM calculation")
         return None
     
     @monitor()
@@ -751,21 +806,36 @@ class SpotRiskController:
             return None
         
         try:
+            logger.info(f"Starting process_greeks with filter_positions={filter_positions}")
+            logger.info(f"Current data shape: {self.current_data.shape}")
+            
             # Get positions from the data
             df_with_positions = self.get_positions_from_csv(self.current_data.copy())
+            logger.info(f"After get_positions_from_csv, shape: {df_with_positions.shape}")
+            
+            # Check what data we're passing to calculate_greeks
+            if filter_positions:
+                # Show what would be filtered
+                df_filtered = self.filter_positions_only(df_with_positions.copy())
+                logger.info(f"If we filter positions first, shape would be: {df_filtered.shape}")
+                if 'itype' in df_filtered.columns:
+                    logger.info(f"Filtered itype values: {df_filtered['itype'].value_counts().to_dict()}")
             
             # Calculate Greeks - returns tuple of (DataFrame, results_list)
+            logger.info("Calling calculate_greeks...")
             df_with_greeks, results = self.calculator.calculate_greeks(
-                df_with_positions
+                df_with_positions  # Pass ALL data including future row
             )
             
-            # Filter to only positions if requested
+            # Filter to only positions if requested AFTER Greek calculation
             if filter_positions:
+                logger.info("Now filtering to positions only...")
                 df_with_greeks = self.filter_positions_only(df_with_greeks)
             
             return df_with_greeks
             
         except Exception as e:
+            logger.error(f"Error processing Greeks: {e}", exc_info=True)
             print(f"Error processing Greeks: {e}")
             return None
     

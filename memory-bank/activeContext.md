@@ -34,3 +34,14 @@ Successfully resolved a complex multi-layer issue involving:
 3. Greek naming convention differences between UI selections and data columns
 
 The dashboard now displays Greek profiles organized by expiry date with full functionality including position markers with Greek value tooltips.
+
+### CSV Parser Bug Fix (January 21, 2025)
+**Issue**: Greek calculations were failing with "No valid future price found" error when processing new spot risk CSV files.
+
+**Root Cause**: The parser in `lib/trading/actant/spot_risk/parser.py` was using `skiprows=[1]` for all CSV files, which was designed to skip a type row in the original format. However, processed CSV files don't have this type row, so it was accidentally skipping the future row (which was on line 2).
+
+**Fix**: Modified parser to conditionally skip rows based on filename:
+- If filename contains 'processed', don't skip any rows
+- Otherwise, skip row 1 (for original format with type row)
+
+**Result**: Future row with `itype='F'` is now correctly parsed, allowing Greek calculations to find the future price.
