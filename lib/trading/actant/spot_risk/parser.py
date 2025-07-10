@@ -109,8 +109,12 @@ def parse_spot_risk_csv(filepath: Union[str, Path], calculate_time_to_expiry: bo
             
         logger.info(f"Reading CSV file: {filepath}")
         
-        # Read CSV, skip the type row (second row)
-        df = pd.read_csv(filepath, skiprows=[1])
+        # Read CSV, skip the type row (second row) only for original files
+        # For processed files (already have headers), don't skip any rows
+        if 'processed' in str(filepath):
+            df = pd.read_csv(filepath)
+        else:
+            df = pd.read_csv(filepath, skiprows=[1])
         
         # Normalize column names to lowercase for consistent access
         df.columns = df.columns.str.lower()

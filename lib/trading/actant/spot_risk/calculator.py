@@ -111,27 +111,44 @@ class SpotRiskGreekCalculator:
         results = []
         total_rows = len(df)
         
+        # Log DataFrame info for debugging
+        logger.info(f"DataFrame shape: {df.shape}")
+        logger.info(f"DataFrame columns: {list(df.columns)}")
+        if 'itype' in df.columns:
+            logger.info(f"itype values: {df['itype'].value_counts().to_dict()}")
+        
         # Get future price - look for future in the data
         future_price = None
         
         # First try to find a future row - check both uppercase and lowercase column names
         if 'Instrument Type' in df.columns:
             future_rows = df[df['Instrument Type'].str.upper() == 'FUTURE']
+            logger.info(f"Checking 'Instrument Type' column: found {len(future_rows)} future rows")
             if len(future_rows) > 0 and 'Price' in future_rows.columns:
                 future_price = future_rows.iloc[0]['Price']
                 logger.info(f"Found future price from future row: {future_price}")
         elif 'instrument type' in df.columns:
             future_rows = df[df['instrument type'].str.upper() == 'FUTURE']
+            logger.info(f"Checking 'instrument type' column: found {len(future_rows)} future rows")
             if len(future_rows) > 0 and 'price' in future_rows.columns:
                 future_price = future_rows.iloc[0]['price']
                 logger.info(f"Found future price from future row (lowercase): {future_price}")
         
         # Fallback to itype column if Instrument Type not found
         if future_price is None and 'itype' in df.columns:
-            future_rows = df[df['itype'].str.upper() == 'F']
-            if len(future_rows) > 0 and 'midpoint_price' in future_rows.columns:
-                future_price = future_rows.iloc[0]['midpoint_price']
-                logger.info(f"Found future price from future row (itype): {future_price}")
+            logger.info(f"Checking 'itype' column for 'F'...")
+            # Check raw values first
+            logger.info(f"Raw itype unique values: {df['itype'].unique()}")
+            # Handle case sensitivity - convert to uppercase for comparison
+            future_rows = df[df['itype'].astype(str).str.upper() == 'F']
+            logger.info(f"Found {len(future_rows)} rows with itype='F'")
+            if len(future_rows) > 0:
+                logger.info(f"Future row data: {future_rows.iloc[0].to_dict()}")
+                if 'midpoint_price' in future_rows.columns:
+                    future_price = future_rows.iloc[0]['midpoint_price']
+                    logger.info(f"Found future price from future row (itype): {future_price}")
+                else:
+                    logger.warning(f"midpoint_price column not found in future rows. Available columns: {list(future_rows.columns)}")
         
         # If not found, try the future_price column
         if future_price is None and future_price_col in df.columns:

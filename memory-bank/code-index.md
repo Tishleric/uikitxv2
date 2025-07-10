@@ -113,7 +113,7 @@ Actant trading system integration modules.
 - **validator.py**: Data validation for SOD files
 
 #### lib/trading/actant/spot_risk/
-- **parser.py**: CSV parser for spot risk analysis files with mixed futures/options
+- **parser.py**: CSV parser for spot risk analysis files with mixed futures/options. Conditionally skips rows based on filename - skips row 1 for original format files, no skip for processed files.
 - **calculator.py**: Greek calculator for spot risk positions using GreekCalculatorAPI; extracts future prices from DataFrame and processes options in batch
 - **time_calculator.py**: Time to expiry calculations with CME conventions
 
