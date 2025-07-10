@@ -29,7 +29,7 @@ DEFAULT_YIELD_LEVEL = 0.05
 # Solver parameters matching app.py
 DEFAULT_TOLERANCE = 1e-6  # Changed from 1e-9
 MAX_IMPLIED_VOL = 1000.0
-MIN_PRICE_SAFEGUARD = 1/64  # Deep OTM options minimum price
+MIN_PRICE_SAFEGUARD = 1/512  # Changed from 1/64 to allow deeper OTM options
 
 
 @monitor()

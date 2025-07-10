@@ -1152,3 +1152,44 @@ The system is now **production-ready** for 24/7 trading environments.
   - `component_factory.py` - Main factory class with creation methods
   - `defaults.py` - Default configurations for all component types
   - `templates.py`
+
+## 2025-02-07: Spot Risk Dashboard Phase 1 Quick Fixes
+
+### ✅ Phase 1 Completed - Small, Robust & Verifiable Steps
+- **Table Width Fix**: Adjusted container padding to maximize available width
+  - Reduced main container padding from 20px to 10px
+  - Changed table overflow from 'auto' to 'visible'
+  - Table now expands naturally to accommodate all columns
+  
+- **Midpoint Validation**: Enhanced CSV parser to handle missing bid/ask values
+  - Added fallback logic: uses ask if bid missing, bid if ask missing
+  - Searches for alternative price columns (price, last, settle, close)
+  - Logs detailed warnings about missing prices for debugging
+  
+- **Export CSV**: Fully functional CSV export
+  - Added dcc.Download component to views
+  - Exports currently filtered/visible table data
+  - Filename includes timestamp (spot_risk_export_YYYYMMDD_HHMMSS.csv)
+  
+- **Greek Space Filter**: F-space/Y-space toggle for Greeks
+  - Added toggle buttons in View Options
+  - Column mapping respects selected space
+  - Store tracks current selection
+  - Note: Graphs still need to respect filter selection
+  
+- **Adjtheor as Primary Price Source**: Updated parser to prioritize adjtheor column
+  - Parser now uses adjtheor as primary price source
+  - Falls back to calculated midpoint (bid+ask)/2 when adjtheor missing
+  - Added price_source tracking column to identify price origin
+  - Error message column shows warnings when adjtheor not available:
+    - "Using calculated midpoint (adjtheor not available)"
+    - "Using bid price only (adjtheor not available)"
+    - "Using ask price only (adjtheor not available)"
+    - "Using [column] price (adjtheor not available)"
+  - Helps users identify when theoretical prices are not being used
+
+### ✅ Minimum Price Safeguard Adjustment
+- Changed MIN_PRICE_SAFEGUARD from 1/64 (0.015625) to 1/512 (0.001953125)
+- Allows deep OTM options to be priced that were previously rejected
+- Updated in both api.py and bachelier_v1.py for consistency
+- Surgical fix to address overly strict threshold

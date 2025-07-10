@@ -120,16 +120,113 @@ def parse_spot_risk_csv(filepath: Union[str, Path], calculate_time_to_expiry: bo
         df.columns = df.columns.str.lower()
         
         # Clean numeric columns - convert to numeric, handling errors
-        numeric_columns = ['strike', 'bid', 'ask']
+        numeric_columns = ['strike', 'bid', 'ask', 'adjtheor']  # Added adjtheor
         for col in numeric_columns:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
-        # Calculate midpoint price
-        if 'bid' in df.columns and 'ask' in df.columns:
+        # Calculate midpoint price with validation and track source
+        # Initialize price_source column
+        df['price_source'] = 'unknown'
+        
+        # Priority 1: Use adjtheor if available
+        if 'adjtheor' in df.columns:
+            logger.info("Using adjtheor column as primary price source")
+            df['midpoint_price'] = pd.to_numeric(df['adjtheor'], errors='coerce')
+            
+            # Mark rows where adjtheor is valid
+            adjtheor_valid_mask = df['midpoint_price'].notna()
+            df.loc[adjtheor_valid_mask, 'price_source'] = 'adjtheor'
+            
+            # Count how many valid adjtheor prices we have
+            adjtheor_valid = adjtheor_valid_mask.sum()
+            logger.info(f"Found {adjtheor_valid} valid adjtheor prices out of {len(df)} rows")
+            
+            # For rows where adjtheor is missing, calculate midpoint from bid/ask
+            adjtheor_missing = df['midpoint_price'].isna()
+            if adjtheor_missing.any() == True and 'bid' in df.columns and 'ask' in df.columns:
+                logger.info(f"Calculating midpoint for {adjtheor_missing.sum()} rows with missing adjtheor")
+                calculated_midpoint = (df.loc[adjtheor_missing, 'bid'] + df.loc[adjtheor_missing, 'ask']) / 2
+                valid_calc = calculated_midpoint.notna()
+                df.loc[adjtheor_missing & valid_calc, 'midpoint_price'] = calculated_midpoint[valid_calc]
+                df.loc[adjtheor_missing & valid_calc, 'price_source'] = 'calculated'
+        
+        # Priority 2: Calculate from bid/ask if adjtheor not available
+        elif 'bid' in df.columns and 'ask' in df.columns:
+            # Calculate midpoint where both bid and ask are valid
             df['midpoint_price'] = (df['bid'] + df['ask']) / 2
+            
+            # Mark rows where calculation worked
+            calculated_mask = df['midpoint_price'].notna()
+            df.loc[calculated_mask, 'price_source'] = 'calculated'
+            
+            # Count rows with missing midpoint prices
+            missing_midpoint = df['midpoint_price'].isna()
+            if bool(missing_midpoint.any()):
+                missing_count = missing_midpoint.sum()
+                logger.warning(f"Found {missing_count} rows with missing midpoint prices")
+                
+                # For rows with missing midpoint, try alternative sources
+                # 1. If only bid is missing, use ask
+                bid_missing = df['bid'].isna()
+                ask_valid = df['ask'].notna()
+                use_ask_mask = missing_midpoint & bid_missing & ask_valid
+                df.loc[use_ask_mask, 'midpoint_price'] = df.loc[use_ask_mask, 'ask']
+                df.loc[use_ask_mask, 'price_source'] = 'ask_only'
+                
+                # 2. If only ask is missing, use bid
+                ask_missing = df['ask'].isna()
+                bid_valid = df['bid'].notna()
+                use_bid_mask = missing_midpoint & ask_missing & bid_valid
+                df.loc[use_bid_mask, 'midpoint_price'] = df.loc[use_bid_mask, 'bid']
+                df.loc[use_bid_mask, 'price_source'] = 'bid_only'
+                
+                # 3. Check if there's a 'price' or 'last' column as fallback
+                fallback_columns = ['price', 'last', 'settle', 'close']
+                for fallback_col in fallback_columns:
+                    if fallback_col in df.columns:
+                        # Use fallback where midpoint is still missing
+                        still_missing = df['midpoint_price'].isna()
+                        fallback_values = pd.to_numeric(df.loc[still_missing, fallback_col], errors='coerce')
+                        # Check if we got valid values from the fallback column
+                        if isinstance(fallback_values, pd.Series):
+                            valid_fallback_mask = fallback_values.notna()
+                            df.loc[still_missing & valid_fallback_mask, 'midpoint_price'] = fallback_values[valid_fallback_mask]
+                            df.loc[still_missing & valid_fallback_mask, 'price_source'] = f'fallback_{fallback_col}'
+                            filled_count = (still_missing & valid_fallback_mask).sum()
+                        else:
+                            filled_count = 0
+                        
+                        if filled_count > 0:
+                            logger.info(f"Used {fallback_col} column to fill {filled_count} missing midpoint prices")
+                
+                # Log final status
+                final_missing = df['midpoint_price'].isna().sum()
+                if final_missing > 0:
+                    logger.error(f"Still have {final_missing} rows with no valid price data")
+                    # Log sample of problematic rows for debugging
+                    sample_missing = df[df['midpoint_price'].isna()].head(5)
+                    if not sample_missing.empty:
+                        debug_cols = [col for col in ['key', 'bid', 'ask'] if col in sample_missing.columns]
+                        if debug_cols:
+                            logger.debug(f"Sample rows with missing prices:\n{sample_missing[debug_cols]}")
         else:
-            logger.warning("bid or ask columns not found, cannot calculate midpoint_price")
+            logger.warning("bid or ask columns not found, looking for alternative price columns")
+            # Try to find any price column
+            price_columns = ['price', 'last', 'midpoint', 'settle', 'close']
+            for col in price_columns:
+                if col in df.columns:
+                    df['midpoint_price'] = pd.to_numeric(df[col], errors='coerce')
+                    valid_prices = df['midpoint_price'].notna()
+                    df.loc[valid_prices, 'price_source'] = f'fallback_{col}'
+                    logger.info(f"Using {col} column as midpoint_price for {valid_prices.sum()} rows")
+                    break
+            else:
+                logger.error("No valid price columns found in CSV")
+                
+        # Mark any remaining rows without prices as 'missing'
+        missing_prices = df['midpoint_price'].isna()
+        df.loc[missing_prices, 'price_source'] = 'missing'
             
         # Extract expiry dates
         if 'key' in df.columns:

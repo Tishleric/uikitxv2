@@ -584,6 +584,59 @@ def create_spot_risk_content(controller=None):
                         ).render()
                     ]),
                     
+                    # Greek space selection
+                    html.Div([
+                        html.Label(
+                            'Greek Space:',
+                            style={
+                                'color': default_theme.text_light,
+                                'fontSize': '14px',
+                                'marginBottom': '8px',
+                                'display': 'block',
+                                'fontWeight': '500'
+                            }
+                        ),
+                        html.Div(
+                            style={
+                                'display': 'flex',
+                                'gap': '0'
+                            },
+                            children=[
+                                Button(
+                                    id='spot-risk-f-space-btn',
+                                    label='F-Space',
+                                    style={
+                                        'backgroundColor': default_theme.primary,
+                                        'color': default_theme.base_bg,
+                                        'border': f'1px solid {default_theme.primary}',
+                                        'padding': '8px 20px',
+                                        'borderRadius': '4px 0 0 4px',
+                                        'fontSize': '14px',
+                                        'fontWeight': 'bold',
+                                        'cursor': 'pointer',
+                                        'minWidth': '80px'
+                                    }
+                                ).render(),
+                                Button(
+                                    id='spot-risk-y-space-btn',
+                                    label='Y-Space',
+                                    style={
+                                        'backgroundColor': default_theme.panel_bg,
+                                        'color': default_theme.text_light,
+                                        'border': f'1px solid {default_theme.secondary}',
+                                        'borderLeft': 'none',
+                                        'padding': '8px 20px',
+                                        'borderRadius': '0 4px 4px 0',
+                                        'fontSize': '14px',
+                                        'fontWeight': 'normal',
+                                        'cursor': 'pointer',
+                                        'minWidth': '80px'
+                                    }
+                                ).render()
+                            ]
+                        )
+                    ]),
+                    
                     # Export button
                     html.Div([
                         html.Label(
@@ -623,9 +676,10 @@ def create_spot_risk_content(controller=None):
         style={
             'backgroundColor': default_theme.panel_bg,
             'borderRadius': '8px',
-            'padding': '20px',
+            'padding': '10px',  # Reduced padding for more table width
             'border': f'1px solid {default_theme.secondary}',
-            'minHeight': '400px'
+            'minHeight': '400px',
+            'overflow': 'visible'  # Ensure content can expand
         },
         children=[
             # Loading wrapper for data table
@@ -665,8 +719,9 @@ def create_spot_risk_content(controller=None):
                                         data=[],  # Will be populated by callbacks
                                         page_size=20,
                                         style_table={
-                                            'overflowX': 'auto',
-                                            'minWidth': '100%'
+                                            'overflowX': 'visible',  # Changed from 'auto' to prevent scroll
+                                            'width': '100%',  # Changed from minWidth to width
+                                            'tableLayout': 'auto'  # Let table size naturally
                                         },
                                         style_header={
                                             'backgroundColor': default_theme.secondary,
@@ -793,10 +848,11 @@ def create_spot_risk_content(controller=None):
     return Container(
         id='spot-risk-container',
         style={
-            'padding': '20px',
+            'padding': '10px',  # Reduced padding to give more width
             'backgroundColor': default_theme.base_bg,
             'minHeight': '100vh',
-            'width': '100%'
+            'width': '100%',
+            'maxWidth': 'none'  # Ensure no max width constraint
         },
         children=[
             header_section,
@@ -809,11 +865,14 @@ def create_spot_risk_content(controller=None):
             dcc.Store(id='spot-risk-data-store'),
             dcc.Store(id='spot-risk-filter-store'),
             dcc.Store(id='spot-risk-display-store'),
+            dcc.Store(id='spot-risk-greek-space-store', data='F'),  # Default to F-space
             dcc.Interval(
                 id='spot-risk-refresh-interval',
                 interval=5 * 60 * 1000,  # 5 minutes
                 disabled=True
-            )
+            ),
+            # Download component for CSV export
+            dcc.Download(id='spot-risk-download-csv')
         ]
     ).render() 
     
