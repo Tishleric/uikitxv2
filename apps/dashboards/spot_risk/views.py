@@ -679,7 +679,9 @@ def create_spot_risk_content(controller=None):
             'padding': '10px',  # Reduced padding for more table width
             'border': f'1px solid {default_theme.secondary}',
             'minHeight': '400px',
-            'overflow': 'visible'  # Ensure content can expand
+            'overflow': 'visible',  # Ensure content can expand
+            'width': 'fit-content',  # Expand to match content width
+            'minWidth': '100%'  # Ensure at least full width when content is small
         },
         children=[
             # Loading wrapper for data table

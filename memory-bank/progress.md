@@ -1193,3 +1193,9 @@ The system is now **production-ready** for 24/7 trading environments.
 - Allows deep OTM options to be priced that were previously rejected
 - Updated in both api.py and bachelier_v1.py for consistency
 - Surgical fix to address overly strict threshold
+
+### ✅ Table Container Width Fix
+- Added `width: 'fit-content'` to spot-risk-data-display panel
+- Added `minWidth: '100%'` to ensure minimum width when content is small
+- Panel now dynamically expands to match table width
+- Visual coherence restored - table no longer appears to overflow its container
