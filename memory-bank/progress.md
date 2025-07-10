@@ -1883,3 +1883,136 @@ The project migration is **100% COMPLETE** with a clean, professional Python pac
 - **Result**: Clean architecture allowing easy addition of new model versions without breaking existing code
 
 ### 2024-12-26: Actant Spot Risk Greek Calculator
+
+### 2025-01-10: Spot Risk Database Schema
+- **Goal**: Create SQLite database foundation for spot risk UI
+- **Completed**:
+  - Created schema.sql with three tables: sessions, raw data, calculated Greeks  
+  - Built db_init.py for database initialization and verification
+  - Successfully created database at data/output/spot_risk/spot_risk.db
+  - Added proper indexes and foreign key constraints
+  - Included convenience view for latest calculations
+- **Result**: Safe, isolated database layer ready for integration without affecting existing code
+
+### 2025-01-10: Spot Risk Dashboard Phase 1
+- **Goal**: Create basic dashboard structure with MVC architecture
+- **Completed**:
+  - Phase 1.1: Created dashboard structure with __init__.py, app.py, views.py, callbacks.py
+  - Phase 1.2: Integrated with main dashboard navigation system
+  - Phase 1.3: Created SpotRiskController with CSV discovery and data loading
+  - Fixed import issues with ColourPalette → default_theme
+  - Successfully tested controller with existing CSV data
+- **Result**: Basic dashboard infrastructure ready with clean MVC separation
+
+### 2024-01-XX
+- ✅ Bond future options API factory/facade implementation
+  - Created option_model_interface.py with OptionModelProtocol
+  - Implemented BachelierV1 wrapper in models/bachelier_v1.py
+  - Built ModelFactory with registration system
+  - Created GreekCalculatorAPI facade for simple analyze() method
+  - All tests passing
+
+- ✅ Spot Risk dashboard Phase 1
+  - Created dashboard structure and files
+  - Integrated with main dashboard navigation
+  - Built SpotRiskController with CSV discovery and loading
+  - Successfully loading data: 52 rows, 6 expiries
+
+- ✅ Spot Risk dashboard Phase 2
+  - Phase 2.1: Added styled title header with proper theme colors
+  - Phase 2.2: Implemented timestamp display from CSV filename
+  - Phase 2.3: Added manual refresh button with loading indicator
+  - Phase 2.4: Added auto-refresh toggle and interval input (1-60 min)
+  - All UI components properly styled using default_theme
+  - Uses wrapped components (Container, Button, Loading, Toggle)
+  
+- ✅ Spot Risk dashboard Phase 3
+  - Phase 3.1: Added expiry dropdown filter with "All Expiries" option
+  - Phase 3.2: Added type radio buttons (All/Calls/Puts/Futures) inline
+  - Phase 3.3: Added strike range slider with dynamic min/max from data
+  - All filters in responsive grid layout (auto-fit columns)
+  - Proper labels and styling throughout
+  - Uses wrapped components (ComboBox, RadioButton, RangeSlider)
+  
+- ✅ Spot Risk dashboard Phase 4
+  - Phase 4.1: Created Greek groups structure and container
+  - Phase 4.2: Added base info checkbox (disabled, always on)
+  - Phase 4.3: Added 1st, 2nd, 3rd order Greek checkboxes
+  - Phase 4.4: Added cross Greeks checkbox
+  - Greek groups in responsive grid layout
+  - Each group shows relevant Greek names below checkbox
+  - Base info always checked, 1st order default checked
+  - Uses Checkbox component from wrapped library
+  
+- ✅ Spot Risk dashboard Phase 5
+  - Phase 5.1: Added table/graph view toggle buttons
+  - Phase 5.2: Added model selection dropdown
+  - Phase 5.3: Added export to CSV button
+  - All controls in responsive grid layout
+  - Table view selected by default (primary color)
+  - Model selector shows Bachelier V1 (current) and future options
+  - Export button with accent color for visibility
+  - Proper labels and consistent styling
+  
+- ✅ Spot Risk dashboard Phase 6
+  - Phase 6.1: Basic DataTable setup with pagination (20 rows per page)
+  - Phase 6.2: Configured columns with proper formatting
+  - Phase 6.3: Set up structure for dynamic column visibility
+  - Added column definitions grouped by Greek category
+  - DataTable with theme-aware styling (header, cells, alternating rows)
+  - No-data message when data not loaded
+  - Placeholder for graph view
+  - Loading indicator wraps the data display
+  - All column formatting configured (numeric precision by Greek order)
+  
+## In Progress
+
+### Spot Risk Dashboard Implementation (January 17, 2025) ✅ COMPLETED
+- **Objective**: Create spot risk analysis dashboard with Greek calculations and dynamic filtering
+- **Status**: All 9 phases completed successfully
+- **Phase 1-4: UI Structure** ✅ 
+  - Created complete dashboard structure with header, filters, Greek selection groups
+  - Implemented expiry dropdown, type radio buttons, strike range slider
+  - Added Greek checkbox groups (base, 1st/2nd/3rd order, cross Greeks)
+- **Phase 5-6: Views and DataTable** ✅
+  - Implemented table/graph view toggle with model selection
+  - Created DataTable with dynamic column visibility based on Greek selections
+  - Added formatted columns for all Greek values with appropriate precision
+- **Phase 7: Data Integration** ✅
+  - Implemented CSV discovery and loading from actant_spot_risk directory
+  - Integrated SpotRiskGreekCalculator for real-time Greek processing
+  - Added timestamp extraction from filename for data tracking
+- **Phase 8: Complete Callback System** ✅
+  - Refresh data callback with Greek processing
+  - Dynamic filtering by expiry, type, and strike range
+  - Column visibility management based on Greek selections
+  - View mode toggle between table and graph
+  - Export functionality (logging for now)
+- **Phase 9: Auto-Refresh** ✅
+  - Implemented interval-based auto-refresh with configurable minutes
+  - Toggle to enable/disable auto-refresh
+  - Maintains Greek processing on each auto-refresh cycle
+- **Bug Fix: Strike Filter Error** ✅
+  - Fixed TypeError when filtering futures with 'INVALID' strike values
+  - Updated strike filter to handle None and non-numeric strikes gracefully
+  - Futures and invalid strikes now included regardless of filter range
+  - Added greek_calc_error column to display error messages in DataTable
+  - Updated get_strike_range to exclude invalid strikes from range calculation
+- **Bug Fix: Strike Range Display** ✅
+  - Fixed TypeError in strike range display callback when values are None
+  - Added proper None checks before formatting strike values
+  - Display shows "No valid strike range available" when no valid strikes exist
+- **Bug Fix: RangeSlider Initialization** ✅
+  - Fixed "NaNundefined" display in RangeSlider
+  - Added dynamic callback to update slider min/max/value after data loads
+  - Ensures slider always has valid numeric values (100.0-120.0 defaults)
+  - Slider updates with actual data range plus 10% buffer when data is loaded
+  - Rounds strike values to nearest 0.25 for cleaner display
+- **Technical Achievements**:
+  - Full MVC separation with controller, views, and callbacks
+  - Reused existing Greek calculator from bond_future_options API
+  - Proper error handling and loading states
+  - Integrated with main dashboard navigation
+- **Notes**: Graph view is placeholder - only table view fully implemented
+
+### January 7, 2025 - Taylor Approximation Error Display Update

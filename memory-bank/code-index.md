@@ -117,6 +117,14 @@ Actant trading system integration modules.
 - **calculator.py**: Greek calculator for spot risk positions using GreekCalculatorAPI; extracts future prices from DataFrame and processes options in batch
 - **time_calculator.py**: Time to expiry calculations with CME conventions
 
+**calculator.py**: SpotRiskGreekCalculator class that processes CSV files and calculates Greeks using the GreekCalculatorAPI. Handles future price extraction, batch Greek calculations, and adds all Greek columns to the DataFrame. Contains error handling that raises ValueError when no future price is found.
+
+**csv_parser.py**: Parses CSV files exported from Actant spot risk reports. Converts all column names to lowercase, handles numeric parsing, and provides structured DataFrames for downstream processing.
+
+**schema.sql**: SQLite database schema for spot risk data storage. Defines three tables: spot_risk_sessions (for tracking data loads), spot_risk_raw (for storing original CSV data), and spot_risk_calculated (for storing calculated Greeks). Includes indexes and a convenience view for latest calculations.
+
+**db_init.py**: Database initialization script that creates the SQLite database from schema.sql. Includes functions to initialize the database and verify the schema. Creates the database at data/output/spot_risk/spot_risk.db with proper foreign key constraints and indexes.
+
 ### lib/trading/ladder/
 Scenario ladder functionality for options analysis.
 
@@ -148,6 +156,20 @@ The main integrated dashboard application combining all features:
 - Actant EOD data visualization
 - Actant P&L dashboard
 - Observatory for monitoring decorated functions
+
+### apps/dashboards/actant_pnl/pnl_dashboard.py: Main dashboard implementation for actant PnL analysis. Creates the UI layout with formula comparison table, dropdown for formula selection, and Taylor approximation error display. Integrates with CSV parser to load and display option Greek calculations.
+
+### apps/dashboards/spot_risk/__init__.py: Package initialization for Spot Risk dashboard. Exports register_callbacks for main app integration.
+
+### apps/dashboards/spot_risk/app.py: Entry point for Spot Risk dashboard. Creates Dash app instance, sets up layout, and registers callbacks. Can run standalone or be integrated into main dashboard.
+
+### apps/dashboards/spot_risk/controller.py: Business logic controller for Spot Risk dashboard. Handles CSV file discovery, data loading, Greek calculations via SpotRiskGreekCalculator, timestamp extraction, and data filtering operations. Implements MVC controller pattern.
+
+### apps/dashboards/spot_risk/views.py: View components for Spot Risk dashboard. Creates UI layout with header, filters (expiry, type, strike range), Greek selection checkboxes, view mode toggle, and DataTable. Defines column configurations for different Greek categories.
+
+### apps/dashboards/spot_risk/callbacks.py: Callback implementations for Spot Risk dashboard. Handles data refresh, Greek processing, filtering, column visibility, view mode toggle, auto-refresh, and export functionality. All callbacks decorated with @monitor for observability.
+
+### apps/dashboards/actant_preprocessing/__init__.py: Package init file for the Actant Preprocessing dashboard module.
 
 ---
 
@@ -231,3 +253,23 @@ Project knowledge base and documentation:
 - **code-index.md**: This file - comprehensive code inventory
 - **io-schema.md**: Input/output schemas and data contracts
 - **PRDeez/**: Product requirement documents
+
+# apps/dashboards/observatory
+
+**app.py**: Standalone observatory dashboard application for development and testing. Creates a simple dashboard with flow trace table from the observatory monitoring system. Uses port 8052 for development.
+
+**callbacks.py**: Observatory dashboard callbacks including refresh functionality and navigation. Handles loading trace data from the observatory database and updating the dashboard display.
+
+**views.py**: Observatory dashboard view components. Creates the layout with a DataTable showing recent function traces, message details, and execution context from the monitoring system.
+
+# apps/dashboards/spot_risk
+
+**__init__.py**: Spot Risk dashboard module initialization. Exports create_spot_risk_content and register_callbacks functions for integration with the main dashboard.
+
+**app.py**: Standalone Spot Risk dashboard application for development and testing. Creates a Dash app with proper assets configuration. Uses port 8055 for development.
+
+**views.py**: Pure presentation layer for spot risk dashboard. Defines get_column_definitions() to organize columns by Greek category (base, 1st/2nd/3rd order, cross, other). Creates complete UI layout with styled header (title, timestamp display, refresh button, auto-refresh controls), filter controls panel (expiry dropdown, type radio buttons, strike range slider), Greek groups section (checkboxes for column visibility), view controls section (table/graph toggle, model selector, export button), and data display with DataTable (pagination, theme styling, no-data message, graph placeholder). Uses wrapped components throughout with consistent theme styling. Includes hidden stores for state management and interval component for auto-refresh. Accepts controller parameter for data access.
+
+**callbacks.py**: Spot Risk dashboard callbacks (currently placeholder). Will handle refresh data, filter updates, Greek selection, export functionality, and auto-refresh toggle.
+
+**controller.py**: Spot Risk dashboard controller following MVC pattern. Manages CSV file discovery, data loading, Greek calculations using SpotRiskGreekCalculator, filtering by expiry/type/strike range, and timestamp extraction. Provides clean interface between data layer and views.
