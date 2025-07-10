@@ -6,6 +6,7 @@ Follows the Controller layer of MVC pattern - coordinates between data and views
 
 import os
 import glob
+import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import pandas as pd
@@ -13,6 +14,8 @@ from datetime import datetime
 
 from lib.monitoring.decorators import monitor
 from lib.trading.actant.spot_risk import parse_spot_risk_csv, SpotRiskGreekCalculator
+
+logger = logging.getLogger(__name__)
 
 
 class SpotRiskController:
@@ -189,11 +192,556 @@ class SpotRiskController:
         return datetime.fromtimestamp(Path(filepath).stat().st_mtime)
     
     @monitor()
-    def process_greeks(self, model: str = "bachelier_v1") -> Optional[pd.DataFrame]:
+    def get_positions_from_csv(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Extract position data from DataFrame
+        
+        Args:
+            df: DataFrame with spot risk data
+            
+        Returns:
+            pd.DataFrame: DataFrame with position column added/normalized
+        """
+        # Check for position column variations
+        position_col = None
+        for col in ['POS.POSITION', 'pos.position', 'POSITION', 'Position', 'position']:
+            if col in df.columns:
+                position_col = col
+                break
+        
+        if position_col:
+            # Ensure position is numeric and handle NaN values
+            try:
+                df['position'] = pd.to_numeric(df[position_col], errors='coerce')
+                df['position'] = df['position'].fillna(0)
+            except Exception:
+                df['position'] = 0
+        else:
+            # If no position column found, add zeros
+            df['position'] = 0
+            
+        return df
+    
+    @monitor()
+    def filter_positions_only(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Filter DataFrame to only include rows with non-zero positions
+        
+        Args:
+            df: DataFrame with position data
+            
+        Returns:
+            pd.DataFrame: Filtered DataFrame with only position rows
+        """
+        if 'position' not in df.columns:
+            df = self.get_positions_from_csv(df)
+            
+        # Keep only rows where position != 0
+        return df[df['position'] != 0].copy()
+    
+    @monitor()
+    def find_atm_strike(self, df: Optional[pd.DataFrame] = None) -> Optional[float]:
+        """Find the at-the-money strike (where delta is closest to 0.5)
+        
+        Args:
+            df: DataFrame with Greek calculations. If None, uses current_data
+            
+        Returns:
+            Optional[float]: ATM strike price, or None if not found
+        """
+        if df is None:
+            df = self.current_data
+            
+        if df is None or df.empty:
+            return None
+            
+        # Filter for calls only (delta positive for calls)
+        type_col = None
+        for col in ['itype', 'ITYPE', 'Type', 'type']:
+            if col in df.columns:
+                type_col = col
+                break
+                
+        if type_col:
+            calls_df = df[df[type_col].str.upper() == 'C'].copy()
+        else:
+            calls_df = df.copy()
+            
+        # Check for delta column
+        delta_col = None
+        for col in ['delta', 'Delta', 'DELTA']:
+            if col in calls_df.columns:
+                delta_col = col
+                break
+                
+        if not delta_col:
+            # If no delta yet, use middle of strike range as approximation
+            strike_range = self.get_strike_range()
+            return (strike_range[0] + strike_range[1]) / 2
+            
+        # Find strike where delta is closest to 0.5
+        calls_df['delta_diff'] = abs(calls_df[delta_col] - 0.5)
+        
+        # Get the row with minimum difference
+        if not calls_df.empty:
+            atm_row = calls_df.loc[calls_df['delta_diff'].idxmin()]
+            
+            # Get strike value
+            strike_col = None
+            for col in ['strike', 'STRIKE', 'Strike']:
+                if col in calls_df.columns:
+                    strike_col = col
+                    break
+                    
+            if strike_col:
+                strike_val = atm_row[strike_col]
+                # Handle INVALID strikes
+                if strike_val is not None and str(strike_val).upper() != 'INVALID':
+                    try:
+                        return float(strike_val)
+                    except (ValueError, TypeError):
+                        pass
+                        
+        return None
+    
+    @monitor()
+    def generate_greek_profiles(self, selected_greeks: List[str], strike_range: float = 5.0) -> Dict[str, Any]:
+        """Generate Greek profiles for selected Greeks using Taylor series expansion
+        
+        Args:
+            selected_greeks: List of Greek names to generate profiles for
+            strike_range: Range around ATM strike (default ±5.0)
+            
+        Returns:
+            Dict containing:
+                - strikes: Array of strike prices
+                - greeks: Dict of Greek name -> array of values
+                - positions: List of dicts with position info (strike, size, type)
+                - atm_strike: ATM strike value
+                - model_params: Dict of model parameters used
+        """
+        if self.current_data is None or self.current_data.empty:
+            logger.warning("No data available for Greek profile generation")
+            return {}
+        
+        # Import the Greek profile function
+        from lib.trading.bond_future_options.bachelier_greek import generate_greek_profiles_data
+        
+        # Find ATM strike
+        atm_strike = self.find_atm_strike()
+        if atm_strike is None:
+            logger.warning("Could not find ATM strike")
+            # Use average strike as fallback
+            valid_strikes = []
+            for _, row in self.current_data.iterrows():
+                strike = row.get('strike')
+                if strike is not None and strike != 'INVALID':
+                    try:
+                        strike_float = float(strike)
+                        # Check for NaN
+                        if not pd.isna(strike_float):
+                            valid_strikes.append(strike_float)
+                    except (ValueError, TypeError):
+                        continue
+            
+            if valid_strikes:
+                atm_strike = sum(valid_strikes) / len(valid_strikes)
+            else:
+                atm_strike = 112.0  # Default fallback
+        
+        # Validate ATM strike is not NaN
+        if pd.isna(atm_strike):
+            logger.error(f"ATM strike is NaN, using default 112.0")
+            atm_strike = 112.0
+        
+        # Get model parameters from first valid option
+        sigma = None
+        tau = None
+        F = None
+        
+        for _, row in self.current_data.iterrows():
+            if row.get('implied_vol') and row.get('time_to_maturity'):
+                sigma = float(row['implied_vol'])
+                tau = float(row['time_to_maturity'])
+                # Use futures price if available, else ATM strike
+                for _, future_row in self.current_data.iterrows():
+                    if future_row.get('itype') == 'F':
+                        F = float(future_row.get('midpoint_price', atm_strike))
+                        break
+                if F is None:
+                    F = atm_strike
+                break
+        
+        # Default values if not found
+        if sigma is None:
+            sigma = 0.75  # Default volatility
+        if tau is None:
+            tau = 0.25  # Default time to maturity
+        if F is None:
+            F = atm_strike
+        
+        # Validate model parameters are not NaN
+        if pd.isna(sigma):
+            logger.warning("Sigma is NaN, using default 0.75")
+            sigma = 0.75
+        if pd.isna(tau):
+            logger.warning("Tau is NaN, using default 0.25")
+            tau = 0.25
+        if pd.isna(F):
+            logger.warning("F is NaN, using ATM strike")
+            F = atm_strike
+        
+        # Generate strike range centered at ATM
+        strike_min = atm_strike - strike_range
+        strike_max = atm_strike + strike_range
+        
+        # Calculate number of points based on 0.25 increments
+        strike_increment = 0.25
+        num_points = int((strike_max - strike_min) / strike_increment) + 1
+        
+        logger.info(f"Generating Greek profiles: ATM={atm_strike:.2f}, range=[{strike_min:.2f}, {strike_max:.2f}], points={num_points}")
+        
+        # Generate Greek profiles
+        profile_data = generate_greek_profiles_data(
+            K=atm_strike,
+            sigma=sigma,
+            tau=tau,
+            F_range=(strike_min, strike_max),
+            num_points=num_points
+        )
+        
+        # Extract position information
+        positions = []
+        for _, row in self.current_data.iterrows():
+            if row.get('position', 0) != 0:
+                strike = row.get('strike')
+                if strike is not None and strike != 'INVALID':
+                    try:
+                        strike_float = float(strike)
+                        positions.append({
+                            'strike': strike_float,
+                            'position': float(row['position']),
+                            'type': row.get('itype', 'Unknown'),
+                            'key': row.get('key', ''),
+                            # Include current Greek values for the position
+                            'current_greeks': {
+                                greek: float(row.get(greek, 0)) for greek in selected_greeks
+                            }
+                        })
+                    except (ValueError, TypeError):
+                        continue
+        
+        # Map F values to strike values (F represents the strike axis)
+        strikes = profile_data['F_vals']
+        
+        # Extract only selected Greeks
+        greeks = {}
+        for greek in selected_greeks:
+            if greek in profile_data['greeks_ana']:
+                greeks[greek] = profile_data['greeks_ana'][greek]
+            elif greek == 'volga' and 'vomma' in profile_data['greeks_ana']:
+                # Handle volga/vomma naming
+                greeks[greek] = profile_data['greeks_ana']['vomma']
+        
+        logger.info(f"Generated profiles: {len(strikes)} strikes, {len(greeks)} Greeks, {len(positions)} positions")
+        
+        return {
+            'strikes': strikes.tolist(),
+            'greeks': {k: [float(v) for v in vals] for k, vals in greeks.items()},
+            'positions': positions,
+            'atm_strike': float(atm_strike),
+            'model_params': {
+                'sigma': sigma,
+                'tau': tau,
+                'F': F,
+                'model': 'bachelier_v1'
+            }
+        }
+    
+    @monitor()
+    def generate_greek_profiles_by_expiry(self, selected_greeks: List[str], strike_range: float = 5.0) -> Dict[str, Dict[str, Any]]:
+        """Generate Greek profiles grouped by expiry date
+        
+        Args:
+            selected_greeks: List of Greek names to generate profiles for
+            strike_range: Range around ATM strike (default ±5.0)
+            
+        Returns:
+            Dict with expiry as key, containing:
+                - strikes: Array of strike prices
+                - greeks: Dict of Greek name -> array of values
+                - positions: List of dicts with position info
+                - atm_strike: ATM strike value for this expiry
+                - model_params: Dict of model parameters used
+                - total_position: Net position size for this expiry
+        """
+        if self.current_data is None or self.current_data.empty:
+            logger.warning("No data available for Greek profile generation")
+            return {}
+        
+        # Group positions by expiry
+        expiry_groups = {}
+        
+        # Check for expiry column
+        expiry_col = None
+        for col in ['expiry_date', 'expiry', 'Expiry', 'EXPIRY', 'Expiry_Date', 'EXPIRY_DATE']:
+            if col in self.current_data.columns:
+                expiry_col = col
+                break
+        
+        if not expiry_col:
+            logger.warning("No expiry column found in data")
+            return {}
+        
+        for _, row in self.current_data.iterrows():
+            expiry = row.get(expiry_col)
+            if not expiry or pd.isna(expiry):
+                continue
+                
+            if expiry not in expiry_groups:
+                expiry_groups[expiry] = []
+            expiry_groups[expiry].append(row)
+        
+        logger.info(f"Found {len(expiry_groups)} expiry groups: {list(expiry_groups.keys())}")
+        
+        # Generate profiles for each expiry
+        profiles_by_expiry = {}
+        
+        for expiry, positions in expiry_groups.items():
+            try:
+                # Create DataFrame for this expiry group
+                expiry_df = pd.DataFrame(positions)
+                
+                # Find ATM strike for this expiry
+                atm_strike = self._find_atm_strike_for_expiry(expiry_df)
+                if atm_strike is None:
+                    logger.warning(f"Could not find ATM strike for expiry {expiry}")
+                    continue
+                
+                # Calculate strike range
+                strike_min = atm_strike - strike_range
+                strike_max = atm_strike + strike_range
+                
+                # Calculate number of points based on 0.25 increments
+                strike_increment = 0.25
+                num_points = int((strike_max - strike_min) / strike_increment) + 1
+                
+                logger.info(f"Expiry {expiry}: ATM={atm_strike:.2f}, range=[{strike_min:.2f}, {strike_max:.2f}], points={num_points}")
+                
+                # Extract model parameters for this expiry
+                # Get the first non-null values from this expiry's data
+                sigma = None
+                tau = None
+                F = None
+                
+                for _, pos in expiry_df.iterrows():
+                    # Get implied vol as sigma
+                    if sigma is None and pos.get('implied_vol') is not None:
+                        try:
+                            sigma = float(pos.get('implied_vol'))
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Get time to expiry as tau
+                    if tau is None and pos.get('vtexp') is not None:
+                        try:
+                            tau = float(pos.get('vtexp'))
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Use futures price if available
+                    if F is None and pos.get('itype') == 'F':
+                        try:
+                            F = float(pos.get('midpoint_price', atm_strike))
+                        except (ValueError, TypeError):
+                            pass
+                
+                # Default values if not found
+                if sigma is None:
+                    sigma = 0.75
+                if tau is None:
+                    tau = 0.25
+                if F is None:
+                    F = atm_strike
+                
+                # Validate parameters
+                if pd.isna(sigma):
+                    sigma = 0.75
+                if pd.isna(tau):
+                    tau = 0.25
+                if pd.isna(F):
+                    F = atm_strike
+                
+                # Collect position information for this expiry
+                position_info = []
+                total_position = 0
+                
+                for _, pos in expiry_df.iterrows():
+                    strike_val = pos.get('strike')
+                    pos_val = pos.get('pos.position')
+                    
+                    # Skip if missing required data
+                    if strike_val is None or pos_val is None:
+                        continue
+                        
+                    try:
+                        pos_data = {
+                            'key': pos.get('key', ''),
+                            'strike': float(strike_val),
+                            'type': pos.get('itype', ''),
+                            'position': float(pos_val),
+                            # Include current Greek values for the position
+                            'current_greeks': {}
+                        }
+                        
+                        # Map selected Greek names to actual column names in data
+                        greek_column_map = {
+                            'delta': 'delta_F',  # or 'delta_y' 
+                            'gamma': 'gamma_F',  # or 'gamma_y'
+                            'vega': 'vega_price',  # or 'vega_y'
+                            'theta': 'theta_F',
+                            'volga': 'volga_price',
+                            'vanna': 'vanna_F_price',
+                            'charm': 'charm_F',
+                            'speed': 'speed_F',
+                            'color': 'color_F',
+                            'ultima': 'ultima',
+                            'zomma': 'zomma'
+                        }
+                        
+                        # Extract Greek values using mapped column names
+                        for greek in selected_greeks:
+                            col_name = greek_column_map.get(greek, greek)
+                            if col_name in pos:
+                                try:
+                                    pos_data['current_greeks'][greek] = float(pos.get(col_name, 0))
+                                except (ValueError, TypeError):
+                                    pos_data['current_greeks'][greek] = 0.0
+                            else:
+                                # Try alternative column names (e.g., delta_y if delta_F not found)
+                                if greek == 'delta' and 'delta_y' in pos:
+                                    try:
+                                        pos_data['current_greeks'][greek] = float(pos.get('delta_y', 0))
+                                    except (ValueError, TypeError):
+                                        pos_data['current_greeks'][greek] = 0.0
+                                elif greek == 'gamma' and 'gamma_y' in pos:
+                                    try:
+                                        pos_data['current_greeks'][greek] = float(pos.get('gamma_y', 0))
+                                    except (ValueError, TypeError):
+                                        pos_data['current_greeks'][greek] = 0.0
+                                elif greek == 'vega' and 'vega_y' in pos:
+                                    try:
+                                        pos_data['current_greeks'][greek] = float(pos.get('vega_y', 0))
+                                    except (ValueError, TypeError):
+                                        pos_data['current_greeks'][greek] = 0.0
+                                else:
+                                    pos_data['current_greeks'][greek] = 0.0
+                        
+                        position_info.append(pos_data)
+                        total_position += pos_data['position']
+                    except (ValueError, TypeError):
+                        continue
+                
+                # Import the Greek profile function
+                from lib.trading.bond_future_options.bachelier_greek import generate_greek_profiles_data
+                
+                # Generate Greek profiles using bachelier_greek
+                profile_data = generate_greek_profiles_data(
+                    K=int(atm_strike),  # Convert to int as expected by the function
+                    sigma=sigma,
+                    tau=tau,
+                    F_range=(strike_min, strike_max),
+                    num_points=num_points
+                )
+                
+                # Filter for selected Greeks
+                filtered_greeks = {}
+                for greek in selected_greeks:
+                    if greek in profile_data.get('greeks_ana', {}):
+                        filtered_greeks[greek] = profile_data['greeks_ana'][greek]
+                
+                profiles_by_expiry[expiry] = {
+                    'strikes': profile_data['F_vals'],
+                    'greeks': filtered_greeks,
+                    'positions': position_info,
+                    'atm_strike': atm_strike,
+                    'model_params': {
+                        'sigma': sigma,
+                        'tau': tau,
+                        'F': F
+                    },
+                    'total_position': total_position
+                }
+                
+                logger.info(f"Generated profile for {expiry}: {len(position_info)} positions, net={total_position:.0f}")
+                
+            except Exception as e:
+                logger.error(f"Error generating profile for expiry {expiry}: {e}")
+                continue
+        
+        return profiles_by_expiry
+    
+    def _find_atm_strike_for_expiry(self, expiry_df: pd.DataFrame) -> Optional[float]:
+        """Find ATM strike for a specific expiry group
+        
+        Args:
+            expiry_df: DataFrame containing positions for one expiry
+            
+        Returns:
+            ATM strike or None if not found
+        """
+        # Look for positions with delta closest to 0.5
+        atm_candidates = []
+        
+        for _, row in expiry_df.iterrows():
+            delta_f = row.get('delta_f')
+            delta_y = row.get('delta_y')
+            strike = row.get('strike')
+            
+            # Use either delta_f or delta_y
+            delta = delta_f if delta_f is not None and not pd.isna(delta_f) else delta_y
+            
+            if delta is not None and not pd.isna(delta) and strike is not None:
+                try:
+                    strike_float = float(strike)
+                    delta_float = float(delta)
+                    # Check for NaN
+                    if not pd.isna(strike_float) and not pd.isna(delta_float):
+                        atm_candidates.append({
+                            'strike': strike_float,
+                            'delta': delta_float,
+                            'distance': abs(delta_float - 0.5)
+                        })
+                except (ValueError, TypeError):
+                    continue
+        
+        if atm_candidates:
+            # Sort by distance from 0.5 delta
+            atm_candidates.sort(key=lambda x: x['distance'])
+            return atm_candidates[0]['strike']
+        
+        # Fallback: use average strike for this expiry
+        valid_strikes = []
+        for _, row in expiry_df.iterrows():
+            strike = row.get('strike')
+            if strike is not None and strike != 'INVALID':
+                try:
+                    strike_float = float(strike)
+                    if not pd.isna(strike_float):
+                        valid_strikes.append(strike_float)
+                except (ValueError, TypeError):
+                    continue
+        
+        if valid_strikes:
+            return sum(valid_strikes) / len(valid_strikes)
+        
+        return None
+    
+    @monitor()
+    def process_greeks(self, model: str = "bachelier_v1", filter_positions: bool = True) -> Optional[pd.DataFrame]:
         """Process Greeks for current data using specified model
         
         Args:
             model: Model version to use for calculations
+            filter_positions: If True, only return rows with non-zero positions
             
         Returns:
             Optional[pd.DataFrame]: Processed data with Greeks, or None if failed
@@ -203,10 +751,17 @@ class SpotRiskController:
             return None
         
         try:
+            # Get positions from the data
+            df_with_positions = self.get_positions_from_csv(self.current_data.copy())
+            
             # Calculate Greeks - returns tuple of (DataFrame, results_list)
             df_with_greeks, results = self.calculator.calculate_greeks(
-                self.current_data.copy()
+                df_with_positions
             )
+            
+            # Filter to only positions if requested
+            if filter_positions:
+                df_with_greeks = self.filter_positions_only(df_with_greeks)
             
             return df_with_greeks
             

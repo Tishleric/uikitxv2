@@ -15,6 +15,7 @@ def get_column_definitions():
     return {
         'base': [
             {'id': 'key', 'name': 'Key', 'type': 'text'},
+            {'id': 'position', 'name': 'Position', 'type': 'numeric', 'format': {'specifier': '.0f'}},
             {'id': 'strike', 'name': 'Strike', 'type': 'numeric', 'format': {'specifier': '.2f'}},
             {'id': 'itype', 'name': 'Type', 'type': 'text'},
             {'id': 'expiry_date', 'name': 'Expiry', 'type': 'text'},
@@ -373,7 +374,7 @@ def create_spot_risk_content(controller=None):
                             style={'marginBottom': '5px'}
                         ).render(),
                         html.Div(
-                            'Key, Strike, Type, Expiry, Price',
+                            'Key, Position, Strike, Type, Expiry, Price',
                             style={
                                 'color': default_theme.text_subtle,
                                 'fontSize': '12px',
@@ -635,13 +636,14 @@ def create_spot_risk_content(controller=None):
                     # DataTable container
                     html.Div(
                         id='spot-risk-table-container',
+                        style={'display': 'block'},  # Will be toggled by callbacks
                         children=[
                             # No data message (will be hidden when data loads)
                             html.Div(
                                 id='spot-risk-no-data',
                                 children=[
                                     html.P(
-                                        'No data loaded. Click "Refresh Data" to load spot risk data.',
+                                        'No positions found. Refresh data to check for new positions.',
                                         style={
                                             'color': default_theme.text_subtle,
                                             'textAlign': 'center',
@@ -698,20 +700,85 @@ def create_spot_risk_content(controller=None):
                                         theme=default_theme
                                     ).render()
                                 ]
-                            ),
-                            # Graph view placeholder (initially hidden)
+                            )
+                        ]
+                    ),
+                    # Graph view container (sibling of table container)
+                    html.Div(
+                        id='spot-risk-graph-container',
+                        style={'display': 'none'},  # Will be toggled by callbacks
+                        children=[
+                            # Graph view controls
                             html.Div(
-                                id='spot-risk-graph-container',
-                                style={'display': 'none'},  # Will be toggled by callbacks
+                                style={
+                                    'backgroundColor': default_theme.secondary,
+                                    'padding': '15px',
+                                    'borderRadius': '8px',
+                                    'marginBottom': '20px',
+                                    'display': 'flex',
+                                    'justifyContent': 'space-between',
+                                    'alignItems': 'center'
+                                },
                                 children=[
-                                    html.P(
-                                        'Graph view coming soon!',
+                                    html.H5(
+                                        'Greek Profile Graphs',
+                                        style={
+                                            'color': default_theme.text_light,
+                                            'margin': '0',
+                                            'fontSize': '18px',
+                                            'fontWeight': '600'
+                                        }
+                                    ),
+                                    html.Div(
+                                        id='spot-risk-graph-info',
                                         style={
                                             'color': default_theme.text_subtle,
-                                            'textAlign': 'center',
-                                            'padding': '40px',
-                                            'fontSize': '16px'
+                                            'fontSize': '14px'
                                         }
+                                    )
+                                ]
+                            ),
+                            # Dynamic graph grid container
+                            html.Div(
+                                id='spot-risk-graphs-grid',
+                                style={
+                                    'display': 'grid',
+                                    'gridTemplateColumns': 'repeat(auto-fit, minmax(500px, 1fr))',
+                                    'gap': '20px'
+                                },
+                                children=[]  # Will be populated by callbacks
+                            ),
+                            # Legend/Info section
+                            html.Div(
+                                style={
+                                    'marginTop': '20px',
+                                    'padding': '15px',
+                                    'backgroundColor': default_theme.secondary,
+                                    'borderRadius': '8px'
+                                },
+                                children=[
+                                    html.Div(
+                                        style={
+                                            'display': 'flex',
+                                            'gap': '30px',
+                                            'flexWrap': 'wrap',
+                                            'fontSize': '12px',
+                                            'color': default_theme.text_subtle
+                                        },
+                                        children=[
+                                            html.Div([
+                                                html.Span('● ', style={'color': default_theme.primary}),
+                                                'Greek Profile (Taylor Series)'
+                                            ]),
+                                            html.Div([
+                                                html.Span('▲ ', style={'color': default_theme.accent, 'fontSize': '16px'}),
+                                                'Position Marker (size ∝ position)'
+                                            ]),
+                                            html.Div([
+                                                html.Span('│ ', style={'color': default_theme.danger}),
+                                                'ATM Strike (δ ≈ 0.5)'
+                                            ])
+                                        ]
                                     )
                                 ]
                             )

@@ -163,11 +163,14 @@ The main integrated dashboard application combining all features:
 
 ### apps/dashboards/spot_risk/app.py: Entry point for Spot Risk dashboard. Creates Dash app instance, sets up layout, and registers callbacks. Can run standalone or be integrated into main dashboard.
 
-### apps/dashboards/spot_risk/controller.py: Business logic controller for Spot Risk dashboard. Handles CSV file discovery, data loading, Greek calculations via SpotRiskGreekCalculator, timestamp extraction, and data filtering operations. Implements MVC controller pattern.
+### `apps/dashboards/spot_risk/controller.py`
+Core controller for Spot Risk dashboard coordinating data loading, Greek calculations, and filtering. Loads Actant CSV data, integrates with SpotRiskGreekCalculator for bachelier option pricing, finds ATM strikes using delta ~0.5 heuristic. Supports position filtering, expiry grouping, and Greek profile generation with Taylor series expansion. Enhanced with smart column detection for 'expiry_date', 'pos.position', Greek column mapping (delta→delta_F, vega→vega_price, etc.), and fallback logic for alternative column names. Generates Greek profiles both unified and grouped by expiry with full position data including current Greek values for hover tooltips.
 
-### apps/dashboards/spot_risk/views.py: View components for Spot Risk dashboard. Creates UI layout with header, filters (expiry, type, strike range), Greek selection checkboxes, view mode toggle, and DataTable. Defines column configurations for different Greek categories.
+### apps/dashboards/spot_risk/views.py
+UI components and layout for Spot Risk dashboard. Creates header, control panels, Greek selection checkboxes, view toggle, and data display sections. Fixed structural issue - graph container is now a sibling of table container (not a child) to allow proper toggle visibility. Uses wrapped UI components with default_theme styling.
 
-### apps/dashboards/spot_risk/callbacks.py: Callback implementations for Spot Risk dashboard. Handles data refresh, Greek processing, filtering, column visibility, view mode toggle, auto-refresh, and export functionality. All callbacks decorated with @monitor for observability.
+### apps/dashboards/spot_risk/callbacks.py
+Core callback functions for the Spot Risk dashboard. Includes update_spot_risk_table for Greek calculations and table population, greek_groups_changed for dynamic column visibility, toggle_view for switching between table/graph views, track_view_state for monitoring active view mode, update_greek_graphs for generating Greek profile visualizations grouped by expiry date with section headers and per-expiry statistics, toggle_refresh_interval for auto-refresh control, and export_to_csv placeholder. All callbacks use SpotRiskController for business logic and are decorated with @monitor for observability. Successfully displays Greek profiles organized by expiry with position markers and ATM strike indicators.
 
 ### apps/dashboards/actant_preprocessing/__init__.py: Package init file for the Actant Preprocessing dashboard module.
 
