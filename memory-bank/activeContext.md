@@ -1,7 +1,19 @@
 # Active Context
 
 ## Current State (January 21, 2025)
-Working on Spot Risk dashboard Greek profile functionality. Successfully implemented position filtering, basic Greek profiles, and now Greek profiles by expiry are fully functional.
+Working on Spot Risk dashboard improvements. Successfully implemented position filtering, Greek profiles by expiry, and multiple UI/UX enhancements.
+
+### Recent Fixes (Phase 1 & 2 Complete)
+1. ✅ **Adjtheor as Primary Price**: Parser now uses adjtheor column first, midpoint as fallback
+2. ✅ **Minimum Price Safeguard**: Reduced from 1/64 to 1/512 to allow deep OTM options
+3. ✅ **Table Container Width**: Panel now expands dynamically to match table width
+4. ✅ **Graph Filters**: Graphs now respect all table filters (expiry, type, strike range)
+
+### Key Improvements
+- **Price Source Tracking**: Error messages show when fallback prices are used
+- **Filter Consistency**: Table and graph views show identical filtered data
+- **Visual Coherence**: Table no longer appears to overflow its container
+- **Dynamic Updates**: Graphs regenerate when filters change in graph view
 
 ### Completed Today
 1. ✅ Fixed position filtering bug (column name was 'pos.position' not 'POS.POSITION')

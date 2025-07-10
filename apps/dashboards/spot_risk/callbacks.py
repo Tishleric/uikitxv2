@@ -137,6 +137,58 @@ def create_greek_profile_graph(greek_name: str, strikes: List[float], values: Li
     return fig.to_dict()
 
 
+def apply_spot_risk_filters(data: List[Dict], expiry_filter: str, type_filter: str, strike_range: List[float]) -> List[Dict]:
+    """Apply filters to spot risk data - reusable for table and graph views
+    
+    Args:
+        data: List of data rows
+        expiry_filter: Expiry date filter value ('ALL' or specific date)
+        type_filter: Option type filter ('ALL', 'C', 'P', 'F')
+        strike_range: [min, max] strike range
+        
+    Returns:
+        Filtered list of data rows
+    """
+    if not data:
+        return []
+    
+    # Start with all data
+    filtered_data = data.copy()
+    
+    # Apply expiry filter
+    if expiry_filter and expiry_filter != 'ALL':
+        filtered_data = [row for row in filtered_data 
+                       if row.get('expiry_date') == expiry_filter]
+    
+    # Apply type filter
+    if type_filter and type_filter != 'ALL':
+        filtered_data = [row for row in filtered_data 
+                       if row.get('itype') == type_filter]
+    
+    # Apply strike range filter
+    if strike_range and len(strike_range) == 2:
+        min_strike, max_strike = strike_range
+        strike_filtered_data = []
+        for row in filtered_data:
+            strike_value = row.get('strike')
+            # Skip rows with no valid strike (futures, invalid data)
+            if strike_value is None or strike_value == 'INVALID':
+                # Include futures and invalid strikes regardless of filter
+                strike_filtered_data.append(row)
+            else:
+                try:
+                    strike_float = float(strike_value)
+                    if min_strike <= strike_float <= max_strike:
+                        strike_filtered_data.append(row)
+                except (ValueError, TypeError):
+                    # Include rows where strike can't be converted
+                    strike_filtered_data.append(row)
+                    logger.warning(f"Could not convert strike to float: {strike_value}")
+        filtered_data = strike_filtered_data
+    
+    return filtered_data
+
+
 def register_callbacks(app):
     """Register all callbacks for the Spot Risk dashboard
     
@@ -260,39 +312,10 @@ def register_callbacks(app):
         if not stored_data:
             return [], []
         
-        # Start with all data
-        filtered_data = stored_data.copy()
-        
-        # Apply expiry filter
-        if expiry_filter and expiry_filter != 'ALL':
-            filtered_data = [row for row in filtered_data 
-                           if row.get('expiry_date') == expiry_filter]
-        
-        # Apply type filter
-        if type_filter and type_filter != 'ALL':
-            filtered_data = [row for row in filtered_data 
-                           if row.get('itype') == type_filter]
-        
-        # Apply strike range filter
-        if strike_range and len(strike_range) == 2:
-            min_strike, max_strike = strike_range
-            strike_filtered_data = []
-            for row in filtered_data:
-                strike_value = row.get('strike')
-                # Skip rows with no valid strike (futures, invalid data)
-                if strike_value is None or strike_value == 'INVALID':
-                    # Include futures and invalid strikes regardless of filter
-                    strike_filtered_data.append(row)
-                else:
-                    try:
-                        strike_float = float(strike_value)
-                        if min_strike <= strike_float <= max_strike:
-                            strike_filtered_data.append(row)
-                    except (ValueError, TypeError):
-                        # Include rows where strike can't be converted
-                        strike_filtered_data.append(row)
-                        logger.warning(f"Could not convert strike to float: {strike_value}")
-            filtered_data = strike_filtered_data
+        # Apply filters using the reusable function
+        filtered_data = apply_spot_risk_filters(
+            stored_data, expiry_filter, type_filter, strike_range
+        )
         
         # Build visible columns based on Greek selections and Greek space filter
         column_defs = get_column_definitions()
@@ -680,14 +703,20 @@ def register_callbacks(app):
          Input('spot-risk-2nd-order', 'value'),
          Input('spot-risk-3rd-order', 'value'),
          Input('spot-risk-cross-greeks', 'value'),
-         Input('spot-risk-greek-space-store', 'data')],
+         Input('spot-risk-greek-space-store', 'data'),
+         # Add filter inputs
+         Input('spot-risk-expiry-filter', 'value'),
+         Input('spot-risk-type-filter', 'value'),
+         Input('spot-risk-strike-filter', 'value')],
         [State('spot-risk-data-store', 'data'),
          State('spot-risk-display-store', 'data')],
         prevent_initial_call=True
     )
     @monitor()
     def update_greek_graphs(table_clicks, graph_clicks, first_order, second_order, 
-                            third_order, cross_greeks, greek_space, stored_data, view_state):
+                            third_order, cross_greeks, greek_space,
+                            expiry_filter, type_filter, strike_range,  # New parameters
+                            stored_data, view_state):
         """Generate Greek profile graphs based on selected Greeks
         
         Returns:
@@ -712,13 +741,17 @@ def register_callbacks(app):
         # Only generate graphs if:
         # 1. Graph button was clicked (switching to graph view)
         # 2. We're in graph view and Greek selections changed
+        # 3. We're in graph view and filters changed
         should_generate = False
         
         if triggered_id == 'spot-risk-graph-view-btn':
             logger.info("Switched to graph view, generating graphs")
             should_generate = True
-        elif current_view == 'graph' and any(x in triggered_id for x in ['order', 'greeks']):
+        elif current_view == 'graph' and any(x in triggered_id for x in ['order', 'greeks', 'greek-space']):
             logger.info(f"Greek selection changed in graph view: {triggered_id}")
+            should_generate = True
+        elif current_view == 'graph' and any(x in triggered_id for x in ['filter', 'strike']):
+            logger.info(f"Filter changed in graph view: {triggered_id}")
             should_generate = True
         else:
             logger.info(f"Not generating graphs: triggered_id={triggered_id}, current_view={current_view}")
@@ -767,12 +800,22 @@ def register_callbacks(app):
         
         # Generate Greek profiles
         try:
-            # Convert stored data back to DataFrame for controller
-            df = pd.DataFrame(stored_data)
+            # Apply filters to data before generating profiles
+            filtered_data = apply_spot_risk_filters(
+                stored_data, expiry_filter, type_filter, strike_range
+            )
+            
+            if not filtered_data:
+                logger.info("No data after applying filters")
+                return [html.P('No data matches the current filters', 
+                              style={'color': default_theme.text_subtle, 'textAlign': 'center'})], ''
+            
+            # Convert filtered data to DataFrame for controller
+            df = pd.DataFrame(filtered_data)
             controller.current_data = df
             
             # Generate profiles for selected Greeks grouped by expiry
-            logger.info(f"Generating profiles for {len(selected_greeks)} Greeks by expiry")
+            logger.info(f"Generating profiles for {len(selected_greeks)} Greeks by expiry with {len(filtered_data)} filtered rows")
             profiles_by_expiry = controller.generate_greek_profiles_by_expiry(selected_greeks, greek_space)
             
             if not profiles_by_expiry:
@@ -904,10 +947,20 @@ def register_callbacks(app):
                 return [html.P('No valid Greek data to display', 
                               style={'color': default_theme.text_subtle, 'textAlign': 'center'})], ''
             
-            # Create summary info text
-            info_text = f'{len(profiles_by_expiry)} expiries | {total_positions} total positions'
+            # Create summary info text with filter status
+            filter_parts = []
+            if expiry_filter and expiry_filter != 'ALL':
+                filter_parts.append(f'Expiry: {expiry_filter}')
+            if type_filter and type_filter != 'ALL':
+                type_map = {'C': 'Calls', 'P': 'Puts', 'F': 'Futures'}
+                filter_parts.append(f'Type: {type_map.get(type_filter, type_filter)}')
+            if strike_range and len(strike_range) == 2:
+                filter_parts.append(f'Strikes: {strike_range[0]:.2f}-{strike_range[1]:.2f}')
             
-            logger.info(f"Successfully created graphs for {len(profiles_by_expiry)} expiries")
+            filter_text = ' | '.join(filter_parts) if filter_parts else 'All data'
+            info_text = f'{len(profiles_by_expiry)} expiries | {total_positions} total positions | {filter_text}'
+            
+            logger.info(f"Successfully created graphs for {len(profiles_by_expiry)} expiries with filters: {filter_text}")
             return all_graph_children, info_text
             
         except Exception as e:
