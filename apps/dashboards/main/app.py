@@ -208,6 +208,20 @@ except Exception as e:
     app._observatory_callbacks_registered = False
 # --- End Observatory Registration ---
 
+# --- Register Spot Risk Callbacks Early ---
+# Import and register Spot Risk callbacks at startup
+try:
+    from apps.dashboards.spot_risk import register_callbacks as register_spot_risk_callbacks
+    
+    # Register callbacks
+    register_spot_risk_callbacks(app)
+    app._spot_risk_callbacks_registered = True
+    logger.info("Spot Risk callbacks registered at startup")
+except Exception as e:
+    logger.error(f"Failed to register Spot Risk callbacks at startup: {e}")
+    app._spot_risk_callbacks_registered = False
+# --- End Spot Risk Registration ---
+
 # --- UI Constants & Helpers ---
 text_style = {"color": default_theme.text_light, "marginBottom": "5px", "marginTop": "15px"}
 input_style_dcc = {
@@ -2794,6 +2808,7 @@ def create_sidebar():
         {"id": "nav-scenario-ladder", "label": "Scenario Ladder", "icon": "📊"},
         {"id": "nav-actant-eod", "label": "Actant EOD", "icon": "📈"},
         {"id": "nav-actant-pnl", "label": "Actant PnL", "icon": "📉"},
+        {"id": "nav-spot-risk", "label": "Spot Risk", "icon": "🎯"},
         {"id": "nav-observatory", "label": "Observatory", "icon": "👀"},
         {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
         {"id": "nav-logs", "label": "Logs (Legacy)", "icon": "📋"}  # Mark as legacy
@@ -2906,6 +2921,23 @@ def get_page_content(page_name):
                 style={"color": "red", "padding": "20px"}
             )
     
+    # Load Spot Risk dashboard dynamically
+    if page_name == "spot-risk":
+        try:
+            from apps.dashboards.spot_risk.views import create_spot_risk_content
+            from apps.dashboards.spot_risk.controller import SpotRiskController
+            # Create controller and load data
+            controller = SpotRiskController()
+            controller.load_csv_data()
+            # Callbacks were already registered at app startup
+            return create_spot_risk_content(controller=controller)
+        except Exception as e:
+            logger.error(f"Error loading Spot Risk dashboard: {e}")
+            return html.Div(
+                f"Error loading Spot Risk dashboard: {str(e)}", 
+                style={"color": "red", "padding": "20px"}
+            )
+    
     return page_content_mapping.get(page_name, pricing_monkey_tab_main_container_rendered)
 
 # --- End Sidebar System ---
@@ -2953,6 +2985,7 @@ app.layout = html.Div([
      Output("nav-scenario-ladder", "style"),
      Output("nav-actant-eod", "style"),
      Output("nav-actant-pnl", "style"),
+     Output("nav-spot-risk", "style"),
      Output("nav-observatory", "style")],
     [Input("nav-pricing-monkey", "n_clicks"),
      Input("nav-analysis", "n_clicks"),
@@ -2962,12 +2995,13 @@ app.layout = html.Div([
      Input("nav-scenario-ladder", "n_clicks"),
      Input("nav-actant-eod", "n_clicks"),
      Input("nav-actant-pnl", "n_clicks"),
+     Input("nav-spot-risk", "n_clicks"),
      Input("nav-observatory", "n_clicks")],
     [State("active-page-store", "data")],
     prevent_initial_call=False
 )
 @monitor()
-def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, observatory_clicks, current_page):
+def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, spot_risk_clicks, observatory_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
     # Determine which button was clicked
@@ -2986,6 +3020,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
             "nav-scenario-ladder": "scenario-ladder",
             "nav-actant-eod": "actant-eod",
             "nav-actant-pnl": "actant-pnl",
+            "nav-spot-risk": "spot-risk",
             "nav-observatory": "observatory"
         }
         active_page = page_mapping.get(trigger_id, current_page or "pricing-monkey")
@@ -3036,12 +3071,13 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
         "scenario-ladder": active_style if active_page == "scenario-ladder" else inactive_style,
         "actant-eod": active_style if active_page == "actant-eod" else inactive_style,
         "actant-pnl": active_style if active_page == "actant-pnl" else inactive_style,
+        "spot-risk": active_style if active_page == "spot-risk" else inactive_style,
         "observatory": active_style if active_page == "observatory" else inactive_style
     }
     
     logger.info(f"Navigation: switched to page '{active_page}'")
     
-    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["observatory"]
+    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["spot-risk"], styles["observatory"]
 
 # Remove old tabs-based layout
 # main_tabs_rendered = Tabs(

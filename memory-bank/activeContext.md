@@ -1,56 +1,37 @@
 # Active Context
 
-## Current Task
-Successfully completed implementation of factory/facade pattern for bond_future_options module per CTO request.
+## Current Focus
+- ✅ Spot Risk Dashboard implementation completed (all 9 phases + bug fixes)
+- Next: Testing with various CSV files and performance optimization
+- Future: Implement graph view for Spot Risk dashboard
 
-## Summary of Completed Work
+## Recent Completions
+- ✅ Bond future options API factory pattern implementation
+- ✅ Spot Risk Dashboard complete implementation
+  - UI structure with filters and Greek selection (Phases 1-6)
+  - Data integration with Greek processing (Phase 7)
+  - Complete callback system with filters and export (Phase 8)
+  - Auto-refresh functionality (Phase 9)
+  - Fixed strike filter TypeError for futures with 'INVALID' strikes
+  - Fixed strike range display None formatting error
+  - Fixed RangeSlider "NaNundefined" initialization issue
 
-### 1. API Alignment (Completed)
-- Updated api.py to match app.py implementation exactly
-- Changed tolerance from 1e-9 to 1e-6
-- Added MAX_IMPLIED_VOL=1000, MIN_PRICE_SAFEGUARD=1/64
-- Implemented moneyness-based initial guess (20 for ATM, 50 for OTM)
-- Added safeguards: arbitrage checks, zero derivative handling, bounds checking
-- Added @monitor decorators throughout
-- Created test_api_alignment.py - all tests passing
+## Technical Context
+- Dashboard integrated with main navigation at "Spot Risk" entry
+- Reuses SpotRiskGreekCalculator from bond_future_options API
+- CSV data loaded from data/input/actant_spot_risk/
+- Full MVC pattern with controller, views, and callbacks modules
+- All callbacks decorated with @monitor for observability
+- Strike range dynamically updates based on loaded data
 
-### 2. Factory/Facade Architecture (Completed)
-Created a clean separation between API interface and model implementation:
-- `option_model_interface.py`: Protocol defining standard interface for all option models
-- `models/bachelier_v1.py`: Wrapper for existing implementation
-- `model_factory.py`: Registry and creation of models
-- `greek_calculator_api.py`: High-level facade with simple analyze() method
-
-Architecture flow:
-```
-Client → GreekCalculatorAPI → ModelFactory → BachelierV1 → Existing API
-```
-
-### 3. Spot Risk Integration (Completed)
-- Modified calculator.py to use GreekCalculatorAPI instead of direct imports
-- Automatic future price extraction from DataFrame (checks multiple column name cases)
-- Batch processing of all options through the API
-- Added all Greek columns: delta_F, delta_y, gamma_y, vega_y, theta_F, volga_price, vanna_F_price, charm_F, speed_F, color_F, ultima, zomma
-- Added status columns: implied_vol, greek_calc_success, greek_calc_error, model_version
-- Maintains backward compatibility with calculate_single_greek method
-- Improved error handling: raises ValueError when no future price found (fail-fast principle)
-
-### 4. Full Pipeline Testing (Completed)
-- Fixed column name mismatch issue ('instrument_key' → 'key')
-- Successfully processes actual CSV file (bav_analysis_20250708_104022.csv)
-- Handles lowercase column names from parser
-- 48/50 successful Greek calculations (2 expected failures due to minimum price safeguard)
-- Output saved to data/output/spot_risk/bav_analysis_processed.csv
-
-## Benefits Achieved
-1. **Easy model comparison**: New models can be added by implementing OptionModelInterface and registering with factory
-2. **No breaking changes**: Existing code continues to work unchanged
-3. **Clean separation**: Model implementation details hidden behind facade
-4. **Future extensibility**: Can easily add model versioning, A/B testing, performance metrics
-5. **Maintainability**: Changes to model internals don't affect API consumers
-6. **Robust error handling**: Clear error messages and fail-fast behavior
+## Known Issues
+- Graph view is placeholder only - needs implementation
+- Export currently only logs - needs actual CSV download
+- Performance with large datasets needs testing
 
 ## Next Steps
-- Monitor performance in production
-- Consider adding model comparison utilities
-- Document new model addition process for future developers
+1. Test dashboard with various CSV files and edge cases
+2. Implement graph view functionality (Greek profiles)
+3. Add real CSV export with download
+4. Performance optimization if needed
+5. User acceptance testing
