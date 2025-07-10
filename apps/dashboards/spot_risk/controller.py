@@ -126,6 +126,43 @@ class SpotRiskController:
         return None
     
     @monitor()
+    def read_processed_greeks(self) -> Optional[pd.DataFrame]:
+        """Read Greek data from the most recent processed CSV file
+        
+        Returns:
+            Optional[pd.DataFrame]: DataFrame with pre-calculated Greeks, or None if failed
+        """
+        try:
+            # Find the most recent processed file
+            files = self.discover_csv_files()
+            processed_files = [f for f in files if f.get('is_processed', False)]
+            
+            if not processed_files:
+                logger.warning("No processed CSV files found")
+                return None
+            
+            # Get the most recent processed file
+            latest_file = processed_files[0]['filepath']
+            logger.info(f"Reading processed Greeks from: {Path(latest_file).name}")
+            
+            # Read the CSV file
+            df = pd.read_csv(latest_file)
+            
+            if df is None or df.empty:
+                logger.warning(f"Processed file is empty: {latest_file}")
+                return None
+            
+            # Store the timestamp from the processed file
+            self.data_timestamp = self._extract_timestamp(latest_file, df)
+            
+            logger.info(f"Successfully loaded {len(df)} rows from processed file")
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error reading processed Greeks: {e}")
+            return None
+    
+    @monitor()
     def load_csv_data(self, filepath: Optional[str] = None) -> bool:
         """Load CSV data and prepare for processing
         
@@ -791,25 +828,28 @@ class SpotRiskController:
         
         try:
             logger.info(f"Starting process_greeks with filter_positions={filter_positions}")
-            logger.info(f"Current data shape: {self.current_data.shape}")
             
-            # Get positions from the data
-            df_with_positions = self.get_positions_from_csv(self.current_data.copy())
-            logger.info(f"After get_positions_from_csv, shape: {df_with_positions.shape}")
+            # Read pre-calculated Greeks from processed CSV file
+            df_with_greeks = self.read_processed_greeks()
             
-            # Check what data we're passing to calculate_greeks
-            if filter_positions:
-                # Show what would be filtered
-                df_filtered = self.filter_positions_only(df_with_positions.copy())
-                logger.info(f"If we filter positions first, shape would be: {df_filtered.shape}")
-                if 'itype' in df_filtered.columns:
-                    logger.info(f"Filtered itype values: {df_filtered['itype'].value_counts().to_dict()}")
-            
-            # Calculate Greeks - returns tuple of (DataFrame, results_list)
-            logger.info("Calling calculate_greeks...")
-            df_with_greeks, results = self.calculator.calculate_greeks(
-                df_with_positions  # Pass ALL data including future row
-            )
+            if df_with_greeks is None:
+                logger.warning("No processed Greeks found, falling back to synchronous calculation")
+                # Fallback to synchronous calculation if needed
+                logger.info(f"Current data shape: {self.current_data.shape}")
+                
+                # Get positions from the data
+                df_with_positions = self.get_positions_from_csv(self.current_data.copy())
+                logger.info(f"After get_positions_from_csv, shape: {df_with_positions.shape}")
+                
+                # Calculate Greeks - returns tuple of (DataFrame, results_list)
+                logger.info("Calling calculate_greeks...")
+                df_with_greeks, results = self.calculator.calculate_greeks(
+                    df_with_positions  # Pass ALL data including future row
+                )
+            else:
+                # Update current_data with the processed data
+                self.current_data = df_with_greeks
+                logger.info(f"Using pre-calculated Greeks from processed file, shape: {df_with_greeks.shape}")
             
             # Filter to only positions if requested AFTER Greek calculation
             if filter_positions:

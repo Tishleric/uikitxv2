@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import List, Optional, Dict, Any
 # Add the project root to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -14,15 +15,37 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def process_spot_risk_csv(input_file: str, output_file: str):
-    """Process spot risk CSV through full pipeline."""
+def process_spot_risk_csv(input_file: str, output_file: Optional[str] = None):
+    """Process spot risk CSV through full pipeline.
+    
+    Args:
+        input_file: Path to input CSV file
+        output_file: Optional path to output file. If None, will generate based on input filename
+    """
     
     print(f"\n{'='*60}")
     print(f"SPOT RISK PROCESSING PIPELINE")
     print(f"{'='*60}\n")
     
+    # Generate output filename if not provided
+    if output_file is None:
+        # Extract timestamp from input filename
+        input_path = Path(input_file)
+        # Pattern: bav_analysis_YYYYMMDD_HHMMSS.csv
+        filename_parts = input_path.stem.split('_')
+        if len(filename_parts) >= 4:
+            # Reconstruct with _processed suffix
+            timestamp = f"{filename_parts[2]}_{filename_parts[3]}"
+            output_file = f"data/output/spot_risk/bav_analysis_processed_{timestamp}.csv"
+        else:
+            # Fallback to default name
+            output_file = "data/output/spot_risk/bav_analysis_processed.csv"
+    
+    print(f"Input file: {input_file}")
+    print(f"Output file: {output_file}")
+    
     # Step 1: Parse CSV
-    print("Step 1: Parsing CSV file...")
+    print("\nStep 1: Parsing CSV file...")
     df = parse_spot_risk_csv(input_file, calculate_time_to_expiry=True)
     print(f"✓ Parsed {len(df)} rows from CSV")
     print(f"  Columns: {', '.join(df.columns[:10])}...")
@@ -67,8 +90,14 @@ def process_spot_risk_csv(input_file: str, output_file: str):
     # Step 4: Sort and prepare output
     print("\nStep 4: Preparing output...")
     
-    # Sort by instrument key
-    df_sorted = df_with_greeks.sort_values('key')
+    # Don't re-sort! The parser already applied the correct sorting:
+    # 1. Futures first (itype = 'F')
+    # 2. Then Calls (itype = 'C')
+    # 3. Then Puts (itype = 'P')
+    # Within each type: by expiry_date, then by strike
+    
+    # Just use the DataFrame as-is with Greeks calculated
+    df_sorted = df_with_greeks
     
     # Show summary statistics
     print("\nGreek calculation summary:")
@@ -101,16 +130,14 @@ def process_spot_risk_csv(input_file: str, output_file: str):
 if __name__ == "__main__":
     # Input and output files
     input_csv = "data/input/actant_spot_risk/bav_analysis_20250708_104022.csv"
-    output_csv = "data/output/spot_risk/bav_analysis_processed.csv"
     
     # Create output directory if needed
     import os
     os.makedirs("data/output/spot_risk", exist_ok=True)
     
-    # Run the pipeline
-    result_df = process_spot_risk_csv(input_csv, output_csv)
+    # Run the pipeline - let it auto-generate output filename with timestamp
+    result_df = process_spot_risk_csv(input_csv)
     
     print(f"\n{'='*60}")
     print("PIPELINE COMPLETE!")
-    print(f"Output saved to: {output_csv}")
     print(f"{'='*60}") 

@@ -1,59 +1,71 @@
 # Active Context
 
-## Current State (January 21, 2025)
-Working on Spot Risk dashboard improvements. Successfully implemented position filtering, Greek profiles by expiry, and multiple UI/UX enhancements.
+## Current Focus
+**Spot Risk Tab Performance Optimization**: Successfully implemented asynchronous reading of pre-calculated Greeks from processed CSV files with correct sorting preserved.
 
-### Recent Fixes (Phase 1 & 2 Complete)
-1. ✅ **Adjtheor as Primary Price**: Parser now uses adjtheor column first, midpoint as fallback
-2. ✅ **Minimum Price Safeguard**: Reduced from 1/64 to 1/512 to allow deep OTM options
-3. ✅ **Table Container Width**: Panel now expands dynamically to match table width
-4. ✅ **Graph Filters**: Graphs now respect all table filters (expiry, type, strike range)
+### Completed Work (2025-01-21)
+1. **Async Greek Reading Implementation**
+   - Added `read_processed_greeks()` method to SpotRiskController
+   - Modified `process_greeks()` to prioritize reading from processed files
+   - Maintains fallback to synchronous calculation
 
-### Key Improvements
-- **Price Source Tracking**: Error messages show when fallback prices are used
-- **Filter Consistency**: Table and graph views show identical filtered data
-- **Visual Coherence**: Table no longer appears to overflow its container
-- **Dynamic Updates**: Graphs regenerate when filters change in graph view
+2. **Timestamp Preservation in Processing**
+   - Modified `process_spot_risk_csv()` to preserve timestamps in output filenames
+   - Successfully processed `bav_analysis_20250709_193912.csv`
+   - Output: `bav_analysis_processed_20250709_193912.csv`
 
-### Completed Today
-1. ✅ Fixed position filtering bug (column name was 'pos.position' not 'POS.POSITION')
-2. ✅ Fixed graph display structural issue (graph container was nested inside table container)
-3. ✅ Fixed Greek profiles by expiry - COMPLETE multi-step fix:
-   - Fixed column detection ('expiry_date' not 'expiry')
-   - Added missing 'current_greeks' field to position data
-   - Created mapping from Greek names to actual CSV column names
-   - Added fallback logic for alternative column names
+3. **Sorting Fix in Backend**
+   - Fixed `test_full_pipeline.py` to preserve parser's sorting order
+   - Correct order maintained: Futures → Calls → Puts
+   - Within each type: sorted by expiry_date, then strike
 
-### Greek Profiles by Expiry - FULLY FIXED
-The method now correctly:
-- Detects 'expiry_date' column in the CSV data
-- Groups positions by expiry date
-- Calculates ATM strike for each expiry
-- Extracts model parameters using correct columns
-- Maps Greek names to actual column names:
-  - 'delta' → 'delta_F' (or 'delta_y' as fallback)
-  - 'gamma' → 'gamma_F' (or 'gamma_y' as fallback)
-  - 'vega' → 'vega_price' (or 'vega_y' as fallback)
-  - 'theta' → 'theta_F'
-  - Plus mappings for all higher-order Greeks
-- Includes current Greek values in position hover text
-- Generates separate Greek profiles for each expiry with proper headers
+4. **Python Path Resolution**
+   - Created `run_spot_risk_processing.bat` for consistent Anaconda Python usage
+   - Resolved conflict between standalone Python and Anaconda installations
 
-### Technical Achievement
-Successfully resolved a complex multi-layer issue involving:
-1. Column name mismatches between expected and actual CSV columns
-2. Data structure inconsistencies between single and by-expiry methods
-3. Greek naming convention differences between UI selections and data columns
+### Key Improvements Applied
+- **Adjtheor as Primary Price**: Parser uses adjtheor column first, midpoint as fallback
+- **Minimum Price Safeguard**: Set to 1/512 (allows deep OTM options)
+- **Async Performance**: Dashboard now reads pre-calculated Greeks for faster loading
+- **Correct Data Ordering**: Maintains intuitive sorting (F→C→P, by expiry then strike)
 
-The dashboard now displays Greek profiles organized by expiry date with full functionality including position markers with Greek value tooltips.
+### Next Steps
+1. Review dashboard to verify Greek values and sorting match expectations
+2. Set up automated processing pipeline (future work)
+3. Consider adding version metadata to processed files
 
-### CSV Parser Bug Fix (January 21, 2025)
-**Issue**: Greek calculations were failing with "No valid future price found" error when processing new spot risk CSV files.
+## Previous Context
 
-**Root Cause**: The parser in `lib/trading/actant/spot_risk/parser.py` was using `skiprows=[1]` for all CSV files, which was designed to skip a type row in the original format. However, processed CSV files don't have this type row, so it was accidentally skipping the future row (which was on line 2).
+### Benchmark Phase Implementation (Completed)
+Performance monitoring infrastructure with SQLite storage and configurable retention:
+- Added BenchmarkHandler to logging infrastructure
+- Integrated with existing monitoring decorators
+- Configurable retention policies per handler type
+- Successfully tested with spot_risk dashboard
 
-**Fix**: Modified parser to conditionally skip rows based on filename:
-- If filename contains 'processed', don't skip any rows
-- Otherwise, skip row 1 (for original format with type row)
+### Logging System State
+- Core handlers: ConsoleHandler, FileHandler, SQLiteHandler, BenchmarkHandler
+- All handlers properly integrated and tested
+- Retention management working across all handler types
+- Dashboard integration via @monitor decorator
 
-**Result**: Future row with `itype='F'` is now correctly parsed, allowing Greek calculations to find the future price.
+### Key Files Modified
+- `lib/monitoring/logging/handlers.py`: Added BenchmarkHandler
+- `lib/monitoring/logging/config.py`: Added benchmark configuration
+- `lib/monitoring/retention/manager.py`: Multi-handler retention support
+- `apps/dashboards/spot_risk/controller.py`: Async Greek reading
+
+### Current Architecture
+```
+Monitoring System
+├── Decorators (@monitor, @trace, etc.)
+├── Logging Handlers
+│   ├── ConsoleHandler
+│   ├── FileHandler  
+│   ├── SQLiteHandler
+│   └── BenchmarkHandler
+├── Retention Management
+│   └── Per-handler policies
+└── Dashboard Integration
+    └── Spot Risk (async Greeks)
+```
