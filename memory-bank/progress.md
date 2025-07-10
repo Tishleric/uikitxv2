@@ -1199,3 +1199,12 @@ The system is now **production-ready** for 24/7 trading environments.
 - Added `minWidth: '100%'` to ensure minimum width when content is small
 - Panel now dynamically expands to match table width
 - Visual coherence restored - table no longer appears to overflow its container
+
+### ✅ Graph Filters Implementation
+- Created `apply_spot_risk_filters()` reusable function to ensure consistency
+- Updated table callback to use the shared filter function
+- Added filter inputs to graph callback (expiry, type, strike range)
+- Graphs now regenerate when filters change in graph view
+- Applied same filtering logic to both table and graph views
+- Added filter status to graph info text (shows active filters)
+- Handles edge case when no data matches filters
