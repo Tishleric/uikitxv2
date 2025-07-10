@@ -457,7 +457,7 @@ class SpotRiskController:
         }
     
     @monitor()
-    def generate_greek_profiles_by_expiry(self, selected_greeks: List[str], strike_range: float = 5.0) -> Dict[str, Dict[str, Any]]:
+    def generate_greek_profiles_by_expiry(self, selected_greeks: List[str], greek_space: str = 'F', strike_range: float = 5.0) -> Dict[str, Dict[str, Any]]:
         """Generate Greek profiles grouped by expiry date
         
         Args:
@@ -592,19 +592,19 @@ class SpotRiskController:
                             'current_greeks': {}
                         }
                         
-                        # Map selected Greek names to actual column names in data
+                        # Map selected Greek names to actual column names based on Greek space
                         greek_column_map = {
-                            'delta': 'delta_F',  # or 'delta_y' 
-                            'gamma': 'gamma_F',  # or 'gamma_y'
-                            'vega': 'vega_price',  # or 'vega_y'
-                            'theta': 'theta_F',
-                            'volga': 'volga_price',
-                            'vanna': 'vanna_F_price',
-                            'charm': 'charm_F',
-                            'speed': 'speed_F',
-                            'color': 'color_F',
-                            'ultima': 'ultima',
-                            'zomma': 'zomma'
+                            'delta': f'delta_{greek_space}',
+                            'gamma': f'gamma_{greek_space}',
+                            'vega': 'vega_price' if greek_space == 'F' else f'vega_{greek_space}',
+                            'theta': f'theta_{greek_space}',
+                            'volga': 'volga_price',  # No space suffix
+                            'vanna': f'vanna_{greek_space}_price',
+                            'charm': f'charm_{greek_space}',
+                            'speed': f'speed_{greek_space}',
+                            'color': f'color_{greek_space}',
+                            'ultima': 'ultima',  # No space suffix
+                            'zomma': 'zomma'  # No space suffix
                         }
                         
                         # Extract Greek values using mapped column names
@@ -616,24 +616,8 @@ class SpotRiskController:
                                 except (ValueError, TypeError):
                                     pos_data['current_greeks'][greek] = 0.0
                             else:
-                                # Try alternative column names (e.g., delta_y if delta_F not found)
-                                if greek == 'delta' and 'delta_y' in pos:
-                                    try:
-                                        pos_data['current_greeks'][greek] = float(pos.get('delta_y', 0))
-                                    except (ValueError, TypeError):
-                                        pos_data['current_greeks'][greek] = 0.0
-                                elif greek == 'gamma' and 'gamma_y' in pos:
-                                    try:
-                                        pos_data['current_greeks'][greek] = float(pos.get('gamma_y', 0))
-                                    except (ValueError, TypeError):
-                                        pos_data['current_greeks'][greek] = 0.0
-                                elif greek == 'vega' and 'vega_y' in pos:
-                                    try:
-                                        pos_data['current_greeks'][greek] = float(pos.get('vega_y', 0))
-                                    except (ValueError, TypeError):
-                                        pos_data['current_greeks'][greek] = 0.0
-                                else:
-                                    pos_data['current_greeks'][greek] = 0.0
+                                # No fallback logic needed now that we use greek_space directly
+                                pos_data['current_greeks'][greek] = 0.0
                         
                         position_info.append(pos_data)
                         total_position += pos_data['position']

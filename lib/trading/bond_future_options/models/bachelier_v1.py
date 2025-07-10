@@ -113,6 +113,6 @@ class BachelierV1:
             "yield_level": self.yield_level,
             "tolerance": 1e-6,
             "max_iterations": 100,
-            "min_price_safeguard": 1/64,
+            "min_price_safeguard": 1/512,  # Changed from 1/64 to match API
             "max_implied_vol": 1000.0
         } 

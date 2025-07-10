@@ -244,13 +244,14 @@ def register_callbacks(app):
          Input('spot-risk-1st-order', 'value'),
          Input('spot-risk-2nd-order', 'value'),
          Input('spot-risk-3rd-order', 'value'),
-         Input('spot-risk-cross-greeks', 'value')],
+         Input('spot-risk-cross-greeks', 'value'),
+         Input('spot-risk-greek-space-store', 'data')],
         prevent_initial_call=True
     )
     @monitor()
     def update_table_data(stored_data, expiry_filter, type_filter, strike_range,
                           base_checked, first_checked, second_checked, 
-                          third_checked, cross_checked):
+                          third_checked, cross_checked, greek_space):
         """Update table data based on filters and Greek selections
         
         Returns:
@@ -293,25 +294,43 @@ def register_callbacks(app):
                         logger.warning(f"Could not convert strike to float: {strike_value}")
             filtered_data = strike_filtered_data
         
-        # Build visible columns based on Greek selections
+        # Build visible columns based on Greek selections and Greek space filter
         column_defs = get_column_definitions()
         visible_columns = []
         
         # Always include base columns
         visible_columns.extend(column_defs['base'])
         
-        # Add columns based on checkboxes
+        # Helper function to filter columns by Greek space
+        def filter_by_greek_space(columns, space):
+            """Filter Greek columns based on selected space (F or y)"""
+            filtered = []
+            for col in columns:
+                col_id = col['id']
+                # Keep columns that match the selected space or have no space suffix
+                if f'_{space}' in col_id:
+                    filtered.append(col)
+                elif not ('_F' in col_id or '_y' in col_id):
+                    # Keep columns that don't have F/y suffix (like vega_price, volga_price)
+                    filtered.append(col)
+            return filtered
+        
+        # Add columns based on checkboxes, filtered by Greek space
         if first_checked and '1st' in first_checked:
-            visible_columns.extend(column_defs['1st'])
+            cols = filter_by_greek_space(column_defs['1st'], greek_space)
+            visible_columns.extend(cols)
         
         if second_checked and '2nd' in second_checked:
-            visible_columns.extend(column_defs['2nd'])
+            cols = filter_by_greek_space(column_defs['2nd'], greek_space)
+            visible_columns.extend(cols)
             
         if third_checked and '3rd' in third_checked:
-            visible_columns.extend(column_defs['3rd'])
+            cols = filter_by_greek_space(column_defs['3rd'], greek_space)
+            visible_columns.extend(cols)
             
         if cross_checked and 'cross' in cross_checked:
-            visible_columns.extend(column_defs['cross'])
+            cols = filter_by_greek_space(column_defs['cross'], greek_space)
+            visible_columns.extend(cols)
         
         # Always add other columns (implied vol, status, etc.)
         visible_columns.extend(column_defs['other'])
@@ -424,29 +443,50 @@ def register_callbacks(app):
             # Keep default interval but disable
             return 5 * 60 * 1000, True
     
+    # Export functionality is implemented below using dcc.Download component
+    
     @app.callback(
-        Output('spot-risk-export-btn', 'n_clicks'),
+        Output('spot-risk-download-csv', 'data'),
         [Input('spot-risk-export-btn', 'n_clicks')],
         [State('spot-risk-data-table', 'data'),
-         State('spot-risk-data-table', 'columns')],
+         State('spot-risk-data-table', 'columns'),
+         State('spot-risk-timestamp', 'children')],
         prevent_initial_call=True
     )
     @monitor()
-    def export_data(n_clicks, table_data, table_columns):
+    def export_data(n_clicks, table_data, table_columns, timestamp_text):
         """Export visible data to CSV
         
-        Note: In a real implementation, this would trigger a download.
-        For now, we just log the export request.
+        Returns:
+            dict: Download data for dcc.Download component
         """
-        if n_clicks and table_data and table_columns:
-            logger.info(f"Export requested: {len(table_data)} rows, {len(table_columns)} columns")
-            # In a real app, you would:
-            # 1. Convert table_data to DataFrame
-            # 2. Generate CSV
-            # 3. Return a download link or trigger download
-        
-        # Reset click count to allow multiple exports
-        return 0
+        if not n_clicks or not table_data or not table_columns:
+            raise PreventUpdate
+            
+        try:
+            # Convert table data to DataFrame
+            df = pd.DataFrame(table_data)
+            
+            # Extract only the columns that are visible in the table
+            visible_column_ids = [col['id'] for col in table_columns]
+            df_export = df[visible_column_ids]
+            
+            # Generate filename with timestamp
+            from datetime import datetime
+            current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'spot_risk_export_{current_time}.csv'
+            
+            # Convert DataFrame to CSV string
+            csv_string = df_export.to_csv(index=False)
+            
+            logger.info(f"Exporting {len(df_export)} rows, {len(df_export.columns)} columns to {filename}")
+            
+            # Return download data
+            return dict(content=csv_string, filename=filename)
+            
+        except Exception as e:
+            logger.error(f"Error exporting data: {e}")
+            raise PreventUpdate
     
     @app.callback(
         [Output('spot-risk-data-store', 'data', allow_duplicate=True),
@@ -639,14 +679,15 @@ def register_callbacks(app):
          Input('spot-risk-1st-order', 'value'),
          Input('spot-risk-2nd-order', 'value'),
          Input('spot-risk-3rd-order', 'value'),
-         Input('spot-risk-cross-greeks', 'value')],
+         Input('spot-risk-cross-greeks', 'value'),
+         Input('spot-risk-greek-space-store', 'data')],
         [State('spot-risk-data-store', 'data'),
          State('spot-risk-display-store', 'data')],
         prevent_initial_call=True
     )
     @monitor()
     def update_greek_graphs(table_clicks, graph_clicks, first_order, second_order, 
-                            third_order, cross_greeks, stored_data, view_state):
+                            third_order, cross_greeks, greek_space, stored_data, view_state):
         """Generate Greek profile graphs based on selected Greeks
         
         Returns:
@@ -732,7 +773,7 @@ def register_callbacks(app):
             
             # Generate profiles for selected Greeks grouped by expiry
             logger.info(f"Generating profiles for {len(selected_greeks)} Greeks by expiry")
-            profiles_by_expiry = controller.generate_greek_profiles_by_expiry(selected_greeks)
+            profiles_by_expiry = controller.generate_greek_profiles_by_expiry(selected_greeks, greek_space)
             
             if not profiles_by_expiry:
                 logger.error("Failed to generate Greek profiles - no expiry data returned")
@@ -914,3 +955,66 @@ def register_callbacks(app):
             )
             
             return [placeholder_graph], f'Error: {str(e)}' 
+
+    # Greek space toggle callback
+    @app.callback(
+        [Output('spot-risk-greek-space-store', 'data'),
+         Output('spot-risk-f-space-btn', 'style'),
+         Output('spot-risk-y-space-btn', 'style')],
+        [Input('spot-risk-f-space-btn', 'n_clicks'),
+         Input('spot-risk-y-space-btn', 'n_clicks')],
+        [State('spot-risk-greek-space-store', 'data')],
+        prevent_initial_call=False
+    )
+    @monitor()
+    def toggle_greek_space(f_clicks, y_clicks, current_space):
+        """Toggle between F-space and Y-space Greek display
+        
+        Returns:
+            tuple: (greek_space, f_btn_style, y_btn_style)
+        """
+        ctx = dash.callback_context
+        
+        # Default styles
+        active_style = {
+            'backgroundColor': default_theme.primary,
+            'color': default_theme.base_bg,
+            'border': f'1px solid {default_theme.primary}',
+            'padding': '8px 20px',
+            'fontSize': '14px',
+            'fontWeight': 'bold',
+            'cursor': 'pointer',
+            'minWidth': '80px'
+        }
+        
+        inactive_style = {
+            'backgroundColor': default_theme.panel_bg,
+            'color': default_theme.text_light,
+            'border': f'1px solid {default_theme.secondary}',
+            'padding': '8px 20px',
+            'fontSize': '14px',
+            'fontWeight': 'normal',
+            'cursor': 'pointer',
+            'minWidth': '80px'
+        }
+        
+        # Determine which button was clicked
+        if ctx.triggered and ctx.triggered[0]['prop_id'].startswith('spot-risk-f-space-btn'):
+            greek_space = 'F'
+        elif ctx.triggered and ctx.triggered[0]['prop_id'].startswith('spot-risk-y-space-btn'):
+            greek_space = 'y'
+        else:
+            # Initial load or no trigger, use current state
+            greek_space = current_space or 'F'
+        
+        # Update button styles based on selection
+        if greek_space == 'F':
+            f_style = {**active_style, 'borderRadius': '4px 0 0 4px'}
+            y_style = {**inactive_style, 'borderRadius': '0 4px 4px 0', 'borderLeft': 'none'}
+        else:
+            f_style = {**inactive_style, 'borderRadius': '4px 0 0 4px'}
+            y_style = {**active_style, 'borderRadius': '0 4px 4px 0', 'borderLeft': 'none'}
+        
+        logger.info(f"Greek space toggled to: {greek_space}")
+        
+        return greek_space, f_style, y_style 

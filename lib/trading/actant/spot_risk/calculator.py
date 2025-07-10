@@ -299,6 +299,31 @@ class SpotRiskGreekCalculator:
                 df_copy.at[idx, 'greek_calc_error'] = result.error
                 df_copy.at[idx, 'greek_calc_success'] = False
         
+        # Add price source warnings if available
+        if 'price_source' in df_copy.columns:
+            # Add warning for rows not using adjtheor
+            for idx in df_copy.index:
+                price_source = df_copy.at[idx, 'price_source']
+                if price_source and price_source != 'adjtheor' and price_source != 'unknown':
+                    current_error = df_copy.at[idx, 'greek_calc_error']
+                    if pd.isna(current_error) or current_error == '':
+                        # No existing error, just add price source warning
+                        if price_source == 'calculated':
+                            df_copy.at[idx, 'greek_calc_error'] = 'Using calculated midpoint (adjtheor not available)'
+                        elif price_source == 'bid_only':
+                            df_copy.at[idx, 'greek_calc_error'] = 'Using bid price only (adjtheor not available)'
+                        elif price_source == 'ask_only':
+                            df_copy.at[idx, 'greek_calc_error'] = 'Using ask price only (adjtheor not available)'
+                        elif price_source.startswith('fallback_'):
+                            col_name = price_source.replace('fallback_', '')
+                            df_copy.at[idx, 'greek_calc_error'] = f'Using {col_name} price (adjtheor not available)'
+                        elif price_source == 'missing':
+                            df_copy.at[idx, 'greek_calc_error'] = 'No valid price available'
+                    else:
+                        # Append to existing error
+                        if price_source != 'missing':  # Don't double report missing prices
+                            df_copy.at[idx, 'greek_calc_error'] = f"{current_error}; Price: {price_source}"
+        
         # Summary statistics
         successful_calcs = sum(1 for r in results if r.success)
         failed_calcs = len(results) - successful_calcs
