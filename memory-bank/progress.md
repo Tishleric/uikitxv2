@@ -1211,6 +1211,26 @@ The system is now **production-ready** for 24/7 trading environments.
 
 ## Recent Completed Work
 
+### Spot Risk Automated Processing Pipeline (2025-01-21)
+- **Goal**: Implement automatic processing of incoming Spot Risk CSV files
+- **Implementation**:
+  - Created `lib/trading/actant/spot_risk/file_watcher.py` with watchdog-based monitoring
+  - Implemented `SpotRiskFileHandler` for event handling
+  - Created `SpotRiskWatcher` service class
+  - Added file debouncing to ensure files are fully written before processing
+  - Implemented duplicate detection to avoid reprocessing
+  - Created run scripts for easy deployment
+- **Key Features**:
+  - Monitors `data/input/actant_spot_risk/` for new files
+  - Processes files matching pattern `bav_analysis_YYYYMMDD_HHMMSS.csv`
+  - Preserves timestamps in output filenames
+  - Processes existing unprocessed files on startup
+  - Graceful error handling with logging
+- **Files Created**:
+  - `lib/trading/actant/spot_risk/file_watcher.py`
+  - `run_spot_risk_watcher.py`
+  - `run_spot_risk_watcher.bat`
+
 ### Spot Risk Tab Performance Optimization (2025-01-21)
 - **Goal**: Replace synchronous Greek calculations with async reading from processed CSV
 - **Implementation**:
