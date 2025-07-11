@@ -160,8 +160,12 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             success_count = sum(1 for r in results if r.success)
             logger.info(f"Greek calculations: {success_count} successful, {len(results) - success_count} failed")
             
+            # Calculate aggregates
+            df_with_aggregates = self.calculator.calculate_aggregates(df_with_greeks)
+            logger.info("Added aggregate rows")
+            
             # Save output (preserving sorting from parser)
-            df_with_greeks.to_csv(output_path, index=False)
+            df_with_aggregates.to_csv(output_path, index=False)
             logger.info(f"Saved processed file: {output_path}")
             
             # Mark as processed

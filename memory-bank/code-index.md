@@ -115,12 +115,12 @@ Actant trading system integration modules.
 #### lib/trading/actant/spot_risk/
 - **api.py**: Spot Risk API module - high-level interface for spot risk data processing and Greek calculations. Provides methods for loading, parsing, and calculating Greeks on spot risk data with proper error handling.
 - **calculator.py**: Greek calculator for Spot Risk using bond future options API. Handles conversion between spot risk format and BFO format, calculates all Greeks (delta, gamma, vega, theta, rho, omega, pv01) with proper error handling and success tracking.
-- **file_watcher.py**: Watchdog-based file watcher for automatic Spot Risk CSV processing. Monitors input directory for new bav_analysis files, automatically processes them through Greek calculation pipeline, and saves results with timestamp preservation. Includes debouncing and duplicate detection.
+- **file_watcher.py**: Watchdog-based file watcher for automatic Spot Risk CSV processing. Monitors input directory for new bav_analysis files, automatically processes them through Greek calculation pipeline, calls calculate_aggregates to add NET_FUTURES row, and saves results with timestamp preservation. Includes debouncing and duplicate detection.
 - **models.py**: Data models for Spot Risk module - defines SpotRiskData dataclass with all required fields for analysis including contract details, prices, Greeks, and metadata.
 - **parser.py**: CSV parser for Spot Risk data files. Handles parsing of BAV analysis files with proper data type conversion, time to expiry calculation, sorting (Futures→Calls→Puts), and uses adjtheor as primary price source with midpoint fallback.
 - **schema.sql**: SQLite schema definition for spot_risk.db database. Defines tables for spot_risk_data storage with all Greek values and metadata fields.
 
-**calculator.py**: SpotRiskGreekCalculator class that processes CSV files and calculates Greeks using the GreekCalculatorAPI. Handles future price extraction, batch Greek calculations, and adds all Greek columns to the DataFrame. Contains error handling that raises ValueError when no future price is found.
+**calculator.py**: SpotRiskGreekCalculator class that processes CSV files and calculates Greeks using the GreekCalculatorAPI. Handles future price extraction, batch Greek calculations for options, and sets hardcoded Greeks for futures (delta_F=63.0, gamma_F=0.0042). Includes calculate_aggregates() method that creates a NET_FUTURES row summing all futures positions with simple addition of Greek values. Contains error handling that raises ValueError when no future price is found.
 
 **csv_parser.py**: Parses CSV files exported from Actant spot risk reports. Converts all column names to lowercase, handles numeric parsing, and provides structured DataFrames for downstream processing.
 
@@ -285,3 +285,6 @@ Project knowledge base and documentation:
 **callbacks.py**: Spot Risk dashboard callbacks (currently placeholder). Will handle refresh data, filter updates, Greek selection, export functionality, and auto-refresh toggle.
 
 **controller.py**: Spot Risk Dashboard Controller - handles data loading, processing, and state management. Core controller that manages CSV discovery, data loading, Greek calculations, filtering, and profile generation. Supports both synchronous Greek calculation and asynchronous reading from pre-calculated CSV files for better performance.
+
+## lib/trading/actant/spot_risk/calculator.py
+Main calculator for Spot Risk Greek calculations. The SpotRiskGreekCalculator class interfaces with the bond_future_options API to calculate Greeks for options positions and applies hardcoded Greeks for futures (delta_F=63.0, gamma_F=0.0042). The calculate_aggregates method creates NET_FUTURES row (summing all futures with positions), NET_OPTIONS_F row (summing all options F-space Greeks), and NET_OPTIONS_Y row (summing all options Y-space Greeks). All aggregations use simple addition of Greek values. Uses DV01=9.34 for Y-space conversions.

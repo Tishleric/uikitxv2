@@ -340,6 +340,57 @@ class SpotRiskGreekCalculator:
             
             logger.warning(f"Error summary: {error_types}")
         
+        # Process futures rows with hardcoded Greeks
+        logger.info("Processing futures rows with hardcoded Greeks")
+        
+        # Filter futures - check both cases
+        if 'Instrument Type' in df.columns:
+            futures_mask = df['Instrument Type'].str.upper() == 'FUTURE'
+        elif 'instrument type' in df.columns:
+            futures_mask = df['instrument type'].str.upper() == 'FUTURE'
+        elif 'itype' in df.columns:
+            futures_mask = df['itype'].str.upper().isin(['F', 'FUTURE'])
+        else:
+            futures_mask = pd.Series([False] * len(df))
+        
+        futures_df = df[futures_mask]
+        
+        if len(futures_df) > 0:
+            logger.info(f"Setting hardcoded Greeks for {len(futures_df)} futures rows")
+            
+            # For each futures row, set hardcoded Greek values
+            for idx in futures_df.index:
+                # Set hardcoded futures Greeks
+                df_copy.at[idx, 'delta_F'] = 63.0
+                df_copy.at[idx, 'gamma_F'] = 0.0042
+                
+                # Y-space conversions using DV01
+                df_copy.at[idx, 'delta_y'] = 63.0 * self.dv01 / 1000.0
+                df_copy.at[idx, 'gamma_y'] = 0.0042 * (self.dv01 / 1000.0) ** 2
+                
+                # All other Greeks are 0 for futures
+                df_copy.at[idx, 'vega_price'] = 0.0
+                df_copy.at[idx, 'vega_y'] = 0.0
+                df_copy.at[idx, 'theta_F'] = 0.0
+                df_copy.at[idx, 'volga_price'] = 0.0
+                df_copy.at[idx, 'vanna_F_price'] = 0.0
+                df_copy.at[idx, 'charm_F'] = 0.0
+                df_copy.at[idx, 'speed_F'] = 0.0
+                df_copy.at[idx, 'color_F'] = 0.0
+                df_copy.at[idx, 'ultima'] = 0.0
+                df_copy.at[idx, 'zomma'] = 0.0
+                
+                # Futures don't have implied volatility
+                df_copy.at[idx, 'calc_vol'] = 0.0
+                df_copy.at[idx, 'implied_vol'] = 0.0
+                
+                # Mark as successfully calculated
+                df_copy.at[idx, 'greek_calc_success'] = True
+                df_copy.at[idx, 'greek_calc_error'] = ''
+                df_copy.at[idx, 'model_version'] = 'futures_hardcoded'
+            
+            logger.info(f"Set hardcoded Greeks for {len(futures_df)} futures")
+        
         return df_copy, results
     
     def _add_empty_greek_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -446,4 +497,177 @@ class SpotRiskGreekCalculator:
             result.error = api_result['error_message']
             result.error_message = api_result['error_message']
         
-        return result 
+        return result
+    
+    def calculate_aggregates(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate aggregate rows for futures and options positions.
+        
+        Creates:
+        - NET_FUTURES row that sums all futures with non-zero positions
+        - NET_OPTIONS_F row that sums all options with non-zero positions (F-space Greeks)
+        - NET_OPTIONS_Y row that sums all options with non-zero positions (Y-space Greeks)
+        
+        Args:
+            df: DataFrame with Greek calculations
+            
+        Returns:
+            DataFrame with aggregate rows appended
+        """
+        logger.info("Calculating aggregate rows")
+        
+        # Make a copy to avoid modifying original
+        df_copy = df.copy()
+        
+        # Define Greek columns to aggregate
+        f_space_greeks = [
+            'delta_F', 'gamma_F', 'theta_F', 'vega_price', 'volga_price',
+            'vanna_F_price', 'charm_F', 'speed_F', 'color_F', 'ultima', 'zomma'
+        ]
+        
+        y_space_greeks = [
+            'delta_y', 'gamma_y', 'vega_y'  # Y-space has fewer Greeks available
+        ]
+        
+        # Get position column name
+        position_col = None
+        for col in ['position', 'po', 'pos.position', 'Position', 'POS.POSITION']:
+            if col in df_copy.columns:
+                position_col = col
+                break
+        
+        if position_col is None:
+            # Try to find any column with 'position' in the name
+            for col in df_copy.columns:
+                if 'position' in col.lower():
+                    position_col = col
+                    logger.info(f"Found position column: {col}")
+                    break
+        
+        if position_col is None:
+            logger.warning("No position column found for aggregation")
+            return df_copy
+        
+        # Helper function to create aggregate row
+        def create_aggregate_row(filtered_df, row_key, greek_columns):
+            """Create an aggregate row for given filtered data and Greek columns"""
+            if len(filtered_df) == 0:
+                return None
+                
+            net_row = {}
+            
+            # Set identifier columns
+            if 'key' in df_copy.columns:
+                net_row['key'] = row_key
+            if 'product' in df_copy.columns:
+                net_row['product'] = row_key
+            if 'instrument_key' in df_copy.columns:
+                net_row['instrument_key'] = row_key
+            if 'Product' in df_copy.columns:
+                net_row['Product'] = row_key
+            
+            # Set instrument type to NET
+            if 'itype' in df_copy.columns:
+                net_row['itype'] = 'NET'
+            if 'Instrument Type' in df_copy.columns:
+                net_row['Instrument Type'] = 'NET'
+            if 'instrument type' in df_copy.columns:
+                net_row['instrument type'] = 'NET'
+            
+            # Sum positions
+            total_position = filtered_df[position_col].sum()
+            net_row[position_col] = total_position
+            
+            # Clear fields that don't make sense for aggregates
+            for col in ['strike', 'Strike', 'bid', 'ask', 'adjtheor', 'midpoint_price', 
+                       'vtexp', 'expiry_date', 'calc_vol', 'implied_vol']:
+                if col in df_copy.columns:
+                    net_row[col] = None
+            
+            # Sum Greeks (simple addition)
+            for greek_col in greek_columns:
+                if greek_col in filtered_df.columns:
+                    net_row[greek_col] = filtered_df[greek_col].sum(skipna=True)
+            
+            # Set status columns
+            if 'greek_calc_success' in df_copy.columns:
+                net_row['greek_calc_success'] = True
+            if 'greek_calc_error' in df_copy.columns:
+                net_row['greek_calc_error'] = ''
+            if 'model_version' in df_copy.columns:
+                net_row['model_version'] = 'net_aggregate'
+            
+            # Set price source if exists
+            if 'price_source' in df_copy.columns:
+                net_row['price_source'] = 'aggregate'
+            
+            # Copy other columns with appropriate defaults
+            for col in df_copy.columns:
+                if col not in net_row:
+                    # Set appropriate default based on column type
+                    if df_copy[col].dtype in ['float64', 'int64']:
+                        net_row[col] = 0
+                    else:
+                        net_row[col] = ''
+            
+            return net_row
+        
+        # Filter for instrument types
+        futures_mask = pd.Series([False] * len(df_copy))
+        options_mask = pd.Series([False] * len(df_copy))
+        
+        if 'Instrument Type' in df_copy.columns:
+            futures_mask = df_copy['Instrument Type'].str.upper() == 'FUTURE'
+            options_mask = df_copy['Instrument Type'].str.upper().isin(['CALL', 'PUT'])
+        elif 'instrument type' in df_copy.columns:
+            futures_mask = df_copy['instrument type'].str.upper() == 'FUTURE'
+            options_mask = df_copy['instrument type'].str.upper().isin(['CALL', 'PUT'])
+        elif 'itype' in df_copy.columns:
+            futures_mask = df_copy['itype'].str.upper().isin(['F', 'FUTURE'])
+            options_mask = df_copy['itype'].str.upper().isin(['C', 'P', 'CALL', 'PUT'])
+        
+        # Filter for non-zero positions
+        position_mask = pd.notna(df_copy[position_col]) & (df_copy[position_col] != 0)
+        
+        # Collect all aggregate rows before appending
+        aggregate_rows = []
+        
+        # Process futures
+        futures_with_positions = df_copy[futures_mask & position_mask].copy()
+        if len(futures_with_positions) > 0:
+            logger.info(f"Found {len(futures_with_positions)} futures with non-zero positions")
+            # For futures, we aggregate all Greek columns (F and Y space)
+            all_greeks = list(set(f_space_greeks + y_space_greeks))
+            net_futures_row = create_aggregate_row(futures_with_positions, 'NET_FUTURES', all_greeks)
+            if net_futures_row:
+                aggregate_rows.append(net_futures_row)
+                logger.info("Prepared NET_FUTURES aggregate row")
+        
+        # Process options
+        options_with_positions = df_copy[options_mask & position_mask].copy()
+        if len(options_with_positions) > 0:
+            logger.info(f"Found {len(options_with_positions)} options with non-zero positions")
+            
+            # Create NET_OPTIONS_F row
+            net_options_f_row = create_aggregate_row(options_with_positions, 'NET_OPTIONS_F', f_space_greeks)
+            if net_options_f_row:
+                aggregate_rows.append(net_options_f_row)
+                logger.info("Prepared NET_OPTIONS_F aggregate row")
+            
+            # Create NET_OPTIONS_Y row
+            net_options_y_row = create_aggregate_row(options_with_positions, 'NET_OPTIONS_Y', y_space_greeks)
+            if net_options_y_row:
+                # Also populate F-space Greeks with zeros for consistency
+                for greek in f_space_greeks:
+                    if greek not in y_space_greeks and greek in df_copy.columns:
+                        net_options_y_row[greek] = 0.0
+                aggregate_rows.append(net_options_y_row)
+                logger.info("Prepared NET_OPTIONS_Y aggregate row")
+        
+        # Append all aggregate rows at once
+        if aggregate_rows:
+            aggregate_df = pd.DataFrame(aggregate_rows)
+            df_copy = pd.concat([df_copy, aggregate_df], ignore_index=True)
+            logger.info(f"Added {len(aggregate_rows)} aggregate rows")
+        
+        return df_copy 

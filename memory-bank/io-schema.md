@@ -399,20 +399,25 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 
 # I/O Schema
 
+This document lists all public constants, environment variables, inputs, outputs, and internal values used across the codebase. Updated whenever interfaces change.
+
+## Format
+
 | Name | Kind* | Type | Allowed values / range | Example Usage |
-|------|-------|------|------------------------|-------------|
-| Checkbox.id | Input | str | any valid HTML id | "metric-filter-checkbox" |
-| Checkbox.options | Input | List[Dict[str, Any]] | [{"label": str, "value": str/int}] | [{"label": "Delta", "value": "delta"}] |
-| Checkbox.value | Input/Output | List[Union[str, int]] | subset of option values | ["delta", "gamma"] |
-| Checkbox.theme | Input | Optional[Theme] | Theme instance or None | from components.themes import default_theme |
-| Checkbox.inline | Input | bool | True/False | False |
-| categorize_metrics() | Output | Dict[str, List[str]] | category -> metrics mapping | {"Delta": ["Delta", "ab_Delta", ...]} |
-| filter_metrics_by_prefix() | Output | List[str] | filtered metric names | ["Delta", "Gamma"] (base only) |
-| get_shock_range_by_scenario() | Output | tuple[float, float] | (min_shock, max_shock) | (-0.1, 0.1) |
-| get_filtered_data_with_range() | Output | pd.DataFrame | filtered scenario data | DataFrame with shock_value between ranges |
-| metric_categories | Constant | Dict[str, List[str]] | predefined category mappings | {"Delta": [...], "Epsilon": [...]} |
-| prefix_filters | Constant | List[str] | ["all", "base", "ab", "bs", "pa"] | "base" for no-prefix metrics |
-| scenario_shock_ranges | Internal | Dict[str, List[float]] | scenario -> [min, max] | {"XCME.ZN": [-0.1, 0.1]} |
+|------|-------|------|------------------------|---------------|
+| ... | ... | ... | ... | ... |
+
+*Kinds: **Constant · EnvVar · Input · Output · Internal · Example**
+
+## Schema Entries
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| DEFAULT_DV01 | Constant | float | > 0 | DV01 value (9.34) for bond futures |
+| DEFAULT_CONVEXITY | Constant | float | > 0 | Convexity value (0.5) for bond futures |
+| NET_FUTURES | Output | str | Special row key | Aggregate row for futures positions |
+| NET_OPTIONS_F | Output | str | Special row key | Aggregate row for options F-space Greeks |
+| NET_OPTIONS_Y | Output | str | Special row key | Aggregate row for options Y-space Greeks |
 
 ## Risk Metric Transformations
 
