@@ -7,8 +7,9 @@ processes them through the Greek calculation pipeline.
 import os
 import time
 import logging
+import json
 from pathlib import Path
-from typing import Set, Optional
+from typing import Set, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 import pytz
 
@@ -91,7 +92,37 @@ class SpotRiskFileHandler(FileSystemEventHandler):
         # Pattern for valid files: bav_analysis_YYYYMMDD_HHMMSS.csv
         self.file_pattern = r'bav_analysis_\d{8}_\d{6}\.csv'
         
+        # State tracking
+        self.state_file = self.output_dir / '.file_watcher_state.json'
+        self.state = self._load_state()
+        
         logger.info(f"SpotRiskFileHandler initialized: watching {input_dir}")
+    
+    def _load_state(self) -> Dict[str, Any]:
+        """Load state from JSON file."""
+        if self.state_file.exists():
+            try:
+                with open(self.state_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load state file: {e}")
+        return {}
+    
+    def _save_state(self):
+        """Save state to JSON file."""
+        try:
+            with open(self.state_file, 'w') as f:
+                json.dump(self.state, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save state file: {e}")
+    
+    def _get_file_key(self, filepath: Path) -> str:
+        """Get a unique key for a file based on path, mtime, and size."""
+        try:
+            stat = filepath.stat()
+            return f"{filepath}|{stat.st_mtime}|{stat.st_size}"
+        except Exception:
+            return str(filepath)
     
     @monitor()
     def on_created(self, event):
@@ -130,8 +161,16 @@ class SpotRiskFileHandler(FileSystemEventHandler):
                 # File is not in our input directory
                 return
             
-            # Skip if already processed (use relative path for tracking)
+            # Get relative path string for logging
             relative_path_str = str(relative_path)
+            
+            # Skip if already processed (check state first)
+            file_key = self._get_file_key(path)
+            if file_key in self.state:
+                logger.debug(f"Skipping already processed file (from state): {relative_path_str}")
+                return
+            
+            # Also check legacy tracking for backward compatibility
             if relative_path_str in self.processed_files:
                 logger.debug(f"Skipping already processed file: {relative_path_str}")
                 return
@@ -188,6 +227,9 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             input_path: Path to the input CSV file
         """
         try:
+            # Start timing
+            start_time = time.time()
+            
             # Determine relative path and output structure
             try:
                 relative_path = input_path.relative_to(self.input_dir)
@@ -243,8 +285,21 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             df_with_aggregates.to_csv(output_path, index=False)
             logger.info(f"Saved processed file: {output_path}")
             
+            # Calculate and log total processing time
+            elapsed_time = time.time() - start_time
+            logger.info(f"Total processing time: {elapsed_time:.2f} seconds")
+            
             # Mark as processed using relative path
             self.processed_files.add(str(relative_path))
+            
+            # Save to persistent state
+            file_key = self._get_file_key(input_path)
+            self.state[file_key] = {
+                'processed_at': datetime.now().isoformat(),
+                'output_file': str(output_path),
+                'relative_path': str(relative_path)
+            }
+            self._save_state()
             
         except Exception as e:
             logger.error(f"Error processing CSV file {input_path}: {e}", exc_info=True)
@@ -291,8 +346,14 @@ class SpotRiskWatcher:
         """Process any existing unprocessed files in the input directory."""
         logger.info("Checking for existing unprocessed files...")
         
+        # Load state to get already processed files
+        state_processed = set()
+        for file_info in self.handler.state.values():
+            if 'relative_path' in file_info:
+                state_processed.add(file_info['relative_path'])
+        
         # Get list of already processed files (check all subfolders)
-        processed_files = set()
+        processed_files = set(state_processed)  # Start with state-tracked files
         
         # Look for processed files in root and all date subfolders
         for processed_file in self.output_dir.rglob("bav_analysis_processed_*.csv"):
@@ -324,6 +385,11 @@ class SpotRiskWatcher:
             try:
                 relative_path = csv_file.relative_to(self.input_dir)
                 relative_path_str = str(relative_path)
+                
+                # Check state first for efficiency
+                file_key = self.handler._get_file_key(csv_file)
+                if file_key in self.handler.state:
+                    continue
                 
                 if relative_path_str not in processed_files:
                     logger.info(f"Processing existing file: {relative_path_str}")

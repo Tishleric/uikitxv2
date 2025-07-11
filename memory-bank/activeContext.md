@@ -25,6 +25,17 @@ Supporting daily subfolder structure for Spot Risk file watchdog and dashboard.
    - Updated `_get_csv_directories()` to check date folders first, then root (backward compatible)
    - Updated `discover_csv_files()` to use recursive search with `rglob()`
 
+## Recent Updates
+
+### File Watcher State Tracking (2025-01-24)
+Added persistent state tracking to avoid reprocessing files on restart:
+- **`lib/trading/actant/spot_risk/file_watcher.py`**:
+  - Added JSON-based state file (`.file_watcher_state.json`) in output directory
+  - Tracks processed files by path + modification time + size
+  - Preserves backward compatibility with existing filename-based tracking
+  - State persists across restarts, preventing unnecessary reprocessing
+  - No performance impact - state operations are lightweight
+
 ## Next Steps
 - Test the updated file watcher with actual files in date folders
 - Verify the Spot Risk dashboard loads data from the latest date folder
