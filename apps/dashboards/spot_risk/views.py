@@ -820,7 +820,7 @@ def create_spot_risk_content(controller=None):
                                             'gap': '30px',
                                             'flexWrap': 'wrap',
                                             'fontSize': '12px',
-                                            'color': default_theme.text_subtle
+                                            'color': 'white'  # Changed from default_theme.text_subtle to white
                                         },
                                         children=[
                                             html.Div([

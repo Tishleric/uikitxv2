@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current Focus
-**Spot Risk Tab Performance Optimization**: Successfully implemented asynchronous reading of pre-calculated Greeks from processed CSV files with correct sorting preserved.
+**Spot Risk Automated Processing Pipeline**: Implemented watchdog-based file monitoring for automatic Greek calculation processing.
 
 ### Completed Work (2025-01-21)
 1. **Async Greek Reading Implementation**
@@ -17,22 +17,30 @@
 3. **Sorting Fix in Backend**
    - Fixed `test_full_pipeline.py` to preserve parser's sorting order
    - Correct order maintained: Futures → Calls → Puts
-   - Within each type: sorted by expiry_date, then strike
+   - Within each type: sorted by expiry_date, then by strike
 
-4. **Python Path Resolution**
-   - Created `run_spot_risk_processing.bat` for consistent Anaconda Python usage
-   - Resolved conflict between standalone Python and Anaconda installations
+4. **Watchdog File Monitoring**
+   - Created `SpotRiskFileHandler` with file event handling
+   - Implemented `SpotRiskWatcher` service for continuous monitoring
+   - Features:
+     - Automatic detection of new `bav_analysis_*.csv` files
+     - File debouncing (waits for stable file size)
+     - Duplicate detection (tracks processed files)
+     - Processes existing unprocessed files on startup
+     - Graceful error handling and logging
+   - Created run scripts with Anaconda Python integration
 
-### Key Improvements Applied
-- **Adjtheor as Primary Price**: Parser uses adjtheor column first, midpoint as fallback
-- **Minimum Price Safeguard**: Set to 1/512 (allows deep OTM options)
-- **Async Performance**: Dashboard now reads pre-calculated Greeks for faster loading
-- **Correct Data Ordering**: Maintains intuitive sorting (F→C→P, by expiry then strike)
+### Key Features Applied
+- Adjtheor column as primary price source (fallback to midpoint)
+- Minimum price safeguard of 1/512 for deep OTM options
+- Correct sorting preserved throughout pipeline
+- Timestamp preservation in output filenames
+- Automatic processing with watchdog monitoring
 
 ### Next Steps
-1. Review dashboard to verify Greek values and sorting match expectations
-2. Set up automated processing pipeline (future work)
-3. Consider adding version metadata to processed files
+1. Test the watchdog service with live file drops
+2. Consider integration with main dashboard (optional)
+3. Add monitoring metrics for processing throughput
 
 ## Previous Context
 
