@@ -37,6 +37,9 @@ def create_greek_profile_graph(greek_name: str, strikes: List[float], values: Li
     """
     from plotly import graph_objects as go
     
+    # Debug logging
+    logger.info(f"Creating graph for {greek_name} with ATM strike: {atm_strike}")
+    
     # Create figure
     fig = go.Figure()
     
@@ -77,6 +80,8 @@ def create_greek_profile_graph(greek_name: str, strikes: List[float], values: Li
                 )
         
         if position_strikes:
+            # Log position strikes for debugging
+            logger.info(f"Position strikes on graph: {position_strikes}")
             fig.add_trace(go.Scatter(
                 x=position_strikes,
                 y=position_values,
@@ -93,6 +98,7 @@ def create_greek_profile_graph(greek_name: str, strikes: List[float], values: Li
             ))
     
     # Add ATM strike vertical line
+    logger.info(f"Adding ATM vertical line at x={atm_strike}")
     fig.add_vline(
         x=atm_strike,
         line_dash="dash",
@@ -899,6 +905,8 @@ def register_callbacks(app):
                         )
                     ]
                 )
+                # Debug logging for ATM in header
+                logger.info(f"Expiry {expiry} header - ATM displayed: {profile_data['atm_strike']:.2f}")
                 all_graph_children.append(expiry_header)
                 
                 # Build graphs for this expiry
