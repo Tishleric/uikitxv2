@@ -7,6 +7,7 @@ Follows the Controller layer of MVC pattern - coordinates between data and views
 import os
 import glob
 import logging
+import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import pandas as pd
@@ -47,6 +48,35 @@ class SpotRiskController:
         
         return csv_dir
     
+    def _get_latest_date_folder(self, base_dir: Path) -> Optional[Path]:
+        """Find the latest date folder in the given directory
+        
+        Looks for folders with YYYY-MM-DD pattern and returns the most recent one.
+        
+        Args:
+            base_dir: Base directory to search in
+            
+        Returns:
+            Optional[Path]: Path to the latest date folder, or None if no date folders found
+        """
+        if not base_dir.exists():
+            return None
+        
+        date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+        date_folders = []
+        
+        for item in base_dir.iterdir():
+            if item.is_dir() and date_pattern.match(item.name):
+                date_folders.append(item)
+        
+        if not date_folders:
+            return None
+        
+        # Sort by folder name (which is in YYYY-MM-DD format, so lexical sort works)
+        date_folders.sort(key=lambda x: x.name, reverse=True)
+        
+        return date_folders[0]
+    
     def _get_csv_directories(self) -> List[Path]:
         """Get all directories where spot risk CSV files might be stored
         
@@ -60,9 +90,21 @@ class SpotRiskController:
         input_dir = project_root / "data" / "input" / "actant_spot_risk"
         
         dirs = []
+        
+        # Check for latest date folder in output directory
         if output_dir.exists():
+            latest_output_date_folder = self._get_latest_date_folder(output_dir)
+            if latest_output_date_folder:
+                dirs.append(latest_output_date_folder)
+            # Also add root output dir for backward compatibility
             dirs.append(output_dir)
+            
+        # Check for latest date folder in input directory    
         if input_dir.exists():
+            latest_input_date_folder = self._get_latest_date_folder(input_dir)
+            if latest_input_date_folder:
+                dirs.append(latest_input_date_folder)
+            # Also add root input dir for backward compatibility
             dirs.append(input_dir)
             
         # Create input directory if neither exists
@@ -87,12 +129,10 @@ class SpotRiskController:
         
         # Check all directories
         for directory in self._get_csv_directories():
-            # Pattern to match CSV files
-            pattern = str(directory / "*.csv")
-            csv_files = glob.glob(pattern)
+            # Use rglob to recursively find CSV files
+            csv_files = list(directory.rglob("*.csv"))
             
-            for filepath in csv_files:
-                path = Path(filepath)
+            for path in csv_files:
                 stat = path.stat()
                 
                 # Prioritize processed files

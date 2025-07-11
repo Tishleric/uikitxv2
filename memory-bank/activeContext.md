@@ -1,138 +1,55 @@
-# Active Context
+# Active Context (Current Focus)
 
-This file tracks the current focus and next steps for the UIKitXv2 project.
+## Current Goal
+Supporting daily subfolder structure for Spot Risk file watchdog and dashboard.
 
-## Current State (Phase 11: Observatory & Robustness)
+## Recent Changes
 
-### Completed Tasks
-- ✅ Observatory dashboard with real-time monitoring
-- ✅ Decorator-based performance tracking (@monitor)
-- ✅ SQLite-backed logging with flowTrace table
-- ✅ UI components wrapper library with consistent theming
-- ✅ Actant EOD/SOD processing modules
-- ✅ TT REST API integration for ladder functionality
-- ✅ Scenario Ladder with live/demo mode toggle
-- ✅ Actant PnL dashboard with Greeks calculation
-- ✅ Spot Risk dashboard with Greek profiles visualization
-- ✅ Improved ATM detection logic for Spot Risk graphs
-- ✅ Greek profile pre-computation for performance optimization
+### File Watcher Updates (COMPLETED)
+1. **`lib/trading/actant/spot_risk/file_watcher.py`**:
+   - Added `get_spot_risk_date_folder()` - determines date folder based on 3pm EST boundaries
+   - Added `ensure_date_folder()` - creates date folders as needed
+   - Updated `_process_file_event()` to handle files in date subfolders
+   - Updated `_process_csv_file()` to maintain folder structure in output
+   - Updated `SpotRiskWatcher.start()` to watch recursively
+   - Updated `_process_existing_files()` to handle subfolder structure
 
-### Latest Changes (2024-12-21)
+2. **Support Scripts Created**:
+   - `tests/actant_spot_risk/test_file_watcher_subfolders.py` - tests for date folder functionality
+   - `examples/spot_risk_watcher_example.py` - example usage with daily subfolders
+   - `scripts/spot_risk_migrate_to_daily_folders.py` - migration script for existing files
 
-#### Spot Risk Aggregate Greek Graphs (NEW)
-Added aggregate Greek profile graphs that display all expiries on a single graph per Greek:
-- **Implementation**: New `create_aggregate_greek_graph()` function creates multi-expiry visualizations
-- **Features**:
-  - Each expiry displayed as a separate colored line
-  - Positions plotted on their respective expiry lines with matching colors
-  - Global ATM marker shown (same for all expiries as they share underlying future)
-  - Color palette cycles through 10 distinct colors for multiple expiries
-  - Interactive legend allows toggling expiry visibility
-- **Layout Changes**:
-  - Aggregate views displayed first with prominent header
-  - Individual expiry views follow with their own section header
-  - Aggregate graphs use 500px height and wider grid (600px min-width)
-- **Files Modified**:
-  - `apps/dashboards/spot_risk/callbacks.py`:
-    - Added `create_aggregate_greek_graph()` function
-    - Modified `update_greek_graphs()` to generate aggregate views first
-    - Added section headers for better organization
-- **Benefits**: 
-  - Quick comparison of Greek profiles across expiries
-  - Better visualization of term structure effects
-  - Maintains all existing per-expiry functionality
+### Spot Risk Tab Updates (COMPLETED)
+1. **`apps/dashboards/spot_risk/controller.py`**:
+   - Added `_get_latest_date_folder()` - finds the most recent YYYY-MM-DD folder
+   - Updated `_get_csv_directories()` to check date folders first, then root (backward compatible)
+   - Updated `discover_csv_files()` to use recursive search with `rglob()`
 
-#### Spot Risk Greek Profile Pre-computation
-Added asynchronous Greek profile pre-computation to improve graph rendering performance:
-- **Implementation**: Greek profiles are automatically computed and saved to CSV when data is loaded
-- **Storage Format**: Profiles saved as `greek_profiles_YYYYMMDD_HHMMSS.csv` with columns:
-  - expiry, strike, greek_name, value, atm_strike, sigma, tau, future_price
-- **Caching**: `generate_greek_profiles_by_expiry()` now checks for cached profiles first
-- **Greeks Included**: delta, gamma, vega, theta, volga, vanna, charm, speed, color, ultima, zomma
-- **Performance**: Eliminates on-demand computation delays during graph rendering
-- **Files Modified**:
-  - `apps/dashboards/spot_risk/controller.py` - Added methods:
-    - `save_greek_profiles_to_csv()` - Save computed profiles
-    - `load_greek_profiles_from_csv()` - Load cached profiles
-    - `pre_compute_greek_profiles()` - Compute all standard Greeks
-  - Modified `load_csv_data()` to trigger pre-computation
-  - Modified `generate_greek_profiles_by_expiry()` to use cache
+## Next Steps
+- Test the updated file watcher with actual files in date folders
+- Verify the Spot Risk dashboard loads data from the latest date folder
+- Monitor for any edge cases or issues during live operation
 
-#### Spot Risk ATM Plotting Fix (Surgical Change)
-Fixed the ATM line plotting to always use the rounded future price:
-- **Problem**: ATM line was showing at 111.25 (only available strike) instead of 110.75 (rounded future)
-- **Solution**: Always return rounded future price as ATM, regardless of available strikes
-- **Result**: ATM line now consistent at 110.75 across all expiries
+## Folder Structure
+```
+data/
+├── input/
+│   └── actant_spot_risk/
+│       ├── 2025-01-14/     # Files from 3pm Jan 13 to 3pm Jan 14 EST
+│       │   └── bav_analysis_*.csv
+│       └── 2025-01-15/     # Files from 3pm Jan 14 to 3pm Jan 15 EST
+│           └── bav_analysis_*.csv
+└── output/
+    └── spot_risk/
+        ├── 2025-01-14/     # Processed files maintain date structure
+        │   └── bav_analysis_processed_*.csv
+        └── 2025-01-15/
+            └── bav_analysis_processed_*.csv
+```
 
-#### Spot Risk Graph Generation Fix
-Fixed critical issue where Greek profile graphs weren't generating:
-- **Problem**: Future price was searched within each expiry group, but futures might not share the same expiry as options
-- **Solution**: Find future price globally from entire dataset before grouping by expiry
-- **Implementation**:
-  - `generate_greek_profiles_by_expiry()` now finds global future price first
-  - Passes this global price to `_find_atm_strike_for_expiry()` for each expiry
-  - Added validation to skip expiries with no valid strikes
-- **Result**: All expiries now use consistent ATM detection based on the underlying future price
-
-#### Spot Risk ATM Detection Update
-Modified the at-the-money (ATM) strike detection logic in the Spot Risk dashboard:
-- **Old Behavior**: Used Python's `round()` function which implements banker's rounding (round half to even)
-- **New Behavior**: Uses standard rounding to nearest 0.25 increment for treasury bond pricing convention
-- **Implementation**: Changed from `round(future_price * 4) / 4` to `int(future_price * 4 + 0.5) / 4`
-- **Rounding Behavior**:
-  - 110.000 to 110.124 → 110.00
-  - 110.125 to 110.374 → 110.25  
-  - 110.375 to 110.624 → 110.50
-  - 110.625 to 110.874 → 110.75
-  - 110.875 to 110.999 → 111.00
-- **Files Modified**:
-  - `apps/dashboards/spot_risk/controller.py` - Updated both occurrences of the rounding logic
-  - `tests/actant_spot_risk/test_atm_detection.py` - Created comprehensive tests
-- **Result**: ATM detection now follows treasury bond market conventions
-
-### Next Steps
-1. Continue testing Greek profile pre-computation with various data sets
-2. Add performance metrics to track cache hit rates
-3. Consider adding profile invalidation logic if model parameters change
-4. Monitor file system usage for profile CSV files
-
-## Next Priority Tasks
-
-1. **Integration Testing Suite**
-   - Create automated tests for all dashboard entry points
-   - Add integration tests for data flow between modules
-   - Ensure import system remains stable
-
-2. **Documentation Updates**
-   - Update inline documentation to reflect new package structure
-   - Create API documentation for key modules
-   - Update README with current architecture
-
-3. **Performance Optimization**
-   - Profile dashboard startup times
-   - Optimize Greek calculation performance
-   - Implement caching for expensive operations
-
-4. **Error Handling Improvements**
-   - Add better error recovery in data processing
-   - Improve user-facing error messages
-   - Add retry logic for external API calls
-
-## Known Issues
-
-1. **Main App Linter Errors**: Various import resolution warnings in `apps/dashboards/main/app.py`
-2. **Type Checking**: Several type inference issues in pandas operations
-3. **Performance**: Greek calculations can be slow for large datasets
-
-## Tech Debt
-
-1. **Test Coverage**: Need comprehensive test suite for new observatory features
-2. **Documentation**: Some modules lack proper docstrings
-3. **Code Duplication**: Some Greek calculation logic is duplicated across modules
-
-## Architecture Notes
-
-- All dashboards now follow MVC pattern with clear separation
-- Monitoring via @monitor decorator captures performance metrics
-- Observatory dashboard provides real-time system visibility
-- Component library ensures UI consistency across all dashboards
+## Key Design Decisions
+- Files placed in root directories are ignored (as requested)
+- Output folder structure mirrors input folder structure
+- Backward compatibility maintained - still checks root directories
+- Uses 3pm EST as the daily boundary
+- Latest date folder is automatically selected for dashboard display

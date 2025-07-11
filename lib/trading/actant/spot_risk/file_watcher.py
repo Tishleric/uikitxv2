@@ -9,7 +9,8 @@ import time
 import logging
 from pathlib import Path
 from typing import Set, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+import pytz
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent
@@ -19,6 +20,53 @@ from lib.trading.actant.spot_risk.parser import parse_spot_risk_csv
 from lib.trading.actant.spot_risk.calculator import SpotRiskGreekCalculator
 
 logger = logging.getLogger(__name__)
+
+
+def get_spot_risk_date_folder(timestamp: Optional[datetime] = None) -> str:
+    """Get the date folder name for a given timestamp using 3pm EST boundaries.
+    
+    The trading day runs from 3pm EST to 3pm EST the next day.
+    Files created between 3pm EST Monday and 3pm EST Tuesday belong to Tuesday's folder.
+    
+    Args:
+        timestamp: The timestamp to check. If None, uses current time.
+        
+    Returns:
+        str: Date folder name in YYYY-MM-DD format
+    """
+    if timestamp is None:
+        timestamp = datetime.now()
+    
+    # Ensure we have timezone info
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    
+    # Convert to EST
+    est = pytz.timezone('US/Eastern')
+    est_time = timestamp.astimezone(est)
+    
+    # If before 3pm EST, use previous day
+    if est_time.hour < 15:
+        folder_date = est_time.date() - timedelta(days=1)
+    else:
+        folder_date = est_time.date()
+    
+    return folder_date.strftime('%Y-%m-%d')
+
+
+def ensure_date_folder(base_path: Path, date_folder: str) -> Path:
+    """Ensure a date folder exists and return its path.
+    
+    Args:
+        base_path: Base directory path
+        date_folder: Date folder name (YYYY-MM-DD format)
+        
+    Returns:
+        Path: Full path to the date folder
+    """
+    date_path = base_path / date_folder
+    date_path.mkdir(parents=True, exist_ok=True)
+    return date_path
 
 
 class SpotRiskFileHandler(FileSystemEventHandler):
@@ -75,9 +123,17 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             if not path.name.startswith('bav_analysis_'):
                 return
             
-            # Skip if already processed
-            if path.name in self.processed_files:
-                logger.debug(f"Skipping already processed file: {path.name}")
+            # Get relative path from input directory
+            try:
+                relative_path = path.relative_to(self.input_dir)
+            except ValueError:
+                # File is not in our input directory
+                return
+            
+            # Skip if already processed (use relative path for tracking)
+            relative_path_str = str(relative_path)
+            if relative_path_str in self.processed_files:
+                logger.debug(f"Skipping already processed file: {relative_path_str}")
                 return
             
             # Wait for file to be fully written (simple debounce)
@@ -85,7 +141,7 @@ class SpotRiskFileHandler(FileSystemEventHandler):
                 logger.warning(f"File not ready after timeout: {path.name}")
                 return
             
-            logger.info(f"Processing new file: {path.name}")
+            logger.info(f"Processing new file: {relative_path_str}")
             self._process_csv_file(path)
             
         except Exception as e:
@@ -132,6 +188,25 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             input_path: Path to the input CSV file
         """
         try:
+            # Determine relative path and output structure
+            try:
+                relative_path = input_path.relative_to(self.input_dir)
+            except ValueError:
+                logger.error(f"File not in input directory: {input_path}")
+                return
+            
+            # Check if file is in a date subfolder or root
+            parts = relative_path.parts
+            if len(parts) > 1:
+                # File is in a subfolder - maintain structure
+                date_folder = parts[0]
+                output_base_path = ensure_date_folder(self.output_dir, date_folder)
+            else:
+                # File is in root - determine date folder based on current time
+                date_folder = get_spot_risk_date_folder()
+                output_base_path = ensure_date_folder(self.output_dir, date_folder)
+                logger.info(f"File in root directory, using date folder: {date_folder}")
+            
             # Generate output filename with timestamp preserved
             filename_parts = input_path.stem.split('_')
             if len(filename_parts) >= 4:
@@ -141,7 +216,7 @@ class SpotRiskFileHandler(FileSystemEventHandler):
                 # Fallback
                 output_filename = f"{input_path.stem}_processed.csv"
             
-            output_path = self.output_dir / output_filename
+            output_path = output_base_path / output_filename
             
             # Parse CSV
             logger.info(f"Parsing CSV file: {input_path}")
@@ -168,8 +243,8 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             df_with_aggregates.to_csv(output_path, index=False)
             logger.info(f"Saved processed file: {output_path}")
             
-            # Mark as processed
-            self.processed_files.add(input_path.name)
+            # Mark as processed using relative path
+            self.processed_files.add(str(relative_path))
             
         except Exception as e:
             logger.error(f"Error processing CSV file {input_path}: {e}", exc_info=True)
@@ -199,8 +274,8 @@ class SpotRiskWatcher:
         # Process any existing files first
         self._process_existing_files()
         
-        # Start watching for new files
-        self.observer.schedule(self.handler, str(self.input_dir), recursive=False)
+        # Start watching for new files (recursive=True to watch subfolders)
+        self.observer.schedule(self.handler, str(self.input_dir), recursive=True)
         self.observer.start()
         
         logger.info("SpotRiskWatcher started successfully")
@@ -216,21 +291,42 @@ class SpotRiskWatcher:
         """Process any existing unprocessed files in the input directory."""
         logger.info("Checking for existing unprocessed files...")
         
-        # Get list of already processed files
+        # Get list of already processed files (check all subfolders)
         processed_files = set()
-        for f in self.output_dir.glob("bav_analysis_processed_*.csv"):
+        
+        # Look for processed files in root and all date subfolders
+        for processed_file in self.output_dir.rglob("bav_analysis_processed_*.csv"):
             # Extract original filename from processed name
             # bav_analysis_processed_YYYYMMDD_HHMMSS.csv -> bav_analysis_YYYYMMDD_HHMMSS.csv
-            parts = f.stem.split('_')
+            parts = processed_file.stem.split('_')
             if len(parts) >= 4:
                 original_name = f"bav_analysis_{parts[2]}_{parts[3]}.csv"
-                processed_files.add(original_name)
+                
+                # Determine relative path based on where the processed file is
+                try:
+                    relative_output_path = processed_file.relative_to(self.output_dir)
+                    if len(relative_output_path.parts) > 1:
+                        # File is in a date subfolder
+                        date_folder = relative_output_path.parts[0]
+                        original_relative_path = f"{date_folder}/{original_name}"
+                    else:
+                        # File is in root (legacy)
+                        original_relative_path = original_name
+                    processed_files.add(original_relative_path)
+                except ValueError:
+                    logger.warning(f"Could not determine relative path for: {processed_file}")
         
         self.handler.processed_files = processed_files
         logger.info(f"Found {len(processed_files)} already processed files")
         
-        # Process any unprocessed files
-        for csv_file in self.input_dir.glob("bav_analysis_*.csv"):
-            if csv_file.name not in processed_files:
-                logger.info(f"Processing existing file: {csv_file.name}")
-                self.handler._process_csv_file(csv_file) 
+        # Process any unprocessed files in root and subfolders
+        for csv_file in self.input_dir.rglob("bav_analysis_*.csv"):
+            try:
+                relative_path = csv_file.relative_to(self.input_dir)
+                relative_path_str = str(relative_path)
+                
+                if relative_path_str not in processed_files:
+                    logger.info(f"Processing existing file: {relative_path_str}")
+                    self.handler._process_csv_file(csv_file)
+            except ValueError:
+                logger.warning(f"File not in input directory: {csv_file}") 
