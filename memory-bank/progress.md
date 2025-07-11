@@ -1302,3 +1302,18 @@ The system is now **production-ready** for 24/7 trading environments.
 - [x] Implemented NET_FUTURES aggregation row with simple addition (not position-weighted)
 - [x] Implemented NET_OPTIONS_F and NET_OPTIONS_Y aggregation rows
 - [x] Modified dashboard to filter NET_OPTIONS rows based on Greek space toggle
+
+### Phase 11: Spot Risk Dashboard Enhancements (2024-12-21)
+- ✅ ATM detection logic updated to use rounded future prices
+  - Changed from Python's banker's rounding to standard treasury bond rounding
+  - ATM always shows rounded future price regardless of available strikes
+  - Fixed graph generation when futures have different expiries than options
+  
+- ✅ Greek profile pre-computation for performance optimization
+  - Profiles automatically computed when CSV data is loaded
+  - Saved to CSV files (greek_profiles_YYYYMMDD_HHMMSS.csv)
+  - Cached profiles loaded instantly for graph rendering
+  - Includes all standard Greeks: delta, gamma, vega, theta, volga, vanna, charm, speed, color, ultima, zomma
+  - Strike range: ATM ± 5.0 in 0.25 increments (41 strikes total)
+
+### Phase 10: Observatory Dashboard & Monitoring System (2024-12-16)

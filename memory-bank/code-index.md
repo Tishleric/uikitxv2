@@ -167,7 +167,15 @@ The main integrated dashboard application combining all features:
 ### apps/dashboards/spot_risk/app.py: Entry point for Spot Risk dashboard. Creates Dash app instance, sets up layout, and registers callbacks. Can run standalone or be integrated into main dashboard.
 
 ### `apps/dashboards/spot_risk/controller.py`
-Core controller for Spot Risk dashboard coordinating data loading, Greek calculations, and filtering. Loads Actant CSV data, integrates with SpotRiskGreekCalculator for bachelier option pricing, finds ATM strikes using delta ~0.5 heuristic. Supports position filtering, expiry grouping, and Greek profile generation with Taylor series expansion. Enhanced with smart column detection for 'expiry_date', 'pos.position', Greek column mapping (delta→delta_F, vega→vega_price, etc.), and fallback logic for alternative column names. Generates Greek profiles both unified and grouped by expiry with full position data including current Greek values for hover tooltips.
+Core controller for Spot Risk dashboard. Manages data loading from processed CSV files, Greek calculations using SpotRiskGreekCalculator, and profile generation. Key methods include find_atm_strike() which returns the rounded future price (to nearest 0.25) as ATM regardless of available strikes, and generate_greek_profiles_by_expiry() which finds global future price before grouping by expiry for consistent ATM detection across all option expiries. The ATM strike is always the rounded future price (e.g., 110.75), not the closest available strike, ensuring Taylor series expansion occurs from the true ATM point. 
+
+New Greek profile pre-computation features:
+- **save_greek_profiles_to_csv()**: Saves computed profiles to CSV files (greek_profiles_YYYYMMDD_HHMMSS.csv) during data load
+- **load_greek_profiles_from_csv()**: Retrieves cached profiles for instant graph rendering  
+- **pre_compute_greek_profiles()**: Automatically generates profiles for all standard Greeks when CSV is loaded
+- Profile caching improves graph rendering performance by eliminating on-demand computation
+
+Integrates with lib.trading.bond_future_options.bachelier_greek for profile generation.
 
 ### apps/dashboards/spot_risk/views.py
 UI components and layout for Spot Risk dashboard. Creates header, control panels, Greek selection checkboxes, view toggle, and data display sections. Fixed structural issue - graph container is now a sibling of table container (not a child) to allow proper toggle visibility. Uses wrapped UI components with default_theme styling.
@@ -196,6 +204,11 @@ Core callback functions for the Spot Risk dashboard. Includes update_spot_risk_t
 **test_calculator_error_handling.py**: Tests error handling in the SpotRiskGreekCalculator. Validates that the calculator raises ValueError when no future price is found, providing clear error messages about what was searched.
 
 **test_full_pipeline.py**: End-to-end integration test processing actual CSV file (bav_analysis_20250708_104022.csv). Tests the complete pipeline from CSV parsing through Greek calculations to output file creation. Handles column name case differences correctly.
+
+### tests/actant_spot_risk/test_atm_detection.py
+Comprehensive tests for ATM (at-the-money) strike detection logic. Covers rounding of future prices to nearest 0.25 increment, fallback to delta-based detection when no future price is available, and various edge cases. Uses standard treasury bond pricing conventions for rounding behavior.
+
+### tests/actant_spot_risk/test_greek_profiles.py
 
 ### tests/bond_future_options/
 
