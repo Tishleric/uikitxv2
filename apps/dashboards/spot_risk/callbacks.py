@@ -143,6 +143,197 @@ def create_greek_profile_graph(greek_name: str, strikes: List[float], values: Li
     return fig.to_dict()
 
 
+def create_aggregate_greek_graph(greek_name: str, profiles_by_expiry: Dict[str, Dict[str, Any]], 
+                                 greek_space: str = 'F') -> Dict:
+    """Create a Plotly figure showing all expiries for a single Greek
+    
+    Args:
+        greek_name: Name of the Greek (e.g., 'delta', 'gamma')
+        profiles_by_expiry: Dict with expiry as key containing strikes, greeks, positions, etc.
+        greek_space: Greek space ('F' or 'y') for display
+        
+    Returns:
+        Dict: Plotly figure dict
+    """
+    from plotly import graph_objects as go
+    
+    logger.info(f"Creating aggregate graph for {greek_name} with {len(profiles_by_expiry)} expiries")
+    
+    # Create figure
+    fig = go.Figure()
+    
+    # Color palette for different expiries
+    color_palette = [
+        default_theme.primary,      # Blue
+        default_theme.accent,       # Teal/Green
+        default_theme.danger,       # Red
+        '#FF8C00',                  # Dark Orange
+        '#9370DB',                  # Medium Purple
+        '#20B2AA',                  # Light Sea Green
+        '#FF1493',                  # Deep Pink
+        '#32CD32',                  # Lime Green
+        '#4169E1',                  # Royal Blue
+        '#FFD700',                  # Gold
+    ]
+    
+    # Sort expiries for consistent display
+    sorted_expiries = sorted(profiles_by_expiry.keys())
+    
+    # Track global ATM (should be same for all expiries)
+    global_atm = None
+    
+    # Plot each expiry's profile
+    for idx, expiry in enumerate(sorted_expiries):
+        profile_data = profiles_by_expiry[expiry]
+        
+        # Get color for this expiry (cycle if more expiries than colors)
+        color = color_palette[idx % len(color_palette)]
+        
+        # Extract data
+        strikes = profile_data['strikes']
+        if greek_name not in profile_data['greeks']:
+            logger.warning(f"Greek {greek_name} not found for expiry {expiry}")
+            continue
+            
+        values = profile_data['greeks'][greek_name]
+        positions = profile_data['positions']
+        atm_strike = profile_data['atm_strike']
+        
+        # Set global ATM from first expiry
+        if global_atm is None:
+            global_atm = atm_strike
+        
+        # Determine Greek display name with space suffix
+        greek_column_map = {
+            'delta': f'delta_{greek_space}',
+            'gamma': f'gamma_{greek_space}',
+            'vega': 'vega_price' if greek_space == 'F' else f'vega_{greek_space}',
+            'theta': f'theta_{greek_space}',
+            'volga': 'volga_price',
+            'vanna': f'vanna_{greek_space}_price',
+            'charm': f'charm_{greek_space}',
+            'speed': f'speed_{greek_space}',
+            'color': f'color_{greek_space}',
+            'ultima': 'ultima',
+            'zomma': 'zomma'
+        }
+        
+        # Get display suffix
+        actual_column = greek_column_map.get(greek_name, greek_name)
+        display_suffix = ''
+        if '_F' in actual_column:
+            display_suffix = '_F'
+        elif '_y' in actual_column:
+            display_suffix = '_y'
+        elif actual_column == 'vega_price':
+            display_suffix = '_price'
+        
+        greek_display_name = f'{greek_name}{display_suffix}'
+        
+        # Add Greek profile line for this expiry
+        fig.add_trace(go.Scatter(
+            x=strikes,
+            y=values,
+            mode='lines',
+            name=f'{expiry}',
+            line=dict(color=color, width=2),
+            hovertemplate=f'{expiry}<br>Strike: %{{x:.2f}}<br>{greek_display_name}: %{{y:.4f}}<extra></extra>',
+            legendgroup=expiry
+        ))
+        
+        # Add position markers for this expiry
+        if positions:
+            position_strikes = []
+            position_values = []
+            position_sizes = []
+            position_texts = []
+            
+            # Find Greek value at each position strike
+            for pos in positions:
+                strike = pos['strike']
+                # Find closest strike in profile
+                closest_idx = min(range(len(strikes)), key=lambda i: abs(strikes[i] - strike))
+                if abs(strikes[closest_idx] - strike) < 0.5:  # Within reasonable range
+                    position_strikes.append(strike)
+                    position_values.append(values[closest_idx])
+                    # Scale position size for visibility (minimum size 10)
+                    position_size = max(10, abs(pos['position']) / 10)
+                    position_sizes.append(position_size)
+                    position_texts.append(
+                        f"{expiry}<br>"
+                        f"{pos['key']}<br>"
+                        f"Type: {pos['type']}<br>"
+                        f"Position: {pos['position']:.0f}<br>"
+                        f"{greek_display_name}: {pos['current_greeks'].get(greek_name, 0):.4f}"
+                    )
+            
+            if position_strikes:
+                fig.add_trace(go.Scatter(
+                    x=position_strikes,
+                    y=position_values,
+                    mode='markers',
+                    name=f'{expiry} Positions',
+                    marker=dict(
+                        size=position_sizes,
+                        color=color,
+                        symbol='triangle-up',
+                        line=dict(width=1, color=default_theme.base_bg)
+                    ),
+                    hovertemplate='%{text}<extra></extra>',
+                    text=position_texts,
+                    showlegend=False,  # Don't clutter legend with position entries
+                    legendgroup=expiry
+                ))
+    
+    # Add global ATM strike vertical line
+    if global_atm is not None:
+        logger.info(f"Adding global ATM vertical line at x={global_atm}")
+        fig.add_vline(
+            x=global_atm,
+            line_dash="dash",
+            line_color=default_theme.danger,
+            annotation_text="ATM",
+            annotation_position="top"
+        )
+    
+    # Update layout
+    fig.update_layout(
+        title=dict(
+            text=f'{greek_display_name} Aggregate Profile - All Expiries',
+            font=dict(size=16, color=default_theme.text_light)
+        ),
+        xaxis=dict(
+            title='Strike Price',
+            color=default_theme.text_light,
+            gridcolor=default_theme.secondary,
+            zeroline=False
+        ),
+        yaxis=dict(
+            title=f'{greek_display_name} Value',
+            color=default_theme.text_light,
+            gridcolor=default_theme.secondary,
+            zeroline=True,
+            zerolinecolor=default_theme.secondary
+        ),
+        plot_bgcolor=default_theme.base_bg,
+        paper_bgcolor=default_theme.panel_bg,
+        hovermode='x unified',
+        showlegend=True,
+        legend=dict(
+            x=1.02,
+            y=0.98,
+            xanchor='left',
+            yanchor='top',
+            bgcolor='rgba(0,0,0,0)',
+            font=dict(color=default_theme.text_light)
+        ),
+        height=500,  # Slightly taller for aggregate view
+        margin=dict(l=60, r=150, t=60, b=50)  # More right margin for legend
+    )
+    
+    return fig.to_dict()
+
+
 def apply_spot_risk_filters(data: List[Dict], expiry_filter: str, type_filter: str, strike_range: List[float]) -> List[Dict]:
     """Apply filters to spot risk data - reusable for table and graph views
     
@@ -871,6 +1062,132 @@ def register_callbacks(app):
             # Sort expiries for consistent display
             sorted_expiries = sorted(profiles_by_expiry.keys())
             
+            # ====== AGGREGATE VIEWS SECTION ======
+            # Create aggregate views header
+            aggregate_header = html.Div(
+                style={
+                    'backgroundColor': default_theme.primary,
+                    'padding': '12px 20px',
+                    'borderRadius': '8px',
+                    'marginBottom': '20px',
+                    'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
+                },
+                children=[
+                    html.H3(
+                        'Aggregate Views - All Expiries',
+                        style={
+                            'color': default_theme.base_bg,
+                            'margin': '0',
+                            'fontSize': '24px',
+                            'fontWeight': '700'
+                        }
+                    ),
+                    html.P(
+                        f'Showing {len(sorted_expiries)} expiries on single graphs',
+                        style={
+                            'color': default_theme.base_bg,
+                            'margin': '8px 0 0 0',
+                            'fontSize': '14px',
+                            'opacity': '0.9'
+                        }
+                    )
+                ]
+            )
+            all_graph_children.append(aggregate_header)
+            
+            # Generate aggregate graphs for each selected Greek
+            aggregate_graph_children = []
+            
+            for greek in selected_greeks:
+                # Check if this Greek exists in any expiry
+                greek_exists = any(greek in profile_data.get('greeks', {}) 
+                                 for profile_data in profiles_by_expiry.values())
+                
+                if not greek_exists:
+                    logger.warning(f"Greek '{greek}' not found in any expiry data")
+                    continue
+                
+                # Create aggregate graph for this Greek
+                try:
+                    aggregate_fig_dict = create_aggregate_greek_graph(
+                        greek_name=greek,
+                        profiles_by_expiry=profiles_by_expiry,
+                        greek_space=greek_space
+                    )
+                    
+                    # Create graph container
+                    aggregate_graph_container = html.Div(
+                        style={
+                            'backgroundColor': default_theme.panel_bg,
+                            'borderRadius': '8px',
+                            'padding': '10px',
+                            'border': f'2px solid {default_theme.primary}',
+                            'boxShadow': '0 2px 6px rgba(0,0,0,0.1)'
+                        },
+                        children=[
+                            Graph(
+                                id=f'spot-risk-aggregate-graph-{greek}',
+                                figure=aggregate_fig_dict,
+                                style={'height': '500px'},
+                                config={'displayModeBar': True, 'displaylogo': False}
+                            ).render()
+                        ]
+                    )
+                    
+                    aggregate_graph_children.append(aggregate_graph_container)
+                    
+                except Exception as e:
+                    logger.error(f"Error creating aggregate graph for {greek}: {e}")
+                    continue
+            
+            if aggregate_graph_children:
+                # Create aggregate graphs grid
+                aggregate_graphs_grid = html.Div(
+                    style={
+                        'display': 'grid',
+                        'gridTemplateColumns': 'repeat(auto-fit, minmax(600px, 1fr))',
+                        'gap': '20px',
+                        'marginBottom': '40px'
+                    },
+                    children=aggregate_graph_children
+                )
+                all_graph_children.append(aggregate_graphs_grid)
+            
+            # ====== INDIVIDUAL EXPIRY VIEWS SECTION ======
+            # Create individual views header
+            individual_header = html.Div(
+                style={
+                    'backgroundColor': default_theme.accent,
+                    'padding': '12px 20px',
+                    'borderRadius': '8px',
+                    'marginBottom': '20px',
+                    'marginTop': '40px',
+                    'boxShadow': '0 2px 4px rgba(0,0,0,0.1)'
+                },
+                children=[
+                    html.H3(
+                        'Individual Expiry Views',
+                        style={
+                            'color': default_theme.base_bg,
+                            'margin': '0',
+                            'fontSize': '24px',
+                            'fontWeight': '700'
+                        }
+                    ),
+                    html.P(
+                        'Detailed Greek profiles for each expiry date',
+                        style={
+                            'color': default_theme.base_bg,
+                            'margin': '8px 0 0 0',
+                            'fontSize': '14px',
+                            'opacity': '0.9'
+                        }
+                    )
+                ]
+            )
+            all_graph_children.append(individual_header)
+            
+            # Continue with existing per-expiry logic
             for expiry in sorted_expiries:
                 profile_data = profiles_by_expiry[expiry]
                 
