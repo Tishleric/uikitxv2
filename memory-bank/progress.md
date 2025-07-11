@@ -1270,6 +1270,19 @@ The system is now **production-ready** for 24/7 trading environments.
   - `run_spot_risk_watcher.py`
   - `run_spot_risk_watcher.bat`
 
+### File Watcher State Tracking Implementation (2025-01-24)
+- **Goal**: Prevent unnecessary reprocessing of files on file watcher restart
+- **Implementation**:
+  - Added JSON-based state tracking (`.file_watcher_state.json`)
+  - Tracks files by path + modification time + file size
+  - Loads state on startup, saves after successful processing
+  - Maintains backward compatibility with existing filename-based tracking
+- **Key Benefits**:
+  - No reprocessing of files on restart
+  - Survives output directory cleanup
+  - Minimal performance impact (lightweight JSON operations)
+  - Graceful fallback if state file is corrupted/missing
+
 ### Spot Risk Tab Performance Optimization (2025-01-21)
 - **Goal**: Replace synchronous Greek calculations with async reading from processed CSV
 - **Implementation**:

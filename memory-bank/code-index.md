@@ -56,7 +56,7 @@ This file provides a quick reference to all code files in the project with brief
 - `parser.py` - CSV parsing for spot risk data
 - `calculator.py` - Greek calculations for spot risk positions
 - `aggregator.py` - Position aggregation by underlying
-- `file_watcher.py` - Automatic file monitoring and processing. Updated to support daily subfolder structure with 3pm EST boundaries.
+- `file_watcher.py` - Automatic file monitoring and processing. Updated to support daily subfolder structure with 3pm EST boundaries. Features persistent state tracking via JSON file to avoid reprocessing files on restart.
 - `interfaces.py` - Type definitions and interfaces
 - `processor.py` - Main processing orchestrator
 
