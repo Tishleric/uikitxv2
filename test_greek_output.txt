@@ -1,0 +1,23 @@
+﻿Testing Greek Profile Pre-computation
+==================================================
+C:\Users\erict\Anaconda3\python.exe : INFO:lib.trading.actant.spot_risk.calculator:Initialized 
+SpotRiskGreekCalculator with DV01=63.0, convexity=0.0042, model=bachelier_v1
+At line:1 char:1
++ C:\Users\erict\Anaconda3\python.exe test_greek_profiles_precompute.py ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO:lib.tradin...el=bachelier_v1:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+CSV directories: ['Z:\\uikitxv2\\data\\output\\spot_risk', 'Z:\\uikitxv2\\data\\input\\actant_spot_risk']
+[MONITOR] apps.dashboards.spot_risk.controller.discover_csv_files executed in 3.766ms
+
+Found 11 CSV files:
+Traceback (most recent call last):
+  File "Z:\uikitxv2\test_greek_profiles_precompute.py", line 100, in <module>
+    test_greek_profile_precomputation()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "Z:\uikitxv2\test_greek_profiles_precompute.py", line 36, in test_greek_profile_precomputation
+    print(f"  {i+1}. {file_info['filename']} - {file_info['timestamp']}")
+                                                ~~~~~~~~~^^^^^^^^^^^^^
+KeyError: 'timestamp'

@@ -19,6 +19,29 @@ This file tracks the current focus and next steps for the UIKitXv2 project.
 
 ### Latest Changes (2024-12-21)
 
+#### Spot Risk Aggregate Greek Graphs (NEW)
+Added aggregate Greek profile graphs that display all expiries on a single graph per Greek:
+- **Implementation**: New `create_aggregate_greek_graph()` function creates multi-expiry visualizations
+- **Features**:
+  - Each expiry displayed as a separate colored line
+  - Positions plotted on their respective expiry lines with matching colors
+  - Global ATM marker shown (same for all expiries as they share underlying future)
+  - Color palette cycles through 10 distinct colors for multiple expiries
+  - Interactive legend allows toggling expiry visibility
+- **Layout Changes**:
+  - Aggregate views displayed first with prominent header
+  - Individual expiry views follow with their own section header
+  - Aggregate graphs use 500px height and wider grid (600px min-width)
+- **Files Modified**:
+  - `apps/dashboards/spot_risk/callbacks.py`:
+    - Added `create_aggregate_greek_graph()` function
+    - Modified `update_greek_graphs()` to generate aggregate views first
+    - Added section headers for better organization
+- **Benefits**: 
+  - Quick comparison of Greek profiles across expiries
+  - Better visualization of term structure effects
+  - Maintains all existing per-expiry functionality
+
 #### Spot Risk Greek Profile Pre-computation
 Added asynchronous Greek profile pre-computation to improve graph rendering performance:
 - **Implementation**: Greek profiles are automatically computed and saved to CSV when data is loaded
