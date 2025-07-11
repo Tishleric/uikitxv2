@@ -2,6 +2,45 @@
 
 ## Recent Updates (January 2025)
 
+### January 23, 2025 - Spot Risk Futures Greek Hardcoding
+- **Task**: Set hardcoded Greek values for futures positions in spot risk processing
+- **Status**: ✅ Complete  
+- **Details**:
+  - **Requirement**: Futures should have delta_F=63.0 and gamma_F=0.0042
+  - **Implementation**:
+    - Modified `SpotRiskGreekCalculator.calculate_greeks()` method
+    - Added futures processing section after options Greek calculation
+    - Futures now get hardcoded values (not calculated via API)
+  - **Greek Values Set**:
+    - delta_F = 63.0 (hardcoded)
+    - gamma_F = 0.0042 (hardcoded)
+    - delta_y and gamma_y calculated using DV01 conversion
+    - All other Greeks set to 0.0 (appropriate for futures)
+  - **Technical**: Handles different column formats (itype='F', Instrument Type='FUTURE')
+  - **Testing**: Created test scripts to verify correct values applied
+
+### January 23, 2025 - NET_FUTURES Aggregation Implementation
+- **Task**: Add NET_FUTURES row to CSV during processing that sums futures positions and Greeks
+- **Status**: ✅ Complete
+- **Details**:
+  - **Requirement**: Create a single row summing all futures with non-zero positions
+  - **Implementation**:
+    - Added `calculate_aggregates()` method to `SpotRiskGreekCalculator`
+    - Modified file_watcher to call calculate_aggregates before saving CSV
+    - NET_FUTURES row only includes futures with position != 0
+  - **Calculation Logic**:
+    - Positions: Direct sum of all non-zero futures positions
+    - Greeks: Simple addition of Greek values (not position-weighted)
+    - Handles NaN values properly in summation (skipna=True)
+    - Clears non-applicable fields (strike, bid, ask, etc.)
+  - **Technical Notes**:
+    - Handles case sensitivity for column names (position/po, itype variations)
+    - Sets appropriate metadata (itype='NET', model_version='net_aggregate')
+    - Robust error handling for missing position columns
+    - **Fixed**: Added support for 'pos.position' column (lowercase from parser)
+  - **Testing**: Verified with synthetic data and full pipeline test
+  - **Bug Fix**: Updated to handle 'pos.position' column name from parsed CSV files
+
 ### January 21, 2025 - Spot Risk Dashboard Greek Profiles by Expiry
 - **Task**: Enhance Greek profile graphs to group by expiry date
 - **Status**: ✅ Complete
@@ -1255,3 +1294,11 @@ The system is now **production-ready** for 24/7 trading environments.
   - `apps/dashboards/spot_risk/controller.py`
   - `tests/actant_spot_risk/test_full_pipeline.py`
   - Created `run_spot_risk_processing.bat` for consistent Python usage
+
+## Trading system architecture
+- [x] Established code and memory bank structures
+- [x] Improved monitoring decorator architecture  
+- [x] Added hardcoded futures Greeks (delta_F=63.0, gamma_F=0.0042)
+- [x] Implemented NET_FUTURES aggregation row with simple addition (not position-weighted)
+- [x] Implemented NET_OPTIONS_F and NET_OPTIONS_Y aggregation rows
+- [x] Modified dashboard to filter NET_OPTIONS rows based on Greek space toggle

@@ -189,6 +189,39 @@ def apply_spot_risk_filters(data: List[Dict], expiry_filter: str, type_filter: s
     return filtered_data
 
 
+def apply_spot_risk_filters_with_greek_space(data: List[Dict], expiry_filter: str, type_filter: str, 
+                                            strike_range: List[float], greek_space: str = 'F') -> List[Dict]:
+    """Apply filters to spot risk data including Greek space filtering for NET rows
+    
+    Args:
+        data: List of data rows
+        expiry_filter: Expiry date filter value ('ALL' or specific date)
+        type_filter: Option type filter ('ALL', 'C', 'P', 'F')
+        strike_range: [min, max] strike range
+        greek_space: Greek space selection ('F' or 'y')
+        
+    Returns:
+        Filtered list of data rows
+    """
+    # First apply standard filters
+    filtered_data = apply_spot_risk_filters(data, expiry_filter, type_filter, strike_range)
+    
+    # Then filter NET_OPTIONS rows based on Greek space
+    final_data = []
+    for row in filtered_data:
+        key = row.get('key', row.get('instrument_key', ''))
+        
+        # Filter NET_OPTIONS rows based on Greek space
+        if key == 'NET_OPTIONS_F' and greek_space != 'F':
+            continue  # Skip F-space NET_OPTIONS when in Y-space
+        elif key == 'NET_OPTIONS_Y' and greek_space != 'y':
+            continue  # Skip Y-space NET_OPTIONS when in F-space
+        else:
+            final_data.append(row)
+    
+    return final_data
+
+
 def register_callbacks(app):
     """Register all callbacks for the Spot Risk dashboard
     
@@ -313,8 +346,8 @@ def register_callbacks(app):
             return [], []
         
         # Apply filters using the reusable function
-        filtered_data = apply_spot_risk_filters(
-            stored_data, expiry_filter, type_filter, strike_range
+        filtered_data = apply_spot_risk_filters_with_greek_space(
+            stored_data, expiry_filter, type_filter, strike_range, greek_space
         )
         
         # Build visible columns based on Greek selections and Greek space filter
@@ -801,8 +834,8 @@ def register_callbacks(app):
         # Generate Greek profiles
         try:
             # Apply filters to data before generating profiles
-            filtered_data = apply_spot_risk_filters(
-                stored_data, expiry_filter, type_filter, strike_range
+            filtered_data = apply_spot_risk_filters_with_greek_space(
+                stored_data, expiry_filter, type_filter, strike_range, greek_space
             )
             
             if not filtered_data:
