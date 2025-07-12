@@ -9,9 +9,9 @@ This file provides a quick reference to all code files in the project with brief
 
 ### Spot Risk Dashboard (`apps/dashboards/spot_risk/`)
 - `app.py` - Spot Risk dashboard application entry point
-- `controller.py` - Business logic controller (MVC pattern) - handles CSV data loading, Greek calculations, and profile generation. Updated to support daily subfolder structure with `_get_latest_date_folder()` method.
-- `views.py` - UI components and layout definitions with Greek display groups
-- `callbacks.py` - Dash callbacks for interactivity, Greek graph generation, and filters
+- `controller.py` - Business logic controller (MVC pattern) - handles CSV data loading, Greek calculations, and profile generation. Updated to support daily subfolder structure with `_get_latest_date_folder()` method. Added `_transform_greeks_to_y_space()` method that properly transforms F-space Greeks to Y-space with 1000x scaling when Y-space is selected. Fixed Y-space transformation for cached profiles by applying the same transformation logic in the cached profile processing path. Added `_adjust_greeks_for_put()` method to apply put-call parity adjustments (delta_put = delta_call - 1) for put options, ensuring negative delta values are displayed correctly. Contains debug logging to trace both Y-space transformation and put adjustment flows.
+- `views.py` - UI components and layout definitions with Greek display groups. Added file completion stores and file watcher interval for automatic refresh on processing completion. Added model parameters display section showing Future Price, DV01, Convexity, and Average Implied Volatility values. File watcher interval set to 5 seconds to prevent UI flickering while maintaining responsiveness.
+- `callbacks.py` - Dash callbacks for interactivity, Greek graph generation, and filters. New `check_file_completion` callback monitors file watcher state and triggers automatic refresh when processing completes. Added `update_model_parameters` callback to display Future Price, DV01 (63.0), Convexity (0.0042), and average Implied Volatility per expiry (displayed as decimal, e.g., 0.7550).
 - `state.py` - State management for Greek selections and UI preferences
 
 ### Observatory Dashboard (`apps/dashboards/observatory/`)

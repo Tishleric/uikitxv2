@@ -1,0 +1,457 @@
+{
+  "data\\input\\actant_spot_risk\\bav_analysis_20250708_104022.csv|1751989223.1080177|6272": {
+    "processed_at": "2025-07-11T19:17:20.162208",
+    "output_file": "data\\output\\spot_risk\\2025-07-11\\bav_analysis_processed_20250708_104022.csv",
+    "relative_path": "bav_analysis_20250708_104022.csv"
+  },
+  "data\\input\\actant_spot_risk\\bav_analysis_20250709_193912.csv|1752107952.9617856|6489": {
+    "processed_at": "2025-07-11T19:17:22.371658",
+    "output_file": "data\\output\\spot_risk\\2025-07-11\\bav_analysis_processed_20250709_193912.csv",
+    "relative_path": "bav_analysis_20250709_193912.csv"
+  },
+  "data\\input\\actant_spot_risk\\bav_analysis_20250710_192940.csv|1752193780.928011|6220": {
+    "processed_at": "2025-07-11T19:17:24.344128",
+    "output_file": "data\\output\\spot_risk\\2025-07-11\\bav_analysis_processed_20250710_192940.csv",
+    "relative_path": "bav_analysis_20250710_192940.csv"
+  },
+  "data\\input\\actant_spot_risk\\bav_analysis_20250711_105540.csv|1752249341.767688|7405": {
+    "processed_at": "2025-07-11T19:17:26.147106",
+    "output_file": "data\\output\\spot_risk\\2025-07-11\\bav_analysis_processed_20250711_105540.csv",
+    "relative_path": "bav_analysis_20250711_105540.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_173748.csv|1752273469.6719396|6134": {
+    "processed_at": "2025-07-11T19:17:28.020881",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_173748.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_173748.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180015.csv|1752274816.1715662|6134": {
+    "processed_at": "2025-07-11T19:17:29.934776",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180015.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180015.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180021.csv|1752274822.572085|6134": {
+    "processed_at": "2025-07-11T19:17:31.784683",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180021.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180021.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180027.csv|1752274828.9986267|6134": {
+    "processed_at": "2025-07-11T19:17:33.629245",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180027.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180027.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180034.csv|1752274835.3559449|6134": {
+    "processed_at": "2025-07-11T19:17:35.771518",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180034.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180034.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180040.csv|1752274841.788351|6134": {
+    "processed_at": "2025-07-11T19:17:37.771489",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180040.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180040.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180047.csv|1752274848.1329708|6134": {
+    "processed_at": "2025-07-11T19:17:39.775727",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180047.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180047.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180053.csv|1752274854.556271|6134": {
+    "processed_at": "2025-07-11T19:17:41.163741",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180053.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180053.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180059.csv|1752274860.9046247|6134": {
+    "processed_at": "2025-07-11T19:17:41.931217",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180059.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180059.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180106.csv|1752274867.3285174|6134": {
+    "processed_at": "2025-07-11T19:17:42.742689",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180106.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180106.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180112.csv|1752274873.6682134|6134": {
+    "processed_at": "2025-07-11T19:17:43.574113",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180112.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180112.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180118.csv|1752274880.1144028|6134": {
+    "processed_at": "2025-07-11T19:17:44.366120",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180118.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180118.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180125.csv|1752274886.576706|6134": {
+    "processed_at": "2025-07-11T19:17:45.171775",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180125.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180125.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180152.csv|1752274913.5337837|6134": {
+    "processed_at": "2025-07-11T19:17:45.986202",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180152.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180152.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180155.csv|1752274916.8773263|6134": {
+    "processed_at": "2025-07-11T19:17:46.813717",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180155.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180155.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180159.csv|1752274920.2261894|6134": {
+    "processed_at": "2025-07-11T19:17:47.628060",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180159.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180159.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180202.csv|1752274923.5844285|6134": {
+    "processed_at": "2025-07-11T19:17:48.419085",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180202.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180202.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180205.csv|1752274926.9064682|6134": {
+    "processed_at": "2025-07-11T19:17:49.252128",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180205.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180205.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180209.csv|1752274930.1841755|6134": {
+    "processed_at": "2025-07-11T19:17:50.112567",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180209.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180209.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180212.csv|1752274933.621884|6134": {
+    "processed_at": "2025-07-11T19:17:50.977198",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180212.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180212.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180215.csv|1752274936.9848366|6134": {
+    "processed_at": "2025-07-11T19:17:51.820910",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180215.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180215.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180219.csv|1752274940.2977328|6134": {
+    "processed_at": "2025-07-11T19:17:52.659685",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180219.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180219.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180222.csv|1752274943.692598|6134": {
+    "processed_at": "2025-07-11T19:17:53.524997",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180222.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180222.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180225.csv|1752274947.0265055|6134": {
+    "processed_at": "2025-07-11T19:17:54.417102",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180225.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180225.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180229.csv|1752274950.3390841|6134": {
+    "processed_at": "2025-07-11T19:17:55.252334",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180229.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180229.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180232.csv|1752274953.7345438|6134": {
+    "processed_at": "2025-07-11T19:17:56.259180",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180232.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180232.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180236.csv|1752274957.0226135|6134": {
+    "processed_at": "2025-07-11T19:17:57.185051",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180236.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180236.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_180239.csv|1752274960.354526|6134": {
+    "processed_at": "2025-07-11T19:17:58.063536",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_180239.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_180239.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181449.csv|1752275690.844271|6134": {
+    "processed_at": "2025-07-11T19:17:58.935201",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181449.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181449.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181453.csv|1752275694.2790508|6134": {
+    "processed_at": "2025-07-11T19:17:59.857810",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181453.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181453.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181456.csv|1752275697.6426678|6134": {
+    "processed_at": "2025-07-11T19:18:00.694974",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181456.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181456.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181500.csv|1752275701.277762|6134": {
+    "processed_at": "2025-07-11T19:18:01.588686",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181500.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181500.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181503.csv|1752275704.685422|6134": {
+    "processed_at": "2025-07-11T19:18:02.495920",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181503.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181503.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181507.csv|1752275708.0746188|6134": {
+    "processed_at": "2025-07-11T19:18:03.362831",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181507.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181507.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181510.csv|1752275711.5488734|6134": {
+    "processed_at": "2025-07-11T19:18:04.258720",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181510.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181510.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181513.csv|1752275714.9343922|6134": {
+    "processed_at": "2025-07-11T19:18:05.148704",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181513.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181513.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181517.csv|1752275718.31414|6134": {
+    "processed_at": "2025-07-11T19:18:06.048120",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181517.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181517.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181520.csv|1752275721.7980685|6134": {
+    "processed_at": "2025-07-11T19:18:06.933900",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181520.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181520.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181524.csv|1752275725.206738|6134": {
+    "processed_at": "2025-07-11T19:18:07.860362",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181524.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181524.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181527.csv|1752275728.5709329|6134": {
+    "processed_at": "2025-07-11T19:18:08.757399",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181527.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181527.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181530.csv|1752275732.0513227|6134": {
+    "processed_at": "2025-07-11T19:18:09.647546",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181530.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181530.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181534.csv|1752275735.4904711|6134": {
+    "processed_at": "2025-07-11T19:18:10.550577",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181534.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181534.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181537.csv|1752275738.8590338|6134": {
+    "processed_at": "2025-07-11T19:18:11.425874",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181537.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181537.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181542.csv|1752275773.893135|6134": {
+    "processed_at": "2025-07-11T19:18:12.294979",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181542.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181542.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181928.csv|1752275969.880243|6134": {
+    "processed_at": "2025-07-11T19:19:35.621221",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181928.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181928.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181932.csv|1752275973.1010227|6134": {
+    "processed_at": "2025-07-11T19:19:40.183278",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181932.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181932.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181935.csv|1752275976.3867497|6134": {
+    "processed_at": "2025-07-11T19:19:47.897130",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181935.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181935.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181938.csv|1752275979.5953133|6134": {
+    "processed_at": "2025-07-11T19:19:52.823018",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181938.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181938.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181942.csv|1752275982.891262|6134": {
+    "processed_at": "2025-07-11T19:19:56.611903",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181942.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181942.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181945.csv|1752275986.0836074|6134": {
+    "processed_at": "2025-07-11T19:20:00.481492",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181945.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181945.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181948.csv|1752275989.3606622|6134": {
+    "processed_at": "2025-07-11T19:20:04.290389",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181948.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181948.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181951.csv|1752275992.559597|6134": {
+    "processed_at": "2025-07-11T19:20:08.497410",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181951.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181951.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181954.csv|1752275995.8247302|6134": {
+    "processed_at": "2025-07-11T19:20:12.302836",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181954.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181954.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_181958.csv|1752275998.9948094|6134": {
+    "processed_at": "2025-07-11T19:20:16.015787",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_181958.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_181958.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182001.csv|1752276002.273762|6134": {
+    "processed_at": "2025-07-11T19:20:19.719345",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182001.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182001.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182004.csv|1752276005.5052252|6134": {
+    "processed_at": "2025-07-11T19:20:23.448840",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182004.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182004.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182007.csv|1752276008.7918482|6134": {
+    "processed_at": "2025-07-11T19:20:27.142356",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182007.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182007.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182011.csv|1752276011.9809027|6134": {
+    "processed_at": "2025-07-11T19:20:30.996622",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182011.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182011.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182014.csv|1752276015.2751887|6134": {
+    "processed_at": "2025-07-11T19:20:34.896546",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182014.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182014.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182017.csv|1752276018.4869823|6134": {
+    "processed_at": "2025-07-11T19:20:38.657999",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182017.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182017.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182020.csv|1752276021.8272505|6134": {
+    "processed_at": "2025-07-11T19:20:42.414360",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182020.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182020.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182024.csv|1752276025.0015106|6134": {
+    "processed_at": "2025-07-11T19:20:46.449165",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182024.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182024.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182027.csv|1752276028.292824|6134": {
+    "processed_at": "2025-07-11T19:20:50.413646",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182027.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182027.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182030.csv|1752276031.5786796|6134": {
+    "processed_at": "2025-07-11T19:20:54.297317",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182030.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182030.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182034.csv|1752276034.8465078|6134": {
+    "processed_at": "2025-07-11T19:20:58.210547",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182034.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182034.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182037.csv|1752276038.0371718|6134": {
+    "processed_at": "2025-07-11T19:21:02.040835",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182037.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182037.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182040.csv|1752276041.3911395|6134": {
+    "processed_at": "2025-07-11T19:21:05.796045",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182040.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182040.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182043.csv|1752276044.6213388|6134": {
+    "processed_at": "2025-07-11T19:21:09.562723",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182043.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182043.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182047.csv|1752276047.893818|6134": {
+    "processed_at": "2025-07-11T19:21:13.376073",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182047.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182047.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182050.csv|1752276051.092432|6134": {
+    "processed_at": "2025-07-11T19:21:17.244641",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182050.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182050.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182053.csv|1752276054.3848727|6134": {
+    "processed_at": "2025-07-11T19:21:21.120514",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182053.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182053.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182056.csv|1752276057.6143582|6134": {
+    "processed_at": "2025-07-11T19:21:25.055267",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182056.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182056.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182100.csv|1752276060.9109888|6134": {
+    "processed_at": "2025-07-11T19:21:28.856554",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182100.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182100.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182103.csv|1752276064.1154742|6134": {
+    "processed_at": "2025-07-11T19:21:32.795119",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182103.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182103.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182106.csv|1752276067.3916776|6134": {
+    "processed_at": "2025-07-11T19:21:36.712649",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182106.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182106.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182109.csv|1752276070.6699882|6134": {
+    "processed_at": "2025-07-11T19:21:40.591054",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182109.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182109.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182113.csv|1752276073.9673402|6134": {
+    "processed_at": "2025-07-11T19:21:44.677716",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182113.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182113.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182116.csv|1752276077.1873808|6134": {
+    "processed_at": "2025-07-11T19:21:48.554590",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182116.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182116.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182119.csv|1752276080.4614449|6134": {
+    "processed_at": "2025-07-11T19:21:52.954831",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182119.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182119.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182122.csv|1752276083.7051558|6134": {
+    "processed_at": "2025-07-11T19:21:55.683189",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182122.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182122.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182720.csv|1752276441.6701224|34511": {
+    "processed_at": "2025-07-11T19:27:32.929863",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182720.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182720.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182727.csv|1752276448.051888|34511": {
+    "processed_at": "2025-07-11T19:27:38.910974",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182727.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182727.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182733.csv|1752276454.4119804|34511": {
+    "processed_at": "2025-07-11T19:27:50.552364",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182733.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182733.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_182739.csv|1752276460.847088|34511": {
+    "processed_at": "2025-07-11T19:28:03.637929",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_182739.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_182739.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_191348.csv|1752279229.3105822|14295": {
+    "processed_at": "2025-07-11T20:13:57.527005",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_191348.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_191348.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_191354.csv|1752279235.608036|14295": {
+    "processed_at": "2025-07-11T20:14:04.101476",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_191354.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_191354.csv"
+  },
+  "data\\input\\actant_spot_risk\\2025-07-12\\bav_analysis_20250711_191400.csv|1752279241.8868814|14295": {
+    "processed_at": "2025-07-11T20:14:11.668106",
+    "output_file": "data\\output\\spot_risk\\2025-07-12\\bav_analysis_processed_20250711_191400.csv",
+    "relative_path": "2025-07-12\\bav_analysis_20250711_191400.csv"
+  }
+}

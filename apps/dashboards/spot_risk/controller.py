@@ -585,11 +585,14 @@ class SpotRiskController:
                 - model_params: Dict of model parameters used
                 - total_position: Net position size for this expiry
         """
+        logger.info(f"[DEBUG ENTRY] generate_greek_profiles_by_expiry called with greek_space='{greek_space}', selected_greeks={selected_greeks}")
+        
         if self.current_data is None or self.current_data.empty:
             logger.warning("No data available for Greek profile generation")
             return {}
         
         # Check for cached profiles first
+        logger.info(f"[DEBUG CACHE CHECK] Checking for cached profiles...")
         cached_profiles = self.load_greek_profiles_from_csv(self.data_timestamp)
         if cached_profiles:
             logger.info(f"Using cached Greek profiles for {len(cached_profiles)} expiries")
@@ -616,6 +619,35 @@ class SpotRiskController:
                     
                     if expiry_col:
                         expiry_df = self.current_data[self.current_data[expiry_col] == expiry]
+                        
+                        # Determine option type and apply put adjustments if needed
+                        option_types = expiry_df['itype'].value_counts() if 'itype' in expiry_df.columns else pd.Series()
+                        if 'P' in option_types.index and 'C' not in option_types.index:
+                            # This expiry contains only puts
+                            option_type = 'put'
+                            logger.info(f"[DEBUG PUT ADJUSTMENT CACHED] Expiry {expiry} identified as PUT options in cached data")
+                            # Apply put adjustments to F-space Greeks
+                            filtered_greeks = self._adjust_greeks_for_put(filtered_greeks)
+                        elif 'C' in option_types.index:
+                            option_type = 'call'
+                        else:
+                            option_type = 'call'  # Default fallback
+                        
+                        # Apply Y-space transformation if needed (for cached profiles)
+                        if greek_space == 'y':
+                            logger.info(f"[DEBUG Y-SPACE CACHED] Applying Y-space transformation to cached profile for expiry: {expiry}")
+                            
+                            # Get DV01 and convexity from calculator
+                            dv01 = self.calculator.dv01 / 1000.0  # Convert to decimal (63.0 → 0.063)
+                            convexity = self.calculator.convexity
+                            
+                            # Option type was already determined above
+                            
+                            # Transform Greeks to Y-space
+                            filtered_greeks = self._transform_greeks_to_y_space(
+                                filtered_greeks, dv01, convexity, option_type
+                            )
+                            logger.info(f"[DEBUG Y-SPACE CACHED] Transformation complete for {expiry}")
                         
                         for _, pos in expiry_df.iterrows():
                             strike_val = pos.get('strike')
@@ -647,6 +679,7 @@ class SpotRiskController:
                     }
             
             if filtered_profiles:
+                logger.info(f"[DEBUG CACHE RETURN] Returning cached profiles for {len(filtered_profiles)} expiries")
                 return filtered_profiles
             else:
                 logger.info("Cached profiles don't contain requested Greeks, computing fresh")
@@ -830,6 +863,7 @@ class SpotRiskController:
                 from lib.trading.bond_future_options.bachelier_greek import generate_greek_profiles_data
                 
                 # Generate Greek profiles using bachelier_greek
+                logger.info(f"[DEBUG PROFILE GEN] Generating profiles for expiry {expiry}: ATM={atm_strike}, sigma={sigma}, tau={tau}, F={F}")
                 profile_data = generate_greek_profiles_data(
                     K=int(atm_strike),  # Convert to int as expected by the function
                     sigma=sigma,
@@ -838,11 +872,64 @@ class SpotRiskController:
                     num_points=num_points
                 )
                 
+                logger.info(f"[DEBUG PROFILE DATA] Profile generated with keys: {list(profile_data.keys()) if profile_data else 'None'}")
+                if profile_data and 'greeks_ana' in profile_data:
+                    logger.info(f"[DEBUG PROFILE DATA] Available Greeks: {list(profile_data['greeks_ana'].keys())}")
+                
                 # Filter for selected Greeks
                 filtered_greeks = {}
                 for greek in selected_greeks:
                     if greek in profile_data.get('greeks_ana', {}):
                         filtered_greeks[greek] = profile_data['greeks_ana'][greek]
+                        logger.info(f"[DEBUG FILTER] Added {greek} to filtered_greeks")
+                    else:
+                        logger.warning(f"[DEBUG FILTER] Greek {greek} not found in profile data")
+                
+                # Determine option type for this expiry (for put adjustments)
+                option_types = expiry_df['itype'].value_counts() if 'itype' in expiry_df.columns else pd.Series()
+                if 'P' in option_types.index and 'C' not in option_types.index:
+                    # This expiry contains only puts
+                    option_type = 'put'
+                    logger.info(f"[DEBUG PUT ADJUSTMENT] Expiry {expiry} identified as PUT options")
+                    # Apply put adjustments to F-space Greeks
+                    filtered_greeks = self._adjust_greeks_for_put(filtered_greeks)
+                elif 'C' in option_types.index:
+                    option_type = 'call'
+                else:
+                    option_type = 'call'  # Default fallback
+                
+                logger.info(f"[DEBUG PRE-TRANSFORM] About to check transformation: greek_space='{greek_space}', filtered_greeks keys={list(filtered_greeks.keys()) if filtered_greeks else 'Empty'}, len={len(filtered_greeks)}")
+                logger.info(f"[DEBUG PRE-TRANSFORM] Condition check: (greek_space == 'y')={greek_space == 'y'}, (filtered_greeks)={bool(filtered_greeks)}")
+                
+                # Apply Y-space transformation if needed
+                if greek_space == 'y' and filtered_greeks:
+                    logger.info(f"[DEBUG Y-SPACE] Applying Y-space transformation for expiry: {expiry}")
+                    
+                    # Get DV01 and convexity from calculator
+                    dv01 = self.calculator.dv01 / 1000.0  # Convert to decimal (63.0 → 0.063)
+                    convexity = self.calculator.convexity
+                    logger.info(f"[DEBUG Y-SPACE] DV01: {dv01}, Convexity: {convexity}")
+                    
+                    # Option type was already determined above
+                    logger.info(f"[DEBUG Y-SPACE] Option type: {option_type}")
+                    logger.info(f"[DEBUG Y-SPACE] Applying Y-space transformation for expiry {expiry} with DV01={dv01:.6f}, convexity={convexity:.6f}")
+                    
+                    # Log sample values before transformation
+                    for greek, values in filtered_greeks.items():
+                        if values:
+                            logger.info(f"[DEBUG Y-SPACE] {greek} F-space range: [{min(values):.6f}, {max(values):.6f}], first 3 values: {values[:3]}")
+                    
+                    # Transform Greeks to Y-space
+                    filtered_greeks = self._transform_greeks_to_y_space(
+                        filtered_greeks, dv01, convexity, option_type
+                    )
+                    
+                    # Log sample values after transformation
+                    for greek, values in filtered_greeks.items():
+                        if values:
+                            logger.info(f"[DEBUG Y-SPACE] {greek} Y-space range: [{min(values):.6f}, {max(values):.6f}], first 3 values: {values[:3]}")
+                else:
+                    logger.info(f"[DEBUG Y-SPACE] No transformation - greek_space: {greek_space}, has greeks: {bool(filtered_greeks)}")
                 
                 # Track which Greek columns were actually used
                 greek_columns_used = {}
@@ -898,6 +985,13 @@ class SpotRiskController:
             except Exception as e:
                 logger.error(f"Error generating profile for expiry {expiry}: {e}")
                 continue
+        
+        logger.info(f"[DEBUG FINAL RETURN] Returning profiles for {len(profiles_by_expiry)} expiries")
+        for exp, prof in profiles_by_expiry.items():
+            if 'greeks' in prof and prof['greeks']:
+                sample_greek = list(prof['greeks'].keys())[0]
+                sample_values = prof['greeks'][sample_greek]
+                logger.info(f"[DEBUG FINAL RETURN] {exp}: {sample_greek} range [{min(sample_values):.6f}, {max(sample_values):.6f}]")
         
         return profiles_by_expiry
     
@@ -1377,3 +1471,133 @@ class SpotRiskController:
         except Exception as e:
             logger.error(f"Error pre-computing Greek profiles: {e}")
             return False 
+    
+    def _adjust_greeks_for_put(self, f_space_greeks: Dict[str, Any]) -> Dict[str, Any]:
+        """Adjust F-space Greeks from call to put values
+        
+        The bachelier_greek module generates call Greeks by default.
+        This method applies the put-call parity adjustments.
+        
+        Args:
+            f_space_greeks: Dictionary of Greek name -> array of F-space call values
+            
+        Returns:
+            Dict: Adjusted Greeks for put options
+        """
+        import numpy as np
+        
+        logger.info(f"[DEBUG PUT ADJUSTMENT] Adjusting Greeks for put option")
+        
+        adjusted_greeks = {}
+        
+        for greek, values in f_space_greeks.items():
+            if greek == 'delta':
+                # Put delta = Call delta - 1
+                adjusted_values = np.array(values) - 1.0
+                logger.info(f"[DEBUG PUT ADJUSTMENT] Delta: call range [{min(values):.6f}, {max(values):.6f}] → put range [{min(adjusted_values):.6f}, {max(adjusted_values):.6f}]")
+                adjusted_greeks[greek] = adjusted_values.tolist()
+            else:
+                # Most other Greeks remain the same for puts
+                # (gamma, vega, theta magnitude are same for calls and puts)
+                adjusted_greeks[greek] = values
+                
+        return adjusted_greeks
+
+    def _transform_greeks_to_y_space(self, f_space_greeks: Dict[str, Any], 
+                                    dv01: float, convexity: float, 
+                                    option_type: str = 'call') -> Dict[str, Any]:
+        """Transform F-space Greeks to Y-space with proper scaling
+        
+        This method replicates the transformations from pricing_engine.py
+        and applies the 1000x scaling from analysis.py
+        
+        Args:
+            f_space_greeks: Dictionary of Greek name -> array of F-space values
+            dv01: Dollar Value of 01 (as decimal, e.g., 0.063)
+            convexity: Future convexity
+            option_type: 'call' or 'put' (affects delta calculation)
+            
+        Returns:
+            Dict: Transformed Greeks in Y-space with proper scaling
+        """
+        import numpy as np
+        
+        logger.info(f"[DEBUG Y-SPACE TRANSFORM] Starting transformation with DV01={dv01}, convexity={convexity}, option_type={option_type}")
+        
+        y_space_greeks = {}
+        
+        for greek_name, f_values in f_space_greeks.items():
+            # Convert to numpy array for vectorized operations
+            f_array = np.array(f_values)
+            
+            if greek_name == 'delta':
+                # For puts, delta is already negative in F-space
+                # Y-space: delta_y = delta_F * DV01
+                y_values = f_array * dv01
+                # Scale by 1000 (as per analysis.py line ~105)
+                y_space_greeks[greek_name] = (y_values * 1000).tolist()
+                
+            elif greek_name == 'gamma':
+                # Y-space: gamma_y = gamma_F * (DV01)² + delta_F * convexity
+                # Need delta_F for the convexity adjustment
+                if 'delta' in f_space_greeks:
+                    delta_f_array = np.array(f_space_greeks['delta'])
+                    y_values = f_array * (dv01 ** 2) + delta_f_array * convexity
+                else:
+                    # Fallback without convexity adjustment if delta not available
+                    logger.warning("Delta not available for gamma_y convexity adjustment")
+                    y_values = f_array * (dv01 ** 2)
+                # Scale by 1000
+                y_space_greeks[greek_name] = (y_values * 1000).tolist()
+                
+            elif greek_name == 'vega':
+                # Y-space: vega_y = vega_F * DV01
+                y_values = f_array * dv01
+                # Scale by 1000
+                y_space_greeks[greek_name] = (y_values * 1000).tolist()
+                
+            elif greek_name == 'theta':
+                # Theta is already in the same units for both spaces
+                # But it's scaled by 1000 in analysis.py
+                y_space_greeks[greek_name] = (f_array * 1000).tolist()
+                
+            elif greek_name == 'vanna':
+                # Y-space: vanna_y = vanna_F * DV01²
+                y_values = f_array * (dv01 ** 2)
+                # Scale by 1000
+                y_space_greeks[greek_name] = (y_values * 1000).tolist()
+                
+            elif greek_name == 'charm':
+                # Y-space: charm_y = charm_F * (-DV01)
+                y_values = f_array * (-dv01)
+                # Scale by 1000
+                y_space_greeks[greek_name] = (y_values * 1000).tolist()
+                
+            elif greek_name == 'speed':
+                # Y-space: speed_y = speed_F * (-DV01)³
+                y_values = f_array * ((-dv01) ** 3)
+                # Scale by 1000
+                y_space_greeks[greek_name] = (y_values * 1000).tolist()
+                
+            elif greek_name == 'color':
+                # Y-space: color_y = color_F * (-DV01)²
+                y_values = f_array * ((-dv01) ** 2)
+                # Scale by 1000
+                y_space_greeks[greek_name] = (y_values * 1000).tolist()
+                
+            elif greek_name == 'volga':
+                # Y-space: volga_y = volga_F * (DV01)²
+                y_values = f_array * (dv01 ** 2)
+                # Scale by 1000
+                y_space_greeks[greek_name] = (y_values * 1000).tolist()
+                
+            elif greek_name in ['ultima', 'zomma']:
+                # These Greeks are scaled by 1000 but don't have specific Y-space transformations
+                y_space_greeks[greek_name] = (f_array * 1000).tolist()
+                
+            else:
+                # Unknown Greek - pass through with just scaling
+                logger.warning(f"Unknown Greek '{greek_name}' - applying only 1000x scaling")
+                y_space_greeks[greek_name] = (f_array * 1000).tolist()
+        
+        return y_space_greeks 

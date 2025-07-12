@@ -192,6 +192,47 @@ def create_spot_risk_content(controller=None):
         ]
     )
     
+    # Create model parameters display
+    model_params = Container(
+        id='spot-risk-model-params',
+        style={
+            'backgroundColor': default_theme.panel_bg,
+            'borderRadius': '8px',
+            'padding': '15px 20px',
+            'marginBottom': '20px',
+            'border': f'1px solid {default_theme.secondary}'
+        },
+        children=[
+            html.Div(
+                style={
+                    'display': 'flex',
+                    'alignItems': 'center',
+                    'gap': '20px'
+                },
+                children=[
+                    html.H5(
+                        'Model Parameters:',
+                        style={
+                            'color': default_theme.primary,
+                            'fontSize': '16px',
+                            'fontWeight': '600',
+                            'margin': '0'
+                        }
+                    ),
+                    html.Div(
+                        id='spot-risk-model-params-content',
+                        style={
+                            'color': default_theme.text_light,
+                            'fontSize': '14px',
+                            'lineHeight': '1.5'
+                        },
+                        children='Loading...'
+                    )
+                ]
+            )
+        ]
+    )
+    
     # Create control panel section (Phase 3 filters)
     # Get expiry options from controller
     expiry_options = []
@@ -858,6 +899,7 @@ def create_spot_risk_content(controller=None):
         },
         children=[
             header_section,
+            model_params,
             control_panel,
             greek_groups,
             view_controls,
@@ -868,10 +910,18 @@ def create_spot_risk_content(controller=None):
             dcc.Store(id='spot-risk-filter-store'),
             dcc.Store(id='spot-risk-display-store'),
             dcc.Store(id='spot-risk-greek-space-store', data='F'),  # Default to F-space
+            dcc.Store(id='spot-risk-file-completion-store'),  # Track file processing completion
+            dcc.Store(id='spot-risk-last-processed-time'),  # Store last processed timestamp
             dcc.Interval(
                 id='spot-risk-refresh-interval',
                 interval=5 * 60 * 1000,  # 5 minutes
                 disabled=True
+            ),
+            # File watcher state check interval (5 seconds to prevent flickering)
+            dcc.Interval(
+                id='spot-risk-file-watcher-interval',
+                interval=5000,  # 5 seconds (reduced from 1 second to prevent UI flickering)
+                disabled=False  # Always active to detect file completions
             ),
             # Download component for CSV export
             dcc.Download(id='spot-risk-download-csv')

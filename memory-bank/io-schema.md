@@ -498,6 +498,22 @@ This document lists all public constants, environment variables, inputs, outputs
 | @auto_monitor | Decorator | Same as @monitor | Optional kwargs | @auto_monitor() auto-assigns process group |
 | ResourceSnapshot.cpu_percent | Internal | float \| None | Percentage value (0-100) | CPU usage snapshot from resource monitor |
 | ResourceSnapshot.memory_mb | Internal | float \| None | Memory in MB | RSS memory snapshot from resource monitor |
+
+## Greek Profile Transformation
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| greek_space | Input | str | 'F' or 'y' | Parameter to `generate_greek_profiles_by_expiry` |
+| option_type | Internal | str | 'call' or 'put' | Determined by majority itype per expiry |
+| F-space Call Greeks | Internal | float arrays | Raw analytical values | delta: 0-1, gamma: per unit |
+| F-space Put Greeks | Internal | float arrays | Put-adjusted values | delta: -1-0 (call delta - 1) |
+| Y-space Greeks | Internal | float arrays | DV01-transformed values | delta_y = delta_F × DV01 × 1000 |
+| _transform_greeks_to_y_space | Function | Dict → Dict | F-space → Y-space | Applies DV01 transformations with 1000x scaling |
+| delta_y | Output | float | delta_F × DV01 × 1000 | Y-space delta transformation |
+| gamma_y | Output | float | (gamma_F × DV01² + delta_F × convexity) × 1000 | Y-space gamma with convexity |
+| vega_y | Output | float | vega_F × DV01 × 1000 | Y-space vega transformation |
+| theta_y | Output | float | theta_F × 1000 | Y-space theta (scaled only) |
+| Y-space Transformation | Feature | N/A | Applied to both cached and fresh profiles | Ensures consistent Y-space values |
 | ResourceMonitorProtocol | Protocol | Interface | N/A | Defines get_cpu_percent() and get_memory_mb() methods |
 | PsutilMonitor | Class | Implements ResourceMonitorProtocol | N/A | Uses psutil when available, lazy initialization |
 | NullMonitor | Class | Implements ResourceMonitorProtocol | N/A | Returns None for graceful degradation |
@@ -630,3 +646,14 @@ Navigation functions like `handle_navigation` that return (content, active_page,
 | volatility | Output | float | Implied volatility (0 < v < 1000) | `result['volatility']` |
 | greeks | Output | Dict[str, float] | All calculated Greeks | `result['greeks']['delta_F']` |
 | model_version | Output | str | Version of model used | `result['model_version']` |
+
+## Model Parameters Display
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| spot-risk-model-params-content | Output | HTML div children | Dynamic HTML elements | Model parameters display content |
+| future_price | Internal | float | Market price of futures | 110.7500 |
+| dv01 | Internal | float | Fixed at 63.0 | Dollar value of 01 basis point from calculator |
+| convexity | Internal | float | Fixed at 0.0042 | Convexity value from calculator |
+| vtexp | Internal | float | Years to expiry | 0.2365 years |
+| expiry_vtexp | Internal | dict | Expiry date to vtexp mapping | {'11JUL25': 0.2365, '14JUL25': 0.2444} |

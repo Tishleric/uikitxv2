@@ -39,6 +39,8 @@ def create_greek_profile_graph(greek_name: str, strikes: List[float], values: Li
     
     # Debug logging
     logger.info(f"Creating graph for {greek_name} with ATM strike: {atm_strike}")
+    logger.info(f"[DEBUG GRAPH INPUT] Values range: [{min(values) if values else 'N/A':.6f}, {max(values) if values else 'N/A':.6f}]")
+    logger.info(f"[DEBUG GRAPH INPUT] First 5 values: {values[:5] if values else 'No values'}")
     
     # Create figure
     fig = go.Figure()
@@ -434,7 +436,8 @@ def register_callbacks(app):
          Output('spot-risk-timestamp', 'children'),
          Output('spot-risk-no-data', 'style'),
          Output('spot-risk-table-wrapper', 'style'),
-         Output('spot-risk-loading', 'children')],
+         Output('spot-risk-loading', 'children'),
+         Output('spot-risk-last-processed-time', 'data')],  # Added output
         [Input('spot-risk-refresh-btn', 'n_clicks')],
         [State('spot-risk-data-store', 'data')],
         prevent_initial_call=False
@@ -457,7 +460,8 @@ def register_callbacks(app):
                     'No CSV data available',
                     {'display': 'block'},
                     {'display': 'none'},
-                    no_update
+                    no_update,
+                    None # Added None for last_processed_time
                 )
             
             # Process Greeks
@@ -471,7 +475,8 @@ def register_callbacks(app):
                     'Error processing Greeks',
                     {'display': 'block'},
                     {'display': 'none'},
-                    no_update
+                    no_update,
+                    None # Added None for last_processed_time
                 )
             
             # Check if any positions were found
@@ -482,7 +487,8 @@ def register_callbacks(app):
                     'No positions found',
                     {'display': 'block'},
                     {'display': 'none'},
-                    no_update
+                    no_update,
+                    None # Added None for last_processed_time
                 )
             
             # Update controller data with processed Greeks
@@ -497,12 +503,33 @@ def register_callbacks(app):
             
             logger.info(f"Loaded {len(data_dict)} positions with Greeks")
             
+            # Get latest processed timestamp from state file
+            latest_processed_time = None
+            try:
+                import json
+                from pathlib import Path
+                project_root = Path(__file__).parent.parent.parent.parent
+                state_file = project_root / "data" / "output" / "spot_risk" / ".file_watcher_state.json"
+                
+                if state_file.exists():
+                    with open(state_file, 'r') as f:
+                        state = json.load(f)
+                    
+                    # Find the most recent processed_at timestamp
+                    for file_info in state.values():
+                        if 'processed_at' in file_info:
+                            if latest_processed_time is None or file_info['processed_at'] > latest_processed_time:
+                                latest_processed_time = file_info['processed_at']
+            except Exception as e:
+                logger.error(f"Error reading file watcher state: {e}")
+            
             return (
                 data_dict,
                 timestamp_text,
                 {'display': 'none'},  # Hide no-data message
                 {'display': 'block'},  # Show table
-                no_update
+                no_update,
+                latest_processed_time  # Return the latest processed timestamp
             )
             
         except Exception as e:
@@ -512,8 +539,99 @@ def register_callbacks(app):
                 f'Error: {str(e)}',
                 {'display': 'block'},
                 {'display': 'none'},
-                no_update
+                no_update,
+                None # Added None for last_processed_time
             )
+    
+    @app.callback(
+        Output('spot-risk-model-params-content', 'children'),
+        [Input('spot-risk-data-store', 'data')],
+        prevent_initial_call=False
+    )
+    @monitor()
+    def update_model_parameters(stored_data):
+        """Update model parameters display based on loaded data
+        
+        Returns:
+            list: HTML elements displaying model parameters
+        """
+        if not stored_data:
+            return 'No data loaded'
+        
+        try:
+            # Convert stored data to DataFrame for easier processing
+            df = pd.DataFrame(stored_data)
+            
+            # Extract future price from futures row
+            future_price = None
+            futures_mask = df['itype'].str.upper() == 'F'
+            if futures_mask.any():
+                future_row = df[futures_mask].iloc[0]
+                future_price = future_row.get('midpoint_price', None)
+            
+            # Get DV01 and convexity from calculator
+            dv01 = controller.calculator.dv01  # This is 63.0
+            convexity = controller.calculator.convexity  # This is 0.0042
+            
+            # Group implied vol by expiry (average for options)
+            expiry_implied_vol = {}
+            for expiry in df['expiry_date'].unique():
+                if pd.notna(expiry):
+                    # Filter for options (C or P) with positions in this expiry
+                    mask = (df['expiry_date'] == expiry) & (df['itype'].isin(['C', 'P'])) & (df['pos.position'] != 0)
+                    expiry_options = df[mask]
+                    
+                    if len(expiry_options) > 0 and 'implied_vol' in expiry_options.columns:
+                        # Calculate average implied vol for this expiry
+                        avg_vol = expiry_options['implied_vol'].mean()
+                        if pd.notna(avg_vol):
+                            expiry_implied_vol[expiry] = avg_vol
+            
+            # Format display elements
+            params_elements = []
+            
+            # Add bullet separator function
+            def add_bullet():
+                return html.Span(' • ', style={'color': default_theme.text_subtle})
+            
+            # Future Price
+            if future_price is not None:
+                params_elements.append(html.Span('Future Price: ', style={'fontWeight': '500'}))
+                params_elements.append(html.Span(f'{float(future_price):.4f}'))
+                params_elements.append(add_bullet())
+            
+            # DV01
+            params_elements.append(html.Span('DV01: ', style={'fontWeight': '500'}))
+            params_elements.append(html.Span(f'{dv01:.1f}'))
+            params_elements.append(add_bullet())
+            
+            # Convexity
+            params_elements.append(html.Span('Convexity: ', style={'fontWeight': '500'}))
+            params_elements.append(html.Span(f'{convexity:.4f}'))
+            
+            # Implied Vol (if we have expiries)
+            if expiry_implied_vol:
+                params_elements.append(add_bullet())
+                params_elements.append(html.Span('Avg Implied Vol: ', style={'fontWeight': '500'}))
+                
+                # Sort expiries
+                sorted_expiries = sorted(expiry_implied_vol.items())
+                
+                # Create inline display for implied vol
+                vol_parts = []
+                for i, (expiry, vol) in enumerate(sorted_expiries):
+                    if i > 0:
+                        vol_parts.append(html.Span(', ', style={'color': default_theme.text_subtle}))
+                    # Display as decimal with 4 decimal places (same as table)
+                    vol_parts.append(html.Span(f'{expiry}: {vol:.4f}'))
+                
+                params_elements.extend(vol_parts)
+            
+            return params_elements
+            
+        except Exception as e:
+            logger.error(f"Error updating model parameters: {e}")
+            return f'Error loading parameters: {str(e)}'
     
     @app.callback(
         [Output('spot-risk-data-table', 'data'),
@@ -1046,6 +1164,7 @@ def register_callbacks(app):
             
             # Generate profiles for selected Greeks grouped by expiry
             logger.info(f"Generating profiles for {len(selected_greeks)} Greeks by expiry with {len(filtered_data)} filtered rows")
+            logger.info(f"[DEBUG GRAPH CALLBACK] Greek space parameter: {greek_space}")
             profiles_by_expiry = controller.generate_greek_profiles_by_expiry(selected_greeks, greek_space)
             
             if not profiles_by_expiry:
@@ -1109,6 +1228,13 @@ def register_callbacks(app):
                 
                 # Create aggregate graph for this Greek
                 try:
+                    # Debug log aggregate graph data
+                    logger.info(f"[DEBUG AGGREGATE GRAPH] Creating aggregate graph for {greek} in {greek_space}-space")
+                    for exp, prof in profiles_by_expiry.items():
+                        if greek in prof.get('greeks', {}):
+                            vals = prof['greeks'][greek]
+                            logger.info(f"[DEBUG AGGREGATE GRAPH] - {exp}: range [{min(vals):.6f}, {max(vals):.6f}]")
+                    
                     aggregate_fig_dict = create_aggregate_greek_graph(
                         greek_name=greek,
                         profiles_by_expiry=profiles_by_expiry,
@@ -1255,6 +1381,13 @@ def register_callbacks(app):
                         
                         # Create display name with suffix
                         greek_display_name = f'{greek}{display_suffix}'
+                        
+                        # Debug log the values being passed to the graph
+                        greek_values_to_plot = profile_data['greeks'][greek]
+                        logger.info(f"[DEBUG GRAPH VALUES] Plotting {greek} for {expiry} in {greek_space}-space:")
+                        logger.info(f"[DEBUG GRAPH VALUES] - Value range: [{min(greek_values_to_plot):.6f}, {max(greek_values_to_plot):.6f}]")
+                        logger.info(f"[DEBUG GRAPH VALUES] - First 5 values: {greek_values_to_plot[:5]}")
+                        logger.info(f"[DEBUG GRAPH VALUES] - Display name: {greek_display_name}")
                         
                         fig_dict = create_greek_profile_graph(
                             greek_name=f'{greek_display_name} ({expiry})',  # Include suffix and expiry
@@ -1429,3 +1562,112 @@ def register_callbacks(app):
         logger.info(f"Greek space toggled to: {greek_space}")
         
         return greek_space, f_style, y_style 
+
+    @app.callback(
+        [Output('spot-risk-file-completion-store', 'data'),
+         Output('spot-risk-data-store', 'data', allow_duplicate=True),
+         Output('spot-risk-timestamp', 'children', allow_duplicate=True),
+         Output('spot-risk-no-data', 'style', allow_duplicate=True),
+         Output('spot-risk-table-wrapper', 'style', allow_duplicate=True)],
+        [Input('spot-risk-file-watcher-interval', 'n_intervals')],
+        [State('spot-risk-last-processed-time', 'data'),
+         State('spot-risk-data-store', 'data')],
+        prevent_initial_call=True
+    )
+    # @monitor()  # Commented out to reduce queue load - this runs every second
+    def check_file_completion(n_intervals, last_processed_time, current_data):
+        """Check if file watcher has completed processing new files
+        
+        Returns updated data if new files were processed, otherwise no_update
+        """
+        import json
+        from pathlib import Path
+        
+        try:
+            # Get the state file path
+            project_root = Path(__file__).parent.parent.parent.parent
+            state_file = project_root / "data" / "output" / "spot_risk" / ".file_watcher_state.json"
+            
+            if not state_file.exists():
+                raise PreventUpdate
+            
+            # Read the state file
+            with open(state_file, 'r') as f:
+                state = json.load(f)
+            
+            if not state:
+                raise PreventUpdate
+            
+            # Find the most recent processed_at timestamp
+            latest_processed = None
+            for file_info in state.values():
+                if 'processed_at' in file_info:
+                    if latest_processed is None or file_info['processed_at'] > latest_processed:
+                        latest_processed = file_info['processed_at']
+            
+            # Check if we have a new file processed
+            if latest_processed and latest_processed != last_processed_time:
+                logger.info(f"New file processed at {latest_processed}, triggering refresh")
+                
+                # Reload data using the same logic as refresh_data
+                controller.load_csv_data()
+                
+                if controller.current_data is None or controller.current_data.empty:
+                    logger.warning("No data loaded from CSV")
+                    return (
+                        latest_processed,
+                        None,
+                        'No CSV data available',
+                        {'display': 'block'},
+                        {'display': 'none'}
+                    )
+                
+                # Process Greeks
+                logger.info("Processing Greeks for loaded data...")
+                df_with_greeks = controller.process_greeks(filter_positions=True)
+                
+                if df_with_greeks is None:
+                    logger.error("Failed to process Greeks")
+                    return (
+                        latest_processed,
+                        None,
+                        'Error processing Greeks',
+                        {'display': 'block'},
+                        {'display': 'none'}
+                    )
+                
+                # Check if any positions were found
+                if df_with_greeks.empty:
+                    logger.info("No positions found in the data")
+                    return (
+                        latest_processed,
+                        None,
+                        'No positions found',
+                        {'display': 'block'},
+                        {'display': 'none'}
+                    )
+                
+                # Update controller data with processed Greeks
+                controller.current_data = df_with_greeks
+                
+                # Get timestamp
+                timestamp = controller.get_timestamp()
+                timestamp_text = f'{len(df_with_greeks)} positions from: {timestamp}' if timestamp else f'{len(df_with_greeks)} positions loaded'
+                
+                # Convert DataFrame to dict for storage
+                data_dict = controller.current_data.to_dict('records')
+                
+                logger.info(f"Auto-loaded {len(data_dict)} positions with Greeks after file completion")
+                
+                return (
+                    latest_processed,
+                    data_dict,
+                    timestamp_text,
+                    {'display': 'none'},
+                    {'display': 'block'}
+                )
+            
+        except Exception as e:
+            logger.error(f"Error checking file completion: {e}")
+        
+        raise PreventUpdate 

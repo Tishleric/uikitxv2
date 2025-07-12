@@ -25,6 +25,7 @@ from pywinauto.keyboard import send_keys
 from typing import List, Dict
 import math
 import requests
+import urllib.parse
 
 # --- Adjust Python path ---
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -135,10 +136,12 @@ verify_log_database()
 
 # --- Initialize Dash App ---
 assets_folder_path_absolute = os.path.abspath(os.path.join(project_root, 'assets'))
+# Decode URL-encoded path to handle Windows drive letters like z%3A -> z:
+assets_folder_path_decoded = urllib.parse.unquote(assets_folder_path_absolute)
 app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP], 
-    assets_folder=assets_folder_path_absolute,
+    assets_folder=assets_folder_path_decoded,
     suppress_callback_exceptions=True 
 )
 app.title = "FRGM Trade Accelerator"
