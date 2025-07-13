@@ -147,7 +147,7 @@ class PnLController:
             query = """
             SELECT 
                 trade_date,
-                COUNT(DISTINCT instrument) as instrument_count,
+                COUNT(DISTINCT instrument_name) as instrument_count,
                 COUNT(*) as position_count,
                 SUM(realized_pnl) as total_realized_pnl,
                 SUM(unrealized_pnl) as total_unrealized_pnl,
@@ -202,11 +202,12 @@ class PnLController:
             SELECT 
                 trade_id,
                 instrument_name,
-                market_trade_time,
+                trade_timestamp,
                 quantity,
-                price
+                price,
+                side
             FROM processed_trades
-            ORDER BY market_trade_time DESC
+            ORDER BY trade_timestamp DESC
             LIMIT ?
             """
             
@@ -220,8 +221,8 @@ class PnLController:
                 ui_trade = {
                     'trade_id': row['trade_id'],
                     'instrument': row['instrument_name'],
-                    'timestamp': row['market_trade_time'],
-                    'side': 'BUY' if row['quantity'] > 0 else 'SELL',
+                    'timestamp': row['trade_timestamp'],
+                    'side': 'BUY' if row['side'] == 'B' else 'SELL',
                     'quantity': abs(row['quantity']),
                     'price': f"{row['price']:.4f}",
                     'value': abs(row['quantity'] * row['price'])

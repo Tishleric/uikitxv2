@@ -11,7 +11,13 @@
    - Added case in `get_page_content()` for "pnl-tracking"
    - Registered P&L Tracking callbacks at app startup
 
-2. **Both Dashboards Working**:
+2. **SQL Column Name Fixes** (Latest):
+   - Fixed `get_daily_pnl_summary()`: Changed `instrument` to `instrument_name`
+   - Fixed `get_trade_history()`: Changed `market_trade_time` to `trade_timestamp`
+   - Added `side` column to trade history SELECT query
+   - Updated side display logic to use actual DB value ('B'/'S')
+
+3. **Both Dashboards Working**:
    - **Actant PnL**: Original Taylor Series comparison dashboard
    - **PnL Tracking**: New FIFO P&L tracking system with real-time updates
 

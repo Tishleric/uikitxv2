@@ -14,7 +14,11 @@
     - Added "PnL Tracking" navigation button
     - Updated navigation callback with new outputs/inputs
     - Registered P&L Tracking callbacks at startup
-- **Result**: Both dashboards working independently in main navigation
+  - Part 3: Fixed SQL column name mismatches in controller.py
+    - Changed `instrument` to `instrument_name` in daily P&L query
+    - Changed `market_trade_time` to `trade_timestamp` in trade history
+    - Added `side` column to SELECT for proper Buy/Sell display
+- **Result**: Both dashboards working with correct data display
 
 ## Recent Updates (January 2025)
 
