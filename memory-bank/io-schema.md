@@ -397,263 +397,86 @@ The `_get_option_asset_and_expiry_date` function determines the asset code for o
 | ModelFactory.get_available_models | Function | Returns: list[str] | N/A | `models = ModelFactory.get_available_models()` |
 | h_F | Input | float | > 0, adaptive default | Finite difference step size for F (default: max(0.01, F*1e-4)) |
 
-# I/O Schema
-
-This document lists all public constants, environment variables, inputs, outputs, and internal values used across the codebase. Updated whenever interfaces change.
-
-## Format
-
-| Name | Kind* | Type | Allowed values / range | Example Usage |
-|------|-------|------|------------------------|---------------|
-| ... | ... | ... | ... | ... |
-
-*Kinds: **Constant · EnvVar · Input · Output · Internal · Example**
-
-## Schema Entries
+## P&L Calculator
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
 |------|------|------|------------------------|---------------|
-| DEFAULT_DV01 | Constant | float | > 0 | DV01 value (9.34) for bond futures |
-| DEFAULT_CONVEXITY | Constant | float | > 0 | Convexity value (0.5) for bond futures |
-| NET_FUTURES | Output | str | Special row key | Aggregate row for futures positions |
-| NET_OPTIONS_F | Output | str | Special row key | Aggregate row for options F-space Greeks |
-| NET_OPTIONS_Y | Output | str | Special row key | Aggregate row for options Y-space Greeks |
+| Trade.timestamp | Input | datetime | Valid datetime | `Trade(timestamp=datetime(2024, 1, 1, 9, 30), symbol='AAPL', quantity=10, price=100.0)` |
+| Trade.symbol | Input | str | Non-empty string | `Trade(symbol='AAPL', ...)` |
+| Trade.quantity | Input | float | Non-zero value | `Trade(quantity=10, ...)` for buy, `Trade(quantity=-10, ...)` for sell |
+| Trade.price | Input | float | >= 0 | `Trade(price=100.0, ...)` |
+| Trade.trade_id | Input | Optional[str] | Any string or None | `Trade(trade_id='12345', ...)` |
+| Lot.quantity | Input | float | Non-zero value | `Lot(quantity=10, price=100.0, date=date.today())` |
+| Lot.price | Input | float | >= 0 | `Lot(price=100.0, ...)` |
+| Lot.date | Input | date | Valid date | `Lot(date=date(2024, 1, 1), ...)` |
+| PnLCalculator.add_trade | Function | Returns: None | timestamp, symbol, quantity, price, trade_id | `calc.add_trade(datetime.now(), 'AAPL', 10, 100.0)` |
+| PnLCalculator.add_market_close | Function | Returns: None | symbol, close_date, close_price | `calc.add_market_close('AAPL', date.today(), 105.0)` |
+| PnLCalculator.load_trades_from_csv | Function | Returns: None | csv_path: str | `calc.load_trades_from_csv('data/input/trade_ledger/trades.csv')` |
+| PnLCalculator.calculate_daily_pnl | Function | Returns: pd.DataFrame | N/A | `df = calc.calculate_daily_pnl()` |
+| PnLCalculator.get_position_summary | Function | Returns: pd.DataFrame | as_of_date: Optional[date] | `summary = calc.get_position_summary(date(2024, 1, 1))` |
+| daily_pnl.date | Output | date | Trading dates | DataFrame column containing trading date |
+| daily_pnl.symbol | Output | str | Trading symbols | DataFrame column containing symbol |
+| daily_pnl.position | Output | float | Any value | Current position (positive=long, negative=short) |
+| daily_pnl.avg_cost | Output | float | >= 0 | Average cost basis of position |
+| daily_pnl.market_close | Output | float | >= 0 | Market closing price |
+| daily_pnl.realized_pnl | Output | float | Any value | P&L from closed positions |
+| daily_pnl.unrealized_pnl | Output | float | Any value | P&L from open positions at market price |
+| daily_pnl.unrealized_change | Output | float | Any value | Daily change in unrealized P&L |
+| daily_pnl.total_daily_pnl | Output | float | Any value | realized_pnl + unrealized_change |
+| position_summary.symbol | Output | str | Trading symbols | DataFrame column containing symbol |
+| position_summary.position | Output | float | Non-zero value | Current position size |
+| position_summary.avg_cost | Output | float | >= 0 | Average cost basis |
+| position_summary.market_price | Output | float | >= 0 | Current market price |
+| position_summary.market_value | Output | float | Any value | Position value at market price |
+| position_summary.unrealized_pnl | Output | float | Any value | Unrealized P&L |
+| _process_buy | Internal | Returns: float | symbol, quantity, price, trade_date | Processes buy trades, returns realized P&L |
+| _process_sell | Internal | Returns: float | symbol, quantity, price, trade_date | Processes sell trades, returns realized P&L |
+| _calculate_position_metrics | Internal | Returns: Tuple[float, float] | symbol | Returns (position, avg_cost) |
+| _calculate_unrealized_pnl | Internal | Returns: float | symbol, market_price | Calculates unrealized P&L |
 
-## Risk Metric Transformations
+### P&L Calculator Trade CSV Format
 
-| Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|---------------|
-| DV01 | Constant | float | 0.063 | Risk transformation multiplier (will be dynamic from PM later) |
-| _apply_risk_metric_transformations | Function | Input: pd.DataFrame, Returns: pd.DataFrame | DataFrame with bs_ metrics | `transformed_df = service._apply_risk_metric_transformations(df)` |
-| _transform_bs_delta | Function | Input: float, Returns: float | original_bs_delta × DV01 | `adjusted = service._transform_bs_delta(original_value)` |
-| _transform_bs_gamma | Function | Input: float, float, float, Returns: float | Complex formula with DV01, adjusted_bs_delta, sim_uprice | `transformed = service._transform_bs_gamma(gamma, delta, uprice)` |
-| _transform_bs_vega | Function | Input: float, Returns: float | original_bs_vega × DV01 | `transformed = service._transform_bs_vega(original_value)` |
+The `load_trades_from_csv` method expects a CSV file with the following columns:
 
-## Visualization Mode Toggle
+| Column | Type | Description | Example |
+|--------|------|-------------|---------|
+| tradeId | str/int | Unique trade identifier | 1 |
+| instrumentName | str | Full instrument name (used as-is for symbol) | XCMEOCADPS20250714N0VY2/108.75 |
+| marketTradeTime | str | Trade timestamp | 2025-07-12 13:03:15.000 |
+| buySell | str | Trade direction ('B' or 'S') | B |
+| quantity | float | Trade quantity (always positive) | 10.0 |
+| price | float | Trade price in decimal format | 1.015625 |
 
-| Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|---------------|
-| visualization-mode-toggle.value | Input/Output | bool | False = Scenario View, True = Metric View | Toggle between visualization modes |
-| _create_scenario_view_grid | Function | Returns: Dash components | selected_scenarios, selected_metrics, is_table_view, is_percentage | Creates scenario-based grid (current behavior) |
-| _create_metric_view_grid | Function | Returns: Dash components | selected_scenarios, selected_metrics, is_table_view, is_percentage | Creates metric-based grid (new behavior) |
-| {"type": "metric-graph", "metric": MATCH} | Component ID | dict | Pattern for metric-specific graphs | Dynamic component IDs for metric view |
-| {"type": "metric-table", "metric": MATCH} | Component ID | dict | Pattern for metric-specific tables | Dynamic component IDs for metric view |
-| {"type": "metric-range-slider", "metric": MATCH} | Component ID | dict | Pattern for metric-specific range sliders | Dynamic component IDs for metric view |
-| _get_global_shock_range_for_metric | Function | Returns: tuple[float, float] | Calculates global min/max across scenarios | `min_shock, max_shock = _get_global_shock_range_for_metric(scenarios, shock_type)` |
-| _get_global_shock_values_for_metric | Function | Returns: List[float] | Union of shock values across scenarios | `values = _get_global_shock_values_for_metric(scenarios, shock_type)` |
-| metric_table_pivot | Function | Input: pd.DataFrame, Returns: pd.DataFrame | Pivot scenarios from rows to columns | `pivot_df = df.pivot_table(index='shock_value', columns='scenario_header', values=metric)` |
+### P&L Calculator Usage Examples
 
-## Button-Based Toggle System
-
-| Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|---------------|
-| view-mode-graph-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for graph view selection |
-| view-mode-table-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for table view selection |
-| percentage-absolute-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for absolute values selection |
-| percentage-percentage-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for percentage values selection |
-| viz-mode-scenario-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for scenario view selection |
-| viz-mode-metric-btn.n_clicks | Input/Output | int | >= 0 | Button clicks for metric view selection |
-| toggle-states-store.data | Internal | Dict | {"is_table_view": bool, "is_percentage": bool, "is_metric_view": bool} | Shared state store for toggle states |
-| _get_toggle_state_from_buttons | Function | Returns: bool | ctx, button_id_false, button_id_true, default_false | Helper to determine toggle state from button clicks |
-| update_toggle_states_store | Function | Returns: Dict | Button click inputs | Updates shared toggle states based on button interactions |
-| update_view_mode_button_styles | Function | Returns: Tuple[Dict, Dict] | Button click inputs | Updates button styles for visual feedback |
-| update_percentage_button_styles | Function | Returns: Tuple[Dict, Dict] | Button click inputs | Updates button styles for visual feedback |
-| update_viz_mode_button_styles | Function | Returns: Tuple[Dict, Dict] | Button click inputs | Updates button styles for visual feedback |
-
-## ActantEOD Dashboard
-
-| Loading.__init__ | Function | Returns: Loading | id, children, type, theme, color, parent_style, fullscreen, debug | `Loading(id="loading", children=content, type="circle")` |
-| Loading.type | Input | str | 'graph', 'cube', 'circle', 'dot', 'default' | `Loading(type="circle")` |
-| Loading.color | Input | str \| None | Any valid CSS color | `Loading(color="#18F0C3")` |
-| Loading.fullscreen | Input | bool | True/False | `Loading(fullscreen=False)` |
-| Loading.render | Function | Returns: dcc.Loading | N/A | `loading.render()` |
-| RadioButton.__init__ | Function | Returns: RadioButton | id, options, value, theme, inline | `RadioButton(id="rb", options=opts)` |
-| ObservabilityRecord.args | Internal | list[str] \| None | Serialized function arguments | ["'hello'", "42"] |
-| ObservabilityRecord.call_depth | Internal | int | >= 0 | Stack depth from inspect.stack() |
-| ObservabilityRecord.duration_ms | Internal | float | Execution time (≥ 0) | 123.45 |
-| ObservabilityRecord.exception | Internal | str \| None | Full traceback if error | "Traceback (most recent..." |
-| ObservabilityRecord.kwargs | Internal | dict[str, str] \| None | Serialized keyword args | {"timeout": "30"} |
-| ObservabilityRecord.process | Internal | str | Fully qualified function | "trading.actant.main" |
-| ObservabilityRecord.result | Internal | str \| None | Serialized function result | "'success'" |
-| ObservabilityRecord.start_ts_us | Internal | int | >= 0 | Start timestamp in microseconds for precise ordering |
-| ObservabilityRecord.status | Internal | str | OK or ERR | "OK" |
-| ObservabilityRecord.thread_id | Internal | int | Thread identifier | 69572 |
-| ObservabilityRecord.ts | Internal | str | ISO format timestamp | "2024-01-20T10:30:45" |
-| ObservabilityRecord.cpu_delta | Internal | float \| None | Any percentage value | CPU usage change during execution in percentage points |
-| ObservabilityRecord.memory_delta_mb | Internal | float \| None | Any value | Memory usage change during execution in MB |
-| ObservabilityRecord.is_error() | Internal | Callable | Returns bool | Method to check if record is an error |
-| @monitor.capture | Input | dict \| None | Valid keys: args, result, cpu_usage, memory_usage, locals | What data to capture (default: all except locals) |
-| @monitor.process_group | Input | str \| None | Any string or None | Logical grouping (auto-derived from module if None) |
-| ProcessGroupStrategy.assign | Method | Callable[[Callable], str] | Function → process group string | strategy.assign(my_function) → "trading.orders" |
-| ModuleBasedStrategy.depth | Input | int | > 0 | ModuleBasedStrategy(depth=2) extracts first 2 module parts |
-| PatternBasedStrategy.patterns | Input | Dict[str, str] | regex → group mappings | {r'^get_.*': 'data.read', r'^save_.*': 'data.write'} |
-| SemanticStrategy | Class | N/A | Analyzes function names/docs | SemanticStrategy() looks for I/O, compute, API keywords |
-| LayeredStrategy | Class | N/A | Groups by architecture layer | LayeredStrategy() detects presentation/business/data layers |
-| CompositeStrategy.strategies | Input | List[tuple[Strategy, float]] | Strategy + weight pairs | [(PatternStrategy(), 1.0), (ModuleStrategy(), 0.5)] |
-| ProcessGroupStrategies.for_trading_system | Method | Returns ProcessGroupStrategy | N/A | Pre-configured for trading domain patterns |
-| ProcessGroupStrategies.for_microservices | Method | Returns ProcessGroupStrategy | N/A | Pre-configured for microservice patterns |
-| ProcessGroupStrategies.for_data_pipeline | Method | Returns ProcessGroupStrategy | N/A | Pre-configured for ETL patterns |
-| set_global_strategy | Function | None | ProcessGroupStrategy instance | set_global_strategy(SemanticStrategy()) |
-| get_process_group | Function | Returns str | Callable → group string | get_process_group(my_function) → "io.read.data_loader" |
-| @auto_monitor | Decorator | Same as @monitor | Optional kwargs | @auto_monitor() auto-assigns process group |
-| ResourceSnapshot.cpu_percent | Internal | float \| None | Percentage value (0-100) | CPU usage snapshot from resource monitor |
-| ResourceSnapshot.memory_mb | Internal | float \| None | Memory in MB | RSS memory snapshot from resource monitor |
-
-## Greek Profile Transformation
-
-| Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|---------------|
-| greek_space | Input | str | 'F' or 'y' | Parameter to `generate_greek_profiles_by_expiry` |
-| option_type | Internal | str | 'call' or 'put' | Determined by majority itype per expiry |
-| F-space Call Greeks | Internal | float arrays | Raw analytical values | delta: 0-1, gamma: per unit |
-| F-space Put Greeks | Internal | float arrays | Put-adjusted values | delta: -1-0 (call delta - 1) |
-| Y-space Greeks | Internal | float arrays | DV01-transformed values | delta_y = delta_F × DV01 × 1000 |
-| _transform_greeks_to_y_space | Function | Dict → Dict | F-space → Y-space | Applies DV01 transformations with 1000x scaling |
-| delta_y | Output | float | delta_F × DV01 × 1000 | Y-space delta transformation |
-| gamma_y | Output | float | (gamma_F × DV01² + delta_F × convexity) × 1000 | Y-space gamma with convexity |
-| vega_y | Output | float | vega_F × DV01 × 1000 | Y-space vega transformation |
-| theta_y | Output | float | theta_F × 1000 | Y-space theta (scaled only) |
-| Y-space Transformation | Feature | N/A | Applied to both cached and fresh profiles | Ensures consistent Y-space values |
-| ResourceMonitorProtocol | Protocol | Interface | N/A | Defines get_cpu_percent() and get_memory_mb() methods |
-| PsutilMonitor | Class | Implements ResourceMonitorProtocol | N/A | Uses psutil when available, lazy initialization |
-| NullMonitor | Class | Implements ResourceMonitorProtocol | N/A | Returns None for graceful degradation |
-| MockMonitor | Class | Implements ResourceMonitorProtocol | N/A | Returns configurable values for testing |
-| get_resource_monitor | Function | Returns ResourceMonitorProtocol | N/A | Gets current global monitor instance |
-| set_resource_monitor | Function | None | ResourceMonitorProtocol instance | set_resource_monitor(MockMonitor(cpu=25.5)) |
-
-## Circuit Breaker Parameters
-
-| Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|---------------| 
-| failure_threshold | Input | int | > 0 (default: 5) | `CircuitBreaker(failure_threshold=3)` |
-| timeout_seconds | Input | float | > 0 (default: 60.0) | `CircuitBreaker(timeout_seconds=30)` |
-| success_threshold | Input | int | > 0 (default: 1) | `CircuitBreaker(success_threshold=2)` |
-| state | Output | str | "CLOSED", "OPEN", "HALF_OPEN" | `cb.get_state()` |
-| total_calls | Output | int | >= 0 | `stats['total_calls']` |
-| total_failures | Output | int | >= 0 | `stats['total_failures']` |
-| total_successes | Output | int | >= 0 | `stats['total_successes']` |
-| circuit_opened_count | Output | int | >= 0 | `stats['circuit_opened_count']` |
-| time_until_retry | Output | float | >= 0.0 | `stats['time_until_retry']` |
-
-# Input/Output Schema for UIKitXv2
-
-This document tracks all public constants, configuration values, function parameters, and return shapes across the codebase.
-
-| Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|---------------|
-| batch_size | Input | int | > 0, typically 100-1000 | `BatchWriter(batch_size=100)` |
-| capture | Input | dict | Keys: args, result, cpu_usage, memory_usage, locals | `@monitor(capture={'args': True})` |
-| data | Output | str | Variable name in data_trace | `data='x'` or `data='result[count]'` |
-| data_type | Output | str | "INPUT" or "OUTPUT" | `data_type='INPUT'` |
-| data_value | Output | str | JSON-serialized value | `data_value='{"x": 10}'` |
-| db_path | Input | str | Valid file path | `"logs/observatory.db"` |
-| drain_interval | Input | float | > 0, typically 0.1-1.0 | `drain_interval=0.1` |
-| duration_ms | Output | float | >= 0 | `duration_ms=12.345` |
-| error_rate | Output | float | 0-100 | `error_rate=2.5` |
-| exception | Output | str | Traceback string or None | `exception='ZeroDivisionError...'` |
-| failure_threshold | Input | int | > 0, typically 3-5 | `CircuitBreaker(failure_threshold=3)` |
-| max_repr | Input | int | > 0, typically 1000 | `@monitor(max_repr=1000)` |
-| normal_maxsize | Input | int | > 0, typically 10000 | `ObservatoryQueue(normal_maxsize=10000)` |
-| overflow_maxsize | Input | int | > 0, typically 50000 | `ObservatoryQueue(overflow_maxsize=50000)` |
-| page | Input | int | >= 1 | `get_trace_data(page=1)` |
-| page_size | Input | int | > 0, typically 100 | `get_trace_data(page_size=100)` |
-| parameter_mappings | Internal | List[tuple] | List of (name, value, type) | `[('x', 5, 'INPUT'), ('result', 8, 'OUTPUT')]` |
-| process | Output | str | Module.function format | `process='lib.trading.calculate_delta'` |
-| process_group | Input | str | Dot-separated module path | `@monitor(process_group='lib.trading')` |
-| queue_warning_threshold | Input | int | > 0, typically 8000 | `@monitor(queue_warning_threshold=8000)` |
-| retention_hours | Input | int | > 0, typically 6-24 | `start_observatory_writer(retention_hours=6)` |
-| sample_rate | Input | float | 0.0-1.0 | `@monitor(sample_rate=0.5)` |
-| sensitive_fields | Input | tuple | Field names to mask | `@monitor(sensitive_fields=('password',))` |
-| serializer | Input | str | "smart" or "fast" | `@monitor(serializer="smart")` |
-| status | Output | str | "OK" or "ERR" | `status='OK'` |
-| success_threshold | Input | int | > 0, typically 2 | `CircuitBreaker(success_threshold=2)` |
-| timeout_seconds | Input | float | > 0, typically 30 | `CircuitBreaker(timeout_seconds=30)` |
-| ts | Output | str | ISO format timestamp | `ts='2025-01-06T12:34:56.789'` |
-| use_param_names | Input | bool | True or False | `@monitor(use_param_names=True)` |
-| warning_threshold | Input | int | > 0, typically 8000 | `ObservatoryQueue(warning_threshold=8000)` |
-| ultima | Output | float | vega × d × (d²-3) × (d²-1) / σ² | BondFutureOption.ultima |
-| zomma | Output | float | gamma × d / σ | BondFutureOption.zomma |
-| vomma_F | Output | float | Alias for volga_price | BondFutureOption.vomma_F |
-| bachelier_price | Function | Returns: float | F, K, sigma, tau | `from lib.trading.bond_future_options.bachelier_greek import bachelier_price; price = bachelier_price(112, 110, 0.75, 0.25)` |
-| analytical_greeks | Function | Returns: dict | F, K, sigma, tau | `greeks = analytical_greeks(112, 110, 0.75, 0.25)` |
-| numerical_greeks | Function | Returns: dict | F, K, sigma, tau, h=1e-4 | `greeks = numerical_greeks(112, 110, 0.75, 0.25, h=1e-5)` |
-| cross_effects | Function | Returns: dict | F, K, sigma, tau, h=1e-4 | `cross = cross_effects(112, 110, 0.75, 0.25)` - vanna, charm, veta |
-| third_order_greeks | Function | Returns: dict | F, K, sigma, tau | `third = third_order_greeks(112, 110, 0.75, 0.25)` - ultima, zomma |
-| numerical_third_order_greeks | Function | Returns: dict | F, K, sigma, tau, h=1e-4 | `third = numerical_third_order_greeks(112, 110, 0.75, 0.25)` |
-| taylor_expand | Function | Returns: float | g, dF, dSigma, dTau, cross=None | `change = taylor_expand(greeks, 0.1, 0.01, 0.01, cross_effects)` |
-
-## Common Patterns
-
-### Monitor Decorator
 ```python
-@monitor(
-    process_group="lib.trading",  # Optional, auto-derived if not provided
-    sample_rate=1.0,              # 1.0 = always monitor
-    capture={'args': True, 'result': True},  # What to capture
-    use_param_names=True          # Extract actual parameter names
-)
-def calculate_greeks(spot, strike, rate, time, vol):
-    pass
+from lib.trading.pnl_calculator import PnLCalculator, Trade, Lot
+
+# Create calculator
+calc = PnLCalculator()
+
+# Method 1: Load trades from CSV
+calc.load_trades_from_csv("data/input/trade_ledger/trades.csv")
+
+# Method 2: Add trades manually
+calc.add_trade(datetime(2024, 1, 1), "AAPL", 10, 100.0)  # Buy 10 @ 100
+calc.add_trade(datetime(2024, 1, 2), "AAPL", -5, 110.0)  # Sell 5 @ 110
+
+# Add market closes
+calc.add_market_close("AAPL", date(2024, 1, 1), 100.0)
+calc.add_market_close("AAPL", date(2024, 1, 2), 110.0)
+
+# Calculate daily P&L
+df = calc.calculate_daily_pnl()
+# Returns DataFrame with columns: date, symbol, position, avg_cost, market_close, 
+# realized_pnl, unrealized_pnl, unrealized_change, total_daily_pnl
+
+# Get position summary
+summary = calc.get_position_summary(as_of_date=date(2024, 1, 2))
+# Returns DataFrame with columns: symbol, position, avg_cost, market_price, 
+# market_value, unrealized_pnl
 ```
-
-### Observatory Writer
-```python
-start_observatory_writer(
-    db_path="logs/observatory.db",
-    batch_size=100,
-    drain_interval=0.1,
-    retention_hours=6
-)
-```
-
-### Data Trace Format
-With `use_param_names=True`, function parameters are stored individually:
-- Input: `f(x=5, y=3)` → Rows: `(data='x', value=5)`, `(data='y', value=3)`
-- Output: `return (a, b)` → Rows: `(data='return_0', value=a)`, `(data='return_1', value=b)`
-- Named tuple: `Point(x=1, y=2)` → Rows: `(data='x', value=1)`, `(data='y', value=2)`
-- Dict: `{'count': 5}` → Row: `(data='result[count]', value=5)`
-
-### Navigation Function Output Pattern
-Navigation functions like `handle_navigation` that return (content, active_page, style1, style2, ...) tuples are handled specially:
-- Content array → `data='content'`
-- Active page → `data='active_page'`
-- Style dictionaries → `data='{nav_name}_style'` (e.g., `pricing_monkey_style`, `analysis_style`)
-- Based on navigation button IDs extracted from style dictionaries
-
-## Component Factory Methods (NEW)
-
-| Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|---------------|
-| DashComponentFactory.__init__ | Input | theme: Optional[Dict], config: Optional[Dict] | Any dict for theme/config | `factory = DashComponentFactory(theme=dark_theme)` |
-| factory.create_datatable | Input | id: str, **kwargs | Valid component ID string | `factory.create_datatable("my-table", page_size=20)` |
-| factory.create_grid | Input | id: str, **kwargs | Valid component ID string | `factory.create_grid("my-grid", children=[...])` |
-| factory.create_button | Input | id: str, **kwargs | Valid component ID string | `factory.create_button("btn1", label="Click")` |
-| factory.create_graph | Input | id: str, **kwargs | Valid component ID string | `factory.create_graph("graph1", figure={})` |
-| factory.create_container | Input | id: str, **kwargs | Valid component ID string | `factory.create_container("main", fluid=True)` |
-| factory.create_datatable_in_grid | Input | grid_id: str, table_id: str, grid_width: Optional | IDs as strings, width as dict/int | `factory.create_datatable_in_grid("g1", "t1", {"xs": 12})` |
-| factory.create_form_grid | Input | grid_id: str, form_elements: List[Dict], submit_button_text: str | Valid IDs and element configs | `factory.create_form_grid("form1", elements, "Submit")` |
-| factory.create_dashboard_layout | Input | container_id: str, title: str, sections: List[Dict] | Valid ID, title string, section configs | `factory.create_dashboard_layout("dash1", "Sales", sections)` |
 
 ## GreekCalculatorAPI Methods
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|-------------|
-| analyze | Input | Union[Dict, List[Dict]] | Single option dict or list of option dicts | `api.analyze({'F': 110.5, 'K': 112, 'T': 0.25, 'market_price': 0.5, 'option_type': 'call'})` |
-| model | Input | str | Model name from registry | `api.analyze(options, model='bachelier_v1')` |
-| model_params | Input | Dict[str, Any] | Model-specific parameters | `api.analyze(options, model_params={'future_dv01': 0.063})` |
-| success | Output | bool | True if calculation succeeded | `result['success']` |
-| error_message | Output | Optional[str] | Error description if failed | `result['error_message']` |
-| volatility | Output | float | Implied volatility (0 < v < 1000) | `result['volatility']` |
-| greeks | Output | Dict[str, float] | All calculated Greeks | `result['greeks']['delta_F']` |
-| model_version | Output | str | Version of model used | `result['model_version']` |
-
-## Model Parameters Display
-
-| Name | Kind | Type | Allowed values / range | Example Usage |
-|------|------|------|------------------------|---------------|
-| spot-risk-model-params-content | Output | HTML div children | Dynamic HTML elements | Model parameters display content |
-| future_price | Internal | float | Market price of futures | 110.7500 |
-| dv01 | Internal | float | Fixed at 63.0 | Dollar value of 01 basis point from calculator |
-| convexity | Internal | float | Fixed at 0.0042 | Convexity value from calculator |
-| vtexp | Internal | float | Years to expiry | 0.2365 years |
-| expiry_vtexp | Internal | dict | Expiry date to vtexp mapping | {'11JUL25': 0.2365, '14JUL25': 0.2444} |

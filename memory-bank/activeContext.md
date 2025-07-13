@@ -1,6 +1,77 @@
 # Active Context
 
-## Current Focus: Spot Risk Y-Space Greek Profiles
+## Current State (2025-02-10)
+✅ **COMPLETE**: Both P&L dashboards are now integrated and working
+
+### Latest Changes
+1. **P&L Tracking Added as New Tab**:
+   - Fixed Container serialization issue by adding `.render()` to `create_pnl_content()`
+   - Added "PnL Tracking" button to sidebar navigation
+   - Updated navigation callback to handle the new tab
+   - Added case in `get_page_content()` for "pnl-tracking"
+   - Registered P&L Tracking callbacks at app startup
+
+2. **Both Dashboards Working**:
+   - **Actant PnL**: Original Taylor Series comparison dashboard
+   - **PnL Tracking**: New FIFO P&L tracking system with real-time updates
+
+### Technical Summary
+- Fixed the `TypeError: Object of type Container is not JSON serializable` by ensuring `create_pnl_content()` returns rendered Dash components
+- Navigation system updated with all necessary outputs/inputs for the new tab
+- Both dashboards work independently without conflicts
+- File watchers and real-time updates functioning correctly
+
+---
+
+## Previous Work
+✅ **COMPLETE**: P&L Dashboard Integration (Phase 2)
+
+## What We Just Completed
+1. **P&L Controller** (`lib/trading/pnl_calculator/controller.py`)
+   - Thin wrapper around P&L service
+   - Handles UI data transformation
+   - Manages file watchers
+   - Formats P&L as dollar amounts with red/green coloring
+
+2. **Dashboard Views** (`apps/dashboards/pnl/`)
+   - Created modular P&L dashboard with tabs:
+     - Positions: Current positions with P&L breakdown
+     - Daily P&L: Historical daily summaries
+     - P&L Chart: Cumulative and daily P&L visualization
+     - Trade History: Recent trades with details
+   - Used wrapped components throughout
+   - Applied consistent theming
+
+3. **Dashboard Integration**
+   - Added P&L tab to main dashboard navigation
+   - Registered callbacks at app startup
+   - 20-second auto-refresh interval
+   - Manual refresh button
+   - File watcher status indicators
+
+## Test Results
+- All imports working correctly
+- Controller initializes successfully
+- Summary stats retrieving properly
+- File watchers starting correctly
+- Database tables created as expected
+
+## Next Immediate Steps
+1. Test with real trade CSV data
+2. Verify market price integration
+3. Check UI responsiveness and performance
+4. Document any edge cases found
+
+## Key Technical Decisions Made
+- Used per-date calculator instances for daily isolation
+- Direct SQL queries in controller for efficiency
+- 20-second refresh to balance responsiveness and performance
+- Wrapper callbacks to match file watcher signature
+- Storage instance shared between service and controller
+
+---
+
+## Spot Risk Y-Space Greek Profiles
 
 ### Problem Addressed (2025-01-13)
 - Greek profile graphs were showing F-space values regardless of the selected space toggle
@@ -92,55 +163,4 @@ Added Y-space transformation to cached profile processing:
 
 ### Implementation
 1. **View Component** (`views.py`):
-   - Added `model_params` Container with concise inline display
-   - Placed between `header_section` and `control_panel`
-
-2. **Callback** (`callbacks.py`):
-   - Added `update_model_parameters` callback
-   - Extracts future price from futures row
-   - Uses actual calculator values: DV01=63.0, Convexity=0.0042
-   - Calculates average implied vol per expiry for options with positions
-- Filters by options (itype C or P) with non-zero positions
-- Displays as decimal values (e.g., 0.7550) matching table format
-- Label clearly indicates it's an average ("Avg Implied Vol")
-
-### Display Format
-```
-Model Parameters: Future Price: 110.7500 • DV01: 63.0 • Convexity: 0.0042 • Avg Implied Vol: 11JUL25: 0.7550, 14JUL25: 0.7425
-```
-
----
-
-## Put Option Delta Fix (2025-01-13 Update)
-
-### Problem Identified
-- Put option Greek profiles were showing positive delta values (same as calls)
-- Expected: Put deltas should be negative (-1 to 0 in F-space, ~-63 to 0 in Y-space)
-
-### Root Cause
-- `bachelier_greek.py` generates Greeks using analytical formulas for **call options only**
-- No put adjustments were being applied to the generated profiles
-
-### Solution Implemented
-1. **New Method**: `_adjust_greeks_for_put()` in SpotRiskController
-   - Applies put-call parity: `delta_put = delta_call - 1`
-   - Other Greeks remain mostly unchanged
-
-2. **Applied in Two Paths**:
-   - **Fresh Generation**: After `generate_greek_profiles_data()` call (~line 875)
-   - **Cached Profiles**: After loading cached Greeks (~line 630)
-
-3. **Option Type Determination**:
-   - Checks `itype` counts per expiry
-   - If only 'P' (no 'C') → apply put adjustments
-   - Otherwise → treat as calls (default)
-
-### Technical Implementation
-- Put adjustments applied to **F-space Greeks** before any Y-space transformation
-- Option type determined once and reused for Y-space transformation
-- Debug logging tracks adjustments: `[DEBUG PUT ADJUSTMENT]`
-
-### Expected Results
-- Put deltas: -1 to 0 in F-space (negative values)
-- Put deltas in Y-space: ~-63 to 0 (after DV01 transformation)
-- Clear visual distinction between call and put profiles
+   - Added `model_params`

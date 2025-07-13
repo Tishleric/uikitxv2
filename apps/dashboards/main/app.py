@@ -225,6 +225,20 @@ except Exception as e:
     app._spot_risk_callbacks_registered = False
 # --- End Spot Risk Registration ---
 
+# --- Register P&L Tracking Callbacks Early ---
+# Import and register P&L Tracking callbacks at startup
+try:
+    from apps.dashboards.pnl.callbacks import register_callbacks as register_pnl_tracking_callbacks
+    
+    # Register callbacks
+    register_pnl_tracking_callbacks(app)
+    app._pnl_tracking_callbacks_registered = True
+    logger.info("P&L Tracking callbacks registered at startup")
+except Exception as e:
+    logger.error(f"Failed to register P&L Tracking callbacks at startup: {e}")
+    app._pnl_tracking_callbacks_registered = False
+# --- End P&L Tracking Registration ---
+
 # --- UI Constants & Helpers ---
 text_style = {"color": default_theme.text_light, "marginBottom": "5px", "marginTop": "15px"}
 input_style_dcc = {
@@ -2811,6 +2825,7 @@ def create_sidebar():
         {"id": "nav-scenario-ladder", "label": "Scenario Ladder", "icon": "📊"},
         {"id": "nav-actant-eod", "label": "Actant EOD", "icon": "📈"},
         {"id": "nav-actant-pnl", "label": "Actant PnL", "icon": "📉"},
+        {"id": "nav-pnl-tracking", "label": "PnL Tracking", "icon": "💹"},  # New P&L Tracking tab
         {"id": "nav-spot-risk", "label": "Spot Risk", "icon": "🎯"},
         {"id": "nav-observatory", "label": "Observatory", "icon": "👀"},
         {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
@@ -2924,6 +2939,19 @@ def get_page_content(page_name):
                 style={"color": "red", "padding": "20px"}
             )
     
+    # Load P&L Tracking dashboard dynamically
+    if page_name == "pnl-tracking":
+        try:
+            from apps.dashboards.pnl import create_pnl_content
+            # Callbacks were already registered at app startup
+            return create_pnl_content()
+        except Exception as e:
+            logger.error(f"Error loading P&L Tracking dashboard: {e}")
+            return html.Div(
+                f"Error loading P&L Tracking dashboard: {str(e)}", 
+                style={"color": "red", "padding": "20px"}
+            )
+    
     # Load Spot Risk dashboard dynamically
     if page_name == "spot-risk":
         try:
@@ -2988,6 +3016,7 @@ app.layout = html.Div([
      Output("nav-scenario-ladder", "style"),
      Output("nav-actant-eod", "style"),
      Output("nav-actant-pnl", "style"),
+     Output("nav-pnl-tracking", "style"),
      Output("nav-spot-risk", "style"),
      Output("nav-observatory", "style")],
     [Input("nav-pricing-monkey", "n_clicks"),
@@ -2998,13 +3027,14 @@ app.layout = html.Div([
      Input("nav-scenario-ladder", "n_clicks"),
      Input("nav-actant-eod", "n_clicks"),
      Input("nav-actant-pnl", "n_clicks"),
+     Input("nav-pnl-tracking", "n_clicks"),
      Input("nav-spot-risk", "n_clicks"),
      Input("nav-observatory", "n_clicks")],
     [State("active-page-store", "data")],
     prevent_initial_call=False
 )
 @monitor()
-def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, spot_risk_clicks, observatory_clicks, current_page):
+def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, pnl_tracking_clicks, spot_risk_clicks, observatory_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
     # Determine which button was clicked
@@ -3023,6 +3053,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
             "nav-scenario-ladder": "scenario-ladder",
             "nav-actant-eod": "actant-eod",
             "nav-actant-pnl": "actant-pnl",
+            "nav-pnl-tracking": "pnl-tracking",
             "nav-spot-risk": "spot-risk",
             "nav-observatory": "observatory"
         }
@@ -3074,13 +3105,14 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
         "scenario-ladder": active_style if active_page == "scenario-ladder" else inactive_style,
         "actant-eod": active_style if active_page == "actant-eod" else inactive_style,
         "actant-pnl": active_style if active_page == "actant-pnl" else inactive_style,
+        "pnl-tracking": active_style if active_page == "pnl-tracking" else inactive_style,
         "spot-risk": active_style if active_page == "spot-risk" else inactive_style,
         "observatory": active_style if active_page == "observatory" else inactive_style
     }
     
     logger.info(f"Navigation: switched to page '{active_page}'")
     
-    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["spot-risk"], styles["observatory"]
+    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["pnl-tracking"], styles["spot-risk"], styles["observatory"]
 
 # Remove old tabs-based layout
 # main_tabs_rendered = Tabs(

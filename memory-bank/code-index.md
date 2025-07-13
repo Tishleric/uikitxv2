@@ -5,7 +5,7 @@ This file provides a quick reference to all code files in the project with brief
 ## Applications
 
 ### Main Dashboard (`apps/dashboards/main/`)
-- `app.py` - Main dashboard entry point with page routing logic for all sub-dashboards
+- `app.py` - Main dashboard entry point with page routing logic for all sub-dashboards. Now includes both Actant PnL (original Taylor Series comparison) and PnL Tracking (new FIFO system) as separate tabs.
 
 ### Spot Risk Dashboard (`apps/dashboards/spot_risk/`)
 - `app.py` - Spot Risk dashboard application entry point
@@ -25,6 +25,11 @@ This file provides a quick reference to all code files in the project with brief
 - `actant_eod/app.py` - End-of-day processing dashboard
 - `actant_pnl/pnl_dashboard.py` - P&L analysis dashboard with Greeks
 - `actant_preprocessing/app.py` - Data preprocessing dashboard
+
+### P&L Tracking Dashboard (`apps/dashboards/pnl/`) - Ready for future integration as separate tab
+- `__init__.py` - Module exports for create_pnl_content
+- `app.py` - P&L tracking dashboard layout with tabs for positions, daily summaries, charts, and trade history
+- `callbacks.py` - Real-time update callbacks with 20-second refresh interval and manual refresh
 
 ### Ladder Dashboard (`apps/dashboards/ladder/`)
 - `scenario_ladder.py` - Scenario ladder with live/demo toggle
@@ -50,6 +55,15 @@ This file provides a quick reference to all code files in the project with brief
 - `circuit_breaker.py` - Circuit breaker pattern implementation
 
 ### Trading Libraries
+
+#### P&L Calculator (`lib/trading/pnl_calculator/`)
+- `__init__.py` - Module exports for Trade, Lot, PnLCalculator, Storage, Watcher, Service, and Controller
+- `models.py` - Trade and Lot dataclasses with validation
+- `calculator.py` - Main FIFO P&L calculator with realized/unrealized P&L tracking, position management, and daily P&L breakdowns. Includes CSV loading from trade ledger format.
+- `storage.py` - SQLite storage layer for market prices, trades, P&L snapshots, and EOD summaries. Implements time-based price selection logic (3pm/5pm EST rules).
+- `watcher.py` - Watchdog-based file monitoring for trade and market price CSV files with debouncing and startup processing.
+- `service.py` - Central orchestration service managing calculator, storage, and file watching. Handles immediate P&L calculation on trade updates and automatic EOD at 5pm EST.
+- `controller.py` - Dashboard controller providing thin wrapper around service for UI data transformation. Formats P&L as dollar amounts with red/green coloring.
 
 #### Spot Risk (`lib/trading/actant/spot_risk/`)
 - `__init__.py` - Module exports
@@ -83,6 +97,7 @@ This file provides a quick reference to all code files in the project with brief
 ### Unit Tests
 - `tests/components/` - UI component rendering tests
 - `tests/monitoring/` - Monitoring and decorator tests
+- `tests/trading/pnl_calculator/test_calculator.py` - Comprehensive tests for FIFO P&L calculations, short positions, and position summaries
 - `tests/actant_spot_risk/` - Spot risk calculation tests, including new `test_file_watcher_subfolders.py`
 - `tests/bond_future_options/` - Greek calculation tests
 
@@ -97,6 +112,7 @@ This file provides a quick reference to all code files in the project with brief
 - `scripts/migration/fix_component_imports.py` - Fix import statements
 - `scripts/spot_risk_migrate_to_daily_folders.py` - Migrate existing files to daily folder structure
 - `scripts/validate_decorators.py` - Validate @monitor usage
+- `data/input/market_prices/generate_mock_prices.py` - Generate mock market price data with XCME format matching trade CSV structure
 
 ### Example Scripts
 - `examples/spot_risk_watcher_example.py` - Example of using file watcher with daily subfolders
@@ -107,11 +123,14 @@ This file provides a quick reference to all code files in the project with brief
 - `data/input/actant_spot_risk/` - Raw spot risk CSV files (now organized in YYYY-MM-DD subfolders)
 - `data/input/actant_pnl/` - P&L analysis input files
 - `data/input/eod/` - End-of-day data files
+- `data/input/trade_ledger/` - Daily trade CSV files (trades_YYYYMMDD.csv format)
+- `data/input/market_prices/` - Market price CSV files for 3pm and 5pm uploads
 
 ### Output Data
 - `data/output/spot_risk/` - Processed spot risk files with Greeks (now organized in YYYY-MM-DD subfolders)
 - `data/output/eod/` - Processed EOD data
 - `data/output/reports/` - Generated reports
+- `data/output/pnl/` - P&L tracking database and snapshots
 
 ### Reference Data
 - `data/reference/` - Static reference data files

@@ -1,6 +1,78 @@
 # Project Progress
 
+## Recent Updates (February 2025)
+
+### February 10, 2025 - Actant PnL Dashboard Restored & P&L Tracking Added
+- **Task**: Restore original Actant PnL dashboard and add P&L Tracking as new tab
+- **Status**: ✅ Complete
+- **Changes Made**:
+  - Part 1: Restored original Actant PnL dashboard
+    - Updated `apps/dashboards/main/app.py` to import from `apps.dashboards.actant_pnl`
+    - Changed callback registration to use original dashboard
+  - Part 2: Added P&L Tracking as new tab
+    - Fixed Container serialization issue in `apps/dashboards/pnl/app.py`
+    - Added "PnL Tracking" navigation button
+    - Updated navigation callback with new outputs/inputs
+    - Registered P&L Tracking callbacks at startup
+- **Result**: Both dashboards working independently in main navigation
+
 ## Recent Updates (January 2025)
+
+### February 4, 2025 - P&L Tracking System Phase 1 Complete
+- **Task**: Implement core infrastructure and service layer for P&L tracking
+- **Status**: ✅ Complete
+- **Components Implemented**:
+  
+  1. **Storage Layer** (`storage.py`):
+     - Comprehensive SQLite schema for market prices, trades, snapshots, EOD summaries
+     - Time-based price selection (3pm/5pm EST rules)
+     - Automatic price source detection (px_last vs px_settle)
+     - Full CRUD operations with monitoring
+  
+  2. **File Watcher** (`watcher.py`):
+     - Watchdog-based real-time monitoring
+     - Debounced event handling
+     - Processes existing files on startup
+     - Separate handlers for trades and market prices
+  
+  3. **P&L Service** (`service.py`):
+     - Orchestrates calculator, storage, and file watching
+     - Immediate P&L calculation on trade addition
+     - Automatic EOD snapshot at 5pm EST
+     - Time zone handling (Chicago for trades, EST for prices)
+     - Per-date calculator instances for daily isolation
+  
+  4. **Mock Data Generation**:
+     - XCME format matching trade CSV structure
+     - Futures and options with proper exchange codes (VY/WY/ZN)
+     - 3pm and 5pm price files for testing
+  
+- **Test Results**:
+  - Successfully processes trade CSVs with daily naming convention
+  - Calculates live P&L immediately upon trade update
+  - Stores snapshots and EOD summaries
+  - Handles missing market prices with fallback to trade prices
+  - File watching works for real-time updates
+
+### February 4, 2025 - P&L Calculator CSV Loading Implementation
+- **Task**: Add CSV loading capability to P&L Calculator module
+- **Status**: ✅ Complete
+- **Details**:
+  - **Requirement**: Read trades from progressive trade ledger CSV file
+  - **Implementation**:
+    - Added `load_trades_from_csv()` method to PnLCalculator class
+    - CSV format: tradeId, instrumentName, marketTradeTime, buySell, quantity, price
+    - Instrument names preserved as-is (no parsing required)
+    - Trade direction conversion: 'B' → positive quantity, 'S' → negative quantity
+    - Timestamp parsing handles "YYYY-MM-DD HH:MM:SS.mmm" format
+  - **Validation Features**:
+    - Checks for required columns before processing
+    - Validates buySell values (must be 'B' or 'S')
+    - Handles missing or malformed data gracefully
+    - Comprehensive error logging
+  - **Documentation**: Updated io-schema.md with CSV format specifications
+
+### February 4, 2025 - P&L Calculator Module Implementation
 
 ### January 23, 2025 - Spot Risk Futures Greek Hardcoding
 - **Task**: Set hardcoded Greek values for futures positions in spot risk processing
