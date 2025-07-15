@@ -1,0 +1,21 @@
+{
+  "test_timestamp": "2025-07-14T19:36:31.684453",
+  "trade_file": "data\\input\\trade_ledger\\trades_20250714.csv",
+  "total_trades": 22,
+  "processed_trades": 22,
+  "symbol_translation": {
+    "success": 0,
+    "failed": 22
+  },
+  "validation_summary": {
+    "OK": 13,
+    "SOD": 8,
+    "EXPIRY": 1
+  },
+  "price_lookup": {
+    "MISSING": 19
+  },
+  "pnl_ready_trades": 0,
+  "missing_price_trades": 22,
+  "sod_positions": 8
+}

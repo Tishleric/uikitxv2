@@ -77,6 +77,10 @@ class PnLService:
             logger.info(f"Processing trade file: {file_path}")
             
             # Extract date from filename (trades_YYYYMMDD.csv)
+            # IMPORTANT: The trade_date is determined from the FILENAME, not the actual
+            # marketTradeTime in the CSV. This means all trades in a file will be
+            # assigned to the date in the filename, regardless of their actual timestamps.
+            # This is by design to group trades by the intended trading day.
             filename = Path(file_path).name
             if filename.startswith('trades_') and filename.endswith('.csv'):
                 date_str = filename[7:15]  # Extract YYYYMMDD
@@ -88,8 +92,8 @@ class PnLService:
             # Read trades from CSV
             trades_df = pd.read_csv(file_path)
             
-            # Save trades to storage
-            rows_saved = self.storage.save_processed_trades(trades_df, filename)
+            # Save trades to storage with the trading day date
+            rows_saved = self.storage.save_processed_trades(trades_df, filename, trade_date)
             logger.info(f"Saved {rows_saved} trades to storage")
             
             # Get calculator for this date
@@ -264,46 +268,66 @@ class PnLService:
         
         Args:
             pnl_df: DataFrame with P&L data
-            trade_date: Trade date
+            trade_date: Trade date (from filename)
         """
         if pnl_df.empty:
             return
             
         eod_data = []
         
-        # Group by symbol
-        for symbol in pnl_df['symbol'].unique():
-            symbol_df = pnl_df[pnl_df['symbol'] == symbol]
+        # Get unique dates from the P&L data
+        unique_dates = pnl_df['date'].unique() if 'date' in pnl_df.columns else []
+        
+        for calc_date in unique_dates:
+            # Filter data for this specific date
+            date_df = pnl_df[pnl_df['date'] == calc_date]
             
-            # Get opening and closing positions
-            opening_pos = 0  # Will be loaded from previous day in production
-            closing_pos = int(symbol_df.iloc[-1]['position'])
-            
-            # Calculate average prices
-            trades = symbol_df[symbol_df['realized_pnl'] != 0]
-            avg_buy = None
-            avg_sell = None
-            
-            if not trades.empty:
-                # This is simplified - in production would calculate from trades
-                avg_buy = float(symbol_df['avg_cost'].iloc[-1]) if closing_pos > 0 else None
+            # Group by symbol for this date
+            for symbol in date_df['symbol'].unique():
+                symbol_df = date_df[date_df['symbol'] == symbol]
                 
-            eod_record = {
-                'trade_date': trade_date,
-                'instrument_name': symbol,
-                'opening_position': opening_pos,
-                'closing_position': closing_pos,
-                'trades_count': len(symbol_df),
-                'realized_pnl': float(symbol_df['realized_pnl'].sum()),
-                'unrealized_pnl': float(symbol_df.iloc[-1]['unrealized_pnl']),
-                'total_pnl': float(symbol_df['total_daily_pnl'].sum()),
-                'avg_buy_price': avg_buy,
-                'avg_sell_price': avg_sell
-            }
-            
-            eod_data.append(eod_record)
-            
-        self.storage.save_eod_pnl(eod_data)
+                # Get opening and closing positions
+                opening_pos = 0  # Will be loaded from previous day in production
+                closing_pos = int(symbol_df.iloc[-1]['position'])
+                
+                # Get average cost from the calculator
+                # The avg_cost from PnLCalculator is the weighted average price
+                avg_cost = float(symbol_df.iloc[-1]['avg_cost']) if pd.notna(symbol_df.iloc[-1]['avg_cost']) else 0.0
+                
+                # For long positions, avg_cost is the average buy price
+                # For short positions, avg_cost is the average sell price
+                avg_buy = avg_cost if closing_pos > 0 and avg_cost > 0 else None
+                avg_sell = avg_cost if closing_pos < 0 and avg_cost > 0 else None
+                    
+                # Get actual trade count from the database
+                conn = self.storage._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*) as trade_count 
+                    FROM processed_trades 
+                    WHERE instrument_name = ? AND DATE(trade_timestamp) = ?
+                """, (symbol, str(calc_date)))
+                result = cursor.fetchone()
+                actual_trade_count = result['trade_count'] if result else 0
+                conn.close()
+                    
+                eod_record = {
+                    'trade_date': calc_date,  # Use the actual calculation date
+                    'instrument_name': symbol,
+                    'opening_position': opening_pos,
+                    'closing_position': closing_pos,
+                    'trades_count': actual_trade_count,  # Use actual trade count from DB
+                    'realized_pnl': float(symbol_df['realized_pnl'].sum()),
+                    'unrealized_pnl': float(symbol_df.iloc[-1]['unrealized_pnl']),
+                    'total_pnl': float(symbol_df['total_daily_pnl'].sum()),
+                    'avg_buy_price': avg_buy,
+                    'avg_sell_price': avg_sell
+                }
+                
+                eod_data.append(eod_record)
+        
+        if eod_data:
+            self.storage.save_eod_pnl(eod_data)
         logger.info(f"Saved EOD P&L for {len(eod_data)} instruments on {trade_date}")
         
     @monitor()

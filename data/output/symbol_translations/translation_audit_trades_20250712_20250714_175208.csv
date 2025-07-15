@@ -1,0 +1,11 @@
+actant_symbol,bloomberg_symbol,type,error,components
+XCMEOCADPS20250714N0VY2/108.75,TYU5 108.75 C Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OCAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '108.75'}"
+XCMEOCADPS20250714N0VY2/111,TYU5 111 C Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OCAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '111'}"
+XCMEOCADPS20250714N0VY2/111.25,TYU5 111.25 C Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OCAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '111.25'}"
+XCMEOCADPS20250714N0VY2/110,TYU5 110 C Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OCAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '110'}"
+XCMEOCADPS20250714N0VY2/110.5,TYU5 110.5 C Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OCAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '110.5'}"
+XCMEOPADPS20250714N0VY2/109.5,TYU5 109.5 P Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OPAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '109.5'}"
+XCMEOPADPS20250714N0VY2/110.75,TYU5 110.75 P Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OPAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '110.75'}"
+XCMEOPADPS20250714N0VY2/111,TYU5 111 P Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OPAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '111'}"
+XCMEOCADPS20250714N0VY2/109,TYU5 109 C Comdty,option,,"{'exchange': 'XCME', 'option_type': 'OCAD', 'product_spec': 'PS', 'expiry_date': '20250714', 'prefix': 'N0', 'series': 'VY', 'occurrence': '2', 'strike': '109'}"
+XCMEFFDPSX20250919U0ZN,TYU5 Comdty,futures,,"{'exchange': 'XCME', 'futures_type': 'FFD', 'product_spec': 'PSX', 'expiry_date': '20250919', 'month_code': 'U', 'year_digit': '0', 'root': 'ZN'}"

@@ -139,7 +139,7 @@ def create_pnl_content():
                             {'name': 'Instrument', 'id': 'instrument'},
                             {'name': 'Net Position', 'id': 'net_position', 'type': 'numeric'},
                             {'name': 'Avg Price', 'id': 'avg_price'},
-                            {'name': 'Last Price', 'id': 'last_price'},
+                            {'name': 'Last Trade Price', 'id': 'last_price'},
                             {'name': 'Realized P&L', 'id': 'realized_pnl', 'type': 'numeric', 'format': {'specifier': ',.2f'}},
                             {'name': 'Unrealized P&L', 'id': 'unrealized_pnl', 'type': 'numeric', 'format': {'specifier': ',.2f'}},
                             {'name': 'Total P&L', 'id': 'total_pnl', 'type': 'numeric', 'format': {'specifier': ',.2f'}}
@@ -200,6 +200,7 @@ def create_pnl_content():
                             {'name': 'Value', 'id': 'value', 'type': 'numeric', 'format': {'specifier': ',.2f'}}
                         ],
                         data=[],
+                        style_data_conditional=[],
                         page_size=50
                     )
                 ]

@@ -15,6 +15,7 @@ def get_futures_prices():
         {'bloomberg': 'US', 'base_price': 114.281},
         {'bloomberg': 'RX', 'base_price': 129.56},
         {'bloomberg': 'ZN', 'base_price': 111.075},  # Add ZN for options
+        {'bloomberg': 'XCMEFFDPSX20250919U0ZN', 'base_price': 2.5},  # Add special format future
     ]
     
     rows = []
@@ -107,35 +108,44 @@ def generate_option_chain(underlying_symbol, underlying_price, expiry_date, base
         # Format: XCMEOCADCS20250714N0VY2/108.75 (for calls)
         date_code = expiry_date.strftime('%Y%m%d')
         
-        # Call option
-        call_code = f"XCMEOCADCS{date_code}N0{exchange_code}2/{strike}"
-        call_bid = call_price - 0.015625  # 1/64 spread
-        call_ask = call_price + 0.015625
+        # Format strike - remove unnecessary .0 for integers
+        strike_str = str(int(strike)) if strike == int(strike) else str(strike)
         
-        rows.append({
-            'bloomberg': call_code,
-            'PX_SETTLE': round(call_price, 6),
-            'PX_LAST': round(call_price, 6),
-            'PX_BID': round(call_bid, 6),
-            'PX_ASK': round(call_ask, 6),
-            'OPT_EXPIRE_DT': expiry_str,
-            'MONEYNESS': call_moneyness
-        })
+        # Generate both CAD and PAD patterns, and both 2 and 3 suffixes
+        patterns = ['CAD', 'PAD']
+        suffixes = ['2', '3']
         
-        # Put option
-        put_code = f"XCMEOCADPS{date_code}N0{exchange_code}2/{strike}"
-        put_bid = put_price - 0.015625
-        put_ask = put_price + 0.015625
-        
-        rows.append({
-            'bloomberg': put_code,
-            'PX_SETTLE': round(put_price, 6),
-            'PX_LAST': round(put_price, 6),
-            'PX_BID': round(put_bid, 6),
-            'PX_ASK': round(put_ask, 6),
-            'OPT_EXPIRE_DT': expiry_str,
-            'MONEYNESS': put_moneyness
-        })
+        for pattern in patterns:
+            for suffix in suffixes:
+                # Call option
+                call_code = f"XCMEO{pattern}CS{date_code}N0{exchange_code}{suffix}/{strike_str}"
+                call_bid = call_price - 0.015625  # 1/64 spread
+                call_ask = call_price + 0.015625
+                
+                rows.append({
+                    'bloomberg': call_code,
+                    'PX_SETTLE': round(call_price, 6),
+                    'PX_LAST': round(call_price, 6),
+                    'PX_BID': round(call_bid, 6),
+                    'PX_ASK': round(call_ask, 6),
+                    'OPT_EXPIRE_DT': expiry_str,
+                    'MONEYNESS': call_moneyness
+                })
+                
+                # Put option
+                put_code = f"XCMEO{pattern}PS{date_code}N0{exchange_code}{suffix}/{strike_str}"
+                put_bid = put_price - 0.015625
+                put_ask = put_price + 0.015625
+                
+                rows.append({
+                    'bloomberg': put_code,
+                    'PX_SETTLE': round(put_price, 6),
+                    'PX_LAST': round(put_price, 6),
+                    'PX_BID': round(put_bid, 6),
+                    'PX_ASK': round(put_ask, 6),
+                    'OPT_EXPIRE_DT': expiry_str,
+                    'MONEYNESS': put_moneyness
+                })
     
     return rows
 
@@ -176,6 +186,9 @@ def main():
         (date(2025, 7, 11), '17:00'),  # Previous day 5pm
         (date(2025, 7, 12), '15:00'),  # Today 3pm
         (date(2025, 7, 12), '17:00'),  # Today 5pm
+        (date(2025, 7, 13), '17:00'),  # Next day 5pm
+        (date(2025, 7, 14), '15:00'),  # Current day 3pm
+        (date(2025, 7, 14), '17:00'),  # Current day 5pm
     ]
     
     for price_date, time in dates:

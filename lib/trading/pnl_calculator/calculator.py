@@ -346,11 +346,18 @@ class PnLCalculator:
             # Calculate unrealized P&L for each symbol at day end
             for symbol in symbols:
                 market_close = self.market_closes.get((symbol, current_date))
-                if market_close is None:
-                    continue
-                    
+                
+                # Always calculate position metrics
                 position, avg_cost = self._calculate_position_metrics(symbol)
-                unrealized_pnl = self._calculate_unrealized_pnl(symbol, market_close)
+                
+                # Calculate unrealized P&L only if we have market price
+                if market_close is not None:
+                    unrealized_pnl = self._calculate_unrealized_pnl(symbol, market_close)
+                else:
+                    # No market price available - set unrealized to 0
+                    unrealized_pnl = 0.0
+                    market_close = 0.0  # Use 0 to indicate no market price
+                    logger.debug(f"No market price for {symbol} on {current_date}, setting unrealized P&L to 0")
                 
                 # Change in unrealized P&L
                 unrealized_change = unrealized_pnl - prev_unrealized[symbol]

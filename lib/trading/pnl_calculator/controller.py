@@ -6,9 +6,10 @@ focusing on data transformation for UI display.
 
 import logging
 from typing import Dict, List, Optional, Any
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import pandas as pd
 from pathlib import Path
+import pytz
 
 from .service import PnLService
 from .storage import PnLStorage
@@ -17,6 +18,26 @@ from .models import Trade
 from lib.monitoring.decorators import monitor
 
 logger = logging.getLogger(__name__)
+
+
+def get_current_trading_day() -> date:
+    """Get current trading day based on 5pm EST cutoff.
+    
+    Trading day runs from 5pm EST to 5pm EST.
+    After 5pm, we're in the next trading day.
+    
+    Returns:
+        date: Current trading day
+    """
+    # Get current time in EST
+    est = pytz.timezone('US/Eastern')
+    now_est = datetime.now(est)
+    
+    # If after 5pm EST, return tomorrow
+    if now_est.hour >= 17:
+        return (now_est + timedelta(days=1)).date()
+    else:
+        return now_est.date()
 
 
 class PnLController:
@@ -79,12 +100,39 @@ class PnLController:
         """Start the file watchers for trade and price updates."""
         self.watcher.start()
         self.watcher_started = True
+        
+        # Process any existing files that were added while the system was down
+        logger.info("Processing existing files on startup...")
+        self.watcher.process_existing_files()
     
     @monitor()
     def stop_file_watchers(self) -> None:
         """Stop the file watchers."""
         self.watcher.stop()
         self.watcher_started = False
+    
+    @monitor()
+    def rebuild_database(self) -> None:
+        """Drop and recreate all database tables, then reprocess all files.
+        
+        WARNING: This will delete all existing P&L data!
+        """
+        logger.warning("Rebuilding P&L database - all data will be deleted!")
+        
+        # Stop watchers if running
+        if self.watcher_started:
+            self.stop_file_watchers()
+            
+        # Drop and recreate tables
+        self.storage.drop_and_recreate_tables()
+        
+        # Clear the service's processed files set
+        self.service._processed_files.clear()
+        
+        # Start watchers and process existing files
+        self.start_file_watchers()
+        
+        logger.info("Database rebuild complete")
     
     @monitor()
     def get_position_summary(self) -> List[Dict[str, Any]]:
@@ -94,25 +142,107 @@ class PnLController:
             List of position dictionaries with formatted fields for display
         """
         try:
-            # Get position summary from service
-            positions_df = self.service.get_position_summary()
+            # Get current trading day
+            trading_day = get_current_trading_day()
+            trading_day_str = trading_day.isoformat()
             
-            if positions_df.empty:
-                return []
+            # Query positions from database (similar to daily P&L approach)
+            conn = self.storage._get_connection()
+            cursor = conn.cursor()
+            
+            # Get the latest position and aggregate P&L for each instrument
+            query = """
+            WITH latest_positions AS (
+                SELECT 
+                    instrument_name,
+                    closing_position as position,
+                    CASE 
+                        WHEN closing_position > 0 THEN COALESCE(avg_buy_price, 0)
+                        WHEN closing_position < 0 THEN COALESCE(avg_sell_price, 0)
+                        ELSE 0
+                    END as avg_price,
+                    unrealized_pnl,
+                    trade_date,
+                    ROW_NUMBER() OVER (PARTITION BY instrument_name ORDER BY trade_date DESC) as rn
+                FROM eod_pnl
+            ),
+            realized_totals AS (
+                SELECT 
+                    instrument_name,
+                    SUM(realized_pnl) as total_realized_pnl
+                FROM eod_pnl
+                GROUP BY instrument_name
+            )
+            SELECT 
+                lp.instrument_name,
+                lp.position,
+                lp.avg_price,
+                COALESCE(rt.total_realized_pnl, 0) as realized_pnl,
+                lp.unrealized_pnl
+            FROM latest_positions lp
+            LEFT JOIN realized_totals rt ON lp.instrument_name = rt.instrument_name
+            WHERE lp.rn = 1
+            """
+            
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            
+            # If no EOD data, try latest snapshots for the day
+            if not rows:
+                snapshot_query = """
+                SELECT 
+                    instrument_name,
+                    position,
+                    avg_cost as avg_price,
+                    market_price as last_price,
+                    realized_pnl,
+                    unrealized_pnl
+                FROM pnl_snapshots
+                WHERE DATE(snapshot_timestamp) = ?
+                ORDER BY snapshot_timestamp DESC
+                """
+                cursor.execute(snapshot_query, (trading_day_str,))
+                
+                # Get latest snapshot per instrument
+                seen_instruments = set()
+                rows = []
+                for row in cursor.fetchall():
+                    if row['instrument_name'] not in seen_instruments:
+                        rows.append(row)
+                        seen_instruments.add(row['instrument_name'])
+            
+            conn.close()
             
             # Transform for UI display
             ui_positions = []
-            for _, row in positions_df.iterrows():
+            for row in rows:
+                # Get last trade price
+                last_trade_price = self.storage.get_last_trade_price(
+                    row['instrument_name'], 
+                    trading_day
+                )
+                
                 # Calculate total P&L
-                realized_pnl = row.get('realized_pnl', 0) or 0
-                unrealized_pnl = row.get('unrealized_pnl', 0) or 0
+                realized_pnl = row['realized_pnl'] or 0
+                unrealized_pnl = row['unrealized_pnl'] or 0
+                
+                # If we have a last trade price but no unrealized P&L, recalculate
+                if last_trade_price and unrealized_pnl == 0 and row['position'] != 0:
+                    avg_price = float(row['avg_price']) if row['avg_price'] else 0
+                    if avg_price > 0:
+                        unrealized_pnl = (last_trade_price - avg_price) * row['position']
+                
                 total_pnl = realized_pnl + unrealized_pnl
                 
+                # Skip zero positions
+                if row['position'] == 0 and realized_pnl == 0 and unrealized_pnl == 0:
+                    continue
+                
                 ui_position = {
-                    'instrument': row['instrument'],
-                    'net_position': row.get('net_position', 0),
-                    'avg_price': f"{row.get('avg_price', 0):.4f}",
-                    'last_price': f"{row.get('last_price', 0):.4f}",
+                    'instrument': row['instrument_name'],
+                    'net_position': row['position'],
+                    'avg_price': f"{row['avg_price']:.4f}" if row['avg_price'] and row['avg_price'] != 0 else "0.0000",
+                    'last_price': f"{last_trade_price:.4f}" if last_trade_price else "N/A",
                     'realized_pnl': realized_pnl,
                     'unrealized_pnl': unrealized_pnl,
                     'total_pnl': total_pnl,
@@ -148,7 +278,7 @@ class PnLController:
             SELECT 
                 trade_date,
                 COUNT(DISTINCT instrument_name) as instrument_count,
-                COUNT(*) as position_count,
+                SUM(trades_count) as total_trades_count,  -- Sum actual trade counts
                 SUM(realized_pnl) as total_realized_pnl,
                 SUM(unrealized_pnl) as total_unrealized_pnl,
                 SUM(realized_pnl + unrealized_pnl) as total_pnl
@@ -169,7 +299,7 @@ class PnLController:
                     'realized_pnl': row['total_realized_pnl'] or 0,
                     'unrealized_pnl': row['total_unrealized_pnl'] or 0,
                     'total_pnl': row['total_pnl'] or 0,
-                    'trade_count': row['position_count'],
+                    'trade_count': row['total_trades_count'] or 0,  # Use summed trade counts
                     # Add color coding
                     'realized_color': 'green' if row['total_realized_pnl'] >= 0 else 'red',
                     'unrealized_color': 'green' if row['total_unrealized_pnl'] >= 0 else 'red',
@@ -205,9 +335,10 @@ class PnLController:
                 trade_timestamp,
                 quantity,
                 price,
-                side
+                side,
+                source_file
             FROM processed_trades
-            ORDER BY trade_timestamp DESC
+            ORDER BY source_file DESC, trade_timestamp DESC
             LIMIT ?
             """
             
@@ -215,9 +346,27 @@ class PnLController:
             rows = cursor.fetchall()
             conn.close()
             
-            # Transform for UI display
+            # Transform for UI display with file grouping
             ui_trades = []
+            current_file = None
+            
             for row in rows:
+                # Add header row when source file changes
+                if current_file != row['source_file']:
+                    current_file = row['source_file']
+                    header_row = {
+                        'trade_id': '',
+                        'instrument': f"--- {current_file} ---",
+                        'timestamp': '',
+                        'side': '',
+                        'quantity': '',
+                        'price': '',
+                        'value': '',
+                        'is_header': True
+                    }
+                    ui_trades.append(header_row)
+                
+                # Add normal trade row
                 ui_trade = {
                     'trade_id': row['trade_id'],
                     'instrument': row['instrument_name'],
@@ -225,7 +374,8 @@ class PnLController:
                     'side': 'BUY' if row['side'] == 'B' else 'SELL',
                     'quantity': abs(row['quantity']),
                     'price': f"{row['price']:.4f}",
-                    'value': abs(row['quantity'] * row['price'])
+                    'value': abs(row['quantity'] * row['price']),
+                    'is_header': False
                 }
                 ui_trades.append(ui_trade)
             
@@ -336,15 +486,14 @@ class PnLController:
             positions = self.get_position_summary()
             daily_pnl = self.get_daily_pnl_summary()
             
-            # Calculate totals
+            # Calculate totals from positions (these are current active positions)
             total_realized = sum(p['realized_pnl'] for p in positions)
             total_unrealized = sum(p['unrealized_pnl'] for p in positions)
             total_pnl = total_realized + total_unrealized
             
-            # Get today's P&L
-            today = date.today().isoformat()
-            today_pnl = next((d for d in daily_pnl if d['date'] == today), None)
-            today_total = today_pnl['total_pnl'] if today_pnl else 0
+            # Calculate today's P&L by summing all daily P&L
+            # (since we're aggregating trades from multiple dates into one "trading day")
+            today_total = sum(d['total_pnl'] for d in daily_pnl)
             
             return {
                 'total_pnl': total_pnl,
@@ -361,15 +510,68 @@ class PnLController:
             
         except Exception as e:
             logger.error(f"Error getting summary stats: {e}")
+            return {}
+    
+    @monitor()
+    def get_data_diagnostic(self, trade_date: Optional[date] = None) -> Dict[str, Any]:
+        """Diagnostic method to check what data exists for a given date.
+        
+        Args:
+            trade_date: Date to check (defaults to current trading day)
+            
+        Returns:
+            Dictionary with diagnostic information
+        """
+        try:
+            if trade_date is None:
+                trade_date = get_current_trading_day()
+            
+            trade_date_str = trade_date.isoformat()
+            conn = self.storage._get_connection()
+            cursor = conn.cursor()
+            
+            # Check processed trades
+            cursor.execute(
+                "SELECT COUNT(*) as count FROM processed_trades WHERE trade_date = ?",
+                (trade_date_str,)
+            )
+            trade_count = cursor.fetchone()['count']
+            
+            # Check EOD P&L
+            cursor.execute(
+                "SELECT COUNT(*) as count FROM eod_pnl WHERE trade_date = ?",
+                (trade_date_str,)
+            )
+            eod_count = cursor.fetchone()['count']
+            
+            # Check snapshots
+            cursor.execute(
+                "SELECT COUNT(*) as count FROM pnl_snapshots WHERE DATE(snapshot_timestamp) = ?",
+                (trade_date_str,)
+            )
+            snapshot_count = cursor.fetchone()['count']
+            
+            # Get sample trades
+            cursor.execute(
+                """SELECT instrument_name, price, quantity, side, trade_timestamp 
+                FROM processed_trades 
+                WHERE trade_date = ? 
+                LIMIT 5""",
+                (trade_date_str,)
+            )
+            sample_trades = cursor.fetchall()
+            
+            conn.close()
+            
             return {
-                'total_pnl': 0,
-                'total_pnl_color': 'black',
-                'total_realized': 0,
-                'total_realized_color': 'black',
-                'total_unrealized': 0,
-                'total_unrealized_color': 'black',
-                'today_pnl': 0,
-                'today_pnl_color': 'black',
-                'position_count': 0,
-                'last_update': 'Error'
-            } 
+                'trade_date': trade_date_str,
+                'current_time': datetime.now().isoformat(),
+                'processed_trades_count': trade_count,
+                'eod_pnl_count': eod_count,
+                'snapshot_count': snapshot_count,
+                'sample_trades': sample_trades
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in data diagnostic: {e}")
+            return {'error': str(e)} 

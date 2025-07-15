@@ -388,30 +388,47 @@ def update_pnl_chart(n_intervals: int, n_clicks: int) -> Dict[str, Any]:
 
 
 @callback(
-    Output("pnl-trades-table", "data"),
+    [Output("pnl-trades-table", "data"),
+     Output("pnl-trades-table", "style_data_conditional")],
     [Input("pnl-interval-component", "n_intervals"),
      Input("pnl-refresh-button", "n_clicks")],
     prevent_initial_call=False
 )
 @monitor()
-def update_trades_table(n_intervals: int, n_clicks: int) -> List[Dict]:
-    """Update trades history table.
+def update_trades_table(n_intervals: int, n_clicks: int) -> Tuple[List[Dict], List[Dict]]:
+    """Update trades history table with styling.
     
     Args:
         n_intervals: Number of interval updates  
         n_clicks: Number of manual refresh clicks
         
     Returns:
-        List of trade dictionaries for table
+        Tuple of (trade data, conditional styles)
     """
     try:
         # Get trade history from controller
         trades = controller.get_trade_history(limit=100)
-        return trades
+        
+        # Create conditional styles for header rows
+        style_conditions = []
+        
+        # Style header rows
+        for i, trade in enumerate(trades):
+            if trade.get('is_header', False):
+                style_conditions.append({
+                    'if': {'row_index': i},
+                    'backgroundColor': default_theme.secondary,
+                    'color': default_theme.text_light,
+                    'fontWeight': 'bold',
+                    'fontSize': '14px',
+                    'borderBottom': f'2px solid {default_theme.primary}'
+                })
+        
+        return trades, style_conditions
         
     except Exception as e:
         logger.error(f"Error updating trades table: {e}")
-        return []
+        return [], []
 
 
 # Start file watchers when module loads

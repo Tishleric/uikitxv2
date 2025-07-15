@@ -1,0 +1,20 @@
+{
+  "test_timestamp": "2025-07-15T11:25:38.808298",
+  "total_trades": 22,
+  "symbol_translation": {
+    "success": 18,
+    "failed": 4
+  },
+  "validation_summary": {
+    "OK": 10,
+    "SOD": 7,
+    "SYMBOL_ERROR": 4,
+    "EXPIRY": 1
+  },
+  "price_lookup": {
+    "found": 15,
+    "missing": 3
+  },
+  "sod_positions": 7,
+  "expiry_trades": 1
+}

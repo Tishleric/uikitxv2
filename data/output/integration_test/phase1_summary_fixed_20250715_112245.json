@@ -1,0 +1,9 @@
+{
+  "test_timestamp": "2025-07-15T11:22:44.983303",
+  "total_trades": 22,
+  "symbol_translation": {
+    "success": 18,
+    "failed": 4
+  },
+  "validation_summary": {
+    "OK": 

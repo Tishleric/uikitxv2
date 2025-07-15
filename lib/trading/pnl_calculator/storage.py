@@ -88,7 +88,7 @@ class PnLStorage:
             side TEXT NOT NULL,                     -- 'B' or 'S'
             processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             source_file TEXT NOT NULL,
-            UNIQUE(trade_id, trade_date)
+            UNIQUE(trade_id, source_file)
         );
         
         -- Real-time P&L snapshots
@@ -159,6 +159,28 @@ class PnLStorage:
             conn.commit()
             
         logger.info(f"Database initialized at {self.db_path}")
+        
+    @monitor()
+    def drop_and_recreate_tables(self):
+        """Drop all tables and recreate them. USE WITH CAUTION - This will delete all data!"""
+        logger.warning("Dropping all P&L tracking tables...")
+        
+        drop_sql = """
+        DROP TABLE IF EXISTS market_prices;
+        DROP TABLE IF EXISTS processed_trades;
+        DROP TABLE IF EXISTS pnl_snapshots;
+        DROP TABLE IF EXISTS eod_pnl;
+        DROP TABLE IF EXISTS file_processing_log;
+        DROP TABLE IF EXISTS pnl_audit_log;
+        """
+        
+        with self._get_connection() as conn:
+            conn.executescript(drop_sql)
+            conn.commit()
+            
+        logger.info("All tables dropped. Recreating...")
+        self._initialize_database()
+        logger.info("Tables recreated successfully")
         
     @monitor()
     def save_market_prices(self, prices_df: pd.DataFrame, upload_time: datetime, 
@@ -294,12 +316,13 @@ class PnLStorage:
         return None, 'none'
         
     @monitor()
-    def save_processed_trades(self, trades_df: pd.DataFrame, source_file: str) -> int:
+    def save_processed_trades(self, trades_df: pd.DataFrame, source_file: str, trade_date: date) -> int:
         """Save processed trades to database.
         
         Args:
             trades_df: DataFrame with trade data
             source_file: Name of the source CSV file
+            trade_date: Trading day date (from filename)
             
         Returns:
             Number of new trades inserted
@@ -309,7 +332,7 @@ class PnLStorage:
             record = {
                 'trade_id': row['tradeId'],
                 'instrument_name': row['instrumentName'],
-                'trade_date': pd.to_datetime(row['marketTradeTime']).date(),
+                'trade_date': trade_date.isoformat(),  # Use the trading day date
                 'trade_timestamp': row['marketTradeTime'],
                 'quantity': row['quantity'],
                 'price': row['price'],
@@ -409,6 +432,34 @@ class PnLStorage:
             
         logger.info(f"Saved EOD P&L for {len(eod_data)} instruments")
         
+    @monitor()
+    def get_last_trade_price(self, instrument: str, trade_date: date) -> Optional[float]:
+        """Get the last trade price for an instrument on a specific date.
+        
+        Args:
+            instrument: Instrument name
+            trade_date: Trading date
+            
+        Returns:
+            Last trade price or None if no trades found
+        """
+        query = """
+        SELECT price 
+        FROM processed_trades
+        WHERE instrument_name = ? AND trade_date = ?
+        ORDER BY trade_timestamp DESC
+        LIMIT 1
+        """
+        
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (instrument, trade_date))
+            result = cursor.fetchone()
+            
+        if result:
+            return result['price']
+        return None
+            
     @monitor()
     def log_file_processing(self, file_path: str, file_type: str, status: str,
                            error_message: Optional[str] = None,
