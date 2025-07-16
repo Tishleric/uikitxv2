@@ -3,90 +3,46 @@
 ## Core Libraries
 
 ### lib/trading/symbol_translator.py
-Core module for translating between Actant and Bloomberg symbol formats. Handles CME options (with day-of-month occurrence calculation for weekly expiries) and futures contracts. Options format includes series-to-weekday mapping (VY=Mon, TJ=Tue, etc.) and formats strikes with 3 decimal places. Futures use product mappings (ZN→TY, TU→TU, etc.).
-
-### lib/trading/pnl_calculator/trade_preprocessor.py
-Processes raw trade ledger files: translates Actant symbols to Bloomberg format, detects SOD positions (midnight trades), detects option expiries (zero price), converts Buy/Sell to signed quantities, adds validation status. Tracks file size/modification time to avoid reprocessing unchanged files. Outputs to data/output/trade_ledger_processed/.
-
-### lib/trading/pnl_calculator/trade_file_watcher.py
-Monitors trade ledger input directory using watchdog library. Handles file modification events (for growing files) and creation events. Implements 4pm CDT cutover logic for active trade files. Integrates with TradePreprocessor to automatically process files as they change.
-
-### lib/trading/pnl_calculator/price_file_selector.py
-Intelligent market price file selection based on timestamp and file type. Implements time windows: 2pm window (1:45-2:30pm CDT) uses PX_LAST, 4pm window (3:45-4:30pm CDT) uses PX_SETTLE. Ignores 3pm files completely. Falls back to most recent valid file if no files match current time window.
-
-### lib/trading/pnl_calculator/calculator.py
-Core P&L calculation engine. Calculates unrealized and realized P&L with proper FIFO/average cost tracking. Handles position management, trade processing, and market price updates. Integrates with storage layer for persistence.
-
-### lib/trading/pnl_calculator/service.py
-Service layer that coordinates between calculator, storage, and external interfaces. Manages transaction boundaries, handles batch operations, and provides high-level P&L operations.
+Translates Actant proprietary format symbols to Bloomberg format. Maps option series codes (VY→VBY Monday, TJ→TJP Tuesday, etc.) and calculates weekday occurrences. Handles both options (e.g., XCMEOCADPS20250714N0VY2/110.75 → VBYN25C2 110.750 Comdty) and futures (e.g., XCMEFFDPSX20250919U0ZN → TYU5 Comdty).
 
 ### lib/trading/pnl_calculator/storage.py
-SQLite-based storage for trades, positions, and P&L data. Implements schema with proper indexes and foreign keys. Handles data persistence and retrieval with transaction support.
+Database interface for P&L tracking system. Manages trades, positions, market prices, and snapshots. Key methods: save_processed_trades(), save_market_prices(), get_market_price(), get_positions(), create_eod_snapshot(). Includes _map_to_bloomberg() which uses SymbolTranslator for instrument mapping. Updated get_market_price() to use flexible timestamp lookup instead of exact hour matching.
 
-### lib/trading/pnl_calculator/controller.py
-High-level controller that orchestrates the P&L system. Manages file watchers, coordinates updates, and provides interface for UI callbacks. Handles initialization and cleanup of resources.
+### lib/trading/pnl_calculator/calculator.py
+Core P&L calculation engine implementing FIFO methodology. Handles futures and options with different precision (5 decimal for futures, 4 for options). Methods: calculate_pnl_for_trades(), calculate_position_pnl(), calculate_realized_pnl(), calculate_unrealized_pnl(). Processes exercise assignments and manages rounding for display.
 
-### lib/trading/pnl_calculator/watcher.py
-Base file watcher implementation for monitoring CSV files. Provides debouncing to prevent rapid events and handles both creation and modification events. Used by trade and price file monitoring.
+### lib/trading/pnl_calculator/trade_preprocessor.py
+Processes raw trade CSV files into standardized format. Monitors data/input/trade_ledger/ directory, tracks processing state, handles duplicates, and manages transaction types (BUY/SELL/EXERCISE). Integrates with PnLCalculator and PositionManager for real-time updates.
+
+### lib/trading/pnl_calculator/service.py
+Main service orchestrating P&L tracking components. Manages file watchers, coordinates trade processing, price updates, and position calculations. Methods: start(), stop(), process_pending_files(), get_current_positions(). Implements singleton pattern for global access.
+
+### lib/trading/pnl_calculator/unified_service.py
+Higher-level service wrapping PnLService with additional data aggregation. Provides clean API for UI: get_open_positions(), get_trade_history(), get_daily_pnl_history(). Manages component lifecycle and formats data for display.
+
+### lib/trading/pnl_calculator/position_manager.py
+Manages real-time position tracking with FIFO methodology. Processes trades, updates positions, calculates P&L, and integrates market prices. Key methods: process_trade(), update_positions(), update_market_prices(). Handles option exercise assignments specially.
+
+### lib/trading/pnl_calculator/price_processor.py
+Processes market price CSV files from Bloomberg. Handles futures and options directories separately. Validates and normalizes price data before storage. Integrates with PnLStorage for database operations.
 
 ## Dashboard Applications
 
-### apps/dashboards/pnl/app.py
-Main P&L dashboard application. Provides real-time P&L tracking with position views, trade history, and performance metrics. Integrates with the P&L calculator system.
+### apps/dashboards/pnl_v2/
+New P&L tracking dashboard with real-time updates. Components:
+- app.py: Main layout with 4 tabs (Open Positions, Trade Ledger, Daily P&L, P&L Chart)
+- views.py: Individual tab components and data tables
+- controller.py: Singleton managing UnifiedPnLService instance
+- callbacks.py: Real-time update callbacks on 5-second intervals
 
-### apps/dashboards/pnl/callbacks.py
-Callback implementations for P&L dashboard. Handles user interactions, data updates, and real-time refresh logic. Coordinates with PnLController for data operations.
+### lib/trading/pnl_integration/
+New integration package for TYU5 P&L engine (replacing pnl_calculator). Components:
+- tyu5_adapter.py: Adapter querying UIKitXv2 data stores and formatting for TYU5 engine
+- tyu5_service.py: Service layer managing calculations, monitoring, and output generation
+- Direct database to TYU5 path, bypassing old pnl_calculator entirely
 
-### apps/dashboards/spot_risk/app.py
-Spot Risk dashboard for monitoring options risk metrics. Displays position Greeks, model parameters, and risk analytics with real-time updates.
-
-### apps/dashboards/actant_eod/app.py
-End-of-day processing dashboard for Actant data. Handles EOD calculations, position reconciliation, and report generation.
-
-### apps/dashboards/actant_preprocessing/app.py
-Data preprocessing dashboard for cleaning and validating Actant trade data before analysis.
-
-### apps/dashboards/observatory/app.py
-System monitoring dashboard that displays logs, metrics, and system health information from decorated functions.
-
-### apps/dashboards/main/app.py
-Main entry point dashboard that provides navigation to all other dashboards and system status overview.
-
-## Scripts
-
-### scripts/run_trade_preprocessor.py
-Standalone script to run the trade preprocessor with file watching. Supports both watch mode (continuous monitoring) and process-only mode (one-time processing). Configurable input/output directories.
-
-### scripts/test_trade_preprocessor.py
-Test script for trade preprocessor functionality. Verifies symbol translation, SOD detection, expiry detection, and file change tracking. Displays detailed results and examples.
-
-### scripts/test_phase1_integration_fixed.py
-Integration test for Phase 1 P&L implementation. Tests symbol translation (100% success), price lookup (86.4% success), and trade preprocessing. Handles both options and futures with proper base symbol mapping for futures prices.
-
-### scripts/test_price_selection_scenarios.py
-Tests intelligent price file selection logic across different time windows and scenarios. Verifies correct PX_LAST/PX_SETTLE selection based on timestamps.
-
-## Trading Libraries
-
-### lib/trading/actant/spot_risk/file_watcher.py
-Specialized file watcher for Spot Risk CSV processing. Handles daily subfolder structure and maintains processing state. Integrates with Spot Risk parser for automatic processing.
-
-### lib/trading/bond_future_options/factory.py
-Factory for creating bond future option calculators with proper configuration for different products.
-
-### lib/trading/bond_future_options/greeks.py
-Greek calculation implementations for bond future options including delta, gamma, vega, theta, and rho.
-
-## Data Files
-
-### data/input/trade_ledger/
-Input directory for raw trade CSV files. Files grow throughout the day and switch to next day at 4pm CDT.
-
-### data/output/trade_ledger_processed/
-Output directory for processed trade files with Bloomberg symbols, validation status, and metadata.
-
-### data/input/market_prices/
-Market price CSV files in Options_YYYYMMDD_HHMM.csv format. Contains PX_LAST and PX_SETTLE columns.
-
-### data/output/pnl/
-P&L database and related output files including calculation results and audit trails. 
+## Recent Updates
+- Created new pnl_integration package for clean separation from old code
+- TYU5 adapter queries cto_trades and price tables directly
+- All prices remain decimal throughout (no 32nds conversion)
+- Test script at scripts/test_tyu5_integration.py for validation 

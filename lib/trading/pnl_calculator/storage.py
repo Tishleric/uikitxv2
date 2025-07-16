@@ -139,6 +139,60 @@ class PnLStorage:
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         
+        -- CTO_INTEGRATION: Trade processing tracker for row-level deduplication
+        CREATE TABLE IF NOT EXISTS trade_processing_tracker (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_file TEXT NOT NULL,              -- Original CSV filename
+            source_row_number INTEGER NOT NULL,     -- Row number in CSV (1-based)
+            trade_id TEXT NOT NULL,                 -- tradeId from CSV
+            trade_timestamp DATETIME NOT NULL,      -- marketTradeTime from CSV
+            instrument_name TEXT NOT NULL,          -- instrumentName from CSV
+            quantity REAL NOT NULL,                 -- quantity from CSV
+            price REAL NOT NULL,                    -- price from CSV
+            processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(source_file, trade_id)           -- Prevent duplicate processing
+        );
+        
+        -- Index for efficient lookups
+        CREATE INDEX IF NOT EXISTS idx_trade_tracker_file 
+        ON trade_processing_tracker(source_file);
+        
+        CREATE INDEX IF NOT EXISTS idx_trade_tracker_timestamp
+        ON trade_processing_tracker(trade_timestamp);
+        
+        -- CTO_INTEGRATION: New trades table with CTO's exact schema
+        CREATE TABLE IF NOT EXISTS cto_trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            Date DATE NOT NULL,              -- Trade date
+            Time TIME NOT NULL,              -- Trade time  
+            Symbol TEXT NOT NULL,            -- Bloomberg symbol
+            Action TEXT NOT NULL,            -- 'BUY' or 'SELL'
+            Quantity INTEGER NOT NULL,       -- Negative for sells
+            Price REAL NOT NULL,             -- Decimal price
+            Fees REAL DEFAULT 0.0,           -- Trading fees
+            Counterparty TEXT NOT NULL,      -- Always 'FRGM' for now
+            tradeID TEXT NOT NULL UNIQUE,    -- Original trade ID
+            Type TEXT NOT NULL,              -- 'FUT' or 'OPT'
+            
+            -- Metadata
+            source_file TEXT NOT NULL,       -- Source CSV filename
+            processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            
+            -- Flags for edge cases
+            is_sod BOOLEAN DEFAULT 0,        -- Start of day flag (midnight timestamp)
+            is_exercise BOOLEAN DEFAULT 0    -- Exercise flag (price = 0)
+        );
+        
+        -- Indexes for CTO trades table
+        CREATE INDEX IF NOT EXISTS idx_cto_trades_date 
+        ON cto_trades(Date);
+        
+        CREATE INDEX IF NOT EXISTS idx_cto_trades_symbol
+        ON cto_trades(Symbol);
+        
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_cto_trades_tradeid
+        ON cto_trades(tradeID);
+        
         -- P&L calculation audit log
         CREATE TABLE IF NOT EXISTS pnl_audit_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,6 +206,43 @@ class PnLStorage:
             unrealized_pnl REAL NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+        
+        -- Current positions (only non-zero)
+        CREATE TABLE IF NOT EXISTS positions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            instrument_name TEXT NOT NULL UNIQUE,
+            position_quantity REAL NOT NULL,        -- Current net position
+            avg_cost REAL NOT NULL,                 -- FIFO average cost
+            total_realized_pnl REAL NOT NULL DEFAULT 0,  -- Cumulative realized P&L
+            unrealized_pnl REAL NOT NULL DEFAULT 0,      -- Current unrealized P&L
+            last_market_price REAL,                 -- Last price used for unrealized calc
+            last_trade_id TEXT,                     -- For tracking
+            last_updated DATETIME NOT NULL,
+            is_option BOOLEAN NOT NULL DEFAULT 0,
+            option_strike REAL,                     -- For options
+            option_expiry DATE,                     -- For options
+            has_exercised_trades BOOLEAN DEFAULT 0, -- Flag for exercised options
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        -- Position snapshots for SOD/EOD
+        CREATE TABLE IF NOT EXISTS position_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            snapshot_type TEXT NOT NULL,            -- 'SOD' or 'EOD'
+            snapshot_timestamp DATETIME NOT NULL,
+            instrument_name TEXT NOT NULL,
+            position_quantity REAL NOT NULL,
+            avg_cost REAL NOT NULL,
+            total_realized_pnl REAL NOT NULL,
+            unrealized_pnl REAL NOT NULL,
+            market_price REAL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(snapshot_type, snapshot_timestamp, instrument_name)
+        );
+        
+        -- Index for position snapshots
+        CREATE INDEX IF NOT EXISTS idx_position_snapshots 
+        ON position_snapshots(snapshot_type, snapshot_timestamp);
         """
         
         with self._get_connection() as conn:
@@ -171,7 +262,11 @@ class PnLStorage:
         DROP TABLE IF EXISTS pnl_snapshots;
         DROP TABLE IF EXISTS eod_pnl;
         DROP TABLE IF EXISTS file_processing_log;
+        DROP TABLE IF EXISTS trade_processing_tracker;
+        DROP TABLE IF EXISTS cto_trades;
         DROP TABLE IF EXISTS pnl_audit_log;
+        DROP TABLE IF EXISTS positions;
+        DROP TABLE IF EXISTS position_snapshots;
         """
         
         with self._get_connection() as conn:
@@ -189,131 +284,189 @@ class PnLStorage:
         
         Args:
             prices_df: DataFrame with market price data
-            upload_time: When the file was uploaded
-            source_file: Name of the source CSV file
+            upload_time: Timestamp when prices were uploaded
+            source_file: Path to source file
             
         Returns:
-            Number of rows inserted
+            Number of records saved
         """
-        upload_date = upload_time.date()
-        upload_hour = upload_time.hour
-        
-        records = []
-        for _, row in prices_df.iterrows():
-            # Determine asset type based on presence of option-specific columns
-            asset_type = 'OPTION' if pd.notna(row.get('OPT_EXPIRE_DT')) else 'FUTURE'
+        if prices_df.empty:
+            logger.warning("Empty prices DataFrame provided")
+            return 0
             
-            record = {
-                'bloomberg': row['bloomberg'],
-                'asset_type': asset_type,
-                'px_settle': row['PX_SETTLE'],
-                'px_last': row['PX_LAST'],
-                'px_bid': row.get('PX_BID', None),
-                'px_ask': row.get('PX_ASK', None),
-                'opt_expire_dt': row.get('OPT_EXPIRE_DT', None),
-                'moneyness': row.get('MONEYNESS', None),
-                'upload_timestamp': upload_time,
-                'upload_date': upload_date,
-                'upload_hour': upload_hour,
-                'source_file': source_file
-            }
-            records.append(record)
-            
-        # Insert records
-        query = """
-        INSERT OR REPLACE INTO market_prices (
-            bloomberg, asset_type, px_settle, px_last, px_bid, px_ask,
-            opt_expire_dt, moneyness, upload_timestamp, upload_date, 
-            upload_hour, source_file
-        ) VALUES (
-            :bloomberg, :asset_type, :px_settle, :px_last, :px_bid, :px_ask,
-            :opt_expire_dt, :moneyness, :upload_timestamp, :upload_date,
-            :upload_hour, :source_file
-        )
-        """
+        records_saved = 0
         
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.executemany(query, records)
-            conn.commit()
-            rows_inserted = cursor.rowcount
             
-        logger.info(f"Saved {rows_inserted} market prices from {source_file}")
-        return rows_inserted
+            # Extract date and hour from upload_time for partitioning
+            upload_date = upload_time.date()
+            upload_hour = upload_time.hour
+            
+            for _, row in prices_df.iterrows():
+                try:
+                    # Get bloomberg symbol - handle both column names
+                    bloomberg = row.get('bloomberg') or row.get('SYMBOL')
+                    if not bloomberg:
+                        continue
+                        
+                    # Validate and clean price data
+                    px_settle = row.get('PX_SETTLE') or row.get('px_settle')
+                    px_last = row.get('PX_LAST') or row.get('px_last')
+                    
+                    # Skip if both prices are invalid
+                    if pd.isna(px_settle) and pd.isna(px_last):
+                        continue
+                        
+                    # Clean price values - convert to float or None
+                    def clean_price(value):
+                        if pd.isna(value):
+                            return None
+                        if isinstance(value, str):
+                            # Skip invalid string values
+                            if '#N/A' in value or 'Requesting' in value:
+                                return None
+                            try:
+                                return float(value)
+                            except ValueError:
+                                return None
+                        try:
+                            return float(value)
+                        except:
+                            return None
+                    
+                    px_settle_clean = clean_price(px_settle)
+                    px_last_clean = clean_price(px_last)
+                    
+                    # Skip if both cleaned prices are None
+                    if px_settle_clean is None and px_last_clean is None:
+                        logger.debug(f"Skipping {bloomberg} - no valid prices")
+                        continue
+                    
+                    # Determine asset type based on source file path
+                    if 'futures' in source_file.lower():
+                        asset_type = 'FUTURE'
+                    elif 'options' in source_file.lower():
+                        asset_type = 'OPTION'
+                    else:
+                        # Fallback to symbol check
+                        asset_type = 'OPTION' if any(x in str(bloomberg) for x in ['C ', 'P ']) else 'FUTURE'
+                    
+                    # Extract other fields
+                    px_bid = clean_price(row.get('PX_BID'))
+                    px_ask = clean_price(row.get('PX_ASK'))
+                    
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO market_prices 
+                        (bloomberg, asset_type, px_settle, px_last, px_bid, px_ask,
+                         opt_expire_dt, moneyness, upload_timestamp, upload_date, upload_hour,
+                         source_file)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        bloomberg,
+                        asset_type,
+                        px_settle_clean,
+                        px_last_clean,
+                        px_bid,
+                        px_ask,
+                        row.get('EXPIRE_DT'),
+                        row.get('MONEYNESS'),
+                        upload_time,
+                        upload_date,
+                        upload_hour,
+                        source_file
+                    ))
+                    
+                    records_saved += 1
+                    
+                except Exception as e:
+                    logger.error(f"Error saving price for {row.get('bloomberg', 'unknown')}: {e}")
+                    continue
+                    
+            conn.commit()
+            
+        logger.info(f"Saved {records_saved} market prices from {source_file}")
+        return records_saved
         
     @monitor()
     def get_market_price(self, instrument: str, as_of: datetime) -> Tuple[Optional[float], str]:
         """Get appropriate market price for an instrument at a specific time.
         
-        Implements the pricing logic:
-        - Before 3pm: Use previous day's 5pm px_settle
-        - 3pm-5pm: Use today's 3pm px_last
-        - After 5pm: Use today's 5pm px_settle
+        Finds the most recent price available before or at the as_of time.
+        Prefers px_settle but falls back to px_last if settle not available.
         
         Args:
-            instrument: Bloomberg identifier
-            as_of: Timestamp to get price for (in EST)
+            instrument: Bloomberg identifier or internal instrument name
+            as_of: Timestamp to get price for
             
         Returns:
-            Tuple of (price, source) where source is 'px_settle' or 'px_last'
+            Tuple of (price, source) where source is 'px_settle', 'px_last', or 'none'
         """
-        as_of_date = as_of.date()
-        as_of_hour = as_of.hour
-        
+        # Try to map internal instrument name to Bloomberg symbol
+        bloomberg_symbol = self._map_to_bloomberg(instrument)
+        if not bloomberg_symbol:
+            bloomberg_symbol = instrument  # Fallback to original
+            
         with self._get_connection() as conn:
             cursor = conn.cursor()
             
-            # Determine which price to use based on time
-            if as_of_hour < 15:  # Before 3pm
-                # Use previous day's 5pm px_settle
-                query = """
-                SELECT px_settle, upload_timestamp
-                FROM market_prices
-                WHERE bloomberg = ? 
-                  AND upload_date < ?
-                  AND upload_hour = 17
-                ORDER BY upload_timestamp DESC
-                LIMIT 1
-                """
-                cursor.execute(query, (instrument, as_of_date))
-                result = cursor.fetchone()
-                if result:
-                    return result['px_settle'], 'px_settle'
-                    
-            elif 15 <= as_of_hour < 17:  # 3pm-5pm
-                # Use today's 3pm px_last
-                query = """
-                SELECT px_last, upload_timestamp
-                FROM market_prices
-                WHERE bloomberg = ?
-                  AND upload_date = ?
-                  AND upload_hour = 15
-                ORDER BY upload_timestamp DESC
-                LIMIT 1
-                """
-                cursor.execute(query, (instrument, as_of_date))
-                result = cursor.fetchone()
-                if result:
-                    return result['px_last'], 'px_last'
-                    
-            else:  # After 5pm
-                # Use today's 5pm px_settle
-                query = """
-                SELECT px_settle, upload_timestamp
-                FROM market_prices
-                WHERE bloomberg = ?
-                  AND upload_date = ?
-                  AND upload_hour = 17
-                ORDER BY upload_timestamp DESC
-                LIMIT 1
-                """
-                cursor.execute(query, (instrument, as_of_date))
-                result = cursor.fetchone()
-                if result:
-                    return result['px_settle'], 'px_settle'
-                    
-        logger.warning(f"No market price found for {instrument} as of {as_of}")
-        return None, 'none'
+            # Look for the most recent price up to the as_of time
+            # Prefer px_settle over px_last when both are available
+            query = """
+            SELECT 
+                bloomberg,
+                px_settle,
+                px_last,
+                upload_timestamp,
+                CASE 
+                    WHEN px_settle IS NOT NULL THEN px_settle
+                    WHEN px_last IS NOT NULL THEN px_last
+                    ELSE NULL
+                END as price,
+                CASE 
+                    WHEN px_settle IS NOT NULL THEN 'px_settle'
+                    WHEN px_last IS NOT NULL THEN 'px_last'
+                    ELSE 'none'
+                END as price_source
+            FROM market_prices
+            WHERE bloomberg = ? 
+              AND upload_timestamp <= ?
+              AND (px_settle IS NOT NULL OR px_last IS NOT NULL)
+            ORDER BY upload_timestamp DESC
+            LIMIT 1
+            """
+            
+            cursor.execute(query, (bloomberg_symbol, as_of))
+            result = cursor.fetchone()
+            
+            if result and result['price'] is not None:
+                return float(result['price']), result['price_source']
+            
+            # If no price found, log and return None
+            logger.debug(f"No market price found for {instrument} as of {as_of}")
+            return None, 'none'
+        
+    def _map_to_bloomberg(self, instrument: str) -> Optional[str]:
+        """Map internal instrument name to Bloomberg symbol.
+        
+        Args:
+            instrument: Internal instrument name
+            
+        Returns:
+            Bloomberg symbol or None if no mapping found
+        """
+        # Use the existing SymbolTranslator
+        from lib.trading.symbol_translator import SymbolTranslator
+        
+        translator = SymbolTranslator()
+        bloomberg_symbol = translator.translate(instrument)
+        
+        if bloomberg_symbol:
+            # Return the full Bloomberg symbol as stored in market_prices table
+            # e.g., "VBYN25C2 110.750 Comdty" or "TYU5 Comdty"
+            return bloomberg_symbol
+                
+        return None
         
     @monitor()
     def save_processed_trades(self, trades_df: pd.DataFrame, source_file: str, trade_date: date) -> int:
@@ -485,15 +638,239 @@ class PnLStorage:
         
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(query, (
-                str(file_path),
-                file_type,
-                file_path.stat().st_size if file_path.exists() else 0,
-                datetime.fromtimestamp(file_path.stat().st_mtime) if file_path.exists() else None,
-                status,
-                error_message,
-                rows_processed,
-                datetime.now() if status == 'processing' else None,
-                datetime.now() if status in ['completed', 'error'] else None
-            ))
-            conn.commit() 
+            try:
+                cursor.execute(query, (
+                    str(file_path),
+                    file_type,
+                    file_path.stat().st_size if file_path.exists() else 0,
+                    datetime.fromtimestamp(file_path.stat().st_mtime) if file_path.exists() else None,
+                    status,
+                    error_message,
+                    rows_processed,
+                    datetime.now() if status == 'processing' else None,
+                    datetime.now() if status in ['completed', 'error'] else None
+                ))
+                conn.commit()
+            except Exception as e:
+                logger.error(f"Error logging file processing: {e}")
+    
+    # CTO_INTEGRATION: Add methods for row-level trade tracking
+    @monitor()
+    def get_processed_trades_for_file(self, source_file: str) -> set:
+        """Get set of trade IDs that have already been processed from a file.
+        
+        Args:
+            source_file: Name of the source CSV file
+            
+        Returns:
+            Set of trade IDs that have been processed
+        """
+        query = """
+        SELECT trade_id
+        FROM trade_processing_tracker
+        WHERE source_file = ?
+        """
+        
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (source_file,))
+            results = cursor.fetchall()
+            
+        return {row['trade_id'] for row in results}
+    
+    @monitor()
+    def record_processed_trade(self, source_file: str, row_number: int, trade_data: dict) -> bool:
+        """Record that a trade has been processed.
+        
+        Args:
+            source_file: Name of the source CSV file
+            row_number: Row number in the CSV (1-based)
+            trade_data: Dictionary with trade information
+            
+        Returns:
+            True if successfully recorded, False if trade already exists
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO trade_processing_tracker 
+                    (source_file, source_row_number, trade_id, trade_timestamp, 
+                     instrument_name, quantity, price)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    source_file,
+                    row_number,
+                    trade_data['tradeId'],
+                    trade_data['marketTradeTime'],
+                    trade_data['instrumentName'],
+                    trade_data['quantity'],
+                    trade_data['price']
+                ))
+                conn.commit()
+                return True
+                
+        except sqlite3.IntegrityError:
+            # Trade already processed (unique constraint violation)
+            logger.debug(f"Trade {trade_data['tradeId']} from {source_file} already processed")
+            return False
+        except Exception as e:
+            logger.error(f"Error recording processed trade: {e}")
+            raise
+    
+    @monitor()
+    def get_last_processed_row_for_file(self, source_file: str) -> int:
+        """Get the last processed row number for a file.
+        
+        Args:
+            source_file: Name of the source CSV file
+            
+        Returns:
+            Last processed row number (0 if no rows processed)
+        """
+        query = """
+        SELECT MAX(source_row_number) as last_row
+        FROM trade_processing_tracker
+        WHERE source_file = ?
+        """
+        
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (source_file,))
+            result = cursor.fetchone()
+            
+        return result['last_row'] if result and result['last_row'] else 0
+    
+    @monitor()
+    def get_processing_stats_for_file(self, source_file: str) -> dict:
+        """Get processing statistics for a file.
+        
+        Args:
+            source_file: Name of the source CSV file
+            
+        Returns:
+            Dictionary with processing stats
+        """
+        query = """
+        SELECT 
+            COUNT(*) as total_processed,
+            MIN(trade_timestamp) as first_trade_time,
+            MAX(trade_timestamp) as last_trade_time,
+            MIN(processed_at) as first_processed_at,
+            MAX(processed_at) as last_processed_at
+        FROM trade_processing_tracker
+        WHERE source_file = ?
+        """
+        
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (source_file,))
+            result = cursor.fetchone()
+            
+        return dict(result) if result else {
+            'total_processed': 0,
+            'first_trade_time': None,
+            'last_trade_time': None,
+            'first_processed_at': None,
+            'last_processed_at': None
+        } 
+    
+    # CTO_INTEGRATION: Methods for CTO trades table
+    @monitor()
+    def insert_cto_trade(self, trade_data: dict) -> bool:
+        """Insert a trade into the CTO trades table.
+        
+        Args:
+            trade_data: Dictionary with all required CTO fields
+            
+        Returns:
+            True if successfully inserted, False if trade already exists
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO cto_trades 
+                    (Date, Time, Symbol, Action, Quantity, Price, Fees, 
+                     Counterparty, tradeID, Type, source_file, is_sod, is_exercise)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    trade_data['Date'],
+                    trade_data['Time'],
+                    trade_data['Symbol'],
+                    trade_data['Action'],
+                    trade_data['Quantity'],
+                    trade_data['Price'],
+                    trade_data.get('Fees', 0.0),
+                    trade_data['Counterparty'],
+                    trade_data['tradeID'],
+                    trade_data['Type'],
+                    trade_data['source_file'],
+                    trade_data.get('is_sod', False),
+                    trade_data.get('is_exercise', False)
+                ))
+                conn.commit()
+                return True
+                
+        except sqlite3.IntegrityError:
+            # Trade already exists (unique constraint on tradeID)
+            logger.debug(f"CTO trade {trade_data['tradeID']} already exists")
+            return False
+        except Exception as e:
+            logger.error(f"Error inserting CTO trade: {e}")
+            raise
+    
+    @monitor()
+    def get_cto_trades_by_date(self, trade_date: date) -> pd.DataFrame:
+        """Get all CTO trades for a specific date.
+        
+        Args:
+            trade_date: Date to query trades for
+            
+        Returns:
+            DataFrame with CTO trades
+        """
+        query = """
+        SELECT * FROM cto_trades
+        WHERE Date = ?
+        ORDER BY Time, id
+        """
+        
+        with self._get_connection() as conn:
+            df = pd.read_sql_query(query, conn, params=[trade_date.isoformat()])
+            
+        return df
+    
+    @monitor()
+    def get_cto_trades_summary(self) -> dict:
+        """Get summary statistics for CTO trades table.
+        
+        Returns:
+            Dictionary with summary stats
+        """
+        query = """
+        SELECT 
+            COUNT(*) as total_trades,
+            COUNT(DISTINCT Date) as trading_days,
+            COUNT(DISTINCT Symbol) as unique_symbols,
+            SUM(CASE WHEN is_sod = 1 THEN 1 ELSE 0 END) as sod_trades,
+            SUM(CASE WHEN is_exercise = 1 THEN 1 ELSE 0 END) as exercise_trades,
+            MIN(Date) as first_trade_date,
+            MAX(Date) as last_trade_date
+        FROM cto_trades
+        """
+        
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query)
+            result = cursor.fetchone()
+            
+        return dict(result) if result else {
+            'total_trades': 0,
+            'trading_days': 0,
+            'unique_symbols': 0,
+            'sod_trades': 0,
+            'exercise_trades': 0,
+            'first_trade_date': None,
+            'last_trade_date': None
+        } 

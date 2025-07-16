@@ -1,453 +1,275 @@
 """P&L Dashboard Callbacks
 
-This module contains all callback functions for P&L dashboard interactivity.
+This module contains all callback functions for P&L dashboard interactivity,
+now working with TYU5 Excel data.
 """
 
 import logging
 from typing import List, Dict, Any, Tuple
 from dash import Input, Output, State, callback, html
 from dash.exceptions import PreventUpdate
-import plotly.graph_objects as go
+import dash_bootstrap_components as dbc
+from typing import Tuple, List, Dict
+import logging
+from datetime import datetime
 
-from .app import controller, create_summary_card
+from .app import tyu5_reader, create_summary_card, create_sheet_datatable
 from lib.components.themes import default_theme
+from lib.components.basic import Tabs
 from lib.monitoring.decorators import monitor
+from lib.trading.pnl_integration.data_reprocessor import DataReprocessor
 
 logger = logging.getLogger(__name__)
 
 
 @callback(
     [Output("pnl-summary-cards", "children"),
-     Output("pnl-last-update", "children"),
-     Output("pnl-watcher-status", "children")],
+     Output("pnl-file-timestamp", "children"),
+     Output("pnl-tabs", "children"),  # Changed from "tabs" to "children"
+     Output("pnl-no-data", "style"),
+     Output("pnl-tabs", "style")],
     [Input("pnl-interval-component", "n_intervals"),
      Input("pnl-refresh-button", "n_clicks")],
     prevent_initial_call=False
 )
 @monitor()
-def update_summary_stats(n_intervals: int, n_clicks: int) -> Tuple[List[html.Div], str, str]:
-    """Update summary statistics cards.
+def update_dashboard_data(n_intervals: int, n_clicks: int) -> Tuple[List[html.Div], str, List, Dict, Dict]:
+    """Update all dashboard data from TYU5 Excel files.
     
     Args:
         n_intervals: Number of interval updates
         n_clicks: Number of manual refresh clicks
         
     Returns:
-        Tuple of (summary cards, last update time, watcher status)
+        Tuple of (summary cards, file timestamp, tab data)
     """
     try:
-        # Get summary stats from controller
-        stats = controller.get_summary_stats()
+        logger.info("Refreshing TYU5 data...")
+        
+        # Read latest TYU5 data
+        sheets_data = tyu5_reader.read_all_sheets()
+        summary_data = tyu5_reader.get_summary_data()
+        file_timestamp = tyu5_reader.get_file_timestamp()
         
         # Create summary cards
         cards = [
             create_summary_card(
                 "Total P&L",
-                f"${stats['total_pnl']:,.2f}",
-                color=stats['total_pnl_color']
+                f"${summary_data.get('total_pnl', 0):,.2f}",
+                color=default_theme.success if summary_data.get('total_pnl', 0) >= 0 else default_theme.danger
             ),
             create_summary_card(
-                "Today's P&L", 
-                f"${stats['today_pnl']:,.2f}",
-                color=stats['today_pnl_color']
+                "Daily P&L", 
+                f"${summary_data.get('daily_pnl', 0):,.2f}",
+                color=default_theme.success if summary_data.get('daily_pnl', 0) >= 0 else default_theme.danger
             ),
             create_summary_card(
                 "Realized P&L",
-                f"${stats['total_realized']:,.2f}",
-                color=stats['total_realized_color']
+                f"${summary_data.get('realized_pnl', 0):,.2f}",
+                color=default_theme.success if summary_data.get('realized_pnl', 0) >= 0 else default_theme.danger
             ),
             create_summary_card(
                 "Unrealized P&L",
-                f"${stats['total_unrealized']:,.2f}",
-                color=stats['total_unrealized_color']
+                f"${summary_data.get('unrealized_pnl', 0):,.2f}",
+                color=default_theme.success if summary_data.get('unrealized_pnl', 0) >= 0 else default_theme.danger
             ),
             create_summary_card(
                 "Active Positions",
-                str(stats['position_count']),
+                f"{int(summary_data.get('active_positions', 0))}",
+                color=default_theme.text_light
+            ),
+            create_summary_card(
+                "Total Trades",
+                f"{int(summary_data.get('total_trades', 0))}",
                 color=default_theme.text_light
             )
         ]
         
-        # Get watcher status
-        watcher_status = controller.get_watcher_status()
-        watcher_text = "File Watchers: "
-        if watcher_status.get('trades_watcher_active'):
-            watcher_text += "✓ Trades "
-        else:
-            watcher_text += "✗ Trades "
+        # Create tabs for each sheet
+        tab_list = []
+        sheet_order = ['Positions', 'Trades', 'Risk_Matrix', 'Position_Breakdown']
+        
+        for sheet_name in sheet_order:
+            if sheet_name in sheets_data:
+                df = sheets_data[sheet_name]
+                tab_label = sheet_name.replace('_', ' ')
+                tab_content = create_sheet_datatable(sheet_name, df)
+                # Create dbc.Tab component directly
+                tab = dbc.Tab(
+                    label=tab_label,
+                    tab_id=f"pnl-tab-{sheet_name.lower()}",
+                    children=tab_content.render()
+                )
+                tab_list.append(tab)
+        
+        logger.info(f"Successfully updated dashboard with {len(sheets_data)} sheets")
+        
+        # Debug logging
+        logger.debug(f"Tab list has {len(tab_list)} tabs")
+        for i, (label, content) in enumerate(tab_list):
+            logger.debug(f"Tab {i}: {label}")
+        
+        # Show tabs, hide no-data message
+        return cards, f"File: {file_timestamp}", tab_list, {'display': 'none'}, {'display': 'block'}
+        
+    except Exception as e:
+        logger.error(f"Error updating dashboard: {e}")
+        
+        # Return empty state on error
+        error_card = create_summary_card(
+            "Error",
+            "Failed to load data",
+            color=default_theme.danger,
+            subtitle=str(e)
+        )
+        
+        # Hide tabs, show no-data message
+        return [error_card], "Error loading file", [], {'display': 'block'}, {'display': 'none'}
+
+
+@callback(
+    [Output("pnl-reprocess-status", "children"),
+     Output("pnl-reprocess-status", "style"),
+     Output("pnl-reprocess-button", "disabled"),
+     Output("pnl-reprocess-button", "n_clicks")],
+    [Input("pnl-reprocess-button", "n_clicks")],
+    [State("pnl-reprocess-button", "n_clicks_timestamp")],
+    prevent_initial_call=True
+)
+@monitor()
+def handle_reprocess_button(n_clicks: int, last_click_timestamp: int) -> Tuple:
+    """Handle reprocess button clicks with double-click protection.
+    
+    Args:
+        n_clicks: Number of button clicks
+        last_click_timestamp: Timestamp of last click
+        
+    Returns:
+        Tuple of (status message, status style, button disabled state, reset clicks)
+    """
+    if not n_clicks:
+        raise PreventUpdate
+    
+    # Require double-click within 5 seconds
+    import time
+    current_time = time.time() * 1000  # Convert to milliseconds
+    
+    # First click - show warning
+    if n_clicks == 1:
+        warning_msg = html.Div([
+            html.Strong("⚠️ WARNING: ", style={'color': default_theme.danger}),
+            "This will drop all tables and reprocess from scratch. ",
+            html.Strong("Click again within 5 seconds to confirm.")
+        ])
+        
+        style = {
+            'marginTop': '10px',
+            'padding': '10px',
+            'backgroundColor': default_theme.panel_bg,
+            'borderRadius': '4px',
+            'fontSize': '14px',
+            'border': f'1px solid {default_theme.danger}',
+            'display': 'block'
+        }
+        
+        return warning_msg, style, False, n_clicks
+    
+    # Check if this is a valid double-click
+    if last_click_timestamp and (current_time - last_click_timestamp) > 5000:
+        # Too long between clicks, reset
+        return "", {'display': 'none'}, False, 0
+    
+    # Valid double-click - proceed with reprocessing
+    try:
+        logger.info("Starting full data reprocessing...")
+        
+        # Show initial status
+        status_msg = html.Div([
+            html.Strong("🔄 Reprocessing Started", style={'color': '#FFA500'}),
+            html.Br(),
+            "Step 1/4: Dropping tables..."
+        ])
+        
+        style = {
+            'marginTop': '10px',
+            'padding': '10px',
+            'backgroundColor': default_theme.panel_bg,
+            'borderRadius': '4px',
+            'fontSize': '14px',
+            'border': f'1px solid #FFA500',
+            'display': 'block'
+        }
+        
+        # Run reprocessing
+        reprocessor = DataReprocessor()
+        results = reprocessor.orchestrate_full_reprocess()
+        
+        # Build result message
+        if results['overall_success']:
+            status_msg = html.Div([
+                html.Strong("✅ Reprocessing Complete!", style={'color': default_theme.success}),
+                html.Br(),
+                f"Time: {results['elapsed_time']:.1f} seconds",
+                html.Br(),
+                f"Futures: {results['summary']['futures_records']} records",
+                html.Br(),
+                f"Options: {results['summary']['options_records']} records",
+                html.Br(),
+                f"Trades: {results['summary']['trades_processed']} processed",
+                html.Br(),
+                html.Small("TYU5 calculation triggered automatically.", 
+                          style={'color': default_theme.text_subtle})
+            ])
             
-        if watcher_status.get('prices_watcher_active'):
-            watcher_text += "✓ Prices"
+            style['border'] = f'1px solid {default_theme.success}'
         else:
-            watcher_text += "✗ Prices"
+            error_count = results['summary'].get('total_errors', 0)
+            status_msg = html.Div([
+                html.Strong("❌ Reprocessing Failed", style={'color': default_theme.danger}),
+                html.Br(),
+                f"Errors encountered: {error_count}",
+                html.Br(),
+                "Check logs for details."
+            ])
+            
+            style['border'] = f'1px solid {default_theme.danger}'
         
-        return cards, f"Last Update: {stats['last_update']}", watcher_text
-        
-    except Exception as e:
-        logger.error(f"Error updating summary stats: {e}")
-        return [], "Error updating stats", "Watcher status unknown"
-
-
-@callback(
-    [Output("pnl-positions-table", "data"),
-     Output("pnl-positions-table", "style_data_conditional")],
-    [Input("pnl-interval-component", "n_intervals"),
-     Input("pnl-refresh-button", "n_clicks")],
-    prevent_initial_call=False
-)
-@monitor()
-def update_positions_table(n_intervals: int, n_clicks: int) -> Tuple[List[Dict], List[Dict]]:
-    """Update positions table data.
-    
-    Args:
-        n_intervals: Number of interval updates
-        n_clicks: Number of manual refresh clicks
-        
-    Returns:
-        Tuple of (table data, conditional styles)
-    """
-    try:
-        # Get positions from controller
-        positions = controller.get_position_summary()
-        
-        # Create conditional styles for P&L coloring
-        style_conditions = []
-        
-        # Style for realized P&L
-        style_conditions.extend([
-            {
-                'if': {
-                    'filter_query': '{realized_pnl} < 0',
-                    'column_id': 'realized_pnl'
-                },
-                'color': default_theme.danger
-            },
-            {
-                'if': {
-                    'filter_query': '{realized_pnl} >= 0',
-                    'column_id': 'realized_pnl'
-                },
-                'color': default_theme.success
-            }
-        ])
-        
-        # Style for unrealized P&L
-        style_conditions.extend([
-            {
-                'if': {
-                    'filter_query': '{unrealized_pnl} < 0',
-                    'column_id': 'unrealized_pnl'
-                },
-                'color': default_theme.danger
-            },
-            {
-                'if': {
-                    'filter_query': '{unrealized_pnl} >= 0',
-                    'column_id': 'unrealized_pnl'
-                },
-                'color': default_theme.success
-            }
-        ])
-        
-        # Style for total P&L
-        style_conditions.extend([
-            {
-                'if': {
-                    'filter_query': '{total_pnl} < 0',
-                    'column_id': 'total_pnl'
-                },
-                'color': default_theme.danger,
-                'fontWeight': 'bold'
-            },
-            {
-                'if': {
-                    'filter_query': '{total_pnl} >= 0',
-                    'column_id': 'total_pnl'
-                },
-                'color': default_theme.success,
-                'fontWeight': 'bold'
-            }
-        ])
-        
-        return positions, style_conditions
+        # Reset button and return status
+        return status_msg, style, False, 0
         
     except Exception as e:
-        logger.error(f"Error updating positions table: {e}")
-        return [], []
-
-
-@callback(
-    [Output("pnl-daily-table", "data"),
-     Output("pnl-daily-table", "style_data_conditional")],
-    [Input("pnl-interval-component", "n_intervals"),
-     Input("pnl-refresh-button", "n_clicks")],
-    prevent_initial_call=False
-)
-@monitor()
-def update_daily_table(n_intervals: int, n_clicks: int) -> Tuple[List[Dict], List[Dict]]:
-    """Update daily P&L table data.
-    
-    Args:
-        n_intervals: Number of interval updates
-        n_clicks: Number of manual refresh clicks
+        logger.error(f"Reprocessing failed: {e}")
         
-    Returns:
-        Tuple of (table data, conditional styles)
-    """
-    try:
-        # Get daily P&L from controller
-        daily_pnl = controller.get_daily_pnl_summary()
-        
-        # Create conditional styles
-        style_conditions = []
-        
-        # Style for realized P&L
-        style_conditions.extend([
-            {
-                'if': {
-                    'filter_query': '{realized_pnl} < 0',
-                    'column_id': 'realized_pnl'
-                },
-                'color': default_theme.danger
-            },
-            {
-                'if': {
-                    'filter_query': '{realized_pnl} >= 0',
-                    'column_id': 'realized_pnl'
-                },
-                'color': default_theme.success
-            }
+        error_msg = html.Div([
+            html.Strong("❌ Error:", style={'color': default_theme.danger}),
+            html.Br(),
+            str(e)
         ])
         
-        # Style for unrealized P&L
-        style_conditions.extend([
-            {
-                'if': {
-                    'filter_query': '{unrealized_pnl} < 0',
-                    'column_id': 'unrealized_pnl'
-                },
-                'color': default_theme.danger
-            },
-            {
-                'if': {
-                    'filter_query': '{unrealized_pnl} >= 0',
-                    'column_id': 'unrealized_pnl'
-                },
-                'color': default_theme.success
-            }
-        ])
-        
-        # Style for total P&L
-        style_conditions.extend([
-            {
-                'if': {
-                    'filter_query': '{total_pnl} < 0',
-                    'column_id': 'total_pnl'
-                },
-                'color': default_theme.danger,
-                'fontWeight': 'bold'
-            },
-            {
-                'if': {
-                    'filter_query': '{total_pnl} >= 0',
-                    'column_id': 'total_pnl'
-                },
-                'color': default_theme.success,
-                'fontWeight': 'bold'
-            }
-        ])
-        
-        return daily_pnl, style_conditions
-        
-    except Exception as e:
-        logger.error(f"Error updating daily table: {e}")
-        return [], []
-
-
-@callback(
-    Output("pnl-cumulative-chart", "figure"),
-    [Input("pnl-interval-component", "n_intervals"),
-     Input("pnl-refresh-button", "n_clicks")],
-    prevent_initial_call=False
-)
-@monitor()
-def update_pnl_chart(n_intervals: int, n_clicks: int) -> Dict[str, Any]:
-    """Update P&L chart.
-    
-    Args:
-        n_intervals: Number of interval updates
-        n_clicks: Number of manual refresh clicks
-        
-    Returns:
-        Plotly figure dictionary
-    """
-    try:
-        # Get chart data from controller
-        chart_data = controller.get_pnl_chart_data()
-        
-        if not chart_data['dates']:
-            # Return empty chart
-            return {
-                'data': [],
-                'layout': {
-                    'title': 'Cumulative P&L',
-                    'xaxis': {'title': 'Date'},
-                    'yaxis': {'title': 'P&L ($)'},
-                    'height': 400,
-                    'plot_bgcolor': default_theme.base_bg,
-                    'paper_bgcolor': default_theme.panel_bg,
-                    'font': {'color': default_theme.text_light}
-                }
-            }
-        
-        # Create traces
-        traces = []
-        
-        # Cumulative P&L line
-        traces.append(go.Scatter(
-            x=chart_data['dates'],
-            y=chart_data['cumulative_pnl'],
-            mode='lines+markers',
-            name='Cumulative P&L',
-            line=dict(
-                color=default_theme.primary,
-                width=3
-            ),
-            marker=dict(size=6)
-        ))
-        
-        # Daily P&L bars
-        traces.append(go.Bar(
-            x=chart_data['dates'],
-            y=chart_data['daily_pnl'],
-            name='Daily P&L',
-            marker_color=[
-                default_theme.success if val >= 0 else default_theme.danger
-                for val in chart_data['daily_pnl']
-            ],
-            yaxis='y2',
-            opacity=0.6
-        ))
-        
-        # Create layout
-        layout = {
-            'title': {
-                'text': 'P&L Performance',
-                'font': {'color': default_theme.text_light}
-            },
-            'xaxis': {
-                'title': 'Date',
-                'gridcolor': default_theme.secondary,
-                'linecolor': default_theme.secondary,
-                'tickfont': {'color': default_theme.text_light},
-                'titlefont': {'color': default_theme.text_light}
-            },
-            'yaxis': {
-                'title': 'Cumulative P&L ($)',
-                'gridcolor': default_theme.secondary,
-                'linecolor': default_theme.secondary,
-                'tickfont': {'color': default_theme.text_light},
-                'titlefont': {'color': default_theme.text_light},
-                'side': 'left'
-            },
-            'yaxis2': {
-                'title': 'Daily P&L ($)',
-                'overlaying': 'y',
-                'side': 'right',
-                'gridcolor': default_theme.secondary,
-                'linecolor': default_theme.secondary,
-                'tickfont': {'color': default_theme.text_light},
-                'titlefont': {'color': default_theme.text_light}
-            },
-            'height': 400,
-            'plot_bgcolor': default_theme.base_bg,
-            'paper_bgcolor': default_theme.panel_bg,
-            'font': {'color': default_theme.text_light},
-            'showlegend': True,
-            'legend': {
-                'bgcolor': default_theme.panel_bg,
-                'bordercolor': default_theme.secondary,
-                'font': {'color': default_theme.text_light}
-            },
-            'hovermode': 'x unified'
-        }
-        
-        return {'data': traces, 'layout': layout}
-        
-    except Exception as e:
-        logger.error(f"Error updating P&L chart: {e}")
-        return {
-            'data': [],
-            'layout': {
-                'title': 'Error loading chart',
-                'plot_bgcolor': default_theme.base_bg,
-                'paper_bgcolor': default_theme.panel_bg,
-                'font': {'color': default_theme.text_light}
-            }
-        }
-
-
-@callback(
-    [Output("pnl-trades-table", "data"),
-     Output("pnl-trades-table", "style_data_conditional")],
-    [Input("pnl-interval-component", "n_intervals"),
-     Input("pnl-refresh-button", "n_clicks")],
-    prevent_initial_call=False
-)
-@monitor()
-def update_trades_table(n_intervals: int, n_clicks: int) -> Tuple[List[Dict], List[Dict]]:
-    """Update trades history table with styling.
-    
-    Args:
-        n_intervals: Number of interval updates  
-        n_clicks: Number of manual refresh clicks
-        
-    Returns:
-        Tuple of (trade data, conditional styles)
-    """
-    try:
-        # Get trade history from controller
-        trades = controller.get_trade_history(limit=100)
-        
-        # Create conditional styles for header rows
-        style_conditions = []
-        
-        # Style header rows
-        for i, trade in enumerate(trades):
-            if trade.get('is_header', False):
-                style_conditions.append({
-                    'if': {'row_index': i},
-                    'backgroundColor': default_theme.secondary,
-                    'color': default_theme.text_light,
-                    'fontWeight': 'bold',
+        style = {
+            'marginTop': '10px',
+            'padding': '10px',
+            'backgroundColor': default_theme.panel_bg,
+            'borderRadius': '4px',
                     'fontSize': '14px',
-                    'borderBottom': f'2px solid {default_theme.primary}'
-                })
+            'border': f'1px solid {default_theme.danger}',
+            'display': 'block'
+        }
         
-        return trades, style_conditions
-        
-    except Exception as e:
-        logger.error(f"Error updating trades table: {e}")
-        return [], []
+        return error_msg, style, False, 0
 
 
-# Start file watchers when module loads
-try:
-    controller.start_file_watchers()
-    logger.info("P&L file watchers started successfully")
-except Exception as e:
-    logger.error(f"Failed to start P&L file watchers: {e}")
-
-
+# Register callbacks function for main app integration
 def register_callbacks(app):
-    """Register all P&L dashboard callbacks with the main app.
+    """Register all callbacks with the Dash app.
     
-    This function is called from the main app during startup to register
-    all callbacks before the dashboard is loaded.
+    This function is called by the main app to register callbacks.
+    Since we use the @callback decorator, callbacks are automatically
+    registered when this module is imported.
     
     Args:
-        app: Dash application instance
+        app: The Dash app instance
     """
-    # Import the Dash module to ensure callbacks are registered
-    import apps.dashboards.pnl.callbacks
-    logger.info("P&L dashboard callbacks registered with main app") 
+    logger.info("P&L tracking callbacks registered")
+    # Callbacks are already registered via @callback decorator
+    pass 

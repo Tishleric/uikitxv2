@@ -14,6 +14,8 @@ import pytz
 from .service import PnLService
 from .storage import PnLStorage
 from .watcher import PnLFileWatcher
+from .trade_file_watcher import TradeFileWatcher
+from .trade_preprocessor import TradePreprocessor
 from .models import Trade
 from lib.monitoring.decorators import monitor
 
@@ -74,16 +76,30 @@ class PnLController:
         self.storage = PnLStorage(str(db_path))  # Convert Path to string
         self.service = PnLService(self.storage)
         
-        # Create wrappers for callbacks that match expected signature
-        def trade_callback_wrapper(file_path: str, file_type: str):
-            self.service.process_trade_file(file_path)
-            
+        # CTO_INTEGRATION: Create TradePreprocessor with position tracking enabled
+        # This ensures trades are transformed to CTO format and stored in cto_trades table
+        self.trade_preprocessor = TradePreprocessor(
+            output_dir="data/output/trade_ledger_processed",
+            enable_position_tracking=True,
+            storage=self.storage
+        )
+        
+        # CTO_INTEGRATION: Use TradeFileWatcher instead of PnLFileWatcher for proper CTO processing
+        # TradeFileWatcher uses TradePreprocessor which populates both processed_trades AND cto_trades
+        self.trade_watcher = TradeFileWatcher(
+            input_dir=str(trades_dir),
+            output_dir="data/output/trade_ledger_processed"
+        )
+        # Replace the preprocessor in the watcher with our configured one
+        self.trade_watcher.preprocessor = self.trade_preprocessor
+        
+        # Keep the original price watcher for market prices
         def price_callback_wrapper(file_path: str, file_type: str):
             self.service.process_market_price_file(file_path)
         
-        # Create file watcher
+        # Create price file watcher (keep original functionality)
         self.watcher = PnLFileWatcher(
-            trade_callback=trade_callback_wrapper,
+            trade_callback=lambda fp, ft: None,  # Trades handled by TradeFileWatcher
             price_callback=price_callback_wrapper
         )
         # Update watcher directories
@@ -98,16 +114,24 @@ class PnLController:
     @monitor()
     def start_file_watchers(self) -> None:
         """Start the file watchers for trade and price updates."""
+        # CTO_INTEGRATION: Start TradeFileWatcher for trades (populates cto_trades)
+        self.trade_watcher.start()
+        
+        # Start price watcher
         self.watcher.start()
         self.watcher_started = True
         
-        # Process any existing files that were added while the system was down
+        # Process any existing price files that were added while the system was down
         logger.info("Processing existing files on startup...")
         self.watcher.process_existing_files()
     
     @monitor()
     def stop_file_watchers(self) -> None:
         """Stop the file watchers."""
+        # Stop trade watcher
+        self.trade_watcher.stop()
+        
+        # Stop price watcher
         self.watcher.stop()
         self.watcher_started = False
     
@@ -448,7 +472,7 @@ class PnLController:
             Dictionary with watcher status information
         """
         return {
-            'trades_watcher_active': self.watcher_started and self.watcher._running,
+            'trades_watcher_active': self.watcher_started and self.trade_watcher._running,
             'prices_watcher_active': self.watcher_started and self.watcher._running,
             'trades_dir': str(self.trades_dir),
             'prices_dir': str(self.prices_dir)
@@ -462,7 +486,10 @@ class PnLController:
             True if refresh was successful
         """
         try:
-            # Process any existing files
+            # Process any existing trade files using preprocessor
+            self.trade_preprocessor.process_all_files(str(self.trades_dir))
+            
+            # Process any existing price files
             if hasattr(self.watcher, 'process_existing_files'):
                 self.watcher.process_existing_files()
             

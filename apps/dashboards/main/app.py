@@ -239,6 +239,18 @@ except Exception as e:
     app._pnl_tracking_callbacks_registered = False
 # --- End P&L Tracking Registration ---
 
+# --- Register P&L Tracking V2 Callbacks ---
+# CTO_INTEGRATION: P&L v2 registration commented out pending integration
+# try:
+#     from apps.dashboards.pnl_v2.callbacks import register_pnl_v2_callbacks
+#     register_pnl_v2_callbacks()
+#     app._pnl_tracking_v2_callbacks_registered = True
+#     logger.info("P&L Tracking V2 callbacks registered at startup")
+# except Exception as e:
+#     logger.error(f"Failed to register P&L Tracking V2 callbacks at startup: {e}")
+#     app._pnl_tracking_v2_callbacks_registered = False
+# --- End P&L Tracking V2 Registration ---
+
 # --- UI Constants & Helpers ---
 text_style = {"color": default_theme.text_light, "marginBottom": "5px", "marginTop": "15px"}
 input_style_dcc = {
@@ -2826,6 +2838,7 @@ def create_sidebar():
         {"id": "nav-actant-eod", "label": "Actant EOD", "icon": "📈"},
         {"id": "nav-actant-pnl", "label": "Actant PnL", "icon": "📉"},
         {"id": "nav-pnl-tracking", "label": "PnL Tracking", "icon": "💹"},  # New P&L Tracking tab
+        # {"id": "nav-pnl-tracking-v2", "label": "PnL Tracking V2", "icon": "🚀"},  # CTO_INTEGRATION: V2 removed
         {"id": "nav-spot-risk", "label": "Spot Risk", "icon": "🎯"},
         {"id": "nav-observatory", "label": "Observatory", "icon": "👀"},
         {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
@@ -2952,6 +2965,20 @@ def get_page_content(page_name):
                 style={"color": "red", "padding": "20px"}
             )
     
+    # CTO_INTEGRATION: P&L v2 loading removed
+    # # Load P&L Tracking V2 dashboard
+    # if page_name == "pnl-tracking-v2":
+    #     try:
+    #         from apps.dashboards.pnl_v2 import create_pnl_v2_layout
+    #         # Return the new V2 layout
+    #         return create_pnl_v2_layout()
+    #     except Exception as e:
+    #         logger.error(f"Error loading P&L Tracking V2 dashboard: {e}")
+    #         return html.Div(
+    #             f"Error loading P&L Tracking V2 dashboard: {str(e)}", 
+    #             style={"color": "red", "padding": "20px"}
+    #         )
+    
     # Load Spot Risk dashboard dynamically
     if page_name == "spot-risk":
         try:
@@ -3017,6 +3044,7 @@ app.layout = html.Div([
      Output("nav-actant-eod", "style"),
      Output("nav-actant-pnl", "style"),
      Output("nav-pnl-tracking", "style"),
+     # Output("nav-pnl-tracking-v2", "style"),  # CTO_INTEGRATION: v2 removed
      Output("nav-spot-risk", "style"),
      Output("nav-observatory", "style")],
     [Input("nav-pricing-monkey", "n_clicks"),
@@ -3028,6 +3056,7 @@ app.layout = html.Div([
      Input("nav-actant-eod", "n_clicks"),
      Input("nav-actant-pnl", "n_clicks"),
      Input("nav-pnl-tracking", "n_clicks"),
+     # Input("nav-pnl-tracking-v2", "n_clicks"),  # CTO_INTEGRATION: v2 removed
      Input("nav-spot-risk", "n_clicks"),
      Input("nav-observatory", "n_clicks")],
     [State("active-page-store", "data")],
@@ -3054,6 +3083,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
             "nav-actant-eod": "actant-eod",
             "nav-actant-pnl": "actant-pnl",
             "nav-pnl-tracking": "pnl-tracking",
+            # "nav-pnl-tracking-v2": "pnl-tracking-v2",  # CTO_INTEGRATION: v2 removed
             "nav-spot-risk": "spot-risk",
             "nav-observatory": "observatory"
         }
@@ -3106,6 +3136,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
         "actant-eod": active_style if active_page == "actant-eod" else inactive_style,
         "actant-pnl": active_style if active_page == "actant-pnl" else inactive_style,
         "pnl-tracking": active_style if active_page == "pnl-tracking" else inactive_style,
+        # "pnl-tracking-v2": active_style if active_page == "pnl-tracking-v2" else inactive_style,  # CTO_INTEGRATION: v2 removed
         "spot-risk": active_style if active_page == "spot-risk" else inactive_style,
         "observatory": active_style if active_page == "observatory" else inactive_style
     }

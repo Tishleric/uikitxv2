@@ -163,11 +163,21 @@ class PnLService:
         try:
             logger.info(f"Processing market price file: {file_path}")
             
-            # Extract timestamp from filename (market_prices_YYYYMMDD_HHMM.csv)
+            # Extract timestamp from filename
             filename = Path(file_path).name
-            if filename.startswith('market_prices_') and filename.endswith('.csv'):
-                date_str = filename[14:22]  # YYYYMMDD
-                time_str = filename[23:27]  # HHMM
+            parts = filename.replace('.csv', '').split('_')
+            
+            # Handle different filename patterns
+            if filename.startswith('market_prices_') and len(parts) >= 4:
+                date_str = parts[2]  # YYYYMMDD
+                time_str = parts[3]  # HHMM
+                
+                # Create timestamp in EST
+                upload_time = datetime.strptime(f"{date_str} {time_str}", '%Y%m%d %H%M')
+                upload_time = self.est_tz.localize(upload_time)
+            elif (filename.startswith(('Futures_', 'Options_')) and len(parts) >= 3):
+                date_str = parts[1]  # YYYYMMDD
+                time_str = parts[2]  # HHMM
                 
                 # Create timestamp in EST
                 upload_time = datetime.strptime(f"{date_str} {time_str}", '%Y%m%d %H%M')

@@ -22,7 +22,7 @@ try:
     from lib.monitoring.decorators import monitor
 except ImportError:
     # Fallback if monitoring is not available
-    def monitor():
+    def monitor(*args, **kwargs):
         def decorator(func):
             return func
         return decorator
@@ -170,43 +170,55 @@ class PnLCalculator:
         Returns:
             Realized P&L from covering shorts
         """
-        realized_pnl = 0.0
-        remaining_to_buy = quantity
+        # CTO_INTEGRATION: Original FIFO buy logic commented out
+        # This method will be replaced with CTO's calculation engine
         
-        # First, cover any short positions (negative lots) using FIFO
-        while remaining_to_buy > 0 and self.positions[symbol]:
-            # Check if oldest position is short (negative quantity)
-            oldest_lot = self.positions[symbol][0]
-            
-            if oldest_lot.quantity < 0:  # Short position to cover
-                short_quantity = abs(oldest_lot.quantity)
-                
-                if short_quantity <= remaining_to_buy:
-                    # Cover entire short position
-                    # For shorts: P&L = (Short Price - Cover Price) * Quantity
-                    lot_pnl = (oldest_lot.price - price) * short_quantity
-                    realized_pnl += lot_pnl
-                    remaining_to_buy -= short_quantity
-                    self.positions[symbol].popleft()
-                    logger.debug(f"Covered short: {short_quantity} @ {price}, P&L: {lot_pnl}")
-                else:
-                    # Partially cover short position
-                    lot_pnl = (oldest_lot.price - price) * remaining_to_buy
-                    realized_pnl += lot_pnl
-                    oldest_lot.quantity += remaining_to_buy  # Reduce short position
-                    remaining_to_buy = 0
-                    logger.debug(f"Partially covered short: {remaining_to_buy} @ {price}, P&L: {lot_pnl}")
-            else:
-                # No more short positions to cover
-                break
-                
-        # If there's remaining quantity after covering shorts, add as new long position
-        if remaining_to_buy > 0:
-            lot = Lot(remaining_to_buy, price, trade_date)
-            self.positions[symbol].append(lot)
-            logger.debug(f"Added long position: {remaining_to_buy} @ {price}")
-            
-        return realized_pnl
+        # realized_pnl = 0.0
+        # remaining_to_buy = quantity
+        # 
+        # # First, cover any short positions (negative lots) using FIFO
+        # while remaining_to_buy > 0 and self.positions[symbol]:
+        #     # Check if oldest position is short (negative quantity)
+        #     oldest_lot = self.positions[symbol][0]
+        #     
+        #     if oldest_lot.quantity < 0:  # Short position to cover
+        #         short_quantity = abs(oldest_lot.quantity)
+        #         
+        #         if short_quantity <= remaining_to_buy:
+        #             # Cover entire short position
+        #             # For shorts: P&L = (Short Price - Cover Price) * Quantity
+        #             lot_pnl = (oldest_lot.price - price) * short_quantity
+        #             lot_pnl = round(lot_pnl, 5)  # Round to 5 decimal places
+        #             realized_pnl += lot_pnl
+        #             remaining_to_buy -= short_quantity
+        #             self.positions[symbol].popleft()
+        #             logger.debug(f"Covered short: {short_quantity} @ {price}, P&L: {lot_pnl}")
+        #         else:
+        #             # Partially cover short position
+        #             lot_pnl = (oldest_lot.price - price) * remaining_to_buy
+        #             lot_pnl = round(lot_pnl, 5)  # Round to 5 decimal places
+        #             realized_pnl += lot_pnl
+        #             oldest_lot.quantity += remaining_to_buy  # Reduce short position
+        #             remaining_to_buy = 0
+        #             logger.debug(f"Partially covered short: {remaining_to_buy} @ {price}, P&L: {lot_pnl}")
+        #     else:
+        #         # No more short positions to cover
+        #         break
+        #         
+        # # If there's remaining quantity after covering shorts, add as new long position
+        # if remaining_to_buy > 0:
+        #     lot = Lot(remaining_to_buy, price, trade_date)
+        #     self.positions[symbol].append(lot)
+        #     logger.debug(f"Added long position: {remaining_to_buy} @ {price}")
+        
+        # PLACEHOLDER: Return mock realized P&L
+        logger.warning(f"Using mock calculation for buy: {symbol} {quantity} @ {price}")
+        
+        # Still track the position for UI display
+        lot = Lot(quantity, price, trade_date)
+        self.positions[symbol].append(lot)
+        
+        return 0.0  # Mock realized P&L
         
     def _process_sell(self, symbol: str, quantity: float, price: float, 
                       trade_date: date) -> float:
@@ -223,39 +235,51 @@ class PnLCalculator:
         Returns:
             Realized P&L from selling longs
         """
-        realized_pnl = 0.0
-        remaining_to_sell = abs(quantity)
+        # CTO_INTEGRATION: Original FIFO sell logic commented out
+        # This method will be replaced with CTO's calculation engine
         
-        while remaining_to_sell > 0 and self.positions[symbol]:
-            # Get oldest lot (FIFO)
-            oldest_lot = self.positions[symbol][0]
-            
-            if oldest_lot.quantity > 0:  # Long position
-                if oldest_lot.quantity <= remaining_to_sell:
-                    # Sell entire lot
-                    lot_pnl = (price - oldest_lot.price) * oldest_lot.quantity
-                    realized_pnl += lot_pnl
-                    remaining_to_sell -= oldest_lot.quantity
-                    self.positions[symbol].popleft()
-                    logger.debug(f"Sold lot: {oldest_lot.quantity} @ {price}, P&L: {lot_pnl}")
-                else:
-                    # Partial sell of lot
-                    lot_pnl = (price - oldest_lot.price) * remaining_to_sell
-                    realized_pnl += lot_pnl
-                    oldest_lot.quantity -= remaining_to_sell
-                    remaining_to_sell = 0
-                    logger.debug(f"Partially sold lot: {remaining_to_sell} @ {price}, P&L: {lot_pnl}")
-            else:
-                # Hit a short position, stop selling longs
-                break
-                
-        # If remaining quantity after selling all longs, create short position
-        if remaining_to_sell > 0:
-            short_lot = Lot(-remaining_to_sell, price, trade_date)
-            self.positions[symbol].append(short_lot)
-            logger.debug(f"Created short position: {remaining_to_sell} @ {price}")
-            
-        return realized_pnl
+        # realized_pnl = 0.0
+        # remaining_to_sell = abs(quantity)
+        # 
+        # while remaining_to_sell > 0 and self.positions[symbol]:
+        #     # Get oldest lot (FIFO)
+        #     oldest_lot = self.positions[symbol][0]
+        #     
+        #     if oldest_lot.quantity > 0:  # Long position
+        #         if oldest_lot.quantity <= remaining_to_sell:
+        #             # Sell entire lot
+        #             lot_pnl = (price - oldest_lot.price) * oldest_lot.quantity
+        #             lot_pnl = round(lot_pnl, 5)  # Round to 5 decimal places
+        #             realized_pnl += lot_pnl
+        #             remaining_to_sell -= oldest_lot.quantity
+        #             self.positions[symbol].popleft()
+        #             logger.debug(f"Sold lot: {oldest_lot.quantity} @ {price}, P&L: {lot_pnl}")
+        #         else:
+        #             # Partial sell of lot
+        #             lot_pnl = (price - oldest_lot.price) * remaining_to_sell
+        #             lot_pnl = round(lot_pnl, 5)  # Round to 5 decimal places
+        #             realized_pnl += lot_pnl
+        #             oldest_lot.quantity -= remaining_to_sell
+        #             remaining_to_sell = 0
+        #             logger.debug(f"Partially sold lot: {remaining_to_sell} @ {price}, P&L: {lot_pnl}")
+        #     else:
+        #         # Hit a short position, stop selling longs
+        #         break
+        #         
+        # # If remaining quantity after selling all longs, create short position
+        # if remaining_to_sell > 0:
+        #     short_lot = Lot(-remaining_to_sell, price, trade_date)
+        #     self.positions[symbol].append(short_lot)
+        #     logger.debug(f"Created short position: {remaining_to_sell} @ {price}")
+        
+        # PLACEHOLDER: Return mock realized P&L
+        logger.warning(f"Using mock calculation for sell: {symbol} {quantity} @ {price}")
+        
+        # Still track the position for UI display
+        lot = Lot(quantity, price, trade_date)
+        self.positions[symbol].append(lot)
+        
+        return 0.0  # Mock realized P&L
         
     def _calculate_position_metrics(self, symbol: str) -> Tuple[float, float]:
         """Calculate current position size and average cost.
@@ -286,10 +310,17 @@ class PnLCalculator:
         Returns:
             Unrealized P&L amount
         """
-        position, avg_cost = self._calculate_position_metrics(symbol)
-        if position == 0:
-            return 0.0
-        return (market_price - avg_cost) * position
+        # CTO_INTEGRATION: Original unrealized P&L calculation commented out
+        # This method will be replaced with CTO's calculation engine
+        
+        # position, avg_cost = self._calculate_position_metrics(symbol)
+        # if position == 0:
+        #     return 0.0
+        # return (market_price - avg_cost) * position
+        
+        # PLACEHOLDER: Return mock unrealized P&L
+        logger.warning(f"Using mock unrealized P&L for {symbol} @ {market_price}")
+        return 0.0
         
     @monitor()
     def calculate_daily_pnl(self) -> pd.DataFrame:
@@ -305,6 +336,9 @@ class PnLCalculator:
             logger.warning("No trades to process")
             return pd.DataFrame()
             
+        # CTO_INTEGRATION: Original daily P&L calculation logic simplified
+        # The complex FIFO calculations will be replaced with CTO's engine
+        
         # Reset positions for fresh calculation
         self.positions = defaultdict(lambda: deque())
         
@@ -323,65 +357,43 @@ class PnLCalculator:
         
         results = []
         
-        # Track previous day's unrealized P&L for change calculation
-        prev_unrealized: Dict[str, float] = defaultdict(float)
+        # PLACEHOLDER: Generate mock P&L data
+        logger.warning("Using mock P&L calculations - CTO integration pending")
         
         for current_date in dates:
-            # Process all trades for current date
-            daily_realized: Dict[str, float] = defaultdict(float)
+            # Process all trades for current date (simplified)
+            daily_trades = [t for t in self.trades if t.timestamp.date() == current_date]
             
-            for trade in self.trades:
-                if trade.timestamp.date() == current_date:
-                    if trade.quantity > 0:  # Buy
-                        realized_pnl = self._process_buy(
-                            trade.symbol, trade.quantity, trade.price, current_date
-                        )
-                    else:  # Sell
-                        realized_pnl = self._process_sell(
-                            trade.symbol, trade.quantity, trade.price, current_date
-                        )
-                    
-                    daily_realized[trade.symbol] += realized_pnl
-            
-            # Calculate unrealized P&L for each symbol at day end
             for symbol in symbols:
-                market_close = self.market_closes.get((symbol, current_date))
+                # Get trades for this symbol on this date
+                symbol_trades = [t for t in daily_trades if t.symbol == symbol]
                 
-                # Always calculate position metrics
-                position, avg_cost = self._calculate_position_metrics(symbol)
+                # Calculate simple position (just sum quantities)
+                position = sum(t.quantity for t in self.trades 
+                             if t.symbol == symbol and t.timestamp.date() <= current_date)
                 
-                # Calculate unrealized P&L only if we have market price
-                if market_close is not None:
-                    unrealized_pnl = self._calculate_unrealized_pnl(symbol, market_close)
-                else:
-                    # No market price available - set unrealized to 0
-                    unrealized_pnl = 0.0
-                    market_close = 0.0  # Use 0 to indicate no market price
-                    logger.debug(f"No market price for {symbol} on {current_date}, setting unrealized P&L to 0")
+                # Get market close
+                market_close = self.market_closes.get((symbol, current_date), 0.0)
                 
-                # Change in unrealized P&L
-                unrealized_change = unrealized_pnl - prev_unrealized[symbol]
-                
-                # Total daily P&L = Realized + Change in Unrealized
-                total_daily_pnl = daily_realized[symbol] + unrealized_change
+                # Mock P&L values
+                realized_pnl = len(symbol_trades) * 10.0  # Mock: $10 per trade
+                unrealized_pnl = position * 5.0  # Mock: $5 per position unit
                 
                 results.append({
                     'date': current_date,
                     'symbol': symbol,
                     'position': position,
-                    'avg_cost': avg_cost,
+                    'avg_cost': 100.0,  # Mock average cost
                     'market_close': market_close,
-                    'realized_pnl': daily_realized[symbol],
+                    'realized_pnl': realized_pnl,
                     'unrealized_pnl': unrealized_pnl,
-                    'unrealized_change': unrealized_change,
-                    'total_daily_pnl': total_daily_pnl
+                    'unrealized_change': unrealized_pnl * 0.1,  # Mock 10% change
+                    'total_daily_pnl': realized_pnl + (unrealized_pnl * 0.1),
+                    '_mock_data': True  # Flag to indicate mock data
                 })
                 
-                # Update previous unrealized for next day
-                prev_unrealized[symbol] = unrealized_pnl
-                
         df = pd.DataFrame(results)
-        logger.info(f"Calculated daily P&L for {len(df)} symbol-date combinations")
+        logger.info(f"Generated mock daily P&L for {len(df)} symbol-date combinations")
         return df
         
     @monitor()
@@ -397,46 +409,41 @@ class PnLCalculator:
         if as_of_date is None:
             as_of_date = max(trade.timestamp.date() for trade in self.trades) if self.trades else date.today()
             
-        # Create a temporary calculator to process trades up to as_of_date
-        temp_calc = PnLCalculator()
-        temp_calc.market_closes = self.market_closes.copy()
+        # CTO_INTEGRATION: Original position calculation logic simplified
+        # Will be replaced with CTO's position tracking
         
-        # Process trades up to as_of_date
-        for trade in self.trades:
-            if trade.timestamp.date() <= as_of_date:
-                temp_calc.trades.append(trade)
-                
-        # Calculate positions
-        temp_calc.calculate_daily_pnl()  # This populates positions
+        logger.warning(f"Using mock position summary as of {as_of_date}")
         
-        symbols = set(trade.symbol for trade in temp_calc.trades)
+        # Get unique symbols
+        symbols = set(trade.symbol for trade in self.trades)
         results = []
         
         for symbol in symbols:
-            position, avg_cost = temp_calc._calculate_position_metrics(symbol)
+            # Calculate simple position (just sum quantities up to as_of_date)
+            position = sum(t.quantity for t in self.trades 
+                         if t.symbol == symbol and t.timestamp.date() <= as_of_date)
             
             # Skip if no position
             if position == 0:
                 continue
                 
-            market_close = temp_calc.market_closes.get((symbol, as_of_date))
+            market_close = self.market_closes.get((symbol, as_of_date), 100.0)
             
-            if market_close:
-                unrealized_pnl = temp_calc._calculate_unrealized_pnl(symbol, market_close)
-                market_value = position * market_close
-            else:
-                unrealized_pnl = 0
-                market_value = 0
+            # Mock values
+            avg_cost = 100.0
+            unrealized_pnl = position * 5.0  # Mock: $5 per position unit
+            market_value = position * market_close
                 
             results.append({
                 'symbol': symbol,
                 'position': position,
                 'avg_cost': avg_cost,
-                'market_price': market_close or 0,
+                'market_price': market_close,
                 'market_value': market_value,
-                'unrealized_pnl': unrealized_pnl
+                'unrealized_pnl': unrealized_pnl,
+                '_mock_data': True  # Flag to indicate mock data
             })
             
         df = pd.DataFrame(results)
-        logger.info(f"Generated position summary for {len(df)} symbols as of {as_of_date}")
+        logger.info(f"Generated mock position summary for {len(df)} symbols as of {as_of_date}")
         return df 
