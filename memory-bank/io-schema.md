@@ -477,6 +477,53 @@ summary = calc.get_position_summary(as_of_date=date(2024, 1, 2))
 # market_value, unrealized_pnl
 ```
 
+## Spot Risk vtexp CSV Format
+
+The spot risk processing pipeline reads pre-calculated time to expiry (vtexp) values from CSV files located in `data/input/vtexp/`. These files are named with timestamp: `vtexp_YYYYMMDD_HHMMSS.csv`.
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| vtexp_csv.symbol | Input | str | Option symbol key | XCME.ZN.N.G.17JUL25 |
+| vtexp_csv.vtexp | Input | float | >= 0 (time to expiry in years) | 0.166667 |
+| read_vtexp_from_csv | Function | Returns: Dict[str, float] | vtexp_dir: str | `vtexp_map = read_vtexp_from_csv()` |
+| load_vtexp_for_dataframe | Function | Returns: pd.DataFrame | df, csv_timestamp | `df = load_vtexp_for_dataframe(df, timestamp)` |
+
+### vtexp CSV Format Example
+
+```csv
+symbol,vtexp
+XCME.ZN.N.G.17JUL25,0.166667
+XCME.ZN.N.G.18JUL25,1.270833
+XCME.ZN.N.G.21JUL25,2.166667
+```
+
+The pipeline automatically selects the most recent vtexp CSV file based on filename timestamp.
+
 ## GreekCalculatorAPI Methods
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
+
+## SpotRiskDatabaseService
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| SpotRiskDatabaseService.db_path | Input | Path &#124; None | Valid file path or None for default | SpotRiskDatabaseService(db_path=Path("custom.db")) |
+| SpotRiskDatabaseService.create_session | Output | int | Positive integer (session_id) | session_id = db_service.create_session("file.csv", "20250112_120000") |
+| SpotRiskDatabaseService.update_session | Input | session_id: int | Valid session ID | db_service.update_session(session_id, "completed", row_count=100) |
+| SpotRiskDatabaseService.update_session | Input | status: str | "active", "completed", "failed" | db_service.update_session(1, "completed") |
+| SpotRiskDatabaseService.update_session | Input | row_count: int &#124; None | Non-negative integer | db_service.update_session(1, "completed", row_count=100) |
+| SpotRiskDatabaseService.update_session | Input | error_count: int &#124; None | Non-negative integer | db_service.update_session(1, "completed", error_count=5) |
+| SpotRiskDatabaseService.insert_raw_data | Input | df: pd.DataFrame | DataFrame with spot risk data | rows = db_service.insert_raw_data(df, session_id) |
+| SpotRiskDatabaseService.insert_raw_data | Output | int | Number of rows inserted | rows_inserted = db_service.insert_raw_data(df, 1) |
+| SpotRiskDatabaseService.insert_calculated_greeks | Input | df: pd.DataFrame | DataFrame with calculated Greeks | success, failed = db_service.insert_calculated_greeks(df, results, 1) |
+| SpotRiskDatabaseService.insert_calculated_greeks | Input | results: List[GreekResult] | List of GreekResult objects | success, failed = db_service.insert_calculated_greeks(df, results, 1) |
+| SpotRiskDatabaseService.insert_calculated_greeks | Output | Tuple[int, int] | (successful_inserts, failed_inserts) | success, failed = db_service.insert_calculated_greeks(df, results, 1) |
+| spot_risk.db | Output | SQLite database | Database file at data/output/spot_risk/spot_risk.db | Created automatically on first use |
+
+| TraceTimer.name | Input | str | Function name | @TraceTimer(name="process_data") |
+| TraceTimer.threshold_ms | Input | float | Positive number | @TraceTimer(threshold_ms=100.0) |
+| TraceTimer.trace_id | Output | str | UUID format | {"trace_id": "123e4567-e89b..."} |
+| TREASURY_PRODUCTS | Constant | dict[str, TreasuryProduct] | TY, TU, FV, US, TN, UB | treasury_notation_mapper.py |
+| TY_WEEKLY_OPTIONS | Constant | dict[str, dict] | VBY→Monday, TJP→Tuesday, TYW→Wednesday, TJW→Thursday, 3M→Friday | treasury_notation_mapper.py |
+| vtexp | Input | float | > 0, time to expiry in years | spot_risk_raw.vtexp column |
+| vtexp_dir | Constant | str | "data/input/vtexp" | time_calculator.py |

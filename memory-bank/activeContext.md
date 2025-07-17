@@ -1,6 +1,47 @@
 # Active Context
 
-## Current Status: TYU5 P&L Engine Integration - FULLY WORKING ✅
+## Current Focus: FULLPNL Automation & TYU5 Migration Planning
+
+### Date: November 2024
+
+#### FULLPNL Automation Documentation
+- **Created**: `docs/fullpnl_automation_prompt.md` - Comprehensive guide for automating FULLPNL table building
+- **Updated**: Added reference to `docs/pnl_data_structure_mapping.md` as authoritative source
+- **Key Point**: The automation design must follow the master P&L table schema in pnl_data_structure_mapping.md
+
+#### TYU5 Migration Analysis
+- **Created**: `docs/tyu5_migration_analysis_prompt.md` - Deep analysis prompt for migrating tyu5_pnl system
+- **Challenge**: Two parallel P&L systems exist:
+  1. TradePreprocessor (simple FIFO) → feeds SQLite positions table
+  2. TYU5 P&L (sophisticated with Greeks) → outputs to Excel only
+- **Goal**: Integrate TYU5 to feed positions database while preserving advanced features
+
+#### Key Integration Considerations
+1. **Symbol Format**: Need unified approach (Bloomberg standard)
+2. **Data Model**: TYU5 has richer model (lot tracking, attribution)
+3. **Calculations**: Must preserve Bachelier model and Greek calculations
+4. **Database Schema**: May need enhancement for advanced features
+
+### Previous Work (Preserved for Context)
+
+## Current Status (Updated)
+
+### vtexp Mapping Fixed - Simplified Approach
+- **Issue**: Complex symbol conversion was failing for 90% of options
+- **Root Cause**: Trying to convert between different symbol formats was error-prone
+- **Solution**: Match by expiry date only (e.g., "21JUL25")
+- **Changes Made**:
+  1. Simplified vtexp_mapper.py to extract and match by expiry date
+  2. All options with same expiry date share same vtexp value
+  3. Works for all product types (ZN, VY, WY variants)
+- **Result**: 100% mapping success rate in testing
+
+### Symbol Translation Fixed
+- **Issue**: Colon notation in strikes (e.g., 110:75) not recognized
+- **Solution**: Updated regex pattern and strike conversion logic
+- **Result**: All symbols now translate correctly
+
+### vtexp Pipeline Status
 
 ### Date: July 16, 2025
 
@@ -154,4 +195,45 @@ Successfully integrated TYU5 P&L calculation engine with UIKitXv2 data stores. T
 
 ### Remaining Tasks:
 1. ⏳ Fix date-specific filtering (market_prices table missing trade_date column)
-2. ⏳ CSV output not supported by TYU5 (Excel only) 
+2. ⏳ CSV output not supported by TYU5 (Excel only)
+
+---
+
+## Latest Update: Spot Risk SQLite Storage (January 12, 2025)
+
+### Completed Enhancement:
+Successfully added SQLite database storage to the spot risk processing pipeline while maintaining existing CSV output.
+
+### Implementation Details:
+1. **Created SpotRiskDatabaseService** (`lib/trading/actant/spot_risk/database.py`):
+   - Session management for tracking processing runs
+   - Raw data storage with JSON serialization
+   - Calculated Greeks storage with proper mapping
+   - WAL mode for concurrent access
+   - Transaction safety and error handling
+
+2. **Modified File Watcher** (`lib/trading/actant/spot_risk/file_watcher.py`):
+   - Added database service initialization
+   - Create session when processing starts
+   - Store raw data after CSV parsing
+   - Store calculated Greeks after calculation
+   - Update session status on completion/failure
+   - CSV output remains unchanged (additive change)
+
+3. **Database Schema** (from existing `schema.sql`):
+   - `spot_risk_sessions`: Track processing sessions
+   - `spot_risk_raw`: Store original data with JSON
+   - `spot_risk_calculated`: Store calculated Greeks
+   - Proper indexes for performance
+
+### Testing:
+- Created test script: `scripts/test_spot_risk_db.py`
+- Database location: `data/output/spot_risk/spot_risk.db`
+- Successfully creates sessions and stores data
+
+### Key Benefits:
+- Historical data retention for analysis
+- Efficient querying vs CSV scanning
+- Session tracking for audit trail
+- Foundation for future UI enhancements
+- No impact on existing CSV functionality 

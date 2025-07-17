@@ -366,17 +366,16 @@ class TradePreprocessor:
                     cto_trade = self._transform_to_cto_format(processed_trade, input_path.name)
                     
                     # Record that we've processed this trade
-                    if self.storage.record_processed_trade(
+                    self.storage.record_processed_trade(
                         input_path.name, 
                         int(row['_row_number']),
                         row.to_dict()  # Use original row data for tracking
-                    ):
-                        # Insert into CTO trades table
-                        if self.storage.insert_cto_trade(cto_trade):
-                            logger.debug(f"Inserted trade {cto_trade['tradeID']} into CTO table")
+                    )
+                    
+                    # Insert into CTO trades table
+                    if self.storage.insert_cto_trade(cto_trade):
+                        logger.debug(f"Inserted trade {cto_trade['tradeID']} into CTO table")
                         processed_trades.append(cto_trade)
-                    else:
-                        logger.debug(f"Trade {row['tradeId']} already in tracker, skipping")
                         
                 except Exception as e:
                     logger.error(f"Error processing trade {row.get('tradeId', 'UNKNOWN')}: {e}")

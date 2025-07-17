@@ -17,6 +17,7 @@ from .watcher import PnLFileWatcher
 from .trade_file_watcher import TradeFileWatcher
 from .trade_preprocessor import TradePreprocessor
 from .models import Trade
+from .closed_position_tracker import ClosedPositionTracker
 from lib.monitoring.decorators import monitor
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,9 @@ class PnLController:
             enable_position_tracking=True,
             storage=self.storage
         )
+        
+        # Initialize closed position tracker
+        self.closed_position_tracker = ClosedPositionTracker(str(db_path))
         
         # CTO_INTEGRATION: Use TradeFileWatcher instead of PnLFileWatcher for proper CTO processing
         # TradeFileWatcher uses TradePreprocessor which populates both processed_trades AND cto_trades
@@ -285,6 +289,67 @@ class PnLController:
         except Exception as e:
             logger.error(f"Error getting position summary: {e}")
             return []
+    
+    @monitor()
+    def update_closed_positions(self, trade_date: Optional[date] = None) -> None:
+        """Update closed position quantities for the specified date.
+        
+        Args:
+            trade_date: Date to calculate closed positions for (default: current trading day)
+        """
+        if trade_date is None:
+            trade_date = get_current_trading_day()
+            
+        logger.info(f"Updating closed positions for {trade_date}")
+        self.closed_position_tracker.update_positions_table_with_closed_quantities(trade_date)
+    
+    @monitor()
+    def get_positions_with_closed(self) -> List[Dict[str, Any]]:
+        """Get all positions including closed quantities.
+        
+        Returns:
+            List of position dictionaries with closed_quantity field
+        """
+        conn = self.storage._get_connection()
+        cursor = conn.cursor()
+        
+        query = """
+        SELECT 
+            instrument_name,
+            position_quantity,
+            closed_quantity,
+            avg_cost,
+            total_realized_pnl,
+            unrealized_pnl,
+            last_market_price,
+            last_updated,
+            is_option,
+            option_strike,
+            option_expiry
+        FROM positions
+        ORDER BY instrument_name
+        """
+        
+        cursor.execute(query)
+        positions = []
+        
+        for row in cursor.fetchall():
+            positions.append({
+                'symbol': row['instrument_name'],
+                'open_position': row['position_quantity'],
+                'closed_position': row['closed_quantity'],
+                'avg_cost': row['avg_cost'],
+                'realized_pnl': row['total_realized_pnl'],
+                'unrealized_pnl': row['unrealized_pnl'],
+                'last_price': row['last_market_price'],
+                'last_updated': row['last_updated'],
+                'is_option': row['is_option'],
+                'strike': row['option_strike'],
+                'expiry': row['option_expiry']
+            })
+        
+        conn.close()
+        return positions
     
     @monitor()
     def get_daily_pnl_summary(self) -> List[Dict[str, Any]]:

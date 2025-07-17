@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Union, Any
 import logging
+from lib.trading.symbol_translator import SymbolTranslator
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +234,18 @@ def parse_spot_risk_csv(filepath: Union[str, Path], calculate_time_to_expiry: bo
             df['expiry_date'] = df['key'].apply(parse_expiry_from_key)
         else:
             logger.warning("key column not found, cannot extract expiry_date")
+        
+        # Translate to Bloomberg symbols
+        if 'key' in df.columns:
+            translator = SymbolTranslator()
+            df['bloomberg_symbol'] = df['key'].apply(
+                lambda x: translator.translate(x) if x else None
+            )
+            translated_count = df['bloomberg_symbol'].notna().sum()
+            logger.info(f"Translated {translated_count} out of {len(df)} symbols to Bloomberg format")
+        else:
+            df['bloomberg_symbol'] = None
+            logger.warning("key column not found, cannot translate to Bloomberg symbols")
             
         # Sort DataFrame
         # Priority: instrument type (futures first), then expiry, then strike (for options)
@@ -264,14 +277,14 @@ def parse_spot_risk_csv(filepath: Union[str, Path], calculate_time_to_expiry: bo
         
         # Calculate time to expiry if requested
         if calculate_time_to_expiry:
-            from .time_calculator import calculate_vtexp_for_dataframe
+            from .time_calculator import load_vtexp_for_dataframe
             
             # Extract timestamp from filename
             csv_timestamp = extract_datetime_from_filename(filepath)
             
-            # Calculate vtexp
-            df = calculate_vtexp_for_dataframe(df, csv_timestamp)
-            logger.info(f"Calculated vtexp for {df['vtexp'].notna().sum()} options")
+            # Load vtexp from pre-calculated CSV
+            df = load_vtexp_for_dataframe(df, csv_timestamp)
+            logger.info(f"Loaded vtexp for {df['vtexp'].notna().sum()} options")
         
         logger.info(f"Successfully parsed {len(df)} rows from {filepath.name}")
         

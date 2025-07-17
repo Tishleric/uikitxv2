@@ -23,10 +23,12 @@ CREATE TABLE IF NOT EXISTS spot_risk_raw (
     session_id INTEGER NOT NULL,
     load_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     instrument_key TEXT NOT NULL,
+    bloomberg_symbol TEXT,  -- Translated Bloomberg symbol (nullable)
     instrument_type TEXT,  -- 'CALL', 'PUT', 'FUTURE', etc.
     expiry_date TEXT,
     strike REAL,
     midpoint_price REAL,
+    vtexp REAL,  -- Time to expiry in years from vtexp CSV mapping
     raw_data TEXT NOT NULL,  -- Full row as JSON
     FOREIGN KEY (session_id) REFERENCES spot_risk_sessions(session_id)
 );
@@ -79,6 +81,7 @@ CREATE TABLE IF NOT EXISTS spot_risk_calculated (
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_raw_session ON spot_risk_raw(session_id);
 CREATE INDEX IF NOT EXISTS idx_raw_instrument ON spot_risk_raw(instrument_key);
+CREATE INDEX IF NOT EXISTS idx_raw_bloomberg ON spot_risk_raw(bloomberg_symbol);
 CREATE INDEX IF NOT EXISTS idx_raw_type ON spot_risk_raw(instrument_type);
 CREATE INDEX IF NOT EXISTS idx_raw_expiry ON spot_risk_raw(expiry_date);
 
@@ -92,6 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_calc_timestamp ON spot_risk_calculated(calculatio
 CREATE VIEW IF NOT EXISTS latest_calculations AS
 SELECT 
     r.instrument_key,
+    r.bloomberg_symbol,
     r.instrument_type,
     r.expiry_date,
     r.strike,

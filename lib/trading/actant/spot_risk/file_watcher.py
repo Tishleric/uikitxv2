@@ -19,6 +19,7 @@ from watchdog.events import FileSystemEventHandler, FileCreatedEvent
 from lib.monitoring.decorators import monitor
 from lib.trading.actant.spot_risk.parser import parse_spot_risk_csv
 from lib.trading.actant.spot_risk.calculator import SpotRiskGreekCalculator
+from lib.trading.actant.spot_risk.database import SpotRiskDatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,9 @@ class SpotRiskFileHandler(FileSystemEventHandler):
         self.output_dir = Path(output_dir)
         self.processed_files = processed_files or set()
         self.calculator = SpotRiskGreekCalculator()
+        
+        # Initialize database service
+        self.db_service = SpotRiskDatabaseService()
         
         # Create output directory if needed
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -270,6 +274,27 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             
             logger.info(f"Parsed {len(df)} rows, calculating Greeks...")
             
+            # Create database session
+            session_id = None
+            try:
+                # Extract timestamp from filename for data_timestamp
+                filename_parts = input_path.stem.split('_')
+                data_timestamp = None
+                if len(filename_parts) >= 4:
+                    data_timestamp = f"{filename_parts[2]}_{filename_parts[3]}"
+                
+                session_id = self.db_service.create_session(
+                    source_file=str(input_path),
+                    data_timestamp=data_timestamp
+                )
+                
+                # Insert raw data
+                rows_inserted = self.db_service.insert_raw_data(df, session_id)
+                logger.info(f"Stored {rows_inserted} raw data rows in database")
+            except Exception as e:
+                logger.error(f"Failed to create database session or insert raw data: {e}")
+                # Continue processing even if database fails
+            
             # Calculate Greeks
             df_with_greeks, results = self.calculator.calculate_greeks(df)
             
@@ -284,6 +309,35 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             # Save output (preserving sorting from parser)
             df_with_aggregates.to_csv(output_path, index=False)
             logger.info(f"Saved processed file: {output_path}")
+            
+            # Store calculated Greeks in database
+            if session_id:
+                try:
+                    successful_inserts, failed_inserts = self.db_service.insert_calculated_greeks(
+                        df_with_greeks, results, session_id
+                    )
+                    
+                    # Update session with final status
+                    error_count = len(results) - success_count + failed_inserts
+                    self.db_service.update_session(
+                        session_id=session_id,
+                        status='completed',
+                        row_count=len(df),
+                        error_count=error_count
+                    )
+                    
+                    logger.info(f"Database storage complete: {successful_inserts} Greeks stored, {failed_inserts} failed")
+                except Exception as e:
+                    logger.error(f"Failed to store calculated Greeks in database: {e}")
+                    # Update session as failed but don't stop processing
+                    try:
+                        self.db_service.update_session(
+                            session_id=session_id,
+                            status='failed',
+                            notes=f"Failed to store Greeks: {str(e)}"
+                        )
+                    except:
+                        pass
             
             # Calculate and log total processing time
             elapsed_time = time.time() - start_time
@@ -303,6 +357,18 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             
         except Exception as e:
             logger.error(f"Error processing CSV file {input_path}: {e}", exc_info=True)
+            
+            # Update session as failed if it was created
+            if session_id:
+                try:
+                    self.db_service.update_session(
+                        session_id=session_id,
+                        status='failed',
+                        notes=f"Processing error: {str(e)}"
+                    )
+                except:
+                    pass
+            
             # Don't mark as processed on error - allow retry on next run
 
 

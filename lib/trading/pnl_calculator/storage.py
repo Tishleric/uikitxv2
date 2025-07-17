@@ -87,8 +87,8 @@ class PnLStorage:
             price REAL NOT NULL,
             side TEXT NOT NULL,                     -- 'B' or 'S'
             processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            source_file TEXT NOT NULL,
-            UNIQUE(trade_id, source_file)
+            source_file TEXT NOT NULL
+            -- Removed UNIQUE constraint to allow duplicate trade IDs from different days
         );
         
         -- Real-time P&L snapshots
@@ -149,8 +149,8 @@ class PnLStorage:
             instrument_name TEXT NOT NULL,          -- instrumentName from CSV
             quantity REAL NOT NULL,                 -- quantity from CSV
             price REAL NOT NULL,                    -- price from CSV
-            processed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(source_file, trade_id)           -- Prevent duplicate processing
+            processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            -- Removed UNIQUE constraint to allow duplicate trade IDs from different days
         );
         
         -- Index for efficient lookups
@@ -171,7 +171,7 @@ class PnLStorage:
             Price REAL NOT NULL,             -- Decimal price
             Fees REAL DEFAULT 0.0,           -- Trading fees
             Counterparty TEXT NOT NULL,      -- Always 'FRGM' for now
-            tradeID TEXT NOT NULL UNIQUE,    -- Original trade ID
+            tradeID TEXT NOT NULL,           -- Original trade ID (removed UNIQUE constraint)
             Type TEXT NOT NULL,              -- 'FUT' or 'OPT'
             
             -- Metadata
@@ -190,8 +190,7 @@ class PnLStorage:
         CREATE INDEX IF NOT EXISTS idx_cto_trades_symbol
         ON cto_trades(Symbol);
         
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_cto_trades_tradeid
-        ON cto_trades(tradeID);
+        -- Removed UNIQUE index on tradeID to allow duplicate trade IDs from different days
         
         -- P&L calculation audit log
         CREATE TABLE IF NOT EXISTS pnl_audit_log (
@@ -215,6 +214,7 @@ class PnLStorage:
             avg_cost REAL NOT NULL,                 -- FIFO average cost
             total_realized_pnl REAL NOT NULL DEFAULT 0,  -- Cumulative realized P&L
             unrealized_pnl REAL NOT NULL DEFAULT 0,      -- Current unrealized P&L
+            closed_quantity REAL NOT NULL DEFAULT 0,     -- Quantity closed today
             last_market_price REAL,                 -- Last price used for unrealized calc
             last_trade_id TEXT,                     -- For tracking
             last_updated DATETIME NOT NULL,
@@ -495,7 +495,7 @@ class PnLStorage:
             records.append(record)
             
         query = """
-        INSERT OR IGNORE INTO processed_trades (
+        INSERT INTO processed_trades (
             trade_id, instrument_name, trade_date, trade_timestamp,
             quantity, price, side, source_file
         ) VALUES (
@@ -688,7 +688,7 @@ class PnLStorage:
             trade_data: Dictionary with trade information
             
         Returns:
-            True if successfully recorded, False if trade already exists
+            True if successfully recorded, False on error
         """
         try:
             with self._get_connection() as conn:
@@ -708,12 +708,9 @@ class PnLStorage:
                     trade_data['price']
                 ))
                 conn.commit()
+                logger.debug(f"Recorded trade {trade_data['tradeId']} from {source_file} row {row_number}")
                 return True
                 
-        except sqlite3.IntegrityError:
-            # Trade already processed (unique constraint violation)
-            logger.debug(f"Trade {trade_data['tradeId']} from {source_file} already processed")
-            return False
         except Exception as e:
             logger.error(f"Error recording processed trade: {e}")
             raise
@@ -784,7 +781,7 @@ class PnLStorage:
             trade_data: Dictionary with all required CTO fields
             
         Returns:
-            True if successfully inserted, False if trade already exists
+            True if successfully inserted, False on error
         """
         try:
             with self._get_connection() as conn:
@@ -810,12 +807,9 @@ class PnLStorage:
                     trade_data.get('is_exercise', False)
                 ))
                 conn.commit()
+                logger.debug(f"Inserted CTO trade {trade_data['tradeID']} from {trade_data['source_file']}")
                 return True
                 
-        except sqlite3.IntegrityError:
-            # Trade already exists (unique constraint on tradeID)
-            logger.debug(f"CTO trade {trade_data['tradeID']} already exists")
-            return False
         except Exception as e:
             logger.error(f"Error inserting CTO trade: {e}")
             raise
