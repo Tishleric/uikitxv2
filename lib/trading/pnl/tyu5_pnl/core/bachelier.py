@@ -61,11 +61,12 @@ def compute_cme_T(now: datetime, option_symbol: str, calendar_path: str) -> floa
     return T_fallback
 
 class BachelierCombined:
-    def __init__(self, F, K, T, sigma, r=0, option_type='call'):
+    def __init__(self, F, K, T, sigma, r=0.0, option_type='call'):
         self.F = F
         self.K = K
         self.T = T
         self.sigma = sigma
+        self.r = r
         self.option_type = option_type
         self._compute_common_terms()
 
@@ -130,11 +131,11 @@ class SafeBachelierVol:
         self.option_type = option_type
 
     def price_diff(self, sigma):
-        model = BachelierCombined(self.F, self.K, self.T, sigma, self.option_type)
+        model = BachelierCombined(self.F, self.K, self.T, sigma, self.r, self.option_type)
         return model.price() - self.P
 
     def vega(self, sigma):
-        model = BachelierCombined(self.F, self.K, self.T, sigma, self.option_type)
+        model = BachelierCombined(self.F, self.K, self.T, sigma, self.r, self.option_type)
         return model.greeks()['vega']
 
     def __call__(self, initial_guess=5.0, tol=1e-8, maxiter=100):
@@ -249,12 +250,12 @@ def run_pnl_attribution(
 
     # Implied vol and Greeks for current
     iv_now = SafeBachelierVol(F=F, K=K, T=T, r=r, P=P, option_type=option_type)()
-    model_now = BachelierCombined(F=F, K=K, T=T, r=r, sigma=iv_now, option_type=option_type)
+    model_now = BachelierCombined(F=F, K=K, T=T, sigma=iv_now, r=r, option_type=option_type)
     print(f"[INFO] Current Implied Vol: {iv_now:.6f}, Price: {model_now.price():.6f}")
     # Implied vol and Greeks for prior
     T_prior = T + dT
     iv_prior = SafeBachelierVol(F=F_prior, K=K, T=T_prior, r=r, P=Prior, option_type=option_type)()
-    model_prior = BachelierCombined(F=F_prior, K=K, T=T_prior, r=r, sigma=iv_prior, option_type=option_type)
+    model_prior = BachelierCombined(F=F_prior, K=K, T=T_prior, sigma=iv_prior, r=r, option_type=option_type)
     print(f"[INFO] Prior Implied Vol: {iv_prior:.6f}, Price: {model_prior.price():.6f}")
     # PnL decomposition
     dPx = F - F_prior
@@ -285,7 +286,7 @@ def main():
 
     # === Input parameters ===
     now = datetime.now()
-    option_symbol = 'WY3N5'
+    option_symbol = 'ZN3N5'
     # Get the path relative to this script's location
     script_dir = os.path.dirname(os.path.abspath(__file__))
     calendar_csv = os.path.join(script_dir, 'ExpirationCalendar.csv')

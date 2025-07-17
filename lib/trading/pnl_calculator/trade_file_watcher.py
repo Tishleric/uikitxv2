@@ -133,7 +133,7 @@ class TradeFileWatcher:
         self.input_dir.mkdir(parents=True, exist_ok=True)
         
         # Create preprocessor
-        self.preprocessor = TradePreprocessor(output_dir)
+        self.preprocessor = TradePreprocessor(output_dir, enable_position_tracking=True)
         
         # Create handler
         self.handler = TradeFileHandler(self.preprocessor)

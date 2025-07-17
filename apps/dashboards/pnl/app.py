@@ -6,9 +6,10 @@ Now displays TYU5 Excel output directly.
 
 import logging
 from dash import html, dcc
+import dash_bootstrap_components as dbc
 
 # Import wrapped components
-from lib.components.basic import Container, Button, Tabs
+from lib.components.basic import Container, Button
 from lib.components.advanced import DataTable
 from lib.components.themes import default_theme
 
@@ -105,8 +106,17 @@ def create_sheet_datatable(sheet_name: str, df) -> Container:
         # Add type hints for numeric columns
         if df[col].dtype in ['float64', 'int64']:
             col_config['type'] = 'numeric'
-            # Format currency columns
-            if any(x in col.lower() for x in ['pnl', 'price', 'value', 'fee']):
+            # Format currency/monetary columns
+            if any(x in col.lower() for x in ['pnl', 'value', 'fee']):
+                col_config['format'] = {'specifier': '$,.2f'}
+            # Format price columns (more decimal places)
+            elif 'price' in col.lower():
+                col_config['format'] = {'specifier': ',.6f'}
+            # Format quantity columns
+            elif any(x in col.lower() for x in ['quantity', 'qty']):
+                col_config['format'] = {'specifier': ',.0f'}
+            # Default numeric format
+            else:
                 col_config['format'] = {'specifier': ',.2f'}
                 
         columns.append(col_config)
@@ -129,21 +139,36 @@ def create_sheet_datatable(sheet_name: str, df) -> Container:
                     {
                         'if': {'row_index': 'odd'},
                         'backgroundColor': default_theme.panel_bg
+                    },
+                    {
+                        'if': {'row_index': 'even'},
+                        'backgroundColor': default_theme.base_bg
                     }
                 ],
                 style_table={
-                    'overflowX': 'visible',  # No horizontal scroll
+                    'overflowX': 'auto',     # Allow horizontal scroll if needed
                     'width': '100%',         # Full width
-                    'tableLayout': 'fixed'   # Fixed table layout for better width control
+                    'minWidth': '100%'       # Ensure full width usage
                 },
                 style_cell={
                     'textAlign': 'left',
-                    'padding': '10px',
-                    'whiteSpace': 'normal',  # Allow text wrapping
+                    'padding': '12px',       # Increased padding for better readability
+                    'whiteSpace': 'nowrap',  # Prevent wrapping for cleaner look
                     'height': 'auto',        # Auto height for cells
                     'overflow': 'hidden',    # Hide overflow
                     'textOverflow': 'ellipsis',  # Add ellipsis for very long text
-                    'maxWidth': 0           # Force equal column widths
+                    'minWidth': '100px',     # Minimum column width
+                    'fontSize': '14px',      # Slightly larger font
+                    'fontFamily': 'monospace',  # Monospace for numbers
+                    'backgroundColor': default_theme.base_bg,
+                    'color': default_theme.text_light,
+                    'borderBottom': f'1px solid {default_theme.secondary}'
+                },
+                style_header={
+                    'backgroundColor': default_theme.panel_bg,
+                    'fontWeight': 'bold',
+                    'fontSize': '14px',
+                    'borderBottom': f'2px solid {default_theme.secondary}'
                 }
             )
         ]
@@ -262,24 +287,61 @@ def create_pnl_content():
         ]
     )
     
-    # Create tabs for each Excel sheet
-    tab_list = []
-    
-    # Add each sheet as a tab (except Summary which is shown as cards)
+    # Create tabs with DataTables that will be updated via callbacks
     sheet_order = ['Positions', 'Trades', 'Risk_Matrix', 'Position_Breakdown']
     
+    # Create all tabs with empty DataTables
+    tab_list = []
     for sheet_name in sheet_order:
-        if sheet_name in sheets_data:
-            df = sheets_data[sheet_name]
-            # Create user-friendly tab label
-            tab_label = sheet_name.replace('_', ' ')
-            tab_content = create_sheet_datatable(sheet_name, df)
-            tab_list.append((tab_label, tab_content))
+        tab_label = sheet_name.replace('_', ' ')
+        
+        # Create an empty DataTable that will be populated by callback
+        datatable = DataTable(
+            id=f"pnl-{sheet_name.lower()}-table",
+            columns=[],
+            data=[],
+            page_size=10,
+            style_data_conditional=[
+                {
+                    'if': {'row_index': 'odd'},
+                    'backgroundColor': default_theme.panel_bg
+                }
+            ],
+            style_table={
+                'overflowX': 'visible',
+                'width': '100%',
+                'tableLayout': 'fixed'
+            },
+            style_cell={
+                'textAlign': 'left',
+                'padding': '10px',
+                'whiteSpace': 'normal',
+                'height': 'auto',
+                'overflow': 'hidden',
+                'textOverflow': 'ellipsis',
+                'maxWidth': 0
+            }
+        )
+        
+        # Wrap in container
+        tab_content = Container(
+            id=f"pnl-{sheet_name.lower()}-container",
+            children=[datatable.render()]
+        ).render()
+        
+        # Create tab
+        tab = dbc.Tab(
+            label=tab_label,
+            tab_id=f"pnl-tab-{sheet_name.lower()}",
+            children=tab_content
+        )
+        tab_list.append(tab)
     
-    # Always create both components - visibility controlled by callback
-    tabs_component = Tabs(
+    # Create tabs component with all tabs
+    tabs_component = dbc.Tabs(
         id="pnl-tabs",
-        tabs=tab_list if tab_list else []
+        children=tab_list,
+        active_tab="pnl-tab-positions"  # Set default active tab
     )
     
     no_data_component = Container(
@@ -315,5 +377,9 @@ def create_pnl_content():
             tabs_component,
             no_data_component
         ],
-        style={'padding': '20px'}
+        style={
+            'padding': '20px',
+            'maxWidth': '1800px',  # Increased from default
+            'margin': '0 auto'     # Center the container
+        }
     ).render() 

@@ -92,7 +92,7 @@ class TYU5Adapter:
         for idx, row in tyu5_trades.iterrows():
             if row['Type'] in ['CALL', 'PUT']:
                 # Parse Bloomberg format symbol
-                symbol_parts = row['Symbol'].split()
+                symbol_parts = str(row['Symbol']).split()
                 if len(symbol_parts) >= 2:
                     base_symbol = symbol_parts[0]  # e.g., "VBYN25C2"
                     strike = symbol_parts[1]        # e.g., "108.750"
@@ -154,6 +154,146 @@ class TYU5Adapter:
         # If we can't parse it, return as-is
         return bloomberg_symbol
         
+    def _convert_cme_to_bloomberg_base(self, cme_symbol: str) -> str:
+        """Convert CME option base symbol back to Bloomberg base.
+        
+        Example: "VY3N5" -> "VBYN25P3" (without strike/type)
+        
+        Args:
+            cme_symbol: CME format symbol (e.g., "VY3N5")
+            
+        Returns:
+            Bloomberg base symbol
+        """
+        # Reverse mapping from CME to Bloomberg
+        cme_to_bloomberg = {
+            'VY': 'VBY',  # Monday
+            'GY': 'TJP',  # Tuesday
+            'WY': 'TYW',  # Wednesday
+            'HY': 'TJW',  # Thursday
+            'ZN': '3M',   # Friday
+        }
+        
+        # Parse CME format: VY3N5 -> VY + 3 + N + 5
+        if len(cme_symbol) >= 5:
+            series = cme_symbol[:2]  # VY
+            week = cme_symbol[2]     # 3
+            month = cme_symbol[3]    # N
+            year = cme_symbol[4]     # 5
+            
+            # Get Bloomberg prefix
+            bloomberg_prefix = cme_to_bloomberg.get(series, series)
+            
+            # For 3M series, format is different
+            if bloomberg_prefix == '3M':
+                # 3MN5P format (3M + month + year + P/C)
+                # We'll add P for put later when we know the type
+                return f"{bloomberg_prefix}{month}{year}P"
+            else:
+                # Standard format: VBYN25P3
+                # We need to determine if it's a put or call - default to P
+                return f"{bloomberg_prefix}{month}2{year}P{week}"
+        
+        return cme_symbol  # Fallback
+        
+    def get_market_prices_for_symbols(self, symbols: List[str], price_date: Optional[date] = None) -> pd.DataFrame:
+        """Get market prices for specific symbols from trades.
+        
+        Args:
+            symbols: List of symbols in TYU5 format (e.g., "TYU5", "VBYN25P3 P 110.250")
+            price_date: Date to get prices for (None for latest)
+            
+        Returns:
+            DataFrame with columns: Symbol, Current_Price, Prior_Close
+        """
+        market_prices_db = Path("data/output/market_prices/market_prices.db")
+        
+        if not market_prices_db.exists():
+            logger.warning(f"Market prices database not found: {market_prices_db}")
+            return pd.DataFrame({'Symbol': [], 'Current_Price': [], 'Prior_Close': []})
+        
+        import sqlite3
+        conn = sqlite3.connect(str(market_prices_db))
+        
+        result_rows = []
+        
+        for symbol in symbols:
+            # Parse the symbol to determine if it's a future or option
+            symbol_parts = str(symbol).split()
+            
+            # Remove 'Comdty' suffix if present
+            if symbol_parts and symbol_parts[-1] == 'Comdty':
+                symbol_parts = symbol_parts[:-1]
+            
+            if len(symbol_parts) == 1:
+                # Simple future symbol like "TYU5"
+                query = """
+                SELECT symbol, current_price, prior_close 
+                FROM futures_prices 
+                WHERE symbol = ?
+                """
+                if price_date:
+                    query += " AND trade_date = ?"
+                    params = [symbol_parts[0], price_date.isoformat()]
+                else:
+                    params = [symbol_parts[0]]
+                    
+                df = pd.read_sql_query(query, conn, params=params)
+                if not df.empty:
+                    result_rows.append({
+                        'Symbol': symbol,
+                        'Current_Price': df.iloc[0]['current_price'],
+                        'Prior_Close': df.iloc[0]['prior_close']
+                    })
+                    
+            elif len(symbol_parts) >= 3:
+                # Option symbol like "VY3N5 P 110.250" (CME format from TYU5)
+                # Need to convert back to Bloomberg format for database lookup
+                cme_base = symbol_parts[0]      # VY3N5
+                option_type = symbol_parts[1]   # P
+                strike = symbol_parts[2]        # 110.250
+                
+                # Convert CME base back to Bloomberg base
+                bloomberg_base = self._convert_cme_to_bloomberg_base(cme_base)
+                
+                # Construct full Bloomberg symbol for DB lookup
+                bloomberg_symbol = f"{bloomberg_base} {strike} Comdty"
+                
+                logger.debug(f"Option lookup: {symbol} -> {bloomberg_symbol}")
+                
+                query = """
+                SELECT symbol, current_price, prior_close 
+                FROM options_prices 
+                WHERE symbol = ?
+                """
+                if price_date:
+                    query += " AND trade_date = ?"
+                    params = [bloomberg_symbol, price_date.isoformat()]
+                else:
+                    params = [bloomberg_symbol]
+                    
+                df = pd.read_sql_query(query, conn, params=params)
+                if not df.empty:
+                    # Use prior_close if current_price is NULL
+                    current = df.iloc[0]['current_price']
+                    if pd.isna(current):
+                        current = df.iloc[0]['prior_close']
+                        
+                    result_rows.append({
+                        'Symbol': symbol,
+                        'Current_Price': current,
+                        'Prior_Close': df.iloc[0]['prior_close']
+                    })
+                else:
+                    logger.debug(f"No market price found for option: {bloomberg_symbol}")
+        
+        conn.close()
+        
+        result_df = pd.DataFrame(result_rows)
+        logger.info(f"Found market prices for {len(result_df)}/{len(symbols)} symbols")
+        
+        return result_df
+        
     def get_market_prices(self, price_date: Optional[date] = None) -> pd.DataFrame:
         """Get market prices for all symbols.
         
@@ -168,7 +308,7 @@ class TYU5Adapter:
         
         if not market_prices_db.exists():
             logger.warning(f"Market prices database not found: {market_prices_db}")
-            return pd.DataFrame({'Ticker': [], 'PX_LAST': [], 'PX_SETTLE': [], 'EXPIRE_DT': [], 'MONEYNESS': []})
+            return pd.DataFrame({'Symbol': [], 'Current_Price': [], 'Prior_Close': []})
         
         import sqlite3
         conn = sqlite3.connect(str(market_prices_db))
@@ -273,7 +413,13 @@ class TYU5Adapter:
             Dictionary with 'Trades_Input' and 'Market_Prices' DataFrames
         """
         trades_df = self.get_trades_for_calculation(trade_date)
-        prices_df = self.get_market_prices(trade_date)
+        
+        # Get unique symbols from trades to query specific market prices
+        if not trades_df.empty:
+            unique_symbols = trades_df['Symbol'].unique().tolist()
+            prices_df = self.get_market_prices_for_symbols(unique_symbols, trade_date)
+        else:
+            prices_df = pd.DataFrame({'Symbol': [], 'Current_Price': [], 'Prior_Close': []})
         
         # TYU5 expects these exact sheet names
         return {

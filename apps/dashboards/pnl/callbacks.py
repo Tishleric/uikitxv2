@@ -9,7 +9,6 @@ from typing import List, Dict, Any, Tuple
 from dash import Input, Output, State, callback, html
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
-from typing import Tuple, List, Dict
 import logging
 from datetime import datetime
 
@@ -25,7 +24,15 @@ logger = logging.getLogger(__name__)
 @callback(
     [Output("pnl-summary-cards", "children"),
      Output("pnl-file-timestamp", "children"),
-     Output("pnl-tabs", "children"),  # Changed from "tabs" to "children"
+     # Individual DataTable outputs
+     Output("pnl-positions-table", "data"),
+     Output("pnl-positions-table", "columns"),
+     Output("pnl-trades-table", "data"),
+     Output("pnl-trades-table", "columns"),
+     Output("pnl-risk_matrix-table", "data"),
+     Output("pnl-risk_matrix-table", "columns"),
+     Output("pnl-position_breakdown-table", "data"),
+     Output("pnl-position_breakdown-table", "columns"),
      Output("pnl-no-data", "style"),
      Output("pnl-tabs", "style")],
     [Input("pnl-interval-component", "n_intervals"),
@@ -33,7 +40,7 @@ logger = logging.getLogger(__name__)
     prevent_initial_call=False
 )
 @monitor()
-def update_dashboard_data(n_intervals: int, n_clicks: int) -> Tuple[List[html.Div], str, List, Dict, Dict]:
+def update_dashboard_data(n_intervals: int, n_clicks: int) -> Tuple:
     """Update all dashboard data from TYU5 Excel files.
     
     Args:
@@ -85,32 +92,55 @@ def update_dashboard_data(n_intervals: int, n_clicks: int) -> Tuple[List[html.Di
             )
         ]
         
-        # Create tabs for each sheet
-        tab_list = []
+        # Prepare data for each DataTable
         sheet_order = ['Positions', 'Trades', 'Risk_Matrix', 'Position_Breakdown']
+        table_data = {}
+        table_columns = {}
         
         for sheet_name in sheet_order:
             if sheet_name in sheets_data:
                 df = sheets_data[sheet_name]
-                tab_label = sheet_name.replace('_', ' ')
-                tab_content = create_sheet_datatable(sheet_name, df)
-                # Create dbc.Tab component directly
-                tab = dbc.Tab(
-                    label=tab_label,
-                    tab_id=f"pnl-tab-{sheet_name.lower()}",
-                    children=tab_content.render()
-                )
-                tab_list.append(tab)
+                
+                # Convert DataFrame columns to DataTable format
+                columns = []
+                for col in df.columns:
+                    col_config = {'name': col, 'id': col}
+                    
+                    # Add type hints for numeric columns
+                    if df[col].dtype in ['float64', 'int64']:
+                        col_config['type'] = 'numeric'
+                        # Format currency columns
+                        if any(x in col.lower() for x in ['pnl', 'price', 'value', 'fee']):
+                            col_config['format'] = {'specifier': ',.2f'}
+                            
+                    columns.append(col_config)
+                
+                # Store data and columns
+                table_data[sheet_name] = df.to_dict('records')
+                table_columns[sheet_name] = columns
+            else:
+                # Empty data if sheet not found
+                table_data[sheet_name] = []
+                table_columns[sheet_name] = []
         
         logger.info(f"Successfully updated dashboard with {len(sheets_data)} sheets")
         
-        # Debug logging
-        logger.debug(f"Tab list has {len(tab_list)} tabs")
-        for i, (label, content) in enumerate(tab_list):
-            logger.debug(f"Tab {i}: {label}")
-        
         # Show tabs, hide no-data message
-        return cards, f"File: {file_timestamp}", tab_list, {'display': 'none'}, {'display': 'block'}
+        return (
+            cards, 
+            f"File: {file_timestamp}",
+            # DataTable data and columns for each sheet
+            table_data.get('Positions', []),
+            table_columns.get('Positions', []),
+            table_data.get('Trades', []),
+            table_columns.get('Trades', []),
+            table_data.get('Risk_Matrix', []),
+            table_columns.get('Risk_Matrix', []),
+            table_data.get('Position_Breakdown', []),
+            table_columns.get('Position_Breakdown', []),
+            {'display': 'none'}, 
+            {'display': 'block'}
+        )
         
     except Exception as e:
         logger.error(f"Error updating dashboard: {e}")
@@ -123,8 +153,17 @@ def update_dashboard_data(n_intervals: int, n_clicks: int) -> Tuple[List[html.Di
             subtitle=str(e)
         )
         
-        # Hide tabs, show no-data message
-        return [error_card], "Error loading file", [], {'display': 'block'}, {'display': 'none'}
+        # Return empty data for all DataTables
+        return (
+            [error_card], 
+            "Error loading file",
+            [], [],  # Positions data and columns
+            [], [],  # Trades data and columns  
+            [], [],  # Risk_Matrix data and columns
+            [], [],  # Position_Breakdown data and columns
+            {'display': 'block'}, 
+            {'display': 'none'}
+        )
 
 
 @callback(

@@ -1,9 +1,16 @@
 {
   "trades_20250716.csv": {
-    "size": 349,
-    "mtime": 1752695216.374087,
-    "processed_at": "2025-07-16T15:46:56.302173",
-    "processed_count": 1,
-    "last_processed_mtime": "1752695216.374087"
+    "size": 641,
+    "mtime": 1752699472.9050255,
+    "processed_at": "2025-07-16T16:57:52.931756",
+    "processed_count": 8,
+    "last_processed_mtime": "1752699472.9050255"
+  },
+  "trades_20250717.csv": {
+    "size": 641,
+    "mtime": 1752699607.4473112,
+    "processed_at": "2025-07-16T17:00:08.136689",
+    "processed_count": 8,
+    "last_processed_mtime": "1752699607.4473112"
   }
 }

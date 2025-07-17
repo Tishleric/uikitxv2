@@ -81,6 +81,77 @@ Successfully integrated TYU5 P&L calculation engine with UIKitXv2 data stores. T
 - **Feedback**: Real-time status updates showing progress and results
 - **Time**: ~5-7 seconds for full reprocessing
 
+### Critical Fix Applied (July 16, 2025 - 3:50 PM):
+
+5. **P&L Dashboard Tab Update Fix**:
+   - **Issue**: Dashboard wasn't updating despite Excel files being created and console indicating success
+   - **Root Cause**: Callback was returning dbc.Tab components directly, but the wrapped Tabs component expects tuple format
+   - **Fix Applied**:
+     - Changed callback Output from `"children"` to `"tabs"` property
+     - Modified callback to return tuples `(label, content)` instead of dbc.Tab components
+     - Removed unnecessary dbc import
+   - **Additional Fix (3:55 PM)**: Container objects were not JSON serializable
+     - Added `.render()` call to Container objects before passing to Tabs component
+     - Now returns rendered Dash components instead of BaseComponent instances
+   - **Final Fix (4:15 PM)**: DataTables inside dynamically created tabs weren't updating
+     - **Root Cause**: Dash loses track of dynamically created components inside tabs
+     - **Solution**: Create DataTables once in initial layout, update only their data properties
+     - Changed from recreating entire tab components to updating DataTable `data` and `columns` properties
+     - Each DataTable now has fixed ID and receives updates directly via callback outputs
+   - **Result**: Dashboard now correctly displays and updates Excel data in tabs every 5 seconds
+
+### Completed Enhancement (July 16, 2025 - 4:30 PM):
+
+6. **Bachelier P&L Attribution Integration**:
+   - **Feature**: Added Greeks-based P&L attribution to TYU5 Excel output
+   - **Implementation**:
+     - Created `lib/trading/pnl_integration/bachelier_attribution.py` service
+     - Enhanced TYU5Service with `enable_attribution` flag (easily revertible)
+     - Positions sheet now includes: delta_pnl, gamma_pnl, vega_pnl, theta_pnl, speed_pnl, residual
+     - Uses Bachelier model for bond future options with CME expiration calendar
+   - **Key Features**:
+     - Feature flag allows easy enable/disable (`enable_attribution=True/False`)
+     - Graceful degradation if data missing or calculation fails
+     - Preserves all existing TYU5 functionality
+     - Excel formatting with proper number formats for attribution columns
+   - **Testing**: Created `test_tyu5_attribution.py` to verify enhancement
+
+### Critical Fix Applied (July 16, 2025 - 5:30 PM):
+
+7. **P&L Zero Values Fix**:
+   - **Issue**: All P&L values showing as 0 despite having trade data
+   - **Root Cause**: TYU5 module expects a Market_Prices sheet in Excel input, but none was provided
+   - **Fix Applied**:
+     - Enhanced TYU5Adapter to query market prices from database tables (futures_prices, options_prices)
+     - Added `get_market_prices_for_symbols()` method to match trade symbols with market data
+     - Fixed symbol format matching (handles "TYU5 Comdty" → "TYU5" for futures)
+     - Modified `prepare_excel_data()` to include market prices from database
+   - **Result**: P&L calculations now show proper values for positions with market prices
+   
+### Critical Fix Applied (July 16, 2025 - 6:15 PM):
+
+8. **Options P&L Symbol Mapping Fix**:
+   - **Issue**: Options showing 0 P&L despite having prices in database
+   - **Root Cause**: Symbol format mismatch - trades transformed to CME format (VY3N5) but DB has Bloomberg format (VBYN25P3)
+   - **Fix Applied**:
+     - Added `_convert_cme_to_bloomberg_base()` method for reverse symbol mapping
+     - Enhanced market price lookup to convert CME symbols back to Bloomberg for DB queries
+     - Maintains proper symbol format throughout the data flow
+   - **Result**: Options now show proper P&L values when market prices differ from entry prices
+   - **Example**: Two options now show -$1,562.50 P&L each, total options P&L: -$3,125.00
+
+### UI Enhancement Applied (July 16, 2025 - 6:30 PM):
+
+9. **P&L Dashboard DataTable Styling**:
+   - **Changes**:
+     - Increased container max width to 1800px for better use of screen space
+     - Enhanced DataTable styling with larger fonts (14px) and increased padding (12px)
+     - Added monospace font for numeric columns for better alignment
+     - Improved column formatting: $ prefix for P&L/fees, 6 decimals for prices, no decimals for quantities
+     - Added proper header styling with bold text and border separation
+     - Maintained horizontal scroll capability while maximizing visible content
+   - **Result**: More legible and professional-looking data tables
+
 ### Remaining Tasks:
 1. ⏳ Fix date-specific filtering (market_prices table missing trade_date column)
 2. ⏳ CSV output not supported by TYU5 (Excel only) 

@@ -10,8 +10,12 @@ from typing import Optional, Callable
 from pathlib import Path
 import threading
 import time
+import pandas as pd
+import openpyxl
+from openpyxl import load_workbook
 
 from .tyu5_adapter import TYU5Adapter
+from .bachelier_attribution import BachelierAttributionService
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +25,22 @@ class TYU5Service:
     
     def __init__(self, 
                  db_path: Optional[str] = None,
-                 output_dir: Optional[str] = None):
+                 output_dir: Optional[str] = None,
+                 enable_attribution: bool = True):
         """Initialize the service.
         
         Args:
             db_path: Path to SQLite database
             output_dir: Directory for output files (defaults to data/output/pnl)
+            enable_attribution: Enable Bachelier P&L attribution (for easy reversion)
         """
         self.adapter = TYU5Adapter(db_path)
         self.output_dir = Path(output_dir or "data/output/pnl")
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Attribution service (can be disabled via flag)
+        self.attribution_service = BachelierAttributionService(enable_attribution)
+        self.enable_attribution = enable_attribution
         
         # Monitoring state
         self._monitoring = False
@@ -69,6 +79,15 @@ class TYU5Service:
         if success:
             self._last_calculation_time = datetime.now()
             logger.info(f"Calculation complete. Output: {output_file}")
+            
+            # Enhance with Bachelier attribution if enabled
+            if self.enable_attribution and str(output_file).endswith('.xlsx'):
+                try:
+                    self._enhance_excel_with_attribution(str(output_file))
+                except Exception as e:
+                    logger.error(f"Failed to add attribution: {e}")
+                    # Continue even if attribution fails
+                    
             return str(output_file)
         else:
             logger.error("Calculation failed")
@@ -180,4 +199,105 @@ class TYU5Service:
             
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
-            return False 
+            return False
+            
+    def _enhance_excel_with_attribution(self, excel_file: str):
+        """Enhance Excel file with Bachelier P&L attribution.
+        
+        Args:
+            excel_file: Path to the Excel file to enhance
+        """
+        logger.info(f"Enhancing Excel with Bachelier attribution: {excel_file}")
+        
+        # Read existing Excel file
+        xl_file = pd.ExcelFile(excel_file)
+        
+        # Check if Positions sheet exists
+        if 'Positions' not in xl_file.sheet_names:
+            logger.warning("No Positions sheet found, skipping attribution")
+            return
+            
+        # Read positions 
+        positions_df = pd.read_excel(excel_file, sheet_name='Positions')
+        
+        # Get market prices from the adapter (database)
+        market_prices_df = self.adapter.get_market_prices()
+        
+        if market_prices_df is None or market_prices_df.empty:
+            logger.warning("No market prices available in database, skipping attribution")
+            return
+            
+        # Enhance positions with attribution
+        enhanced_positions = self.attribution_service.enhance_positions_dataframe(
+            positions_df, market_prices_df
+        )
+        
+        # Write back to Excel
+        # Use openpyxl to preserve other sheets
+        wb = load_workbook(excel_file)
+        
+        # Remove old Positions sheet
+        if 'Positions' in wb.sheetnames:
+            del wb['Positions']
+            
+        # Create new Positions sheet with attribution
+        ws = wb.create_sheet('Positions', 2)  # Insert at position 2
+        
+        # Write headers
+        headers = list(enhanced_positions.columns)
+        for col_idx, header in enumerate(headers, 1):
+            ws.cell(row=1, column=col_idx, value=header)
+            
+        # Write data
+        for row_idx, row in enhanced_positions.iterrows():
+            for col_idx, value in enumerate(row, 1):
+                # Handle NaN values
+                if pd.isna(value):
+                    ws.cell(row=row_idx+2, column=col_idx, value='')
+                else:
+                    ws.cell(row=row_idx+2, column=col_idx, value=value)
+                    
+        # Format attribution columns
+        attribution_cols = ['delta_pnl', 'gamma_pnl', 'vega_pnl', 'theta_pnl', 
+                           'speed_pnl', 'residual', 'total_attributed_pnl']
+        
+        # Find column indices
+        col_indices = {}
+        for col in attribution_cols:
+            if col in headers:
+                col_indices[col] = headers.index(col) + 1
+                
+        # Apply number formatting to attribution columns
+        for col_name, col_idx in col_indices.items():
+            for row_idx in range(2, ws.max_row + 1):
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.number_format = '#,##0.00'
+                
+        # Add conditional formatting for attribution_calculated column
+        if 'attribution_calculated' in headers:
+            calc_col_idx = headers.index('attribution_calculated') + 1
+            for row_idx in range(2, ws.max_row + 1):
+                cell = ws.cell(row=row_idx, column=calc_col_idx)
+                if cell.value is True:
+                    cell.value = 'Yes'
+                elif cell.value is False:
+                    cell.value = 'No'
+                    
+        # Auto-fit columns (approximate)
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 30)
+            ws.column_dimensions[column_letter].width = adjusted_width
+            
+        # Save the enhanced Excel file
+        wb.save(excel_file)
+        wb.close()
+        
+        logger.info(f"Successfully enhanced Excel with attribution for {len(enhanced_positions)} positions") 
