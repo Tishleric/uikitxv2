@@ -24,3 +24,6 @@ html/
 .DS_Store
 *.sqlite
 *.log
+
+# Database files in logs directory
+logs/*.db
