@@ -16,6 +16,7 @@ from openpyxl import load_workbook
 
 from .tyu5_adapter import TYU5Adapter
 from .bachelier_attribution import BachelierAttributionService
+from .tyu5_database_writer import TYU5DatabaseWriter
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +27,15 @@ class TYU5Service:
     def __init__(self, 
                  db_path: Optional[str] = None,
                  output_dir: Optional[str] = None,
-                 enable_attribution: bool = True):
+                 enable_attribution: bool = True,
+                 enable_db_writer: bool = True):
         """Initialize the service.
         
         Args:
             db_path: Path to SQLite database
             output_dir: Directory for output files (defaults to data/output/pnl)
             enable_attribution: Enable Bachelier P&L attribution (for easy reversion)
+            enable_db_writer: Enable database persistence of TYU5 results
         """
         self.adapter = TYU5Adapter(db_path)
         self.output_dir = Path(output_dir or "data/output/pnl")
@@ -41,6 +44,10 @@ class TYU5Service:
         # Attribution service (can be disabled via flag)
         self.attribution_service = BachelierAttributionService(enable_attribution)
         self.enable_attribution = enable_attribution
+        
+        # Database writer service
+        self.db_writer = TYU5DatabaseWriter(db_path) if enable_db_writer else None
+        self.enable_db_writer = enable_db_writer
         
         # Monitoring state
         self._monitoring = False
@@ -87,6 +94,14 @@ class TYU5Service:
                 except Exception as e:
                     logger.error(f"Failed to add attribution: {e}")
                     # Continue even if attribution fails
+                    
+            # Persist to database if enabled
+            if self.enable_db_writer and self.db_writer and str(output_file).endswith('.xlsx'):
+                try:
+                    self._persist_to_database(str(output_file), datetime.now())
+                except Exception as e:
+                    logger.error(f"Failed to persist to database: {e}")
+                    # Continue even if database write fails
                     
             return str(output_file)
         else:
@@ -301,3 +316,40 @@ class TYU5Service:
         wb.close()
         
         logger.info(f"Successfully enhanced Excel with attribution for {len(enhanced_positions)} positions") 
+
+    def _persist_to_database(self, excel_file: str, calc_timestamp: datetime):
+        """Read TYU5 Excel output and persist to database.
+        
+        Args:
+            excel_file: Path to TYU5 Excel output
+            calc_timestamp: Timestamp of the calculation
+        """
+        try:
+            # Read all sheets from Excel
+            excel_data = pd.read_excel(excel_file, sheet_name=None)
+            
+            # Extract dataframes
+            positions_df = excel_data.get('Positions', pd.DataFrame())
+            trades_df = excel_data.get('Trades', pd.DataFrame())
+            breakdown_df = excel_data.get('Position_Breakdown', pd.DataFrame())
+            risk_df = excel_data.get('Risk_Matrix', pd.DataFrame())
+            summary_df = excel_data.get('Summary', pd.DataFrame())
+            
+            # Write to database
+            success = self.db_writer.write_results(
+                positions_df=positions_df,
+                trades_df=trades_df,
+                breakdown_df=breakdown_df,
+                risk_df=risk_df,
+                summary_df=summary_df,
+                calc_timestamp=calc_timestamp
+            )
+            
+            if success:
+                logger.info(f"Successfully persisted TYU5 results to database")
+            else:
+                logger.error("Failed to persist TYU5 results to database")
+                
+        except Exception as e:
+            logger.error(f"Error reading Excel for database persistence: {e}")
+            raise 

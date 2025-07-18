@@ -23,7 +23,22 @@ class BreakdownGenerator:
                 'Notes': ''
             })
 
-            for pos in positions.get(symbol, []):
+            # Fix: Handle symbol format mismatch
+            # positions dict may have full symbol format (e.g., "VY3N5 P 109.500")
+            # while position_details has base symbol (e.g., "VY3N5")
+            
+            # First try direct lookup
+            symbol_positions = positions.get(symbol, [])
+            
+            # If not found and symbol looks like an option base (no space), 
+            # try to find matching positions by prefix
+            if not symbol_positions and ' ' not in symbol:
+                # Look for positions that start with this symbol
+                for pos_symbol, pos_list in positions.items():
+                    if pos_symbol.startswith(symbol + ' '):
+                        symbol_positions.extend(pos_list)
+            
+            for pos in symbol_positions:
                 if pos['remaining'] == 0: continue
                 entry_price = pos['price']
                 current_price = current['Current_Price']

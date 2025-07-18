@@ -3,11 +3,36 @@
 Structured registry of all code files in the uikitxv2 project.
 Last updated: January 2025
 
+## Scripts
+
+### scripts/migration/001_add_tyu5_tables.py
+Database migration script that adds TYU5 P&L system tables. Creates lot_positions, position_greeks, risk_scenarios, match_history, and pnl_attribution tables. Extends positions table with short_quantity and match_history columns. Implements reversible migration with up() and down() methods, tracks status in schema_migrations table.
+
+### scripts/verify_tyu5_schema.py
+Verification script that checks if TYU5 schema migration was applied correctly. Validates all new tables exist, indexes are created, positions table has new columns, and WAL mode is enabled. Provides detailed output showing table structures and migration status.
+
+## Tests
+
+### tests/trading/test_tyu5_schema_migration.py
+Comprehensive test suite for TYU5 schema migration. Tests migration up/down operations, verifies all tables and indexes are created, checks schema compatibility with existing data, and ensures migration is idempotent. Uses temporary databases for isolated testing.
+
+## Documentation
+
+### docs/tyu5_migration_deep_analysis.md
+Comprehensive deep system analysis comparing TYU5 P&L system with TradePreprocessor pipeline. Covers architecture comparison, data models, calculation methodologies, and proposes 4-phase hybrid integration strategy. Key findings: TYU5 has advanced FIFO with short support and Bachelier option pricing, while TradePreprocessor offers production reliability and SQLite integration. Recommends preserving both systems' strengths through incremental migration.
+
 ## Core Infrastructure
 
 ### lib/trading/
 - `symbol_translator.py`: Actant to Bloomberg symbol translation for futures and options
 - `treasury_notation_mapper.py`: Comprehensive mapping between Bloomberg, Actant, and CME notation for US Treasury futures and options. Supports all major treasury contracts (TY, TU, FV, US, TN, UB) and weekly options series.
+
+### lib/trading/fullpnl/
+Core package for automating FULLPNL master P&L table builds. Replaces 10+ manual scripts with unified framework.
+- `__init__.py`: Package initialization exposing main classes: FULLPNLBuilder, SymbolMapper
+- `symbol_mapper.py`: Centralized symbol format conversion between Bloomberg, Actant, and vtexp formats. Handles futures, options with all strike notations and contract mappings
+- `data_sources.py`: Database adapter classes for accessing P&L tracker, spot risk, and market prices SQLite databases. Provides unified interface for data retrieval
+- `builder.py`: Main orchestrator class that rebuilds FULLPNL table. Implements column loaders for positions, market prices, spot risk data, and Greeks. Supports both full rebuild and incremental updates
 
 ### lib/trading/actant/
 
@@ -35,6 +60,22 @@ Tracks closed positions by analyzing trade history from cto_trades table. Calcul
 ### lib/trading/pnl_calculator/price_processor.py
 Processes market price CSV files from Bloomberg. Handles futures and options directories separately. Validates and normalizes price data before storage. Integrates with PnLStorage for database operations.
 
+## Scripts
+
+### scripts/test_fullpnl_automation.py
+Comprehensive test script for FULLPNL automation components. Tests symbol mapping, database connections, and builder functionality. Verifies all 7 unit tests pass.
+
+### scripts/test_fullpnl_rebuild.py
+Full rebuild test script for FULLPNLBuilder. Tests complete rebuild process, displays table contents, coverage statistics, and performance metrics. Also tests incremental update mode.
+
+### scripts/check_fullpnl_table.py
+Quick status check script for FULLPNL table. Displays summary statistics, coverage percentages, and sample data rows for verification.
+
+## Tests
+
+### tests/fullpnl/test_symbol_mapper.py
+Unit tests for SymbolMapper class. Tests all symbol format conversions including Bloomberg, Actant, vtexp formats. Covers futures, options, various strike notations, and edge cases.
+
 ## Dashboard Applications
 
 ### apps/dashboards/pnl_v2/
@@ -45,10 +86,16 @@ New P&L tracking dashboard with real-time updates. Components:
 - callbacks.py: Real-time update callbacks on 5-second intervals
 
 ### lib/trading/pnl_integration/
-New integration package for TYU5 P&L engine (replacing pnl_calculator). Components:
-- tyu5_adapter.py: Adapter querying UIKitXv2 data stores and formatting for TYU5 engine
-- tyu5_service.py: Service layer managing calculations, monitoring, and output generation
-- Direct database to TYU5 path, bypassing old pnl_calculator entirely
+- **unified_pnl_api.py** - Unified P&L API that merges TradePreprocessor and TYU5 data. Provides comprehensive queries for positions with lots, Greeks, risk scenarios, P&L attribution, and match history. Central interface for accessing all advanced P&L features.
+
+### lib/trading/pnl_calculator/
+- **unified_service.py** - Enhanced unified service now with TYU5 integration. Provides methods for lot-level positions, portfolio Greeks, risk scenarios, and comprehensive position views. Falls back gracefully when TYU5 features unavailable.
+
+### tests/trading/
+- **test_unified_service_enhanced.py** - Comprehensive test suite for enhanced UnifiedPnLService. Tests TYU5 feature integration including lot tracking, Greeks, risk scenarios, and fallback behavior. Includes direct API tests.
+
+### scripts/
+- **test_unified_service_enhanced.py** - Demonstration script showing Phase 3 unified service capabilities. Examples of accessing lot details, Greeks, risk scenarios, and comprehensive position views through the unified API.
 
 ### lib/trading/actant/spot_risk/
 Spot risk processing pipeline with Greek calculations. Components:
@@ -60,6 +107,23 @@ Spot risk processing pipeline with Greek calculations. Components:
 - vtexp_mapper.py: Maps spot risk options to vtexp values by matching expiry dates (simplified approach)
 - schema.sql: Database schema including vtexp column for time to expiry storage
 - Dual output: CSV files in data/output/spot_risk/processed/ and SQLite at spot_risk.db
+
+### lib/trading/pnl_integration/tyu5_database_writer.py
+Database writer for TYU5 P&L calculation results. Persists lot positions, Greeks, risk scenarios and match history to SQLite. Handles vtexp loading from latest CSV, 32nds price format conversion, bulk inserts for performance, and full transaction management with rollback. Fixed to map symbols back to Bloomberg format for position_id lookup.
+
+### tests/trading/test_tyu5_database_writer.py
+Comprehensive test suite for TYU5DatabaseWriter. Tests lot position writing, Greek value persistence, risk scenario storage, match history tracking, vtexp loading, and transaction rollback on errors. Validates all data transformations and database operations.
+
+### scripts/test_tyu5_db_integration.py  
+Integration test script for TYU5 database persistence. Runs full TYU5 calculation via TYU5Service and verifies results are properly stored in database tables. Tests end-to-end flow from trade processing to database persistence.
+
+### scripts/debug_tyu5_writer.py
+Debug helper for TYU5 database writer. Reads TYU5 Excel output and attempts to write to database with detailed logging. Shows structure of Excel sheets and identifies any data transformation issues.
+
+### scripts/check_tyu5_db_results.py
+Verification script for TYU5 database persistence. Queries database tables to show counts and sample data for lot positions and risk scenarios. Confirms successful Phase 2 implementation.
+
+### apps/dashboards/pnl/callbacks.py
 
 ## Recent Updates
 - Added SQLite storage to spot risk pipeline alongside CSV output
@@ -73,3 +137,4 @@ Spot risk processing pipeline with Greek calculations. Components:
 - **July 17, 2025: Implemented closed position tracking - added closed_quantity column to positions table**
 - **July 17, 2025: Created ClosedPositionTracker class to calculate daily closed positions from trade history**
 - **July 17, 2025: Migration script scripts/add_closed_quantity_column.py to update existing databases** 
+- `lib/trading/pnl/tyu5_pnl/core/breakdown_generator.py` - Generates lot-level position breakdown. Fixed to handle symbol format mismatch when looking up positions. 

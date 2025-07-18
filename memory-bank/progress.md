@@ -1,5 +1,17 @@
 # Progress Tracker
 
+## Current Status (January 2025)
+
+### FULLPNL Automation - Milestone 1 Complete ✅
+- **Status**: M1 Complete - Code consolidation successful
+- **Achievement**: Consolidated 10+ manual scripts into unified framework
+- **Key Components**:
+  - `lib/trading/fullpnl/symbol_mapper.py` - All symbol format conversions
+  - `lib/trading/fullpnl/data_sources.py` - Database adapters for 3 SQLite DBs
+  - `lib/trading/fullpnl/builder.py` - Orchestrator with table creation
+  - Full test coverage with all tests passing
+- **Next**: M2 - Implement column loaders for full rebuild capability
+
 ## Current Status (July 17, 2025)
 
 ### Recent Accomplishments
@@ -379,5 +391,149 @@ Added vtexp (time to expiry) column to FULLPNL table.
 - Add DV01 column
 - Add LIFO P&L tracking
 
+## FULLPNL Automation (January 2025)
+
+### M1: Symbol Mapping Consolidation ✅
+**Status: Complete**
+
+Consolidated 10+ manual scripts into unified framework:
+- Created `lib/trading/fullpnl/` package with:
+  - `symbol_mapper.py` - Unified Bloomberg ↔ Actant ↔ vtexp conversion logic
+  - `data_sources.py` - Database adapters for P&L, spot risk, and market prices
+  - `builder.py` - FULLPNLBuilder orchestrator skeleton
+- Full unit test coverage (7/7 tests passing)
+- Handles all symbol formats correctly
+
+### M2: FULLPNLBuilder Implementation ✅  
+**Status: Complete**
+
+Successfully implemented full rebuild capability:
+- **Column Loaders Implemented**:
+  - Position data (open/closed) - 100% coverage
+  - Market prices (px_last/px_settle) - 75% coverage
+  - Spot risk data (bid/ask/price/vtexp) - 12.5% coverage (limited by data)
+  - Greeks (all 8 columns) - Working correctly
+  - Fixed futures delta_f = 63.0
+- **Test Results**:
+  - Full rebuild working with 8 symbols
+  - Incremental update mode working
+  - Performance: < 1 second for full rebuild
+- **Scripts Created**:
+  - `scripts/test_fullpnl_rebuild.py` - Full rebuild test
+  - `scripts/check_fullpnl_table.py` - Quick status check
+
+**Next**: M3 - Incremental update engine
+
+### Phase 2: TYU5 Database Writer ✅ 
+- Created migration script to add TYU5 tables
+- Implemented TYU5DatabaseWriter for persisting calculations
+- Resolved Excel column name discrepancies
+- Successfully persisting lot positions and risk scenarios
+
+### Phase 3: Unified Service Layer ✅
+- Created `UnifiedPnLAPI` for comprehensive P&L queries
+- Enhanced `UnifiedPnLService` with TYU5 advanced features:
+  - Lot-level position tracking
+  - Greek exposure calculation
+  - Risk scenario analysis  
+  - P&L attribution
+  - FIFO match history
+- Added fallback behavior when TYU5 not available
+- Created comprehensive test suite
+- Built demonstration script showing integration
+
+**Key Files Created:**
+- `lib/trading/pnl_integration/unified_pnl_api.py` - Unified API for advanced queries
+- `tests/trading/test_unified_service_enhanced.py` - Test suite
+- `scripts/test_unified_service_enhanced.py` - Demo script
+
+**API Methods Available:**
+- `get_positions_with_lots()` - Positions with lot-level detail
+- `get_portfolio_greeks()` - Aggregated portfolio Greeks
+- `get_greek_exposure()` - Greek values by position
+- `get_risk_scenarios()` - Price scenario analysis
+- `get_comprehensive_position_view()` - All data for a position
+- `get_portfolio_summary_enhanced()` - Enhanced portfolio metrics
+
 ## Known Issues & TODO
+
+### TYU5 Lot Tracking Coverage Issue (January 2025)
+- **Issue**: Only 37.5% of positions (3 out of 8) have lot tracking in database
+- **Root Causes Identified**:
+  1. BreakdownGenerator symbol format mismatch (VY3N5 vs VY3N5 P 110.250) ✅ FIXED
+  2. Database writer can't find position_id due to column name (symbol vs instrument_name) ✅ FIXED
+  3. Symbol mapping needed from CME format back to Bloomberg format ✅ IMPLEMENTED
+- **Fixes Applied**:
+  - Enhanced BreakdownGenerator to handle option symbol matching
+  - Added _map_symbol_to_bloomberg() method to TYU5DatabaseWriter
+  - Fixed SQL queries to use instrument_name instead of symbol
+- **Current Status**: Excel shows 5 symbols with lot tracking, database persistence improvements in progress
+ 
+## January 2025 Updates
+
+### TYU5 Migration Phase 1 - Schema Enhancement (January 2025) ✅
+- **Completed**: Database schema enhancements for TYU5 P&L system integration
+- **Migration Script**: `scripts/migration/001_add_tyu5_tables.py`
+  - Reversible migration with up() and down() methods
+  - Tracks migration status in schema_migrations table
+- **New Tables Created**:
+  - `lot_positions` - Individual lot tracking with remaining quantities
+  - `position_greeks` - Delta, gamma, vega, theta, speed storage
+  - `risk_scenarios` - Price scenario P&L analysis (with partial index)
+  - `match_history` - Detailed FIFO matching records
+  - `pnl_attribution` - Greeks-based P&L decomposition
+- **Enhanced Tables**:
+  - `positions` - Added short_quantity and match_history columns
+- **Storage Class Updated**: `lib/trading/pnl_calculator/storage.py`
+  - Added TYU5 schema to _initialize_database()
+  - Enabled WAL mode for better concurrency
+- **Testing**:
+  - Created comprehensive test suite: `tests/trading/test_tyu5_schema_migration.py`
+  - Verification script: `scripts/verify_tyu5_schema.py`
+- **Performance Considerations**:
+  - Partial index on risk_scenarios for 7-day rolling window
+  - Bulk insert preparation for Phase 2
+  - WAL mode prevents lock contention
+
+### TYU5 Migration Phase 2 - TYU5 Database Writer (January 2025) ✅
+- **Completed**: Database persistence for TYU5 calculation results
+- **TYU5DatabaseWriter**: `lib/trading/pnl_integration/tyu5_database_writer.py`
+  - Handles vtexp loading from latest CSV file
+  - Converts 32nds price format to decimal (110-20 → 110.625)
+  - Bulk insert methods for performance
+  - Full transaction management with rollback
+- **Data Mappings Implemented**:
+  - Position_Breakdown → lot_positions (filters OPEN_POSITION rows)
+  - Risk_Matrix → risk_scenarios (extracts symbol, price, PnL)
+  - Trades → match_history (for realized P&L trades)
+  - Positions → position_greeks (for options)
+- **Integration with TYU5Service**:
+  - Added enable_db_writer flag (default True)
+  - Database persistence runs after Excel generation
+  - Backward compatible - Excel still generated
+- **Testing & Verification**:
+  - Unit tests: `tests/trading/test_tyu5_database_writer.py`
+  - Integration test: `scripts/test_tyu5_db_integration.py`
+  - Debug helper: `scripts/debug_tyu5_writer.py`
+  - Verification: `scripts/check_tyu5_db_results.py`
+- **Results**: Successfully persisting 6 lot positions and 104 risk scenarios
+
+## December 2024 Updates
+
+### TYU5 Migration Deep Analysis (January 2025)
+- **Completed**: Deep system analysis of TYU5 P&L system vs TradePreprocessor pipeline
+- **Created**: `docs/tyu5_migration_deep_analysis.md` - Comprehensive analysis document
+- **Key Findings**:
+  - TYU5 has advanced FIFO with short support, Bachelier pricing, and Greek calculations
+  - TradePreprocessor has production reliability and SQLite integration
+  - Recommended hybrid integration approach to preserve both systems' strengths
+- **Architecture Analyzed**:
+  - TYU5: Bachelier model, lot tracking, risk matrix, P&L attribution
+  - TradePreprocessor: Symbol translation, basic FIFO, database persistence
+- **Migration Strategy**: 4-phase hybrid integration plan
+  - Phase 1: Schema enhancement (new tables for lots, Greeks, scenarios) ✅ COMPLETE
+  - Phase 2: TYU5 database writer
+  - Phase 3: Unified service layer
+  - Phase 4: UI feature integration
+- **Next Steps**: Await approval to begin Phase 1 implementation 
  

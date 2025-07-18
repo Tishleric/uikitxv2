@@ -191,7 +191,8 @@ class TYU5Adapter:
                 return f"{bloomberg_prefix}{month}{year}P"
             else:
                 # Standard format: VBYN25P3
-                # We need to determine if it's a put or call - default to P
+                # We need to determine if it's a put or call - we know the type from parsing
+                # For now, construct base without type indicator
                 return f"{bloomberg_prefix}{month}2{year}P{week}"
         
         return cme_symbol  # Fallback
@@ -255,6 +256,27 @@ class TYU5Adapter:
                 
                 # Convert CME base back to Bloomberg base
                 bloomberg_base = self._convert_cme_to_bloomberg_base(cme_base)
+                
+                # Fix the Bloomberg symbol construction based on the actual database format
+                # The database stores full Bloomberg symbols like "VBYN25P3 109.500 Comdty"
+                # We need to inject the option type into the base symbol
+                if bloomberg_base.endswith('P'):
+                    # Replace the default P with the actual option type
+                    bloomberg_base = bloomberg_base[:-1] + option_type
+                elif '3M' in bloomberg_base:
+                    # For Friday options, format is "3MN5P" or "3MN5C"
+                    # Remove the trailing P and add the actual type
+                    bloomberg_base = bloomberg_base[:-1] + option_type
+                else:
+                    # For other weeklies, insert the type before the week number
+                    # VBYN25P3 -> VBY + N + 25 + P + 3
+                    if len(bloomberg_base) >= 8:
+                        # Extract parts: VBYN25P3
+                        prefix = bloomberg_base[:3]   # VBY
+                        month = bloomberg_base[3]     # N
+                        year = bloomberg_base[4:6]    # 25
+                        week = bloomberg_base[7]      # 3
+                        bloomberg_base = f"{prefix}{month}{year}{option_type}{week}"
                 
                 # Construct full Bloomberg symbol for DB lookup
                 bloomberg_symbol = f"{bloomberg_base} {strike} Comdty"

@@ -8,7 +8,6 @@ import pytz
 
 from .storage import PnLStorage
 from .position_manager import PositionManager
-from .price_processor import PriceProcessor
 from .service import PnLService
 from .trade_preprocessor import TradePreprocessor
 from .price_watcher import PriceFileWatcher
@@ -39,7 +38,7 @@ class UnifiedPnLService:
         
         # Initialize components
         self.position_manager = PositionManager(self.storage)
-        self.price_processor = PriceProcessor(self.storage)
+        self.price_processor = PnLService(self.storage)  # Use PnLService for market prices
         self.pnl_service = PnLService(self.storage)  # Use PnLService for market prices
         self.trade_preprocessor = TradePreprocessor(
             output_dir=None,  # We'll use default output directory
@@ -52,8 +51,18 @@ class UnifiedPnLService:
         self.price_watcher = None
         self.trade_ledger_dir = trade_ledger_dir
         self.price_directories = price_directories
-        
         self._watchers_started = False
+        
+        # Initialize TYU5 unified API for advanced features
+        try:
+            from lib.trading.pnl_integration.unified_pnl_api import UnifiedPnLAPI
+            self.unified_api = UnifiedPnLAPI(db_path)
+            self._tyu5_enabled = True
+            logger.info("TYU5 unified API enabled - advanced features available")
+        except ImportError:
+            logger.warning("TYU5 unified API not available - advanced features disabled")
+            self.unified_api = None
+            self._tyu5_enabled = False
         
     def start_watchers(self):
         """Start file watchers for real-time updates."""
@@ -63,10 +72,6 @@ class UnifiedPnLService:
             
         try:
             # Start trade file watcher
-            self.trade_watcher = TradeFileWatcher(
-                input_dir=self.trade_ledger_dir,
-                output_dir=None  # Use default output directory
-            )
             self.trade_watcher.start()
             
             # Start price file watcher
@@ -78,10 +83,6 @@ class UnifiedPnLService:
                 except Exception as e:
                     logger.error(f"Error processing price file {file_path}: {e}")
                     
-            self.price_watcher = PriceFileWatcher(
-                self.price_directories,
-                price_callback
-            )
             self.price_watcher.start()
             
             self._watchers_started = True
@@ -267,4 +268,106 @@ class UnifiedPnLService:
             'realized': round(todays_realized, 5),
             'unrealized': round(todays_unrealized, 5),
             'total': round(todays_realized + todays_unrealized, 5)
-        } 
+        }
+        
+    # ===== TYU5 Advanced Features =====
+    
+    def get_positions_with_lots(self, symbol: Optional[str] = None) -> List[Dict]:
+        """Get positions with lot-level detail from TYU5 data.
+        
+        Args:
+            symbol: Optional symbol to filter by
+            
+        Returns:
+            List of position dictionaries with lot details
+        """
+        if not self._tyu5_enabled:
+            logger.warning("TYU5 features not available")
+            return self.get_open_positions()  # Fallback to basic positions
+            
+        return self.unified_api.get_positions_with_lots(symbol)
+        
+    def get_portfolio_greeks(self) -> Dict[str, float]:
+        """Get aggregated portfolio-level Greeks.
+        
+        Returns:
+            Dictionary with total portfolio Greeks
+        """
+        if not self._tyu5_enabled:
+            return {
+                'total_delta': 0.0,
+                'total_gamma': 0.0,
+                'total_vega': 0.0,
+                'total_theta': 0.0,
+                'total_speed': 0.0,
+                'option_count': 0,
+                'last_update': None
+            }
+            
+        return self.unified_api.get_portfolio_greeks()
+        
+    def get_greek_exposure(self, as_of: Optional[datetime] = None) -> List[Dict]:
+        """Get current Greek exposure across all positions.
+        
+        Args:
+            as_of: Optional timestamp (defaults to latest)
+            
+        Returns:
+            List of dictionaries with Greek values by position
+        """
+        if not self._tyu5_enabled:
+            return []
+            
+        df = self.unified_api.get_greek_exposure(as_of)
+        return df.to_dict('records') if not df.empty else []
+        
+    def get_risk_scenarios(self, symbol: Optional[str] = None) -> List[Dict]:
+        """Get risk scenario analysis.
+        
+        Args:
+            symbol: Optional symbol to filter by
+            
+        Returns:
+            List of scenario dictionaries
+        """
+        if not self._tyu5_enabled:
+            return []
+            
+        df = self.unified_api.get_risk_scenarios(symbol)
+        return df.to_dict('records') if not df.empty else []
+        
+    def get_comprehensive_position_view(self, symbol: str) -> Dict:
+        """Get comprehensive view of a position including all advanced features.
+        
+        Args:
+            symbol: Position symbol
+            
+        Returns:
+            Dictionary with complete position information
+        """
+        if not self._tyu5_enabled:
+            # Return basic position info
+            positions = [p for p in self.get_open_positions() if p['instrument'] == symbol]
+            return positions[0] if positions else None
+            
+        return self.unified_api.get_comprehensive_position_view(symbol)
+        
+    def get_portfolio_summary_enhanced(self) -> Dict:
+        """Get comprehensive portfolio summary with TYU5 features.
+        
+        Returns:
+            Dictionary with enhanced portfolio-level metrics
+        """
+        basic_summary = {
+            'positions': self.get_open_positions(),
+            'todays_pnl': self.get_todays_pnl()
+        }
+        
+        if not self._tyu5_enabled:
+            return basic_summary
+            
+        # Add TYU5 enhanced data
+        enhanced_summary = self.unified_api.get_portfolio_summary()
+        enhanced_summary['basic'] = basic_summary
+        
+        return enhanced_summary 

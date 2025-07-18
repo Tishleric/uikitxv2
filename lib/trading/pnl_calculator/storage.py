@@ -243,10 +243,132 @@ class PnLStorage:
         -- Index for position snapshots
         CREATE INDEX IF NOT EXISTS idx_position_snapshots 
         ON position_snapshots(snapshot_type, snapshot_timestamp);
+        
+        -- =====================================================
+        -- TYU5 P&L System Enhancements
+        -- =====================================================
+        
+        -- Enable WAL mode for better concurrency
+        PRAGMA journal_mode=WAL;
+        
+        -- Lot positions for individual lot tracking
+        CREATE TABLE IF NOT EXISTS lot_positions (
+            id INTEGER PRIMARY KEY,
+            symbol TEXT NOT NULL,
+            trade_id TEXT NOT NULL,
+            remaining_quantity REAL NOT NULL,
+            entry_price REAL NOT NULL,
+            entry_date DATETIME NOT NULL,
+            position_id INTEGER REFERENCES positions(id),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_lot_positions_symbol 
+        ON lot_positions(symbol);
+        
+        CREATE INDEX IF NOT EXISTS idx_lot_positions_trade 
+        ON lot_positions(trade_id, entry_date);
+        
+        -- Position Greeks table
+        CREATE TABLE IF NOT EXISTS position_greeks (
+            id INTEGER PRIMARY KEY,
+            position_id INTEGER REFERENCES positions(id),
+            calc_timestamp DATETIME NOT NULL,
+            underlying_price REAL NOT NULL,
+            implied_vol REAL,
+            delta REAL,
+            gamma REAL,
+            vega REAL,
+            theta REAL,
+            speed REAL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_position_greeks_latest 
+        ON position_greeks(position_id, calc_timestamp DESC);
+        
+        -- Risk scenarios table
+        CREATE TABLE IF NOT EXISTS risk_scenarios (
+            id INTEGER PRIMARY KEY,
+            calc_timestamp DATETIME NOT NULL,
+            symbol TEXT NOT NULL,
+            scenario_price REAL NOT NULL,
+            scenario_pnl REAL NOT NULL,
+            scenario_delta REAL,
+            scenario_gamma REAL,
+            position_quantity REAL NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        -- Partial index for latest scenarios (7 days rolling window)
+        CREATE INDEX IF NOT EXISTS idx_risk_scenarios_latest 
+        ON risk_scenarios(symbol, calc_timestamp DESC)
+        WHERE calc_timestamp > datetime('now', '-7 days');
+        
+        -- Match history for detailed FIFO tracking
+        CREATE TABLE IF NOT EXISTS match_history (
+            id INTEGER PRIMARY KEY,
+            symbol TEXT NOT NULL,
+            match_date DATETIME NOT NULL,
+            buy_trade_id TEXT NOT NULL,
+            sell_trade_id TEXT NOT NULL,
+            matched_quantity REAL NOT NULL,
+            buy_price REAL NOT NULL,
+            sell_price REAL NOT NULL,
+            realized_pnl REAL NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_match_history_symbol 
+        ON match_history(symbol, match_date DESC);
+        
+        -- P&L attribution table
+        CREATE TABLE IF NOT EXISTS pnl_attribution (
+            id INTEGER PRIMARY KEY,
+            position_id INTEGER REFERENCES positions(id),
+            calc_timestamp DATETIME NOT NULL,
+            total_pnl REAL NOT NULL,
+            delta_pnl REAL,
+            gamma_pnl REAL,
+            vega_pnl REAL,
+            theta_pnl REAL,
+            speed_pnl REAL,
+            residual_pnl REAL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_pnl_attribution_latest 
+        ON pnl_attribution(position_id, calc_timestamp DESC);
+        
+        -- Schema migrations tracking
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            version TEXT PRIMARY KEY,
+            description TEXT NOT NULL,
+            applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
         """
         
         with self._get_connection() as conn:
             conn.executescript(schema)
+            
+            # Add columns to positions table if they don't exist
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(positions)")
+            existing_columns = {row[1] for row in cursor.fetchall()}
+            
+            if 'short_quantity' not in existing_columns:
+                cursor.execute("""
+                    ALTER TABLE positions 
+                    ADD COLUMN short_quantity REAL NOT NULL DEFAULT 0;
+                """)
+                
+            if 'match_history' not in existing_columns:
+                cursor.execute("""
+                    ALTER TABLE positions 
+                    ADD COLUMN match_history TEXT;  -- JSON column
+                """)
+            
             conn.commit()
             
         logger.info(f"Database initialized at {self.db_path}")
