@@ -224,8 +224,8 @@ class OptionsProcessor:
                         except (ValueError, TypeError):
                             logger.debug(f"Invalid moneyness for {symbol}: {moneyness_value}")
                 
-                # Update current price
-                self.storage.update_options_current_price(
+                # Update Flash_Close price
+                self.storage.update_options_flash_close(
                     trade_date=trade_date,
                     symbol=symbol,
                     price=price,

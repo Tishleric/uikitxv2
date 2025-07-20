@@ -195,6 +195,12 @@ class SpotRiskDatabase(BaseDatabase):
             if parsed[0] == 'FUTURE':
                 # For futures, use symbol-based query
                 future_symbol = parsed[1]
+                
+                # Map TYU5 to SEP25 for spot risk lookup
+                search_pattern = future_symbol
+                if future_symbol == 'TYU5':
+                    search_pattern = 'SEP25'
+                    
                 query = f"""
                     SELECT 
                         sr.instrument_key,
@@ -209,7 +215,7 @@ class SpotRiskDatabase(BaseDatabase):
                     ORDER BY sr.id DESC
                     LIMIT 1
                 """
-                result = self.fetchone_dict(query, (session_id, f'%{future_symbol}%'))
+                result = self.fetchone_dict(query, (session_id, f'%{search_pattern}%'))
                 
                 if result:
                     original_symbol = symbol_mapping[parsed]
@@ -321,12 +327,25 @@ class MarketPricesDatabase(BaseDatabase):
         prices = {}
         
         # Process futures
-        futures_symbols = [s.replace(' Comdty', '') for s in symbols if not any(x in s for x in ['C', 'P'])]
+        # Check for options by looking for strike price pattern (numbers after letters)
+        futures_symbols = []
+        options_symbols = []
+        
+        for s in symbols:
+            # Options have format like "3MN5P 110.000 Comdty" or "VBYN25P3 109.500 Comdty"
+            # Futures have format like "TYU5 Comdty"
+            parts = s.split()
+            if len(parts) >= 2 and parts[1].replace('.', '').isdigit():
+                # Has a strike price - it's an option
+                options_symbols.append(s)
+            else:
+                # No strike price - it's a future
+                futures_symbols.append(s.replace(' Comdty', ''))
+                
         if futures_symbols:
             prices.update(self._get_futures_prices(futures_symbols, as_of_date))
             
         # Process options (keep full symbol with strike)
-        options_symbols = [s for s in symbols if any(x in s for x in ['C', 'P'])]
         if options_symbols:
             prices.update(self._get_options_prices(options_symbols, as_of_date))
             
@@ -338,7 +357,7 @@ class MarketPricesDatabase(BaseDatabase):
         
         if as_of_date:
             query = f"""
-                SELECT symbol, current_price, prior_close
+                SELECT symbol, Flash_Close as current_price, prior_close
                 FROM futures_prices
                 WHERE symbol IN ({placeholders})
                   AND trade_date <= ?
@@ -347,7 +366,7 @@ class MarketPricesDatabase(BaseDatabase):
             params = tuple(symbols) + (as_of_date,)
         else:
             query = f"""
-                SELECT symbol, current_price, prior_close
+                SELECT symbol, Flash_Close as current_price, prior_close
                 FROM futures_prices
                 WHERE symbol IN ({placeholders})
                 ORDER BY symbol, trade_date DESC
@@ -356,15 +375,28 @@ class MarketPricesDatabase(BaseDatabase):
             
         results = self.fetchall_dict(query, params)
         
-        # Get first (latest) price for each symbol
+        # Get first non-null price for each symbol
         prices = {}
+        current_prices = {}
+        prior_closes = {}
+        
         for row in results:
             symbol = row['symbol'] + ' Comdty'  # Add back Bloomberg suffix
-            if symbol not in prices:
-                prices[symbol] = {
-                    'current_price': row['current_price'],
-                    'prior_close': row['prior_close']
-                }
+            
+            # Track first non-null current_price
+            if symbol not in current_prices and row['current_price'] is not None:
+                current_prices[symbol] = row['current_price']
+                
+            # Track first (latest) prior_close
+            if symbol not in prior_closes and row['prior_close'] is not None:
+                prior_closes[symbol] = row['prior_close']
+                
+        # Combine results
+        for symbol in set(list(current_prices.keys()) + list(prior_closes.keys())):
+            prices[symbol] = {
+                'current_price': current_prices.get(symbol),
+                'prior_close': prior_closes.get(symbol)
+            }
                 
         return prices
         
@@ -374,7 +406,7 @@ class MarketPricesDatabase(BaseDatabase):
         
         if as_of_date:
             query = f"""
-                SELECT symbol, current_price, prior_close
+                SELECT symbol, Flash_Close as current_price, prior_close
                 FROM options_prices
                 WHERE symbol IN ({placeholders})
                   AND trade_date <= ?
@@ -383,7 +415,7 @@ class MarketPricesDatabase(BaseDatabase):
             params = tuple(symbols) + (as_of_date,)
         else:
             query = f"""
-                SELECT symbol, current_price, prior_close
+                SELECT symbol, Flash_Close as current_price, prior_close
                 FROM options_prices
                 WHERE symbol IN ({placeholders})
                 ORDER BY symbol, trade_date DESC

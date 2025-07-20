@@ -12,7 +12,11 @@ from typing import Dict, Optional, List, Tuple
 from contextlib import contextmanager
 
 from lib.monitoring.decorators import monitor
-from .constants import DB_FILE_NAME, CHICAGO_TZ
+import pytz
+
+# Constants
+DB_FILE_NAME = 'market_prices.db'
+CHICAGO_TZ = pytz.timezone('America/Chicago')
 
 logger = logging.getLogger(__name__)
 
@@ -54,26 +58,28 @@ class MarketPriceStorage:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             
-            # Futures prices table
+            # Futures prices table - ACTIVE VERSION with Current_Price
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS futures_prices (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     trade_date DATE NOT NULL,
                     symbol TEXT NOT NULL,
-                    current_price REAL,
+                    Current_Price REAL,
+                    Flash_Close REAL,
                     prior_close REAL,
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(trade_date, symbol)
                 )
             """)
             
-            # Options prices table
+            # Options prices table - ACTIVE VERSION with Current_Price
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS options_prices (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     trade_date DATE NOT NULL,
                     symbol TEXT NOT NULL,
-                    current_price REAL,
+                    Current_Price REAL,
+                    Flash_Close REAL,
                     prior_close REAL,
                     expire_dt DATE,
                     moneyness REAL,
@@ -193,23 +199,23 @@ class MarketPriceStorage:
             conn.commit()
     
     @monitor()
-    def update_futures_current_price(self, trade_date: date, symbol: str, price: float):
+    def update_futures_flash_close(self, trade_date: date, symbol: str, price: float):
         """
-        Update current price for a futures contract.
+        Update Flash_Close price for a futures contract.
         
         Args:
             trade_date: The trading date
             symbol: Bloomberg symbol (with U5 suffix)
-            price: Current price from PX_LAST
+            price: Flash close price from PX_LAST
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO futures_prices (trade_date, symbol, current_price)
+                INSERT INTO futures_prices (trade_date, symbol, Flash_Close)
                 VALUES (?, ?, ?)
                 ON CONFLICT(trade_date, symbol) 
                 DO UPDATE SET 
-                    current_price = excluded.current_price,
+                    Flash_Close = excluded.Flash_Close,
                     last_updated = CURRENT_TIMESTAMP
             """, (trade_date, symbol, price))
             conn.commit()
@@ -237,16 +243,16 @@ class MarketPriceStorage:
             conn.commit()
     
     @monitor()
-    def update_options_current_price(self, trade_date: date, symbol: str, price: float,
+    def update_options_flash_close(self, trade_date: date, symbol: str, price: float,
                                    expire_dt: Optional[date] = None, 
                                    moneyness: Optional[float] = None):
         """
-        Update current price for an option.
+        Update Flash_Close price for an option.
         
         Args:
             trade_date: The trading date
             symbol: Bloomberg symbol
-            price: Current price from PX_LAST
+            price: Flash close price from PX_LAST
             expire_dt: Expiration date
             moneyness: Moneyness value
         """
@@ -254,13 +260,13 @@ class MarketPriceStorage:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO options_prices 
-                (trade_date, symbol, current_price, expire_dt, moneyness)
+                (trade_date, symbol, Flash_Close, expire_dt, moneyness)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(trade_date, symbol) 
                 DO UPDATE SET 
-                    current_price = excluded.current_price,
-                    expire_dt = COALESCE(excluded.expire_dt, expire_dt),
-                    moneyness = COALESCE(excluded.moneyness, moneyness),
+                    Flash_Close = excluded.Flash_Close,
+                    expire_dt = CASE WHEN excluded.expire_dt IS NOT NULL THEN excluded.expire_dt ELSE expire_dt END,
+                    moneyness = CASE WHEN excluded.moneyness IS NOT NULL THEN excluded.moneyness ELSE moneyness END,
                     last_updated = CURRENT_TIMESTAMP
             """, (trade_date, symbol, price, expire_dt, moneyness))
             conn.commit()
@@ -288,8 +294,8 @@ class MarketPriceStorage:
                 ON CONFLICT(trade_date, symbol) 
                 DO UPDATE SET 
                     prior_close = excluded.prior_close,
-                    expire_dt = COALESCE(excluded.expire_dt, expire_dt),
-                    moneyness = COALESCE(excluded.moneyness, moneyness),
+                    expire_dt = CASE WHEN excluded.expire_dt IS NOT NULL THEN excluded.expire_dt ELSE expire_dt END,
+                    moneyness = CASE WHEN excluded.moneyness IS NOT NULL THEN excluded.moneyness ELSE moneyness END,
                     last_updated = CURRENT_TIMESTAMP
             """, (trade_date, symbol, prior_close, expire_dt, moneyness))
             conn.commit()
@@ -387,10 +393,107 @@ class MarketPriceStorage:
             }
             
             # Get latest prices count
-            cursor.execute("SELECT COUNT(DISTINCT symbol) FROM futures_prices WHERE current_price IS NOT NULL")
-            summary['futures_with_current'] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(DISTINCT symbol) FROM futures_prices WHERE Flash_Close IS NOT NULL")
+            summary['futures_with_flash_close'] = cursor.fetchone()[0]
             
-            cursor.execute("SELECT COUNT(DISTINCT symbol) FROM options_prices WHERE current_price IS NOT NULL")
-            summary['options_with_current'] = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(DISTINCT symbol) FROM options_prices WHERE Flash_Close IS NOT NULL")
+            summary['options_with_flash_close'] = cursor.fetchone()[0]
             
-            return summary 
+            return summary
+    
+    @monitor()
+    def update_current_prices_futures(self, updates: List[Dict]) -> bool:
+        """
+        Update Current_Price for futures.
+        
+        Args:
+            updates: List of dicts with trade_date, symbol, Current_Price, last_updated
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                for update in updates:
+                    # Try to update existing row first
+                    cursor.execute("""
+                        UPDATE futures_prices
+                        SET Current_Price = ?, last_updated = ?
+                        WHERE trade_date = ? AND symbol = ?
+                    """, (
+                        update['Current_Price'],
+                        update['last_updated'],
+                        update['trade_date'],
+                        update['symbol']
+                    ))
+                    
+                    # If no row was updated, insert new row
+                    if cursor.rowcount == 0:
+                        cursor.execute("""
+                            INSERT INTO futures_prices 
+                            (trade_date, symbol, Current_Price, last_updated)
+                            VALUES (?, ?, ?, ?)
+                        """, (
+                            update['trade_date'],
+                            update['symbol'],
+                            update['Current_Price'],
+                            update['last_updated']
+                        ))
+                        
+                conn.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error updating futures current prices: {e}")
+            return False
+            
+    @monitor()
+    def update_current_prices_options(self, updates: List[Dict]) -> bool:
+        """
+        Update Current_Price for options.
+        
+        Args:
+            updates: List of dicts with trade_date, symbol, Current_Price, expire_dt, last_updated
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                
+                for update in updates:
+                    # Try to update existing row first
+                    cursor.execute("""
+                        UPDATE options_prices
+                        SET Current_Price = ?, last_updated = ?
+                        WHERE trade_date = ? AND symbol = ?
+                    """, (
+                        update['Current_Price'],
+                        update['last_updated'],
+                        update['trade_date'],
+                        update['symbol']
+                    ))
+                    
+                    # If no row was updated, insert new row
+                    if cursor.rowcount == 0:
+                        cursor.execute("""
+                            INSERT INTO options_prices 
+                            (trade_date, symbol, Current_Price, expire_dt, last_updated)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (
+                            update['trade_date'],
+                            update['symbol'],
+                            update['Current_Price'],
+                            update.get('expire_dt'),
+                            update['last_updated']
+                        ))
+                        
+                conn.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error updating options current prices: {e}")
+            return False 

@@ -18,9 +18,20 @@ class SymbolTranslator:
     SERIES_TO_CONTRACT: Dict[str, Tuple[str, int]] = {
         'VY': ('VBY', calendar.MONDAY),      # Monday
         'TJ': ('TJP', calendar.TUESDAY),     # Tuesday  
-        'WY': ('TYW', calendar.WEDNESDAY),   # Wednesday
+        'GY': ('TJP', calendar.TUESDAY),     # Tuesday (CME Globex)
+        'WY': ('TYY', calendar.WEDNESDAY),   # Wednesday (CTO shows TYY not TYW)
         'TH': ('TJW', calendar.THURSDAY),    # Thursday
-        'ZN': ('3M', calendar.FRIDAY),       # Friday
+        'HY': ('TJW', calendar.THURSDAY),    # Thursday (CME Globex)
+        'ZN': ('3M', calendar.FRIDAY),       # Friday (special format)
+    }
+    
+    # CME Globex to Actant series mapping (from CTO document)
+    CME_TO_ACTANT: Dict[str, str] = {
+        'VY': 'VY',  # Monday
+        'GY': 'TJ',  # Tuesday (GY in CME -> TJ in Actant)
+        'WY': 'WY',  # Wednesday
+        'HY': 'TH',  # Thursday (HY in CME -> TH in Actant)
+        'ZN': 'ZN',  # Friday
     }
     
     # Month codes for Bloomberg
@@ -114,11 +125,18 @@ class SymbolTranslator:
         strike_float = float(strike)
         strike_formatted = f"{strike_float:.3f}"
         
-        # Special handling for Friday (3M) format
+        # Special handling for Friday format (uses week number + MA)
         if contract_code == '3M':
-            # Friday uses shorter format: 3MN5C instead of 3MN25C
-            bloomberg_symbol = f"{contract_code}{month_code}{year_code[-1]}{option_type} {strike_formatted} Comdty"
+            # Friday uses format like 2MA (week number + MA) per CTO document
+            # For backward compatibility, also support 3MN5 format
+            if occurrence:
+                # New format: 2MA C 110.750 Comdty
+                bloomberg_symbol = f"{occurrence}MA {option_type} {strike_formatted} Comdty"
+            else:
+                # Legacy format: 3MN5C 110.750 Comdty
+                bloomberg_symbol = f"{contract_code}{month_code}{year_code[-1]}{option_type} {strike_formatted} Comdty"
         else:
+            # Standard weekday format: VBYN25C2 110.750 Comdty
             bloomberg_symbol = f"{contract_code}{month_code}{year_code}{option_type}{occurrence} {strike_formatted} Comdty"
             
         return bloomberg_symbol

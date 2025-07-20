@@ -71,8 +71,9 @@ class FuturesProcessor:
             df = pd.read_csv(file_path)
             logger.info(f"Loaded {len(df)} rows from CSV")
             
-            # Validate required columns
-            required_columns = ['SYMBOL', TIME_WINDOWS[window_type]['column']]
+            # Validate required columns - futures use decimal columns
+            price_column = TIME_WINDOWS[window_type].get('futures_column', TIME_WINDOWS[window_type]['column'])
+            required_columns = ['SYMBOL', price_column]
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 logger.error(f"Missing required columns: {missing_columns}")
@@ -153,7 +154,7 @@ class FuturesProcessor:
         Returns:
             True if successful
         """
-        price_column = TIME_WINDOWS['2pm']['column']  # PX_LAST
+        price_column = TIME_WINDOWS['2pm'].get('futures_column', TIME_WINDOWS['2pm']['column'])  # PX_LAST_DEC
         processed_count = 0
         error_count = 0
         
@@ -166,8 +167,8 @@ class FuturesProcessor:
                 if not symbol:
                     continue
                     
-                # Add Bloomberg suffix
-                bloomberg_symbol = f"{symbol}{FUTURES_SUFFIX}"
+                # Add Bloomberg suffix and Comdty
+                bloomberg_symbol = f"{symbol}{FUTURES_SUFFIX} Comdty"
                 
                 # Get price
                 price_value = row.get(price_column)
@@ -182,8 +183,8 @@ class FuturesProcessor:
                     error_count += 1
                     continue
                 
-                # Update current price
-                self.storage.update_futures_current_price(trade_date, bloomberg_symbol, price)
+                # Update Flash_Close price
+                self.storage.update_futures_flash_close(trade_date, bloomberg_symbol, price)
                 processed_count += 1
                 
                 if processed_count % 10 == 0:
@@ -216,7 +217,7 @@ class FuturesProcessor:
         Returns:
             True if successful
         """
-        price_column = TIME_WINDOWS['4pm']['column']  # PX_SETTLE
+        price_column = TIME_WINDOWS['4pm'].get('futures_column', TIME_WINDOWS['4pm']['column'])  # PX_SETTLE_DEC
         processed_count = 0
         error_count = 0
         
@@ -233,8 +234,8 @@ class FuturesProcessor:
                 if not symbol:
                     continue
                     
-                # Add Bloomberg suffix
-                bloomberg_symbol = f"{symbol}{FUTURES_SUFFIX}"
+                # Add Bloomberg suffix and Comdty
+                bloomberg_symbol = f"{symbol}{FUTURES_SUFFIX} Comdty"
                 
                 # Get price
                 price_value = row.get(price_column)

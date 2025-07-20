@@ -1,6 +1,5 @@
 import pandas as pd
 from core.utils import price_to_decimal, decimal_to_32nds
-import main
 from core.bachelier import run_pnl_attribution
 import datetime
 
@@ -8,18 +7,31 @@ class PositionCalculator2:
     def __init__(self, multiplier: float = 1000):
         self.positions = {}
         self.position_details = {}
-        self.current_prices = {}
+        self.current_prices = {}      # Live current price
+        self.flash_prices = {}         # Flash close price
         self.prior_close_prices = {}
+        self.realized_pnl = {}         # ACTIVE: Store realized P&L by symbol
         self.multiplier = multiplier
 
     def update_prices(self, market_prices_df: pd.DataFrame):
         for _, row in market_prices_df.iterrows():
             symbol = row['Symbol']
-            self.current_prices[symbol] = price_to_decimal(row['Current_Price'])
-            self.prior_close_prices[symbol] = price_to_decimal(row['Prior_Close']) if pd.notna(row['Prior_Close']) else self.current_prices[symbol]
+            # ACTIVE: Updated to use Current_Price and added Flash_Close
+            self.current_prices[symbol] = price_to_decimal(str(row['Current_Price']))
+            self.flash_prices[symbol] = price_to_decimal(str(row['Flash_Close']))
+            self.prior_close_prices[symbol] = price_to_decimal(str(row['Prior_Close'])) if pd.notna(row['Prior_Close']) else self.current_prices[symbol]
+
+    def update_realized_pnl(self, processed_trades_df: pd.DataFrame):
+        """Update realized P&L from processed trades.
+        
+        Args:
+            processed_trades_df: DataFrame from TradeProcessor with Realized_PNL column
+        """
+        # Aggregate realized P&L by symbol
+        self.realized_pnl = processed_trades_df.groupby('Symbol')['Realized_PNL'].sum().to_dict()
 
     def calculate_positions(self) -> pd.DataFrame:
-        today = main.today.strftime('%Y-%m-%d')
+        today = datetime.date.today().strftime('%Y-%m-%d')
         result = []
         for symbol, pos_list in self.positions.items():
             # Support both long (positive) and short (negative) positions
@@ -55,8 +67,30 @@ class PositionCalculator2:
                 close = close_prev
 
             # P&L logic works for both long (positive qty) and short (negative qty)
-            unrealized = total_qty * (current - avg_price) * self.multiplier
+            # ACTIVE: Added multiple P&L calculations
+            
+            # Get all price values
+            current = self.current_prices.get(symbol, avg_price)
+            flash = self.flash_prices.get(symbol, avg_price)
+            prior_close = self.prior_close_prices.get(symbol, avg_price)
+            
+            # Present Values
+            prior_present_value = total_qty * avg_price * self.multiplier
+            current_present_value = total_qty * current * self.multiplier
+            
+            # Multiple P&L calculations
+            unrealized_current = total_qty * (current - avg_price) * self.multiplier
+            unrealized_flash = total_qty * (flash - avg_price) * self.multiplier
+            unrealized_close = total_qty * (prior_close - avg_price) * self.multiplier
+            
+            # Daily P&L still uses current vs close
             daily = total_qty * (current - close) * self.multiplier
+            
+            # Get realized P&L for this symbol
+            symbol_realized_pnl = self.realized_pnl.get(symbol, 0.0)
+            
+            # Total P&L includes both realized and unrealized
+            total_pnl = symbol_realized_pnl + unrealized_current
 
             result.append({
                 'Symbol': symbol,
@@ -66,9 +100,15 @@ class PositionCalculator2:
                 'Avg_Entry_Price_32nds': decimal_to_32nds(avg_price),
                 'Prior_Close': close,
                 'Current_Price': current,
-                'Unrealized_PNL': unrealized,
+                'Prior_Present_Value': prior_present_value,
+                'Current_Present_Value': current_present_value,
+                'Unrealized_PNL': unrealized_current,  # Keep backward compatibility
+                'Unrealized_PNL_Current': unrealized_current,
+                'Unrealized_PNL_Flash': unrealized_flash,
+                'Unrealized_PNL_Close': unrealized_close,
+                'Realized_PNL': symbol_realized_pnl,  # ACTIVE: Added realized P&L
                 'Daily_PNL': daily,
-                'Total_PNL': unrealized
+                'Total_PNL': total_pnl  # ACTIVE: Now includes both realized and unrealized
             })
 
         return pd.DataFrame(result)
@@ -77,18 +117,31 @@ class PositionCalculator:
     def __init__(self, multiplier: float = 1000):
         self.positions = {}
         self.position_details = {}
-        self.current_prices = {}
+        self.current_prices = {}      # Live current price
+        self.flash_prices = {}         # Flash close price
         self.prior_close_prices = {}
+        self.realized_pnl = {}         # ACTIVE: Store realized P&L by symbol
         self.multiplier = multiplier
 
     def update_prices(self, market_prices_df: pd.DataFrame):
         for _, row in market_prices_df.iterrows():
             symbol = row['Symbol']
-            self.current_prices[symbol] = price_to_decimal(row['Current_Price'])
-            self.prior_close_prices[symbol] = price_to_decimal(row['Prior_Close']) if pd.notna(row['Prior_Close']) else self.current_prices[symbol]
+            # ACTIVE: Updated to use Current_Price and added Flash_Close
+            self.current_prices[symbol] = price_to_decimal(str(row['Current_Price']))
+            self.flash_prices[symbol] = price_to_decimal(str(row['Flash_Close']))
+            self.prior_close_prices[symbol] = price_to_decimal(str(row['Prior_Close'])) if pd.notna(row['Prior_Close']) else self.current_prices[symbol]
+
+    def update_realized_pnl(self, processed_trades_df: pd.DataFrame):
+        """Update realized P&L from processed trades.
+        
+        Args:
+            processed_trades_df: DataFrame from TradeProcessor with Realized_PNL column
+        """
+        # Aggregate realized P&L by symbol
+        self.realized_pnl = processed_trades_df.groupby('Symbol')['Realized_PNL'].sum().to_dict()
 
     def calculate_positions(self) -> pd.DataFrame:
-        today = main.today.strftime('%Y-%m-%d')
+        today = datetime.date.today().strftime('%Y-%m-%d')
         result = []
         for symbol, pos_list in self.positions.items():
             total_qty = sum(p['remaining'] for p in pos_list)
@@ -118,8 +171,27 @@ class PositionCalculator:
             else:
                 close = close_prev
 
+            # ACTIVE: Get all price values
+            flash = self.flash_prices.get(symbol, avg_price)
+            prior_close = self.prior_close_prices.get(symbol, avg_price)
+            
+            # ACTIVE: Present Values
+            prior_present_value = total_qty * avg_price * self.multiplier
+            current_present_value = total_qty * current * self.multiplier
+            
+            # ACTIVE: Multiple P&L calculations
             unrealized = total_qty * (current - avg_price) * self.multiplier
+            unrealized_current = unrealized  # Same as unrealized, for clarity
+            unrealized_flash = total_qty * (flash - avg_price) * self.multiplier
+            unrealized_close = total_qty * (prior_close - avg_price) * self.multiplier
+            
             daily = total_qty * (current - close) * self.multiplier
+            
+            # Get realized P&L for this symbol
+            symbol_realized_pnl = self.realized_pnl.get(symbol, 0.0)
+            
+            # Total P&L includes both realized and unrealized
+            total_pnl = symbol_realized_pnl + unrealized
 
             # --- Integrate run_pnl_attribution for options ---
             attribution = {}
@@ -131,10 +203,11 @@ class PositionCalculator:
                 F_prior = close_prev
                 dT = 1 / 252.0  # 1 day decay, adjust as needed
                 try:
-                    if isinstance(main.today, datetime.date) and not isinstance(main.today, datetime.datetime):
-                        now_dt = datetime.datetime.combine(main.today, datetime.time(0, 0))
+                    today_date = datetime.date.today()
+                    if isinstance(today_date, datetime.date) and not isinstance(today_date, datetime.datetime):
+                        now_dt = datetime.datetime.combine(today_date, datetime.time(0, 0))
                     else:
-                        now_dt = main.today
+                        now_dt = today_date
                     option_str = symbol
                     parts = option_str.split()
 
@@ -180,9 +253,15 @@ class PositionCalculator:
                 'Avg_Entry_Price_32nds': decimal_to_32nds(avg_price),
                 'Prior_Close': close,
                 'Current_Price': current,
-                'Unrealized_PNL': unrealized,
+                'Prior_Present_Value': prior_present_value,  # ACTIVE: Added
+                'Current_Present_Value': current_present_value,  # ACTIVE: Added
+                'Unrealized_PNL': unrealized,  # Keep backward compatibility
+                'Unrealized_PNL_Current': unrealized_current,  # ACTIVE: Added
+                'Unrealized_PNL_Flash': unrealized_flash,  # ACTIVE: Added
+                'Unrealized_PNL_Close': unrealized_close,  # ACTIVE: Added
+                'Realized_PNL': symbol_realized_pnl,  # ACTIVE: Added realized P&L
                 'Daily_PNL': daily,
-                'Total_PNL': unrealized
+                'Total_PNL': total_pnl
             }
             if attribution:
                 row.update(attribution)

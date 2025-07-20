@@ -350,14 +350,18 @@ class FULLPNLBuilder:
             # Check if it's a future
             parsed = self.symbol_mapper.parse_bloomberg_symbol(symbol)
             if parsed and parsed.symbol_type == 'FUT':
-                # Hardcode delta_f for futures
+                # Set all Greeks for futures (delta_f = 63, others = 0)
                 self.pnl_db.execute("""
                     UPDATE FULLPNL 
-                    SET delta_f = ?, updated_at = CURRENT_TIMESTAMP
+                    SET delta_f = ?, gamma_f = 0, gamma_y = 0, 
+                        speed_f = 0, theta_f = 0, vega_f = 0, vega_y = 0,
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE symbol = ?
                 """, (self.FUTURES_DELTA_F, symbol))
                 futures_updated += 1
                 greek_updates['delta_f'] += 1
+                greek_updates['gamma_f'] += 1
+                greek_updates['gamma_y'] += 1
                 
             elif symbol in spot_risk_data:
                 # Update all Greeks for options

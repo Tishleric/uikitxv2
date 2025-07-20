@@ -11,6 +11,7 @@ Key Components:
 - futures_processor.py: Processes futures price files and adds U5 suffix
 - options_processor.py: Processes options price files
 - file_monitor.py: Monitors directories for new price files
+- spot_risk_price_processor.py: Extracts current prices from spot risk files
 """
 
 from .storage import MarketPriceStorage
@@ -18,6 +19,9 @@ from .constants import TIME_WINDOWS, CHICAGO_TZ
 from .futures_processor import FuturesProcessor
 from .options_processor import OptionsProcessor
 from .file_monitor import MarketPriceFileMonitor
+from .spot_risk_price_processor import SpotRiskPriceProcessor
+from .spot_risk_file_handler import SpotRiskFileHandler
+from .price_update_trigger import PriceUpdateTrigger
 
 __all__ = [
     'MarketPriceStorage',
@@ -25,5 +29,8 @@ __all__ = [
     'CHICAGO_TZ',
     'FuturesProcessor',
     'OptionsProcessor',
-    'MarketPriceFileMonitor'
+    'MarketPriceFileMonitor',
+    'SpotRiskPriceProcessor',
+    'SpotRiskFileHandler',
+    'PriceUpdateTrigger'
 ] 

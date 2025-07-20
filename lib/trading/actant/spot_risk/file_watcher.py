@@ -20,6 +20,8 @@ from lib.monitoring.decorators import monitor
 from lib.trading.actant.spot_risk.parser import parse_spot_risk_csv
 from lib.trading.actant.spot_risk.calculator import SpotRiskGreekCalculator
 from lib.trading.actant.spot_risk.database import SpotRiskDatabaseService
+from lib.trading.market_prices.storage import MarketPriceStorage
+from lib.trading.market_prices.spot_risk_price_processor import SpotRiskPriceProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +91,10 @@ class SpotRiskFileHandler(FileSystemEventHandler):
         
         # Initialize database service
         self.db_service = SpotRiskDatabaseService()
+        
+        # Initialize market price update components
+        self.market_price_storage = MarketPriceStorage()
+        self.price_processor = SpotRiskPriceProcessor(self.market_price_storage)
         
         # Create output directory if needed
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -309,6 +315,17 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             # Save output (preserving sorting from parser)
             df_with_aggregates.to_csv(output_path, index=False)
             logger.info(f"Saved processed file: {output_path}")
+            
+            # Update market prices database with current prices
+            try:
+                logger.info("Updating market prices database with current prices...")
+                if self.price_processor.process_file(input_path):
+                    logger.info("Successfully updated market prices")
+                else:
+                    logger.warning("Failed to update market prices")
+            except Exception as e:
+                logger.error(f"Error updating market prices: {e}")
+                # Don't stop processing, just log the error
             
             # Store calculated Greeks in database
             if session_id:

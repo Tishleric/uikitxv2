@@ -24,8 +24,7 @@ from lib.trading.symbol_translator import SymbolTranslator
 from lib.trading.pnl_calculator.position_manager import PositionManager
 from lib.trading.pnl_calculator.storage import PnLStorage
 
-# Import TYU5 service for automatic P&L calculation
-from lib.trading.pnl_integration.tyu5_service import TYU5Service
+# TYU5 service imported lazily to avoid circular import
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -227,17 +226,30 @@ class TradePreprocessor:
         bloomberg_symbol = trade_data.get('bloomberg_symbol', '')
         
         # Determine instrument type based on symbol pattern
-        # Options have 'C' or 'P' in their symbols (e.g., VBYN25C2, TYWN25P3)
+        # Options have 'C' or 'P' in their symbols (e.g., VBYN25C2, TYWN25P3, 3MN5P)
         # This can be refined based on actual symbol patterns
         if bloomberg_symbol:
-            # Check if symbol contains C or P followed by a number (option pattern)
-            if 'C' in bloomberg_symbol or 'P' in bloomberg_symbol:
-                # Additional check: ensure it's followed by a number
-                for i, char in enumerate(bloomberg_symbol):
-                    if char in ['C', 'P'] and i < len(bloomberg_symbol) - 1:
-                        if bloomberg_symbol[i+1].isdigit():
-                            instrument_type = 'CALL' if char == 'C' else 'PUT'
-                            break
+            # Parse the symbol parts
+            symbol_parts = bloomberg_symbol.split()
+            if symbol_parts:
+                first_part = symbol_parts[0]
+                
+                # Check if symbol contains C or P (option pattern)
+                # Handle both formats: "VBYN25C2" and "3MN5P"
+                if 'C' in first_part or 'P' in first_part:
+                    # Check for 'C' or 'P' followed by digit OR at end of symbol
+                    for i, char in enumerate(first_part):
+                        if char in ['C', 'P']:
+                            # It's an option if:
+                            # 1. P/C is followed by a digit (e.g., VBYN25C2)
+                            # 2. P/C is at the end of the symbol (e.g., 3MN5P)
+                            # 3. P/C is followed by a space (already handled by being at end of first_part)
+                            if (i == len(first_part) - 1 or 
+                                (i < len(first_part) - 1 and first_part[i+1].isdigit())):
+                                instrument_type = 'CALL' if char == 'C' else 'PUT'
+                                break
+                    else:
+                        instrument_type = 'FUT'
                 else:
                     instrument_type = 'FUT'
             else:
@@ -416,8 +428,11 @@ class TradePreprocessor:
             # Trigger TYU5 P&L calculation after successful trade processing
             try:
                 logger.info("Triggering TYU5 P&L calculation...")
-                tyu5_service = TYU5Service()
-                excel_path = tyu5_service.calculate_pnl()  # Fixed: was run_calculation()
+                # Import here to avoid circular dependency
+                from lib.trading.pnl_integration.tyu5_service import TYU5Service
+                # Disable Greeks/attribution for faster processing
+                tyu5_service = TYU5Service(enable_attribution=False)
+                excel_path = tyu5_service.calculate_pnl()
                 if excel_path:
                     logger.info(f"TYU5 calculation completed: {excel_path}")
                 else:

@@ -26,6 +26,7 @@ def run_pnl_analysis(input_file, output_file, base_price, price_range, steps, sa
     pc.positions = tp.positions
     pc.position_details = tp.position_details
     pc.current_prices = tp.current_prices
+    pc.update_realized_pnl(processed_trades_df)  # ACTIVE: Pass realized P&L data
     if market_prices_df is not None:
         pc.update_prices(market_prices_df)
     positions_df = pc.calculate_positions()

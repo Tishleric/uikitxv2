@@ -125,6 +125,15 @@ Verification script for TYU5 database persistence. Queries database tables to sh
 
 ### apps/dashboards/pnl/callbacks.py
 
+### lib/trading/market_prices/spot_risk_price_processor.py
+Extracts current prices from Actant spot risk CSV files to populate Current_Price column in market prices database. Uses ADJTHEOR when available, falls back to BID/ASK midpoint. Integrates with SpotRiskSymbolTranslator for Actant to Bloomberg symbol mapping. Automatically triggered when new spot risk files are processed.
+
+### scripts/add_current_price_column.py
+Migration script to add Current_Price column to futures_prices and options_prices tables. Allows market prices database to store theoretical/mid prices from spot risk files alongside Flash_Close and prior_close from Bloomberg feeds.
+
+### scripts/test_spot_risk_price_update.py
+Test script for verifying spot risk price updates. Processes a spot risk CSV file, updates Current_Price in market prices database, and displays results including futures and options price counts.
+
 ## Recent Updates
 - Added SQLite storage to spot risk pipeline alongside CSV output
 - Database stores raw data, calculated Greeks, and tracks processing sessions
@@ -137,4 +146,7 @@ Verification script for TYU5 database persistence. Queries database tables to sh
 - **July 17, 2025: Implemented closed position tracking - added closed_quantity column to positions table**
 - **July 17, 2025: Created ClosedPositionTracker class to calculate daily closed positions from trade history**
 - **July 17, 2025: Migration script scripts/add_closed_quantity_column.py to update existing databases** 
-- `lib/trading/pnl/tyu5_pnl/core/breakdown_generator.py` - Generates lot-level position breakdown. Fixed to handle symbol format mismatch when looking up positions. 
+- `lib/trading/pnl/tyu5_pnl/core/breakdown_generator.py` - Generates lot-level position breakdown. Fixed to handle symbol format mismatch when looking up positions.
+- **July 18, 2025: Added Current_Price column to market prices database, populated from spot risk ADJTHEOR values**
+- **July 18, 2025: Created SpotRiskPriceProcessor to extract prices from spot risk files with symbol translation**
+- **July 18, 2025: Integrated price updates into SpotRiskFileHandler for automatic Current_Price updates** 
