@@ -144,6 +144,7 @@ class PositionCalculator2:
                 'Avg_Entry_Price_32nds': decimal_to_32nds(avg_price),
                 'Prior_Close': prior_close if prior_close is not None else "awaiting data",
                 'Current_Price': current if current is not None else "awaiting data",
+                'Flash_Close': flash if flash is not None else "awaiting data",  # ACTIVE: Added flash close price
                 'Prior_Present_Value': prior_present_value,
                 'Current_Present_Value': current_present_value if current_present_value is not None else "awaiting data",
                 'Unrealized_PNL': unrealized_current,  # Keep backward compatibility
@@ -296,8 +297,8 @@ class PositionCalculator:
                     option_str = symbol
                     parts = option_str.split()
 
-                    symbol = parts[0]           # 'WY3N5'
-                    type_ = parts[1]            # 'C' (call) or 'P' (put)
+                    base_symbol = parts[0]      # 'WY3N5' - use different variable name
+                    opt_type = parts[1]         # 'C' (call) or 'P' (put)
                     strike = float(parts[2])    # 110.25
                     
                     # Fix: Use absolute path for ExpirationCalendar.csv
@@ -308,7 +309,7 @@ class PositionCalculator:
                     
                     print(dict(
                         now=now_dt-datetime.timedelta(days=0),
-                        option_symbol=symbol,
+                        option_symbol=base_symbol,
                         calendar_csv=calendar_path,  # Use absolute path
                         F=110+11.5/32,
                         K=strike,
@@ -316,12 +317,12 @@ class PositionCalculator:
                         Prior=prior_price,
                         F_prior=110+5/32,
                         dT=dT,
-                        option_type=type_.lower(),
+                        option_type=opt_type.lower(),
                         r=0.01
                     ))                    
                     attribution_result = run_pnl_attribution(
                         now=now_dt-datetime.timedelta(days=1),
-                        option_symbol=symbol,
+                        option_symbol=base_symbol,
                         calendar_csv=calendar_path,  # Use absolute path
                         F=F,
                         K=strike,
@@ -329,7 +330,7 @@ class PositionCalculator:
                         Prior=prior_price,
                         F_prior=F_prior,
                         dT=dT,
-                        option_type=type_.lower(),
+                        option_type=opt_type.lower(),
                         r=0.01
                     )
 
@@ -346,6 +347,7 @@ class PositionCalculator:
                 'Avg_Entry_Price_32nds': decimal_to_32nds(avg_price),
                 'Prior_Close': close,
                 'Current_Price': current,
+                'Flash_Close': flash,  # ACTIVE: Added flash close price
                 'Prior_Present_Value': prior_present_value,  # ACTIVE: Added
                 'Current_Present_Value': current_present_value,  # ACTIVE: Added
                 'Unrealized_PNL': unrealized,  # Keep backward compatibility

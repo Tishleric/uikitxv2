@@ -11,6 +11,15 @@ Database migration script that adds TYU5 P&L system tables. Creates lot_position
 ### scripts/verify_tyu5_schema.py
 Verification script that checks if TYU5 schema migration was applied correctly. Validates all new tables exist, indexes are created, positions table has new columns, and WAL mode is enabled. Provides detailed output showing table structures and migration status.
 
+### scripts/run_all_watchers.py
+Unified watcher service that starts all three file watchers in separate threads. Manages MarketPriceFileMonitor (2pm/4pm price files), SpotRiskWatcher (spot risk + current prices), and PNLPipelineWatcher (TYU5 calculations). Provides unified logging, graceful shutdown, and thread monitoring. Central entry point for all file monitoring.
+
+### scripts/run_pnl_watcher.py
+Runner script for PNLPipelineWatcher service. Monitors trade ledger CSV files and market prices database for changes, triggers full TYU5 P&L calculation pipeline. Processes all trade ledgers (not just most recent), filters zero-price and midnight trades. Updates tyu5_* tables in pnl_tracker.db.
+
+### scripts/run_market_price_monitor.py
+Runner script for MarketPriceFileMonitor. Monitors futures and options price directories for CSV files. Processes files based on time windows: 2pm CDT ± 15 min for Current_Price, 4pm CDT ± 15 min for Prior_Close. Updates market_prices table in market_prices.db. Includes callbacks for processing status.
+
 ## Tests
 
 ### tests/trading/test_tyu5_schema_migration.py
@@ -36,6 +45,10 @@ Core package for automating FULLPNL master P&L table builds. Replaces 10+ manual
 
 ### lib/trading/pnl_integration/
 - `trade_ledger_adapter.py`: Direct adapter for reading trade ledger CSV files and transforming to TYU5 format. Features: parses XCME symbols (futures/options), generates both TYU5 and Bloomberg symbols, filters zero-price expiry trades, includes midnight trades, and pre-fetches market prices directly from database using Bloomberg symbols to bypass TYU5Adapter translation issues.
+- `pnl_pipeline_watcher.py`: File watcher service for automated TYU5 pipeline execution. Contains PNLPipelineHandler for trade ledger monitoring, MarketPriceMonitor for database polling. Implements 10-second debounce mechanism, tracks processed files, triggers full pipeline on changes. Central automation for TYU5 P&L calculations.
+
+### lib/trading/market_prices/
+- `file_monitor.py`: Core market price file monitoring service with MarketPriceFileMonitor class. Watches futures/options directories for new CSV files, processes based on CDT time windows (2pm/4pm). MarketPriceFileHandler validates filenames, determines processing window, and routes to appropriate processors. Integrates with watchdog for file system events.
 
 ### lib/trading/actant/
 
@@ -152,4 +165,17 @@ Test script for verifying spot risk price updates. Processes a spot risk CSV fil
 - `lib/trading/pnl/tyu5_pnl/core/breakdown_generator.py` - Generates lot-level position breakdown. Fixed to handle symbol format mismatch when looking up positions.
 - **July 18, 2025: Added Current_Price column to market prices database, populated from spot risk ADJTHEOR values**
 - **July 18, 2025: Created SpotRiskPriceProcessor to extract prices from spot risk files with symbol translation**
-- **July 18, 2025: Integrated price updates into SpotRiskFileHandler for automatic Current_Price updates** 
+- **July 18, 2025: Integrated price updates into SpotRiskFileHandler for automatic Current_Price updates**
+
+## Batch Files
+
+### run_all_watchers.bat
+Windows batch file for unified watcher service. Checks for Anaconda Python installation, installs required dependencies (watchdog, pytz, pandas, numpy), and launches scripts/run_all_watchers.py. Provides user-friendly interface for starting all file monitoring services on Windows.
+
+### run_spot_risk_watcher.bat
+Windows batch file for Spot Risk Watcher service. Validates Anaconda Python path, ensures watchdog is installed, and runs the spot risk file monitoring service. Monitors data/input/actant_spot_risk/ for new files. 
+
+## TYU5 P&L Components
+
+### `lib/trading/pnl/tyu5_pnl/core/position_calculator.py`
+Core TYU5 component for position and P&L calculation. Contains two classes, PositionCalculator2 (older, not actively used by main.py) and PositionCalculator (active). Calculates positions from trades, tracks realized/unrealized P&L, handles price updates, and runs attribution analysis for options. Preserves full symbol with strike information (e.g., "ZN3N5 P 110.25") instead of truncating. Fixed symbol variable overwriting in attribution logic. Added Flash_Close column to positions output for complete price transparency. 

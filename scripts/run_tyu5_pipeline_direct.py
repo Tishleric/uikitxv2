@@ -4,6 +4,13 @@ Run the complete TYU5 pipeline using the new direct writer.
 This replaces the old TYU5DatabaseWriter approach.
 """
 
+import sys
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 import time
 from datetime import datetime
 from lib.trading.pnl_integration.tyu5_runner import TYU5Runner
@@ -25,11 +32,15 @@ def run_tyu5_pipeline():
         # Step 1: Get input data
         print("\n1. Loading trade data from CSV...")
         adapter = TradeLedgerAdapter()
-        data_dict = adapter.prepare_tyu5_data()
+        data_dict = adapter.prepare_tyu5_data(
+            trade_ledger_path=None,
+            use_market_prices=True,
+            read_all_files=True  # Process all trade ledger files
+        )
         trades_df = data_dict['Trades_Input']
         market_prices_df = data_dict.get('Market_Prices')
         
-        print(f"   - Loaded {len(trades_df)} trades")
+        print(f"   - Loaded {len(trades_df)} trades from all files")
         print(f"   - Loaded {len(market_prices_df) if market_prices_df is not None else 0} market prices")
         
         # Step 2: Run TYU5 calculations
@@ -62,10 +73,24 @@ def run_tyu5_pipeline():
         if success:
             print("   ✓ Database write successful")
             
+            # Step 4: Update FULLPNL table
+            print("\n4. Updating FULLPNL table...")
+            try:
+                from lib.trading.pnl_integration.fullpnl_builder import FULLPNLBuilder
+                fullpnl_builder = FULLPNLBuilder()
+                fullpnl_success = fullpnl_builder.build_fullpnl()
+                
+                if fullpnl_success:
+                    print("   ✓ FULLPNL table updated successfully")
+                else:
+                    print("   ⚠ FULLPNL table update failed (non-critical)")
+            except Exception as e:
+                print(f"   ⚠ FULLPNL table update error: {e} (non-critical)")
+            
             # Get run info
             latest_run = writer.get_latest_run()
             if latest_run:
-                print(f"\n4. Run Summary:")
+                print(f"\n5. Run Summary:")
                 print(f"   - Run ID: {latest_run['run_id']}")
                 print(f"   - Status: {latest_run['status']}")
                 print(f"   - Trades: {latest_run['trades_count']}")

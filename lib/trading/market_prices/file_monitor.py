@@ -19,7 +19,7 @@ from lib.monitoring.decorators import monitor
 from .storage import MarketPriceStorage
 from .futures_processor import FuturesProcessor
 from .options_processor import OptionsProcessor
-from .constants import CHICAGO_TZ, FILE_PATTERNS, DATA_ROOT
+from .constants import CHICAGO_TZ, FILE_PATTERNS, DATA_ROOT, MARKET_PRICES_DIR, FUTURES_SUBDIR, OPTIONS_SUBDIR
 import re
 
 logger = logging.getLogger(__name__)
@@ -171,9 +171,9 @@ class MarketPriceFileMonitor:
         self.futures_callback = futures_callback
         self.options_callback = options_callback
         
-        # Set up directories to monitor
-        self.futures_dir = DATA_ROOT / "input" / "market_prices" / "futures"
-        self.options_dir = DATA_ROOT / "input" / "market_prices" / "options"
+        # Set up directories to monitor - ACTIVE: Using Z:\Trade_Control directories
+        self.futures_dir = MARKET_PRICES_DIR / FUTURES_SUBDIR
+        self.options_dir = MARKET_PRICES_DIR / OPTIONS_SUBDIR
         
         # Create directories if they don't exist
         self.futures_dir.mkdir(parents=True, exist_ok=True)

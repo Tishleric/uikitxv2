@@ -49,6 +49,27 @@ class TradeLedgerAdapter:
         logger.info(f"Found latest trade ledger: {latest_file}")
         return latest_file
         
+    def get_all_trade_ledgers(self, directory: str = "data/input/trade_ledger") -> list[str]:
+        """Find all trade ledger files.
+        
+        Args:
+            directory: Directory containing trade ledger files
+            
+        Returns:
+            List of paths to all trades_*.csv files, sorted by filename
+        """
+        pattern = os.path.join(directory, "trades_*.csv")
+        files = glob.glob(pattern)
+        
+        if not files:
+            logger.error(f"No trade ledger files found in {directory}")
+            return []
+            
+        # Sort by filename to ensure chronological order
+        files.sort()
+        logger.info(f"Found {len(files)} trade ledger files")
+        return files
+        
     def read_trade_ledger(self, filepath: Optional[str] = None) -> pd.DataFrame:
         """Read trade ledger CSV file.
         
@@ -83,11 +104,86 @@ class TradeLedgerAdapter:
             else:
                 logger.debug(f"No trades filtered (all {original_count} have non-zero prices)")
                 
+            # Filter out midnight trades (time == '00:00:00')
+            if 'marketTradeTime' in df.columns:
+                # Parse datetime and check for midnight
+                df['parsed_time'] = pd.to_datetime(df['marketTradeTime'])
+                midnight_mask = df['parsed_time'].dt.time == pd.Timestamp('00:00:00').time()
+                midnight_count = midnight_mask.sum()
+                
+                if midnight_count > 0:
+                    df = df[~midnight_mask]
+                    logger.info(f"Filtered out {midnight_count} midnight trades")
+                    
+                # Remove temporary column
+                df = df.drop('parsed_time', axis=1)
+            elif 'time' in df.columns:
+                # Legacy format support
+                midnight_count = len(df[df['time'] == '00:00:00'])
+                if midnight_count > 0:
+                    df = df[df['time'] != '00:00:00']
+                    logger.info(f"Filtered out {midnight_count} midnight trades")
+                
             return df
         except Exception as e:
             logger.error(f"Failed to read trade ledger: {e}")
             raise
             
+    def read_all_trade_ledgers(self, directory: str = "data/input/trade_ledger") -> pd.DataFrame:
+        """Read and combine all trade ledger CSV files.
+        
+        Args:
+            directory: Directory containing trade ledger files
+            
+        Returns:
+            Combined DataFrame with all trades, duplicates removed
+        """
+        files = self.get_all_trade_ledgers(directory)
+        
+        if not files:
+            logger.warning("No trade ledger files found")
+            return pd.DataFrame()
+            
+        all_trades = []
+        
+        for filepath in files:
+            try:
+                df = self.read_trade_ledger(filepath)
+                if not df.empty:
+                    # Add source file for tracking
+                    df['source_file'] = os.path.basename(filepath)
+                    all_trades.append(df)
+                    logger.info(f"Loaded {len(df)} trades from {os.path.basename(filepath)}")
+            except Exception as e:
+                logger.error(f"Error reading {filepath}: {e}")
+                continue
+                
+        if not all_trades:
+            logger.warning("No trades loaded from any file")
+            return pd.DataFrame()
+            
+        # Combine all trades
+        combined_df = pd.concat(all_trades, ignore_index=True)
+        original_count = len(combined_df)
+        
+        # Remove duplicates based on key columns (adjust as needed)
+        # Assuming duplicate trades have same timestamp, instrument, quantity, price
+        if all(col in combined_df.columns for col in ['marketTradeTime', 'instrumentName', 'quantity', 'price']):
+            combined_df = combined_df.drop_duplicates(
+                subset=['marketTradeTime', 'instrumentName', 'quantity', 'price'],
+                keep='first'
+            )
+            duplicate_count = original_count - len(combined_df)
+            if duplicate_count > 0:
+                logger.info(f"Removed {duplicate_count} duplicate trades")
+        
+        # Sort by trade time for chronological order
+        if 'marketTradeTime' in combined_df.columns:
+            combined_df = combined_df.sort_values('marketTradeTime')
+            
+        logger.info(f"Combined {len(combined_df)} unique trades from {len(files)} files")
+        return combined_df
+        
     def _parse_xcme_symbol(self, xcme_symbol: str) -> Optional[Dict[str, Any]]:
         """Parse XCME symbol and determine type.
         
@@ -317,18 +413,25 @@ class TradeLedgerAdapter:
         return adapter.get_market_prices_for_symbols(symbols, trade_date)
         
     def prepare_tyu5_data(self, trade_ledger_path: Optional[str] = None, 
-                         use_market_prices: bool = True) -> Dict[str, pd.DataFrame]:
+                         use_market_prices: bool = True,
+                         read_all_files: bool = False) -> Dict[str, pd.DataFrame]:
         """Prepare complete data package for TYU5.
         
         Args:
             trade_ledger_path: Path to trade ledger CSV (None to use latest)
             use_market_prices: Whether to fetch market prices
+            read_all_files: If True, read all trade ledger files instead of just one
             
         Returns:
             Dictionary with 'Trades_Input' and 'Market_Prices' DataFrames
         """
         # Read and transform trades
-        trades_df = self.read_trade_ledger(trade_ledger_path)
+        if read_all_files:
+            logger.info("Reading all trade ledger files")
+            trades_df = self.read_all_trade_ledgers()
+        else:
+            trades_df = self.read_trade_ledger(trade_ledger_path)
+            
         tyu5_trades, symbol_mappings = self.transform_to_tyu5_format(trades_df)
         
         # Get market prices if requested

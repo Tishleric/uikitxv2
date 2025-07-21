@@ -17,12 +17,16 @@ class VtexpSymbolMapper:
     
     def __init__(self):
         # Pattern to extract expiry date from spot risk symbol
-        # Format: XCME.ZN2.11JUL25.110.C -> captures "11JUL25"
-        self.spot_risk_pattern = re.compile(r'XCME\.[A-Z]+\d?\.(\d{1,2}[A-Z]{3}\d{2})\.')
+        # Handles both formats:
+        # - Weekly: XCME.ZN2.11JUL25.110.C -> captures "11JUL25"
+        # - Quarterly: XCME.OZN.AUG25.110:75.P -> captures "AUG25"
+        self.spot_risk_pattern = re.compile(r'XCME\.[A-Z]+\d?\.(\d{0,2}[A-Z]{3}\d{2})\.')
         
         # Pattern to extract expiry date from vtexp symbol
-        # Format: XCME.ZN.N.G.17JUL25 -> captures "17JUL25"
-        self.vtexp_pattern = re.compile(r'XCME\.[A-Z]+\.N\.G\.(\d{1,2}[A-Z]{3}\d{2})')
+        # Handles both formats:
+        # - Weekly: XCME.ZN.N.G.17JUL25 -> captures "17JUL25"
+        # - Quarterly: XCME.ZN.N.G.AUG25 -> captures "AUG25"
+        self.vtexp_pattern = re.compile(r'XCME\.[A-Z]+\.N\.G\.(\d{0,2}[A-Z]{3}\d{2})')
     
     def extract_expiry_from_spot_risk(self, symbol: str) -> Optional[str]:
         """Extract expiry date from spot risk symbol."""

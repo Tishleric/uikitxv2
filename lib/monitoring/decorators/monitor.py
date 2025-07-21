@@ -1,4 +1,14 @@
-"""Monitor decorator for observatory system - Phase 8 with performance optimizations"""
+"""Monitor decorator for observatory system - Phase 8 with performance optimizations
+
+Environment Variables:
+    MONITOR_LOG_LEVEL: Controls console output verbosity
+        - "ERROR": Only show failed executions
+        - "WARNING": Show failures and warnings (default)
+        - "INFO": Show all executions
+        - "QUIET": Suppress all output
+    
+    MONITOR_QUIET: Legacy option, if set to any value, suppresses all output
+"""
 
 import functools
 import os
@@ -574,14 +584,28 @@ def monitor(
             # Send to queue
             queue.put(record)
             
-            # Console output (skip if in benchmark mode)
-            if not os.environ.get("MONITOR_QUIET"):
-                if status == "OK":
-                    print(f"[MONITOR] {process} executed in {duration_ms:.3f}ms")
-                else:
-                    print(f"[MONITOR] {process} failed after {duration_ms:.3f}ms")
-                
-                # Check queue size
+            # Console output with log level control
+            # Support both MONITOR_QUIET (legacy) and MONITOR_LOG_LEVEL (new)
+            quiet_mode = os.environ.get("MONITOR_QUIET")
+            log_level = os.environ.get("MONITOR_LOG_LEVEL", "WARNING").upper()
+            
+            # If MONITOR_QUIET is set, honor it for backward compatibility
+            if quiet_mode:
+                log_level = "QUIET"
+            
+            # Determine what to show based on log level
+            show_errors = log_level in ["ERROR", "WARNING", "INFO"]
+            show_warnings = log_level in ["WARNING", "INFO"]
+            show_info = log_level == "INFO"
+            
+            # Log based on status and level
+            if status == "OK" and show_info:
+                print(f"[MONITOR] {process} executed in {duration_ms:.3f}ms")
+            elif status != "OK" and show_errors:
+                print(f"[MONITOR] {process} failed after {duration_ms:.3f}ms")
+            
+            # Check queue size and show warning if appropriate
+            if show_warnings:
                 stats = queue.get_queue_stats()
                 if stats['normal_queue_size'] > queue_warning_threshold:
                     print(f"[MONITOR] WARNING: Queue size {stats['normal_queue_size']} exceeds threshold {queue_warning_threshold}")

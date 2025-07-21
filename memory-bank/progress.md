@@ -22,6 +22,7 @@
 - ✅ Integrated SymbolTranslator for proper Actant → Bloomberg mapping
 - ✅ Updated get_market_price to use flexible timestamp lookup
 - ✅ Verified that VBYN25C2 110.750 Comdty exists in market_prices table
+- ✅ **Fixed vtexp mapping for quarterly options (OZNQ5)** - Updated regex patterns to handle both weekly (with day) and quarterly (without day) expiry formats in `VtexpSymbolMapper`
 
 ### Active Issues - P&L Dashboard V2 Price Mapping
 
