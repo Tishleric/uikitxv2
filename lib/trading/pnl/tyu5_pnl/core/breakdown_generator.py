@@ -1,5 +1,5 @@
 import pandas as pd
-from core.utils import decimal_to_32nds
+from .utils import decimal_to_32nds
 
 class BreakdownGenerator:
     def create(self, positions_df: dict, position_details: pd.DataFrame, positions: dict) -> pd.DataFrame:

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
-from core.utils import decimal_to_32nds
-from core.bachelier import BachelierCombined  # Adjust import as needed
+from .utils import decimal_to_32nds
+from .bachelier import BachelierCombined  # Adjust import as needed
 
 class RiskMatrix:
     def create(self, positions_df: pd.DataFrame, base_price: float = 120.0,

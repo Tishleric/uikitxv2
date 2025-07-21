@@ -38,6 +38,9 @@ class TYU5Adapter:
     def get_trades_for_calculation(self, trade_date: Optional[date] = None) -> pd.DataFrame:
         """Query cto_trades table and format for TYU5.
         
+        DEPRECATED: This method relies on the cto_trades database table which is being phased out.
+        For new implementations, use TYU5Runner directly with DataFrame inputs loaded from CSV files.
+        
         Args:
             trade_date: Date to get trades for (None for most recent date)
             
@@ -66,13 +69,13 @@ class TYU5Adapter:
             conn.close()
         
         # Build query - now includes SOD trades but excludes exercises
-        query = """
-        SELECT * FROM cto_trades 
-        WHERE Date = ? 
-        AND is_exercise = 0
+            query = """
+            SELECT * FROM cto_trades 
+            WHERE Date = ? 
+            AND is_exercise = 0
         ORDER BY is_sod DESC, Date, Time
-        """
-        params = [trade_date.isoformat()]
+            """
+            params = [trade_date.isoformat()]
             
         # Get data
         conn = self.storage._get_connection()
@@ -399,7 +402,7 @@ class TYU5Adapter:
                        trade_date: Optional[date] = None,
                        base_price: float = 120.0,
                        price_range: Tuple[float, float] = (-3, 3),
-                       steps: int = 13) -> bool:
+                       steps: int = 13) -> Dict[str, pd.DataFrame]:
         """Run TYU5 P&L calculation with data from our stores.
         
         Args:
@@ -430,41 +433,25 @@ class TYU5Adapter:
             logger.debug(f"Trades_Input columns: {excel_data['Trades_Input'].columns.tolist()}")
             logger.debug(f"Market_Prices columns: {excel_data['Market_Prices'].columns.tolist()}")
             
-            # Import and run TYU5 calculation
-            # Dynamic import to avoid circular dependency issues
-            sys.path.insert(0, str(self.tyu5_path))
+            # Import and run TYU5 calculation using package imports
+            from lib.trading.pnl.tyu5_pnl import main
             
-            # Convert output file to absolute path since we're changing directories
-            output_file_abs = os.path.abspath(output_file)
-            
-            # Save current directory and change to TYU5 directory
-            original_cwd = os.getcwd()
-            os.chdir(str(self.tyu5_path))
-            
-            try:
-                from main import run_pnl_analysis
-                
-                run_pnl_analysis(
-                    input_file=None,  # We're passing data directly
-                    output_file=output_file_abs,
-                    base_price=base_price,
-                    price_range=price_range,
-                    steps=steps,
-                    sample_data=excel_data  # Our data mimics the sample structure
-                )
-            finally:
-                # Restore original directory
-                os.chdir(original_cwd)
-                # Clean up sys.path
-                if str(self.tyu5_path) in sys.path:
-                    sys.path.remove(str(self.tyu5_path))
+            # Run TYU5 which now returns DataFrames
+            result = main.run_pnl_analysis(
+                input_file=None,  # We're passing data directly
+                output_file=output_file,
+                base_price=base_price,
+                price_range=price_range,
+                steps=steps,
+                sample_data=excel_data  # Our data mimics the sample structure
+            )
             
             logger.info(f"TYU5 calculation completed successfully")
-            return True
+            return result  # Return DataFrames dictionary
             
         except Exception as e:
             logger.error(f"Error running TYU5 calculation: {e}")
-            return False
+            return {}  # Return empty dict on error
             
     def get_calculation_summary(self, excel_data: Dict[str, pd.DataFrame]) -> Dict:
         """Get summary statistics for console output.

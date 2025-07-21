@@ -306,8 +306,14 @@ class OptionsProcessor:
                     expire_dt_value = row.get('EXPIRE_DT')
                     if pd.notna(expire_dt_value):
                         try:
-                            # Parse date - assuming YYYYMMDD format
-                            expire_dt = datetime.strptime(str(expire_dt_value), "%Y%m%d").date()
+                            # Try different date formats
+                            date_str = str(expire_dt_value).strip()
+                            # Try M/D/YYYY format first (e.g., "7/14/2025")
+                            if '/' in date_str:
+                                expire_dt = datetime.strptime(date_str, "%m/%d/%Y").date()
+                            # Fall back to YYYYMMDD format
+                            else:
+                                expire_dt = datetime.strptime(date_str, "%Y%m%d").date()
                         except ValueError:
                             logger.debug(f"Invalid expire date for {symbol}: {expire_dt_value}")
                 

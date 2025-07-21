@@ -1,0 +1,8 @@
+Symbol,Type,Net_Quantity,Closed_Quantity,Avg_Entry_Price,Avg_Entry_Price_32nds,Prior_Close,Current_Price,Prior_Present_Value,Current_Present_Value,Unrealized_PNL,Unrealized_PNL_Current,Unrealized_PNL_Flash,Unrealized_PNL_Close,Realized_PNL,Daily_PNL,Total_PNL,attribution_error
+TYU5,FUT,1000.0,0.0,110.0,110-00,110.78125,110.78125,110000000.0,110781250.0,781250.0,781250.0,781250.0,781250.0,0.0,0.0,781250.0,
+VY3N5,P,100.0,100.0,0.011,0-00,0.484375,0.484375,1099.9999999999998,48437.5,47337.5,47337.5,47337.5,47337.5,2800.0000000000005,0.0,50137.5,Vol solver failed completely: f(a) and f(b) must have different signs
+WY4N5,P,150.0,0.0,0.102,0-03,,0.102,15299.999999999998,15299.999999999998,0.0,0.0,awaiting data,awaiting data,0.0,awaiting data,0.0,Vol solver failed completely: f(a) and f(b) must have different signs
+WY4N5,P,100.0,0.0,0.039,0-01,,0.039,3900.0,3900.0,0.0,0.0,awaiting data,awaiting data,0.0,awaiting data,0.0,Vol solver failed completely: f(a) and f(b) must have different signs
+WY4N5,P,200.0,0.0,0.011,0-00,,0.011,2199.9999999999995,2199.9999999999995,0.0,0.0,awaiting data,awaiting data,0.0,awaiting data,0.0,Vol solver failed completely: f(a) and f(b) must have different signs
+OZNQ5,P,1.0,0.0,0.227,0-07,0.234375,0.234375,227.0,234.375,7.374999999999993,7.374999999999993,7.374999999999993,7.374999999999993,0.0,0.0,7.374999999999993,Vol solver failed completely: f(a) and f(b) must have different signs
+OZNQ5,P,100.0,0.0,0.023,0-00,0.5625,0.5625,2300.0,56250.0,53949.99999999999,53949.99999999999,53949.99999999999,53949.99999999999,0.0,0.0,53949.99999999999,Vol solver failed completely: f(a) and f(b) must have different signs

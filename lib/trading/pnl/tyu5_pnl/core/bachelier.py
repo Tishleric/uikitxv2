@@ -16,8 +16,12 @@ import pytz
 from datetime import datetime
 
 def compute_cme_T(now: datetime, option_symbol: str, calendar_path: str) -> float:
+    from .debug_logger import get_debug_logger
+    logger = get_debug_logger()
+    
     chicago = pytz.timezone("America/Chicago")
     print(f"[INFO] Original NOW: {now}, Symbol: {option_symbol}")
+    logger.log_expiration_lookup(option_symbol, None, f"Starting lookup with calendar: {calendar_path}")
 
     # Ensure timezone-aware 'now'
     if now.tzinfo is None:
@@ -29,17 +33,21 @@ def compute_cme_T(now: datetime, option_symbol: str, calendar_path: str) -> floa
     # Load expiration calendar
     try:
         df = pd.read_csv(calendar_path)
+        logger.log("EXPIRATION_LOOKUP", f"Loaded calendar with {len(df)} entries")
     except Exception as e:
+        logger.log_expiration_lookup(option_symbol, None, f"Failed to read CSV: {e}")
         raise RuntimeError(f"[ERROR] Failed to read CSV: {e}")
 
     # Get expiry for symbol
     row = df[df['Option Symbol'] == option_symbol]
     if row.empty:
+        logger.log_expiration_lookup(option_symbol, None, f"Option symbol '{option_symbol}' not found in calendar")
         raise ValueError(f"[ERROR] Option symbol '{option_symbol}' not found.")
 
     expiry_str = row.iloc[0]['Option Expiration Date (CT)']
     expiry = pd.to_datetime(expiry_str, errors='coerce')
     if pd.isnull(expiry):
+        logger.log_expiration_lookup(option_symbol, None, f"Could not parse expiry date: '{expiry_str}'")
         raise ValueError(f"[ERROR] Could not parse expiry: '{expiry_str}'")
 
     # Ensure timezone-aware expiry
@@ -48,6 +56,7 @@ def compute_cme_T(now: datetime, option_symbol: str, calendar_path: str) -> floa
     else:
         expiry = expiry.astimezone(chicago)
     print(f"[INFO] Localized EXPIRY (Chicago): {expiry}")
+    logger.log_expiration_lookup(option_symbol, expiry, None)
 
     # Raw fallback delta
     delta_minutes = (expiry - now).total_seconds() / 60 + 1 * 60
@@ -58,6 +67,11 @@ def compute_cme_T(now: datetime, option_symbol: str, calendar_path: str) -> floa
 
     T_fallback = delta_minutes / (250.0 * 24 * 60)
     print(f"[WARN] Fallback T (year fraction): {T_fallback:.10f}")
+    logger.log("EXPIRATION_LOOKUP", f"Computed T for {option_symbol}", {
+        'T': T_fallback,
+        'expiry': str(expiry),
+        'delta_minutes': delta_minutes
+    })
     return T_fallback
 
 class BachelierCombined:

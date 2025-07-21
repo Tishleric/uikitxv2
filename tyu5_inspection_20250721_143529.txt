@@ -1,0 +1,126 @@
+TYU5 OUTPUT INSPECTION
+================================================================================
+
+1. PROCESSED TRADES:
+  Trade_ID                      DateTime          Symbol Action  Quantity  Price_Decimal Price_32nds  Fees Type  Realized_PNL Counterparty
+0        1  2025-07-19 00:00:00 00:00:00            TYU5    BUY    1000.0        110.000      110-00     0  FUT           0.0             
+1        2  2025-07-19 01:00:00 01:00:00  VY3N5 P 111.25   SELL     100.0          0.039        0-01     0  PUT           0.0             
+2        3  2025-07-19 02:00:00 02:00:00  VY3N5 P 111.25    BUY     200.0          0.011        0-00     0  PUT        2800.0             
+3        4  2025-07-19 03:00:00 03:00:00   WY4N5 P 111.5    BUY     150.0          0.102        0-03     0  PUT           0.0             
+4        5  2025-07-19 04:00:00 04:00:00  WY4N5 P 110.75    BUY     100.0          0.039        0-01     0  PUT           0.0             
+5        6  2025-07-19 05:00:00 05:00:00     WY4N5 P 111    BUY     200.0          0.011        0-00     0  PUT           0.0             
+6        7  2025-07-19 06:00:00 06:00:00  OZNQ5 P 110.75    BUY       1.0          0.227        0-07     0  PUT           0.0             
+7        8  2025-07-19 07:00:00 07:00:00  OZNQ5 P 111.25    BUY     100.0          0.023        0-00     0  PUT           0.0             
+
+2. POSITIONS:
+  Symbol Type  Net_Quantity  Avg_Entry_Price Avg_Entry_Price_32nds  Prior_Close  Current_Price  Prior_Present_Value  Current_Present_Value  Unrealized_PNL  Unrealized_PNL_Current Unrealized_PNL_Flash Unrealized_PNL_Close  Realized_PNL      Daily_PNL   Total_PNL                                                      attribution_error
+0   TYU5  FUT        1000.0          110.000                110-00   110.781250     110.781250          110000000.0           1.107812e+08      781250.000              781250.000             781250.0             781250.0           0.0            0.0  781250.000                                                                    NaN
+1  VY3N5    P         100.0            0.011                  0-00     0.484375       0.484375               1100.0           4.843750e+04       47337.500               47337.500              47337.5              47337.5        2800.0            0.0   50137.500  Vol solver failed completely: f(a) and f(b) must have different signs
+2  WY4N5    P         150.0            0.102                  0-03          NaN       0.102000              15300.0           1.530000e+04           0.000                   0.000        awaiting data        awaiting data           0.0  awaiting data       0.000  Vol solver failed completely: f(a) and f(b) must have different signs
+3  WY4N5    P         100.0            0.039                  0-01          NaN       0.039000               3900.0           3.900000e+03           0.000                   0.000        awaiting data        awaiting data           0.0  awaiting data       0.000  Vol solver failed completely: f(a) and f(b) must have different signs
+4  WY4N5    P         200.0            0.011                  0-00          NaN       0.011000               2200.0           2.200000e+03           0.000                   0.000        awaiting data        awaiting data           0.0  awaiting data       0.000  Vol solver failed completely: f(a) and f(b) must have different signs
+5  OZNQ5    P           1.0            0.227                  0-07     0.234375       0.234375                227.0           2.343750e+02           7.375                   7.375                7.375                7.375           0.0            0.0       7.375  Vol solver failed completely: f(a) and f(b) must have different signs
+6  OZNQ5    P         100.0            0.023                  0-00     0.562500       0.562500               2300.0           5.625000e+04       53950.000               53950.000              53950.0              53950.0           0.0            0.0   53950.000  Vol solver failed completely: f(a) and f(b) must have different signs
+
+3. SUMMARY:
+             Metric       Value                Details
+0         Total PNL  885344.875  Realized + Unrealized
+1         Daily PNL       0.000       From prior close
+2      Realized PNL    2800.000     From closed trades
+3    Unrealized PNL  882544.875         Open positions
+4  Active Positions       7.000             Open count
+5      Total Trades       8.000        Executed trades
+
+4. RISK MATRIX:
+   Position_ID  TYU5_Price TYU5_Price_32nds  Price_Change  Scenario_PNL
+0         TYU5   110.28125           110-09          -0.5      281250.0
+1        VY3N5   110.28125           110-09          -0.5      281250.0
+2        WY4N5   110.28125           110-09          -0.5      281250.0
+3        WY4N5   110.28125           110-09          -0.5      281250.0
+4        WY4N5   110.28125           110-09          -0.5      281250.0
+5        OZNQ5   110.28125           110-09          -0.5      281250.0
+6        OZNQ5   110.28125           110-09          -0.5      281250.0
+7         TYU5   110.38125           110-12          -0.4      381250.0
+8        VY3N5   110.38125           110-12          -0.4      381250.0
+9        WY4N5   110.38125           110-12          -0.4      381250.0
+10       WY4N5   110.38125           110-12          -0.4      381250.0
+11       WY4N5   110.38125           110-12          -0.4      381250.0
+12       OZNQ5   110.38125           110-12          -0.4      381250.0
+13       OZNQ5   110.38125           110-12          -0.4      381250.0
+14        TYU5   110.48125           110-15          -0.3      481250.0
+15       VY3N5   110.48125           110-15          -0.3      481250.0
+16       WY4N5   110.48125           110-15          -0.3      481250.0
+17       WY4N5   110.48125           110-15          -0.3      481250.0
+18       WY4N5   110.48125           110-15          -0.3      481250.0
+19       OZNQ5   110.48125           110-15          -0.3      481250.0
+20       OZNQ5   110.48125           110-15          -0.3      481250.0
+21        TYU5   110.58125           110-18          -0.2      581250.0
+22       VY3N5   110.58125           110-18          -0.2      581250.0
+23       WY4N5   110.58125           110-18          -0.2      581250.0
+24       WY4N5   110.58125           110-18          -0.2      581250.0
+25       WY4N5   110.58125           110-18          -0.2      581250.0
+26       OZNQ5   110.58125           110-18          -0.2      581250.0
+27       OZNQ5   110.58125           110-18          -0.2      581250.0
+28        TYU5   110.68125           110-21          -0.1      681250.0
+29       VY3N5   110.68125           110-21          -0.1      681250.0
+30       WY4N5   110.68125           110-21          -0.1      681250.0
+31       WY4N5   110.68125           110-21          -0.1      681250.0
+32       WY4N5   110.68125           110-21          -0.1      681250.0
+33       OZNQ5   110.68125           110-21          -0.1      681250.0
+34       OZNQ5   110.68125           110-21          -0.1      681250.0
+35        TYU5   110.78125           110-25           0.0      781250.0
+36       VY3N5   110.78125           110-25           0.0      781250.0
+37       WY4N5   110.78125           110-25           0.0      781250.0
+38       WY4N5   110.78125           110-25           0.0      781250.0
+39       WY4N5   110.78125           110-25           0.0      781250.0
+40       OZNQ5   110.78125           110-25           0.0      781250.0
+41       OZNQ5   110.78125           110-25           0.0      781250.0
+42        TYU5   110.88125           110-28           0.1      881250.0
+43       VY3N5   110.88125           110-28           0.1      881250.0
+44       WY4N5   110.88125           110-28           0.1      881250.0
+45       WY4N5   110.88125           110-28           0.1      881250.0
+46       WY4N5   110.88125           110-28           0.1      881250.0
+47       OZNQ5   110.88125           110-28           0.1      881250.0
+48       OZNQ5   110.88125           110-28           0.1      881250.0
+49        TYU5   110.98125           110-31           0.2      981250.0
+50       VY3N5   110.98125           110-31           0.2      981250.0
+51       WY4N5   110.98125           110-31           0.2      981250.0
+52       WY4N5   110.98125           110-31           0.2      981250.0
+53       WY4N5   110.98125           110-31           0.2      981250.0
+54       OZNQ5   110.98125           110-31           0.2      981250.0
+55       OZNQ5   110.98125           110-31           0.2      981250.0
+56        TYU5   111.08125           111-02           0.3     1081250.0
+57       VY3N5   111.08125           111-02           0.3     1081250.0
+58       WY4N5   111.08125           111-02           0.3     1081250.0
+59       WY4N5   111.08125           111-02           0.3     1081250.0
+60       WY4N5   111.08125           111-02           0.3     1081250.0
+61       OZNQ5   111.08125           111-02           0.3     1081250.0
+62       OZNQ5   111.08125           111-02           0.3     1081250.0
+63        TYU5   111.18125           111-05           0.4     1181250.0
+64       VY3N5   111.18125           111-05           0.4     1181250.0
+65       WY4N5   111.18125           111-05           0.4     1181250.0
+66       WY4N5   111.18125           111-05           0.4     1181250.0
+67       WY4N5   111.18125           111-05           0.4     1181250.0
+68       OZNQ5   111.18125           111-05           0.4     1181250.0
+69       OZNQ5   111.18125           111-05           0.4     1181250.0
+70        TYU5   111.28125           111-09           0.5     1281250.0
+71       VY3N5   111.28125           111-09           0.5     1281250.0
+72       WY4N5   111.28125           111-09           0.5     1281250.0
+73       WY4N5   111.28125           111-09           0.5     1281250.0
+74       WY4N5   111.28125           111-09           0.5     1281250.0
+75       OZNQ5   111.28125           111-09           0.5     1281250.0
+76       OZNQ5   111.28125           111-09           0.5     1281250.0
+
+5. BREAKDOWN:
+   Symbol          Label             Description  Quantity      Price      Daily_PNL Type  Inception_PNL Notes
+0    TYU5        SUMMARY            TYU5 Summary    1000.0  110.78125            0.0  FUT     781250.000      
+1    TYU5  OPEN_POSITION            POS_TYU5_001    1000.0     110-00                 FUT     781250.000   NaN
+2   VY3N5        SUMMARY           VY3N5 Summary     100.0   0.484375            0.0    P      47337.500      
+3   VY3N5  OPEN_POSITION  POS_VY3N5 P 111.25_002     100.0       0-00                   P      47337.500   NaN
+4   WY4N5        SUMMARY           WY4N5 Summary     150.0      0.102  awaiting data    P          0.000      
+5   WY4N5  OPEN_POSITION   POS_WY4N5 P 111.5_001     150.0       0-03                   P          0.000   NaN
+6   WY4N5  OPEN_POSITION  POS_WY4N5 P 110.75_001     100.0       0-01                   P       6300.000   NaN
+7   WY4N5  OPEN_POSITION     POS_WY4N5 P 111_001     200.0       0-00                   P      18200.000   NaN
+8   OZNQ5        SUMMARY           OZNQ5 Summary       1.0   0.234375            0.0    P          7.375      
+9   OZNQ5  OPEN_POSITION  POS_OZNQ5 P 110.75_001       1.0       0-07                   P          7.375   NaN
+10  OZNQ5  OPEN_POSITION  POS_OZNQ5 P 111.25_001     100.0       0-00                   P      21137.500   NaN

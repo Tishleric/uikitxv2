@@ -1,16 +1,36 @@
 # Active Context & Next Steps
 
-**Current Focus**: Market Prices Enhancement - Current_Price from Spot Risk
-**Task**: Add Current_Price column populated from spot risk files
+**Current Focus**: Trade Ledger Direct Integration
+**Task**: Create adapter to read trade ledger CSV and feed TYU5 directly  
 **Status**: ✅ COMPLETE
 
-## Key Achievements (July 18, 2025)
+## Key Achievements (July 20, 2025)
+- Created TradeLedgerAdapter that bypasses legacy database completely
+- Implemented robust XCME symbol parsing for futures and options
+- Added direct market price fetching using Bloomberg symbols
+- Successfully integrated with TYU5 P&L calculation engine
+
+## Implementation Details
+1. **Symbol Parsing**: 
+   - Handles XCMEFFDPSX futures and XCMEOPADPS options
+   - Special case for July 25, 2025 Friday options (OZNQ5)
+   - Generates both TYU5 and Bloomberg symbols
+2. **Price Fetching**: 
+   - Pre-fetches prices from market_prices.db using Bloomberg symbols
+   - Bypasses TYU5Adapter's broken symbol translation
+   - Uses Prior_Close as fallback when Current_Price is NaN
+3. **Data Filtering**: 
+   - Filters out zero-price trades on expiry date
+   - Includes midnight trades as start-of-day positions
+4. **Integration**: Works seamlessly with existing TYU5 engine
+
+## Previous Achievements (July 18, 2025)
 - Added Current_Price column to futures_prices and options_prices tables  
 - Created SpotRiskPriceProcessor to extract ADJTHEOR/BID-ASK midpoint
 - Integrated with existing SpotRiskFileHandler for automatic updates
 - Successfully tested with 57 prices (1 future, 56 options) updated
 
-## Implementation Details
+## Implementation Details (July 18)
 1. **Migration**: Added Current_Price REAL column to both price tables
 2. **Price Extraction**: 
    - Primary: ADJTHEOR value from spot risk CSV

@@ -1,39 +1,47 @@
-"""Check what symbols exist in market prices database."""
+#!/usr/bin/env python3
+"""Check symbol formats in market prices database."""
 
 import sqlite3
+import pandas as pd
 
+# Connect to market prices database
 conn = sqlite3.connect('data/output/market_prices/market_prices.db')
-cursor = conn.cursor()
 
-print("=== MARKET PRICES SYMBOLS CHECK ===\n")
+# Get sample of symbols
+query = """
+SELECT DISTINCT symbol 
+FROM market_prices 
+WHERE symbol LIKE '%N5%' OR symbol LIKE '%N25%'
+ORDER BY symbol
+LIMIT 50
+"""
 
-# Check futures
-print("FUTURES PRICES:")
-cursor.execute("SELECT DISTINCT symbol FROM futures_prices ORDER BY symbol")
-futures = cursor.fetchall()
-for (symbol,) in futures:
+df = pd.read_sql_query(query, conn)
+conn.close()
+
+print("Market Prices Symbol Formats:")
+print("=" * 50)
+for symbol in df['symbol']:
     print(f"  {symbol}")
 
-# Check for our specific symbols
-print("\n\nSPECIFIC QUERIES:")
-print("-" * 40)
+print(f"\nTotal found: {len(df)}")
 
-# TYU5
-cursor.execute("SELECT symbol, current_price, prior_close FROM futures_prices WHERE symbol LIKE '%TYU5%'")
-result = cursor.fetchall()
-print(f"TYU5 futures: {result}")
+# Also check for specific symbols we're generating
+test_symbols = [
+    'VY3N5 111.25 Comdty',
+    'VBYN25P3 111.25 Comdty', 
+    'WY4N5 111.5 Comdty',
+    'WBYN25P4 111.5 Comdty',
+    'ZN4N5 110.75 Comdty',
+    'TYN25P4 110.75 Comdty'
+]
 
-# Options we're looking for
-options_to_find = ['3MN5P 110.000', '3MN5P 110.250', 'VBYN25P3 109.500', 'VBYN25P3 110.000', 
-                   'VBYN25P3 110.250', 'TYWN25P4 109.750', 'TYWN25P4 110.500']
-
-print("\nOPTIONS PRICES:")
-for opt in options_to_find:
-    cursor.execute("SELECT symbol, current_price, prior_close FROM options_prices WHERE symbol LIKE ?", (f'%{opt}%',))
-    result = cursor.fetchall()
-    if result:
-        print(f"  {opt}: {result}")
-    else:
-        print(f"  {opt}: NOT FOUND")
-
+conn = sqlite3.connect('data/output/market_prices/market_prices.db')
+print("\nChecking for our generated symbols:")
+print("=" * 50)
+for symbol in test_symbols:
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM market_prices WHERE symbol = ?", (symbol,))
+    count = cursor.fetchone()[0]
+    print(f"  {symbol:<30} {'✓ FOUND' if count > 0 else '✗ NOT FOUND'}")
 conn.close() 

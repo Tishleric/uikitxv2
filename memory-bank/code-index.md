@@ -34,6 +34,9 @@ Core package for automating FULLPNL master P&L table builds. Replaces 10+ manual
 - `data_sources.py`: Database adapter classes for accessing P&L tracker, spot risk, and market prices SQLite databases. Provides unified interface for data retrieval
 - `builder.py`: Main orchestrator class that rebuilds FULLPNL table. Implements column loaders for positions, market prices, spot risk data, and Greeks. Supports both full rebuild and incremental updates
 
+### lib/trading/pnl_integration/
+- `trade_ledger_adapter.py`: Direct adapter for reading trade ledger CSV files and transforming to TYU5 format. Features: parses XCME symbols (futures/options), generates both TYU5 and Bloomberg symbols, filters zero-price expiry trades, includes midnight trades, and pre-fetches market prices directly from database using Bloomberg symbols to bypass TYU5Adapter translation issues.
+
 ### lib/trading/actant/
 
 ### lib/trading/pnl_calculator/storage.py

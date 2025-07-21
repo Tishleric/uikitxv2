@@ -41,7 +41,7 @@ def test_symbol_translation():
     for symbol in test_symbols:
         cme_result = adapter.symbol_translator.translate(symbol, 'bloomberg', 'cme')
         logger.info(f"Bloomberg → CME: {symbol} → {cme_result}")
-        
+    
         # Test reverse
         if cme_result:
             cme_base = cme_result.split()[0]
@@ -130,7 +130,7 @@ def test_pnl_calculation():
 def main():
     """Run all tests."""
     logger.info("Starting TYU5 integration tests...")
-    
+        
     # Test 1: Symbol translation
     test_symbol_translation()
     
@@ -150,6 +150,6 @@ def main():
     logger.info("- Positions table with net quantities and present values")
     logger.info("- Lot positions with FIFO tracking")
     logger.info("- Excel file with P&L summary")
-    
+
 if __name__ == "__main__":
     main() 

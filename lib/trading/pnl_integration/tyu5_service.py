@@ -1,12 +1,8 @@
-"""TYU5 Service - Orchestrates P&L calculations
-
-This service monitors data stores and triggers TYU5 calculations
-when new data arrives.
-"""
+"""TYU5 Service - High-level interface for TYU5 P&L calculations."""
 
 import logging
 from datetime import datetime, date
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict
 from pathlib import Path
 import threading
 import time
@@ -78,12 +74,12 @@ class TYU5Service:
         # Run calculation
         logger.info(f"Starting TYU5 calculation for {trade_date or 'all dates'}")
         
-        success = self.adapter.run_calculation(
+        result = self.adapter.run_calculation(
             output_file=str(output_file),
             trade_date=trade_date
         )
         
-        if success:
+        if result:  # Now returns dict of DataFrames or empty dict on failure
             self._last_calculation_time = datetime.now()
             logger.info(f"Calculation complete. Output: {output_file}")
             
@@ -96,9 +92,10 @@ class TYU5Service:
                     # Continue even if attribution fails
                     
             # Persist to database if enabled
-            if self.enable_db_writer and self.db_writer and str(output_file).endswith('.xlsx'):
+            if self.enable_db_writer and self.db_writer:
                 try:
-                    self._persist_to_database(str(output_file), datetime.now())
+                    # Use DataFrames directly instead of reading from Excel
+                    self._persist_dataframes_to_database(result, datetime.now())
                 except Exception as e:
                     logger.error(f"Failed to persist to database: {e}")
                     # Continue even if database write fails
@@ -352,4 +349,43 @@ class TYU5Service:
                 
         except Exception as e:
             logger.error(f"Error reading Excel for database persistence: {e}")
+            raise 
+
+    def _persist_dataframes_to_database(self, result: Dict[str, pd.DataFrame], 
+                                      calc_timestamp: datetime) -> None:
+        """Persist TYU5 DataFrames directly to database.
+        
+        Args:
+            result: Dictionary with DataFrames from TYU5
+            calc_timestamp: Timestamp of calculation
+        """
+        if not self.db_writer or not result:
+            return
+            
+        try:
+            # Extract DataFrames
+            trades_df = result.get('processed_trades_df', pd.DataFrame())
+            positions_df = result.get('positions_df', pd.DataFrame())
+            summary_df = result.get('summary_df', pd.DataFrame())
+            risk_df = result.get('risk_df', pd.DataFrame())
+            breakdown_df = result.get('breakdown_df', pd.DataFrame())
+            
+            if trades_df.empty and positions_df.empty:
+                logger.warning("No data to persist to database")
+                return
+                
+            # Write to database
+            self.db_writer.write_results(
+                trades_df=trades_df,
+                positions_df=positions_df,
+                summary_df=summary_df,
+                risk_scenarios_df=risk_df,
+                breakdown_df=breakdown_df,
+                calc_timestamp=calc_timestamp
+            )
+            
+            logger.info(f"Persisted {len(trades_df)} trades and {len(positions_df)} positions to database")
+            
+        except Exception as e:
+            logger.error(f"Error persisting to database: {e}")
             raise 

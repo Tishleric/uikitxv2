@@ -134,15 +134,26 @@ class SpotRiskPriceProcessor:
                 if spot_risk_symbol == 'XCME.ZN' or 'INVALID' in str(spot_risk_symbol):
                     continue
                     
-                # Translate to Bloomberg format using centralized translator
-                bloomberg_symbol = self.symbol_translator.translate(
-                    spot_risk_symbol, 
-                    'xcme', 
-                    'bloomberg'
-                )
-                if not bloomberg_symbol:
-                    logger.info(f"Untranslatable symbol (likely historical): {spot_risk_symbol}")
-                    continue
+                # Check if it's a future or option
+                itype = row.get('ITYPE', '')
+                
+                # Handle futures differently
+                if itype == 'F':
+                    # Futures format: XCME.ZN.SEP25 -> TYU5 Comdty
+                    bloomberg_symbol = self._translate_future(spot_risk_symbol)
+                    if not bloomberg_symbol:
+                        logger.info(f"Untranslatable future: {spot_risk_symbol}")
+                        continue
+                else:
+                    # Options: use centralized translator
+                    bloomberg_symbol = self.symbol_translator.translate(
+                        spot_risk_symbol, 
+                        'xcme', 
+                        'bloomberg'
+                    )
+                    if not bloomberg_symbol:
+                        logger.info(f"Untranslatable symbol (likely historical): {spot_risk_symbol}")
+                        continue
                     
                 # Extract price - prefer ADJTHEOR
                 price = None
@@ -176,6 +187,63 @@ class SpotRiskPriceProcessor:
                 continue
                 
         return prices
+        
+    def _translate_future(self, xcme_symbol: str) -> Optional[str]:
+        """
+        Translate XCME future symbol to Bloomberg format.
+        
+        Args:
+            xcme_symbol: XCME format future symbol (e.g., "XCME.ZN.SEP25")
+            
+        Returns:
+            Bloomberg format symbol (e.g., "TYU5 Comdty") or None if invalid
+        """
+        try:
+            # Parse XCME future format: XCME.ZN.SEP25
+            parts = xcme_symbol.split('.')
+            if len(parts) != 3 or parts[0] != 'XCME':
+                return None
+                
+            product = parts[1]
+            expiry = parts[2]
+            
+            # Map product codes
+            product_map = {
+                'ZN': 'TY',  # 10-year Treasury Note
+                'ZF': 'FV',  # 5-year Treasury Note
+                'ZT': 'TU',  # 2-year Treasury Note
+                'ZB': 'US',  # 30-year Treasury Bond
+            }
+            
+            bb_product = product_map.get(product)
+            if not bb_product:
+                return None
+                
+            # Parse expiry: SEP25 -> U5
+            if len(expiry) < 5:
+                return None
+                
+            month_str = expiry[:3]
+            year_str = expiry[-1]  # Bloomberg uses single digit year
+            
+            # Month mapping
+            month_map = {
+                'JAN': 'F', 'FEB': 'G', 'MAR': 'H', 'APR': 'J',
+                'MAY': 'K', 'JUN': 'M', 'JUL': 'N', 'AUG': 'Q',
+                'SEP': 'U', 'OCT': 'V', 'NOV': 'X', 'DEC': 'Z'
+            }
+            
+            month_code = month_map.get(month_str)
+            if not month_code:
+                return None
+                
+            # Construct Bloomberg symbol
+            bloomberg_symbol = f"{bb_product}{month_code}{year_str} Comdty"
+            return bloomberg_symbol
+            
+        except Exception as e:
+            logger.debug(f"Error translating future {xcme_symbol}: {e}")
+            return None
         
     @monitor()
     def _update_database(self, prices: Dict[str, float], file_timestamp: datetime) -> bool:
