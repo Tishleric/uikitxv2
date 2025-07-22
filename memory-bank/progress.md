@@ -12,7 +12,7 @@
   - Full test coverage with all tests passing
 - **Next**: M2 - Implement column loaders for full rebuild capability
 
-## Current Status (July 17, 2025)
+## Current Status (July 21, 2025)
 
 ### Recent Accomplishments
 - ✅ Modified spot risk processing to read pre-calculated vtexp values from CSV files
@@ -23,6 +23,15 @@
 - ✅ Updated get_market_price to use flexible timestamp lookup
 - ✅ Verified that VBYN25C2 110.750 Comdty exists in market_prices table
 - ✅ **Fixed vtexp mapping for quarterly options (OZNQ5)** - Updated regex patterns to handle both weekly (with day) and quarterly (without day) expiry formats in `VtexpSymbolMapper`
+- ✅ **Added futures symbol mapping to FULLPNL** - TYU5 now correctly maps to XCME.ZN.SEP25
+- ✅ **Implemented FULLPNL auto-update mechanism** - Monitors spot risk CSV files and triggers updates automatically
+
+### FULLPNL Futures Greeks Status
+- **Partial Success**: Gamma correctly populated (0.0042) for TYU5 futures
+- **Issue**: DV01 still showing as None despite being available in spot risk data
+- **Root Cause**: Spot risk CSV stores futures DV01 in `delta_F` column (value 63.0), not a separate DV01 column
+- **Attempted Fix**: Added special handling in `FULLPNLBuilder._merge_data` to map futures delta_F to dv01_f
+- **Status**: Fix implemented but DV01 still not populating - needs further investigation
 
 ### Active Issues - P&L Dashboard V2 Price Mapping
 

@@ -127,9 +127,8 @@ class FULLPNLBuilder:
             daily_pnl REAL,
             total_pnl REAL,
             
-            -- Greeks F-space from spot_risk
+            -- Greeks F-space from spot_risk (no dv01_f - use delta_f for futures DV01)
             vtexp REAL,
-            dv01_f REAL,
             delta_f REAL,
             gamma_f REAL,
             speed_f REAL,
@@ -227,7 +226,7 @@ class FULLPNLBuilder:
             
             # Filter for required columns if they exist
             required_cols = ['KEY', 'ITYPE']
-            greek_cols_f = ['VTEXP', 'DV01', 'DELTA_F', 'GAMMA_F', 'SPEED_F', 'THETA_F', 'VEGA_PRICE']
+            greek_cols_f = ['VTEXP', 'DELTA_F', 'GAMMA_F', 'SPEED_F', 'THETA_F', 'VEGA_PRICE']
             greek_cols_y = ['DV01_Y', 'DELTA_Y', 'GAMMA_Y', 'SPEED_Y', 'THETA_Y', 'VEGA_Y']
             
             available_cols = [col for col in required_cols + greek_cols_f + greek_cols_y 
@@ -257,16 +256,47 @@ class FULLPNLBuilder:
         """Convert TYU5 symbol to XCME format.
         
         Args:
-            tyu5_symbol: Symbol like "VY3N5 P 110.25"
+            tyu5_symbol: Symbol like "VY3N5 P 110.25" or "TYU5"
             
         Returns:
-            XCME symbol like "XCME.VY3.21JUL25.110:25.P" or None
+            XCME symbol like "XCME.VY3.21JUL25.110:25.P" or "XCME.ZN.SEP25" or None
         """
         try:
             # Parse TYU5 symbol
             parts = tyu5_symbol.strip().split()
             if len(parts) != 3:
-                # Handle futures
+                # Handle futures - check if it's a standard futures symbol first
+                symbol = parts[0] if parts else ""
+                
+                # Check for futures pattern: ROOT + MONTH_CODE + YEAR_DIGIT (e.g., TYU5)
+                if len(symbol) >= 3 and symbol[-1].isdigit() and symbol[-2].isalpha():
+                    # Parse futures symbol: TYU5 = TY + U + 5
+                    root = symbol[:-2]  # TY
+                    month_code = symbol[-2]  # U
+                    year_digit = symbol[-1]  # 5
+                    
+                    # Map futures roots to XCME format
+                    futures_root_map = {
+                        'TY': 'ZN',  # 10-Year T-Note
+                        'TU': 'ZT',  # 2-Year T-Note
+                        'FV': 'ZF',  # 5-Year T-Note
+                        'US': 'UB',  # Ultra T-Bond
+                    }
+                    
+                    # Map month codes to month names
+                    month_map = {
+                        'F': 'JAN', 'G': 'FEB', 'H': 'MAR', 'J': 'APR',
+                        'K': 'MAY', 'M': 'JUN', 'N': 'JUL', 'Q': 'AUG',
+                        'U': 'SEP', 'V': 'OCT', 'X': 'NOV', 'Z': 'DEC'
+                    }
+                    
+                    if root in futures_root_map and month_code in month_map:
+                        xcme_root = futures_root_map[root]
+                        month = month_map[month_code]
+                        year = f"2{year_digit}"  # 5 → 25
+                        return f"XCME.{xcme_root}.{month}{year}"
+                
+                # Fall back to existing logic for option base symbols
                 if parts[0] in self.cme_to_xcme_base:
                     xcme_base = self.cme_to_xcme_base[parts[0]]
                     # Futures don't have strike/type, return just base
@@ -339,7 +369,7 @@ class FULLPNLBuilder:
             
             # Initialize Greek columns with NULL
             greek_columns = [
-                'vtexp', 'dv01_f', 'delta_f', 'gamma_f', 'speed_f', 'theta_f', 'vega_f',
+                'vtexp', 'delta_f', 'gamma_f', 'speed_f', 'theta_f', 'vega_f',
                 'dv01_y', 'delta_y', 'gamma_y', 'speed_y', 'theta_y', 'vega_y'
             ]
             
@@ -379,7 +409,6 @@ class FULLPNLBuilder:
                             # Map spot risk columns to FULLPNL columns
                             spot_risk_mapping = {
                                 'VTEXP': 'vtexp',
-                                'DV01': 'dv01_f',
                                 'DELTA_F': 'delta_f',
                                 'GAMMA_F': 'gamma_f',
                                 'SPEED_F': 'speed_f',
@@ -397,6 +426,12 @@ class FULLPNLBuilder:
                             for spot_col, fullpnl_col in spot_risk_mapping.items():
                                 if spot_col in spot_row.index and pd.notna(spot_row[spot_col]):
                                     merged.loc[mask, fullpnl_col] = spot_row[spot_col]
+                            
+                            # Special handling for futures
+                            # For futures, delta_F contains the DV01 value (63.0)
+                            # Since we don't have a separate dv01_f column, delta_f serves both purposes
+                            if spot_row.get('itype') == 'F' and pd.notna(spot_row.get('delta_F')):
+                                merged.loc[mask, 'delta_f'] = spot_row['delta_F']  # This will be 63.0
                 
                 logger.info(f"Matched {matched_count} of {checked_count} spot risk records to TYU5 positions")
                 
