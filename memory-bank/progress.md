@@ -25,6 +25,24 @@
 - ✅ **Fixed vtexp mapping for quarterly options (OZNQ5)** - Updated regex patterns to handle both weekly (with day) and quarterly (without day) expiry formats in `VtexpSymbolMapper`
 - ✅ **Added futures symbol mapping to FULLPNL** - TYU5 now correctly maps to XCME.ZN.SEP25
 - ✅ **Implemented FULLPNL auto-update mechanism** - Monitors spot risk CSV files and triggers updates automatically
+- ✅ **Removed dv01_f column from FULLPNL table** - Simplified schema as futures DV01 comes from delta_F
+- ✅ **Created FRGMonitor Dashboard Tab** - New dashboard showing real-time FULLPNL table data with smart polling (updates only when data changes)
+
+### FRGMonitor Dashboard Implementation
+- **Component**: New tab in main dashboard app at `apps/dashboards/main/app.py`
+- **Features**: 
+  - Real-time display of FULLPNL table data with DataTable component
+  - Smart polling: Checks every 1 second but only updates UI when data changes
+  - Status display showing connection state and row count
+  - Last update timestamp tracking
+  - Color-coded P&L values (green for positive, red for negative)
+  - Futures rows highlighted with different background color
+  - Native filtering and sorting support
+  - All columns from FULLPNL table displayed with proper formatting
+- **Styling**: Consistent with existing dashboard theme using wrapped components
+- **Bug Fix**: Removed unsupported `style_data` parameter and native DataTable features that aren't supported by the wrapped component
+- **Bug Fix 2**: Fixed PreventUpdate import usage and added missing dv01_f column to SQL query, resolving rapid error loop issue
+- **Bug Fix 3**: Removed dv01_f from FRGMonitor query to match actual FULLPNL table schema (column was previously dropped as unnecessary)
 
 ### FULLPNL Futures Greeks Status
 - **Partial Success**: Gamma correctly populated (0.0042) for TYU5 futures
@@ -546,4 +564,26 @@ Successfully implemented full rebuild capability:
   - Phase 3: Unified service layer
   - Phase 4: UI feature integration
 - **Next Steps**: Await approval to begin Phase 1 implementation 
+
+# Progress Log
+
+## 2025-07-21
+
+### Trade Processing History Reset
+- **Successfully backed up and reset trade processing history**:
+  - Created database backup: `pnl_tracker.db.backup_20250721_212010`
+  - Cleared `.processing_state.json` file (backed up first)
+  - Cleared 10 database tables while preserving schemas:
+    - `trade_processing_tracker` (16 rows)
+    - `processed_trades` (16 rows)
+    - `tyu5_positions` (30 rows)
+    - `FULLPNL` (44 rows)
+    - `lot_positions` (44 rows)
+    - `position_greeks` (44 rows)
+    - `pnl_attribution` (44 rows)
+    - `risk_scenarios` (44 rows)
+    - `match_history` (44 rows)
+    - `file_processing_log` (44 rows)
+  - System is now ready to reprocess all trade files from scratch
+  - All table schemas preserved - only data was cleared 
  

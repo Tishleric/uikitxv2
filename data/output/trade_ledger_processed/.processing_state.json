@@ -12,5 +12,19 @@
     "processed_at": "2025-07-17T13:35:55.494983",
     "processed_count": 8,
     "last_processed_mtime": "1752704949.3611667"
+  },
+  "trades_20250721.csv": {
+    "size": 626,
+    "mtime": 1753061610.2921653,
+    "processed_at": "2025-07-21T20:36:57.393644",
+    "processed_count": 8,
+    "last_processed_mtime": "1753061610.2921653"
+  },
+  "trades_20250722.csv": {
+    "size": 246,
+    "mtime": 1753152448.4186976,
+    "processed_at": "2025-07-21T22:47:28.158189",
+    "processed_count": 1,
+    "last_processed_mtime": "1753152448.4186976"
   }
 }

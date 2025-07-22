@@ -2805,6 +2805,178 @@ def scl_fetch_spot_price_from_pm():
 
 # --- End Scenario Ladder Helper Functions ---
 
+# --- FRGMonitor Tab ---
+def create_frg_monitor_content():
+    """Create the FRG Monitor page content with FULLPNL table display"""
+    
+    # Create components using wrapped components
+    # Header
+    header = html.H4(
+        "FULLPNL Monitor", 
+        style={
+            "color": default_theme.primary, 
+            "marginBottom": "20px", 
+            "textAlign": "center"
+        }
+    )
+    
+    # Status display
+    status_display = html.Div(
+        id="frg-monitor-status",
+        children=[
+            html.Span("Status: ", style={"fontWeight": "bold"}),
+            html.Span("Initializing...", id="frg-monitor-status-text")
+        ],
+        style={
+            "color": default_theme.text_light,
+            "marginBottom": "15px",
+            "fontSize": "0.9rem"
+        }
+    )
+    
+    # Last update display
+    last_update_display = html.Div(
+        id="frg-monitor-last-update",
+        children=[
+            html.Span("Last Update: ", style={"fontWeight": "bold"}),
+            html.Span("--", id="frg-monitor-last-update-text")
+        ],
+        style={
+            "color": default_theme.text_subtle,
+            "marginBottom": "20px",
+            "fontSize": "0.9rem"
+        }
+    )
+    
+    # Create the DataTable
+    frg_table = DataTable(
+        id="frg-monitor-table",
+        columns=[],  # Will be populated by callback
+        data=[],     # Will be populated by callback
+        theme=default_theme,
+        page_size=20,
+        style_table={
+            'overflowX': 'auto',
+            'width': '100%',
+            'minWidth': '100%'
+        },
+        style_cell={
+            'textAlign': 'center',
+            'padding': '8px',
+            'fontSize': '0.85rem',
+            'whiteSpace': 'normal',
+            'height': 'auto',
+            'backgroundColor': default_theme.base_bg,
+            'color': default_theme.text_light
+        },
+        style_header={
+            'backgroundColor': default_theme.panel_bg,
+            'fontWeight': 'bold',
+            'color': default_theme.text_light,
+            'fontSize': '0.9rem'
+        },
+        style_data_conditional=[
+            # Highlight positive P&L values
+            {
+                'if': {
+                    'filter_query': '{daily_pnl} > 0',
+                    'column_id': 'daily_pnl'
+                },
+                'color': default_theme.success
+            },
+            {
+                'if': {
+                    'filter_query': '{total_pnl} > 0',
+                    'column_id': 'total_pnl'
+                },
+                'color': default_theme.success
+            },
+            # Highlight negative P&L values
+            {
+                'if': {
+                    'filter_query': '{daily_pnl} < 0',
+                    'column_id': 'daily_pnl'
+                },
+                'color': default_theme.danger
+            },
+            {
+                'if': {
+                    'filter_query': '{total_pnl} < 0',
+                    'column_id': 'total_pnl'
+                },
+                'color': default_theme.danger
+            },
+            # Highlight futures rows
+            {
+                'if': {
+                    'filter_query': '{type} = "FUT"'
+                },
+                'backgroundColor': default_theme.secondary,
+                'color': default_theme.text_light
+            }
+        ]
+    )
+    
+    # Create interval component for polling
+    interval_component = dcc.Interval(
+        id='frg-monitor-interval',
+        interval=1000,  # 1 second
+        n_intervals=0
+    )
+    
+    # Store for last update timestamp
+    last_update_store = dcc.Store(
+        id='frg-monitor-last-update-store',
+        data={'timestamp': None}
+    )
+    
+    # Wrap table in a Grid
+    table_grid = Grid(
+        id="frg-monitor-table-grid",
+        children=[frg_table.render()],
+        style={
+            "backgroundColor": default_theme.panel_bg, 
+            "padding": "15px", 
+            "borderRadius": "5px"
+        }
+    )
+    
+    # Create info panel
+    info_panel = Container(
+        id="frg-monitor-info-panel",
+        children=[
+            html.Div([
+                status_display,
+                last_update_display
+            ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"})
+        ],
+        theme=default_theme,
+        style={
+            'padding': '15px', 
+            'marginBottom': '20px', 
+            'backgroundColor': default_theme.panel_bg,
+            'borderRadius': '4px', 
+            'border': f'1px solid {default_theme.secondary}'
+        }
+    )
+    
+    # Main container
+    main_container = Container(
+        id="frg-monitor-container",
+        children=[
+            header,
+            info_panel.render(),
+            table_grid.render(),
+            interval_component,
+            last_update_store
+        ],
+        style={"padding": "15px"}
+    )
+    
+    return main_container.render()
+
+# --- End FRGMonitor Tab ---
+
 # --- Actant EOD Helper Functions (Placeholder) ---
 def aeod_create_dashboard_layout():
     """Create the main dashboard layout with new design."""
@@ -2840,6 +3012,7 @@ def create_sidebar():
         {"id": "nav-pnl-tracking", "label": "PnL Tracking", "icon": "💹"},  # New P&L Tracking tab
         # {"id": "nav-pnl-tracking-v2", "label": "PnL Tracking V2", "icon": "🚀"},  # CTO_INTEGRATION: V2 removed
         {"id": "nav-spot-risk", "label": "Spot Risk", "icon": "🎯"},
+        {"id": "nav-frg-monitor", "label": "FRGMonitor", "icon": "📊"},  # New FRGMonitor tab
         {"id": "nav-observatory", "label": "Observatory", "icon": "👀"},
         {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
         {"id": "nav-logs", "label": "Logs (Legacy)", "icon": "📋"}  # Mark as legacy
@@ -2996,6 +3169,17 @@ def get_page_content(page_name):
                 style={"color": "red", "padding": "20px"}
             )
     
+    # Load FRGMonitor dashboard
+    if page_name == "frg-monitor":
+        try:
+            return create_frg_monitor_content()
+        except Exception as e:
+            logger.error(f"Error loading FRGMonitor dashboard: {e}")
+            return html.Div(
+                f"Error loading FRGMonitor dashboard: {str(e)}", 
+                style={"color": "red", "padding": "20px"}
+            )
+    
     return page_content_mapping.get(page_name, pricing_monkey_tab_main_container_rendered)
 
 # --- End Sidebar System ---
@@ -3046,6 +3230,7 @@ app.layout = html.Div([
      Output("nav-pnl-tracking", "style"),
      # Output("nav-pnl-tracking-v2", "style"),  # CTO_INTEGRATION: v2 removed
      Output("nav-spot-risk", "style"),
+     Output("nav-frg-monitor", "style"),
      Output("nav-observatory", "style")],
     [Input("nav-pricing-monkey", "n_clicks"),
      Input("nav-analysis", "n_clicks"),
@@ -3058,12 +3243,13 @@ app.layout = html.Div([
      Input("nav-pnl-tracking", "n_clicks"),
      # Input("nav-pnl-tracking-v2", "n_clicks"),  # CTO_INTEGRATION: v2 removed
      Input("nav-spot-risk", "n_clicks"),
+     Input("nav-frg-monitor", "n_clicks"),
      Input("nav-observatory", "n_clicks")],
     [State("active-page-store", "data")],
     prevent_initial_call=False
 )
 @monitor()
-def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, pnl_tracking_clicks, spot_risk_clicks, observatory_clicks, current_page):
+def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, pnl_tracking_clicks, spot_risk_clicks, frg_monitor_clicks, observatory_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
     # Determine which button was clicked
@@ -3085,6 +3271,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
             "nav-pnl-tracking": "pnl-tracking",
             # "nav-pnl-tracking-v2": "pnl-tracking-v2",  # CTO_INTEGRATION: v2 removed
             "nav-spot-risk": "spot-risk",
+            "nav-frg-monitor": "frg-monitor",
             "nav-observatory": "observatory"
         }
         active_page = page_mapping.get(trigger_id, current_page or "pricing-monkey")
@@ -3138,12 +3325,13 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
         "pnl-tracking": active_style if active_page == "pnl-tracking" else inactive_style,
         # "pnl-tracking-v2": active_style if active_page == "pnl-tracking-v2" else inactive_style,  # CTO_INTEGRATION: v2 removed
         "spot-risk": active_style if active_page == "spot-risk" else inactive_style,
+        "frg-monitor": active_style if active_page == "frg-monitor" else inactive_style,
         "observatory": active_style if active_page == "observatory" else inactive_style
     }
     
     logger.info(f"Navigation: switched to page '{active_page}'")
     
-    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["pnl-tracking"], styles["spot-risk"], styles["observatory"]
+    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["pnl-tracking"], styles["spot-risk"], styles["frg-monitor"], styles["observatory"]
 
 # Remove old tabs-based layout
 # main_tabs_rendered = Tabs(
@@ -3167,6 +3355,149 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
 
 logger.info("UI layout defined with sidebar navigation.")
 # --- End Layout ---
+
+# --- FRGMonitor Callbacks ---
+@app.callback(
+    [Output("frg-monitor-table", "columns"),
+     Output("frg-monitor-table", "data"),
+     Output("frg-monitor-status-text", "children"),
+     Output("frg-monitor-last-update-text", "children"),
+     Output("frg-monitor-last-update-store", "data")],
+    [Input("frg-monitor-interval", "n_intervals")],
+    [State("frg-monitor-last-update-store", "data")],
+    prevent_initial_call=False
+)
+@monitor()
+def update_frg_monitor_table(n_intervals, last_update_data):
+    """Update FRGMonitor table with smart polling"""
+    import sqlite3
+    import pandas as pd
+    from datetime import datetime
+    import os
+    
+    try:
+        # Database path
+        db_path = "data/output/pnl/pnl_tracker.db"
+        
+        # Check if database exists
+        if not os.path.exists(db_path):
+            return [], [], "Database not found", "--", last_update_data
+        
+        # Connect to database
+        conn = sqlite3.connect(db_path)
+        
+        # Get the latest update timestamp from FULLPNL table
+        check_query = "SELECT MAX(last_update) FROM FULLPNL"
+        latest_timestamp = conn.execute(check_query).fetchone()[0]
+        
+        # Check if data has changed
+        last_timestamp = last_update_data.get('timestamp') if last_update_data else None
+        
+        if latest_timestamp == last_timestamp and n_intervals > 0:
+            # No changes, prevent update
+            conn.close()
+            raise PreventUpdate
+        
+        # Fetch all data from FULLPNL table
+        query = """
+        SELECT 
+            symbol_tyu5,
+            symbol_bloomberg,
+            type,
+            net_quantity,
+            closed_quantity,
+            avg_entry_price,
+            current_price,
+            flash_close,
+            prior_close,
+            current_present_value,
+            prior_present_value,
+            unrealized_pnl_current,
+            unrealized_pnl_flash,
+            unrealized_pnl_close,
+            realized_pnl,
+            daily_pnl,
+            total_pnl,
+            vtexp,
+            delta_f,
+            gamma_f,
+            speed_f,
+            theta_f,
+            vega_f,
+            dv01_y,
+            delta_y,
+            gamma_y,
+            speed_y,
+            theta_y,
+            vega_y,
+            last_update,
+            spot_risk_file,
+            tyu5_run_id
+        FROM FULLPNL
+        ORDER BY symbol_tyu5
+        """
+        
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        
+        # Format numeric columns
+        numeric_cols = [
+            'net_quantity', 'closed_quantity', 'avg_entry_price', 'current_price',
+            'flash_close', 'prior_close', 'current_present_value', 'prior_present_value',
+            'unrealized_pnl_current', 'unrealized_pnl_flash', 'unrealized_pnl_close',
+            'realized_pnl', 'daily_pnl', 'total_pnl', 'vtexp',
+            'delta_f', 'gamma_f', 'speed_f', 'theta_f', 'vega_f',
+            'dv01_y', 'delta_y', 'gamma_y', 'speed_y', 'theta_y', 'vega_y'
+        ]
+        
+        for col in numeric_cols:
+            if col in df.columns:
+                # Round to appropriate precision
+                if col in ['avg_entry_price', 'current_price', 'flash_close', 'prior_close']:
+                    df[col] = df[col].round(3)
+                elif col.endswith('_pnl') or col.endswith('_value'):
+                    df[col] = df[col].round(2)
+                elif col in ['gamma_f', 'speed_f', 'gamma_y', 'speed_y']:
+                    df[col] = df[col].round(6)
+                else:
+                    df[col] = df[col].round(4)
+        
+        # Create columns configuration
+        columns = []
+        for col in df.columns:
+            col_config = {"name": col.replace('_', ' ').title(), "id": col}
+            
+            # Add formatting for specific columns
+            if col.endswith('_pnl') or col.endswith('_value'):
+                col_config["type"] = "numeric"
+                col_config["format"] = {"specifier": "$,.2f"}
+            elif col in numeric_cols:
+                col_config["type"] = "numeric"
+            
+            columns.append(col_config)
+        
+        # Convert dataframe to records
+        data = df.to_dict('records')
+        
+        # Update status
+        status_text = f"Connected - {len(data)} rows"
+        
+        # Update last update time
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Store new timestamp
+        new_update_data = {'timestamp': latest_timestamp}
+        
+        return columns, data, status_text, current_time, new_update_data
+        
+    except PreventUpdate:
+        # This is expected behavior, re-raise it
+        raise
+    except Exception as e:
+        logger.error(f"Error updating FRGMonitor table: {type(e).__name__}: {str(e)}", exc_info=True)
+        return [], [], f"Error: {type(e).__name__}: {str(e)}", "--", last_update_data
+
+# --- End FRGMonitor Callbacks ---
 
 # --- Callbacks ---
 @app.callback(
