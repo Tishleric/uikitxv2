@@ -1,8 +1,10 @@
 import pandas as pd
 from .utils import price_to_decimal, decimal_to_32nds
 from .bachelier import run_pnl_attribution
+from .settlement_pnl import SettlementPnLCalculator, PnLComponent
 import datetime
 import os  # Added for path resolution
+from typing import Dict, List, Optional, Tuple
 
 class PositionCalculator2:
     def __init__(self, multiplier: float = 1000):
@@ -14,6 +16,9 @@ class PositionCalculator2:
         self.realized_pnl = {}         # ACTIVE: Store realized P&L by symbol
         self.closed_quantities = {}    # ACTIVE: Store closed quantities by symbol
         self.multiplier = multiplier
+        self.settlement_calculator = SettlementPnLCalculator(multiplier)
+        self.settlement_prices = {}    # Store all settlement prices by date
+        self.lot_details = {}          # Enhanced lot tracking with timestamps
 
     def update_prices(self, market_prices_df: pd.DataFrame):
         from .debug_logger import get_debug_logger
@@ -51,6 +56,43 @@ class PositionCalculator2:
             else:
                 logger.log_price_lookup(symbol, 'Prior_Close', None, 'market_prices_df')
 
+    def update_settlement_prices(self, settlement_date: datetime.date, prices: Dict[str, float]):
+        """
+        Update settlement prices for a specific date.
+        
+        Args:
+            settlement_date: The settlement date
+            prices: Dict mapping symbol to settlement price
+        """
+        self.settlement_prices[settlement_date] = prices
+
+    def update_lot_details(self, lot_breakdown_df: pd.DataFrame):
+        """
+        Update enhanced lot details with timestamps from trade processor.
+        
+        Args:
+            lot_breakdown_df: DataFrame from TradeProcessor.get_position_breakdown_with_timestamps()
+        """
+        self.lot_details = {}
+        
+        for _, lot in lot_breakdown_df.iterrows():
+            symbol = lot['Symbol']
+            if symbol not in self.lot_details:
+                self.lot_details[symbol] = []
+            
+            self.lot_details[symbol].append({
+                'lot_id': lot['Lot_ID'],
+                'position_id': lot['Position_ID'],
+                'entry_datetime': pd.to_datetime(lot['Entry_DateTime']),
+                'entry_price': lot['Entry_Price'],
+                'initial_quantity': lot['Initial_Quantity'],
+                'remaining_quantity': lot['Remaining_Quantity'],
+                'exit_datetime': pd.to_datetime(lot['Exit_DateTime']) if pd.notna(lot['Exit_DateTime']) else None,
+                'exit_price': lot['Exit_Price'] if pd.notna(lot['Exit_Price']) else None,
+                'is_closed': lot['Is_Closed'],
+                'type': lot['Type']
+            })
+
     def update_realized_pnl(self, processed_trades_df: pd.DataFrame):
         """Update realized P&L from processed trades.
         
@@ -69,14 +111,43 @@ class PositionCalculator2:
         self.closed_quantities = closed_quantities.copy()
 
     def calculate_positions(self) -> pd.DataFrame:
+        """Calculate positions with backward compatibility."""
+        # Call the new settlement-aware method
+        settlement_df = self.calculate_positions_with_settlement()
+        
+        # If empty, return empty with expected columns
+        if settlement_df.empty:
+            return pd.DataFrame(columns=[
+                'Symbol', 'Type', 'Net_Quantity', 'Closed_Quantity',
+                'Avg_Entry_Price', 'Avg_Entry_Price_32nds', 'Prior_Close',
+                'Current_Price', 'Flash_Close', 'Prior_Present_Value',
+                'Current_Present_Value', 'Unrealized_PNL', 'Unrealized_PNL_Current',
+                'Unrealized_PNL_Flash', 'Unrealized_PNL_Close', 'Daily_PNL',
+                'Realized_PNL', 'Total_PNL'
+            ])
+        
+        # Return simplified view for backward compatibility
+        return settlement_df[[
+            'Symbol', 'Type', 'Net_Quantity', 'Closed_Quantity',
+            'Avg_Entry_Price', 'Avg_Entry_Price_32nds', 'Prior_Close',
+            'Current_Price', 'Flash_Close', 'Prior_Present_Value',
+            'Current_Present_Value', 'Unrealized_PNL', 'Unrealized_PNL_Current',
+            'Unrealized_PNL_Flash', 'Unrealized_PNL_Close', 'Daily_PNL',
+            'Realized_PNL', 'Total_PNL'
+        ]]
+
+    def calculate_positions_with_settlement(self) -> pd.DataFrame:
+        """Calculate positions with settlement-aware P&L breakdown."""
         today = datetime.date.today().strftime('%Y-%m-%d')
         result = []
+        
         for symbol, pos_list in self.positions.items():
             # Support both long (positive) and short (negative) positions
             total_qty = sum(p['remaining'] for p in pos_list)
             type_ = pos_list[0]['Type']
             if total_qty == 0:
                 continue
+            
             # Weighted average entry price (works for both long and short)
             total_val = sum(p['remaining'] * p['price'] for p in pos_list)
             avg_price = total_val / total_qty if total_qty != 0 else 0
@@ -106,9 +177,6 @@ class PositionCalculator2:
             else:
                 close = close_prev
 
-            # P&L logic works for both long (positive qty) and short (negative qty)
-            # ACTIVE: Added multiple P&L calculations
-            
             # Get all price values (will be None if not available)
             current = self.current_prices.get(symbol, None)
             flash = self.flash_prices.get(symbol, None)
@@ -118,10 +186,13 @@ class PositionCalculator2:
             prior_present_value = total_qty * avg_price * self.multiplier
             current_present_value = total_qty * current * self.multiplier if current is not None else None
             
-            # Multiple P&L calculations - show "awaiting data" if price missing
+            # Traditional P&L calculations for backward compatibility
             unrealized_current = total_qty * (current - avg_price) * self.multiplier if current is not None else "awaiting data"
             unrealized_flash = total_qty * (flash - avg_price) * self.multiplier if flash is not None else "awaiting data"
             unrealized_close = total_qty * (prior_close - avg_price) * self.multiplier if prior_close is not None else "awaiting data"
+            
+            # Settlement-aware P&L calculation
+            settlement_pnl_data = self._calculate_settlement_aware_pnl(symbol)
             
             # Daily P&L still uses current vs close
             daily = total_qty * (current - close) * self.multiplier if current is not None and close is not None else "awaiting data"
@@ -151,216 +222,95 @@ class PositionCalculator2:
                 'Unrealized_PNL_Current': unrealized_current,
                 'Unrealized_PNL_Flash': unrealized_flash,
                 'Unrealized_PNL_Close': unrealized_close,
-                'Realized_PNL': symbol_realized_pnl,  # ACTIVE: Added realized P&L
                 'Daily_PNL': daily,
-                'Total_PNL': total_pnl  # ACTIVE: Now includes both realized and unrealized
+                'Realized_PNL': symbol_realized_pnl,
+                'Total_PNL': total_pnl,
+                # Settlement-aware fields
+                'Settlement_PNL_Total': settlement_pnl_data['total_pnl'],
+                'PNL_Components': settlement_pnl_data['components'],
+                'Settlements_Crossed': settlement_pnl_data['settlements_crossed'],
+                'detailed_components': settlement_pnl_data.get('detailed_components', [])
             })
 
         return pd.DataFrame(result)
-    
-class PositionCalculator:
-    def __init__(self, multiplier: float = 1000):
-        self.positions = {}
-        self.position_details = {}
-        self.current_prices = {}      # Live current price
-        self.flash_prices = {}         # Flash close price
-        self.prior_close_prices = {}
-        self.realized_pnl = {}         # ACTIVE: Store realized P&L by symbol
-        self.closed_quantities = {}    # ACTIVE: Store closed quantities by symbol
-        self.multiplier = multiplier
 
-    def update_prices(self, market_prices_df: pd.DataFrame):
-        from .debug_logger import get_debug_logger
-        logger = get_debug_logger()
-        
-        if market_prices_df is None or market_prices_df.empty:
-            logger.log("PRICE_UPDATE", "No market prices provided")
-            return
-            
-        logger.log("PRICE_UPDATE", f"Updating prices for {len(market_prices_df)} symbols")
-        
-        for _, row in market_prices_df.iterrows():
-            symbol = row['Symbol']
-            # ACTIVE: Handle missing prices without fallbacks
-            
-            # Only set prices if they are actually available
-            if pd.notna(row.get('Current_Price')):
-                price = price_to_decimal(str(row['Current_Price']))
-                self.current_prices[symbol] = price
-                logger.log_price_lookup(symbol, 'Current_Price', price, 'market_prices_df')
-            else:
-                logger.log_price_lookup(symbol, 'Current_Price', None, 'market_prices_df')
-                
-            if pd.notna(row.get('Flash_Close')):
-                price = price_to_decimal(str(row['Flash_Close']))
-                self.flash_prices[symbol] = price
-                logger.log_price_lookup(symbol, 'Flash_Close', price, 'market_prices_df')
-            else:
-                logger.log_price_lookup(symbol, 'Flash_Close', None, 'market_prices_df')
-                
-            if pd.notna(row.get('Prior_Close')):
-                price = price_to_decimal(str(row['Prior_Close']))
-                self.prior_close_prices[symbol] = price
-                logger.log_price_lookup(symbol, 'Prior_Close', price, 'market_prices_df')
-            else:
-                logger.log_price_lookup(symbol, 'Prior_Close', None, 'market_prices_df')
-
-    def update_realized_pnl(self, processed_trades_df: pd.DataFrame):
-        """Update realized P&L from processed trades.
-        
-        Args:
-            processed_trades_df: DataFrame from TradeProcessor with Realized_PNL column
+    def _calculate_settlement_aware_pnl(self, symbol: str) -> Dict:
         """
-        # Aggregate realized P&L by symbol
-        self.realized_pnl = processed_trades_df.groupby('Symbol')['Realized_PNL'].sum().to_dict()
+        Calculate settlement-aware P&L for a symbol using lot details.
         
-    def update_closed_quantities(self, closed_quantities: dict):
-        """Update closed quantities from TradeProcessor.
-        
-        Args:
-            closed_quantities: Dictionary mapping symbol to closed quantity
+        Returns aggregated P&L data with component breakdown.
         """
-        self.closed_quantities = closed_quantities.copy()
-
-    def calculate_positions(self) -> pd.DataFrame:
-        today = datetime.date.today().strftime('%Y-%m-%d')
-        result = []
-        for symbol, pos_list in self.positions.items():
-            total_qty = sum(p['remaining'] for p in pos_list)
-            type_ = pos_list[0]['Type']
-            if total_qty == 0:
+        if symbol not in self.lot_details:
+            return {'total_pnl': 0, 'components': [], 'settlements_crossed': 0}
+        
+        all_components = []
+        total_pnl = 0
+        max_settlements = 0
+        
+        # Get symbol-specific settlement prices
+        symbol_settlement_prices = {}
+        for date, prices in self.settlement_prices.items():
+            if symbol in prices:
+                symbol_settlement_prices[date] = prices[symbol]
+        
+        # Calculate P&L for each lot
+        for lot in self.lot_details[symbol]:
+            if lot['remaining_quantity'] == 0 and not lot['is_closed']:
+                continue  # Skip fully matched but not yet closed lots
+            
+            current_price = self.current_prices.get(symbol)
+            if current_price is None:
                 continue
-            total_val = sum(p['remaining'] * p['price'] for p in pos_list)
-            avg_price = total_val / total_qty if total_qty != 0 else 0
-            current = self.current_prices.get(symbol, None)
-
-            today_lots = [p for p in pos_list if p.get('date', '')[:10] == today]
-            prev_lots = [p for p in pos_list if p.get('date', '')[:10] != today]
-
-            qty_today = sum(p['remaining'] for p in today_lots)
-            qty_prev = sum(p['remaining'] for p in prev_lots)
-
-            close_today = (
-                sum(p['remaining'] * p['price'] for p in today_lots) / qty_today
-                if qty_today != 0 else 0
+            
+            lot_result = self.settlement_calculator.calculate_lot_pnl(
+                entry_time=lot['entry_datetime'],
+                exit_time=lot['exit_datetime'],
+                entry_price=lot['entry_price'],
+                exit_price=lot['exit_price'],
+                quantity=lot['initial_quantity'],
+                current_price=current_price,
+                settlement_prices=symbol_settlement_prices
             )
-            close_prev = self.prior_close_prices.get(symbol, None)
-
-            if qty_today != 0 and qty_prev != 0:
-                close = (qty_today * close_today + qty_prev * close_prev) / (qty_today + qty_prev)
-            elif qty_today != 0:
-                close = close_today
-            else:
-                close = close_prev
-
-            # ACTIVE: Get all price values
-            flash = self.flash_prices.get(symbol, None)
-            prior_close = self.prior_close_prices.get(symbol, None)
             
-            # ACTIVE: Present Values
-            prior_present_value = total_qty * avg_price * self.multiplier
-            current_present_value = total_qty * current * self.multiplier if current is not None else None
+            total_pnl += lot_result['total_pnl']
+            all_components.extend(lot_result['components'])
             
-            # ACTIVE: Multiple P&L calculations
-            unrealized = total_qty * (current - avg_price) * self.multiplier if current is not None else "awaiting data"
-            unrealized_current = unrealized  # Same as unrealized, for clarity
-            unrealized_flash = total_qty * (flash - avg_price) * self.multiplier if flash is not None else "awaiting data"
-            unrealized_close = total_qty * (prior_close - avg_price) * self.multiplier if prior_close is not None else "awaiting data"
+            # Track max settlements crossed
+            settlements_in_lot = len([c for c in lot_result['components'] 
+                                    if c.period_type in ['entry_to_settle', 'settle_to_settle', 'settle_to_exit']])
+            max_settlements = max(max_settlements, settlements_in_lot)
+        
+        # Aggregate components by type
+        aggregated = self.settlement_calculator.aggregate_components_by_type(all_components)
+        
+        return {
+            'total_pnl': total_pnl,
+            'components': aggregated,
+            'settlements_crossed': max_settlements,
+            'detailed_components': all_components  # Keep detailed breakdown
+        }
+
+    def get_settlement_pnl_breakdown(self) -> pd.DataFrame:
+        """
+        Get detailed P&L breakdown by component type for all positions.
+        
+        Returns DataFrame with P&L split by settlement periods.
+        """
+        breakdown = []
+        
+        for symbol in self.positions:
+            pnl_data = self._calculate_settlement_aware_pnl(symbol)
             
-            # ACTIVE: Daily P&L uses current vs close
-            daily = total_qty * (current - close) * self.multiplier if current is not None and close is not None else "awaiting data"
-            
-            # Get realized P&L for this symbol
-            symbol_realized_pnl = self.realized_pnl.get(symbol, 0.0)
-            
-            # Get closed quantity for this symbol
-            symbol_closed_qty = self.closed_quantities.get(symbol, 0.0)
-            
-            # Total P&L includes both realized and unrealized
-            total_pnl = symbol_realized_pnl + unrealized if unrealized != "awaiting data" else "awaiting data"
-
-            # --- Integrate run_pnl_attribution for options ---
-            attribution = {}
-            if type_ in ['CALL', 'PUT']:
-                option_type = 'call' if type_ == 'CALL' else 'put'
-                K = pos_list[0].get('Strike', avg_price)
-                prior_price = close_prev
-                F = current
-                F_prior = close_prev
-                dT = 1 / 252.0  # 1 day decay, adjust as needed
-                try:
-                    today_date = datetime.date.today()
-                    if isinstance(today_date, datetime.date) and not isinstance(today_date, datetime.datetime):
-                        now_dt = datetime.datetime.combine(today_date, datetime.time(0, 0))
-                    else:
-                        now_dt = today_date
-                    option_str = symbol
-                    parts = option_str.split()
-
-                    base_symbol = parts[0]      # 'WY3N5' - use different variable name
-                    opt_type = parts[1]         # 'C' (call) or 'P' (put)
-                    strike = float(parts[2])    # 110.25
-                    
-                    # Fix: Use absolute path for ExpirationCalendar.csv
-                    calendar_path = os.path.join(
-                        os.path.dirname(os.path.abspath(__file__)), 
-                        'ExpirationCalendar.csv'
-                    )
-                    
-                    print(dict(
-                        now=now_dt-datetime.timedelta(days=0),
-                        option_symbol=base_symbol,
-                        calendar_csv=calendar_path,  # Use absolute path
-                        F=110+11.5/32,
-                        K=strike,
-                        P=current,
-                        Prior=prior_price,
-                        F_prior=110+5/32,
-                        dT=dT,
-                        option_type=opt_type.lower(),
-                        r=0.01
-                    ))                    
-                    attribution_result = run_pnl_attribution(
-                        now=now_dt-datetime.timedelta(days=1),
-                        option_symbol=base_symbol,
-                        calendar_csv=calendar_path,  # Use absolute path
-                        F=F,
-                        K=strike,
-                        P=current,
-                        Prior=prior_price,
-                        F_prior=F_prior,
-                        dT=dT,
-                        option_type=opt_type.lower(),
-                        r=0.01
-                    )
-
-                    attribution = attribution_result.get('attribution', {})
-                except Exception as e:
-                    attribution = {'attribution_error': str(e)}
-
-            row = {
-                'Symbol': symbol,
-                'Type': type_,
-                'Net_Quantity': total_qty,
-                'Closed_Quantity': symbol_closed_qty,  # ACTIVE: Added closed quantity
-                'Avg_Entry_Price': avg_price,
-                'Avg_Entry_Price_32nds': decimal_to_32nds(avg_price),
-                'Prior_Close': close,
-                'Current_Price': current,
-                'Flash_Close': flash,  # ACTIVE: Added flash close price
-                'Prior_Present_Value': prior_present_value,  # ACTIVE: Added
-                'Current_Present_Value': current_present_value,  # ACTIVE: Added
-                'Unrealized_PNL': unrealized,  # Keep backward compatibility
-                'Unrealized_PNL_Current': unrealized_current,  # ACTIVE: Added
-                'Unrealized_PNL_Flash': unrealized_flash,  # ACTIVE: Added
-                'Unrealized_PNL_Close': unrealized_close,  # ACTIVE: Added
-                'Realized_PNL': symbol_realized_pnl,  # ACTIVE: Added realized P&L
-                'Daily_PNL': daily,
-                'Total_PNL': total_pnl
-            }
-            if attribution:
-                row.update(attribution)
-
-            result.append(row)
-
-        return pd.DataFrame(result)
+            if pnl_data['detailed_components']:
+                for component in pnl_data['detailed_components']:
+                    breakdown.append({
+                        'Symbol': symbol,
+                        'Period_Type': component.period_type,
+                        'Start_Time': component.start_time,
+                        'End_Time': component.end_time,
+                        'Start_Price': component.start_price,
+                        'End_Price': component.end_price,
+                        'PNL_Amount': component.pnl_amount
+                    })
+        
+        return pd.DataFrame(breakdown)

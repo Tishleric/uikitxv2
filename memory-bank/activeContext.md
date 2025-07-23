@@ -1,86 +1,88 @@
-# Active Context & Next Steps
+# Mode: ACT
 
-**Current Focus**: Unified Watcher Service Implementation
-**Task**: Created unified script to run all file watchers  
-**Status**: ✅ COMPLETE (July 21, 2025)
+## Current Focus
 
-## Active Pipelines and Watchers (CURRENT STATE)
+Settlement-Aware P&L System Implementation - Pre-Phase 2 Integration Complete
 
-### 1. Market Price File Monitor (`MarketPriceFileMonitor`)
-- **Script**: `scripts/run_market_price_monitor.py`
-- **Purpose**: Monitor and process market price CSV files
-- **Monitors**: 
-  - `data/input/market_prices/futures/`
-  - `data/input/market_prices/options/`
-- **Processing Windows**:
-  - 2:00 PM CDT ± 15 minutes → Updates Current_Price
-  - 4:00 PM CDT ± 15 minutes → Sets next day's Prior_Close
-- **Output**: Updates `market_prices` table in `data/output/market_prices/market_prices.db`
+### Project Status
 
-### 2. Spot Risk Watcher (`SpotRiskWatcher`)
-- **Script**: `run_spot_risk_watcher.py`
-- **Purpose**: Process spot risk files AND update current market prices
-- **Monitors**: `data/input/actant_spot_risk/`
-- **Dual Functionality**:
-  1. Processes spot risk Greek calculations → `data/output/spot_risk/`
-  2. Updates market prices via `SpotRiskPriceProcessor` → `market_prices.db`
-- **Price Source**: Uses ADJTHEOR value or (BID+ASK)/2 as fallback
+**Phase 1: Settlement-Aware P&L Core (COMPLETED)** ✅
+- ✅ Created `settlement_pnl.py` module with clean P&L component tracking
+- ✅ Enhanced trade processor to preserve entry/exit timestamps on all lots
+- ✅ Integrated settlement calculator into position calculator
+- ✅ Implemented proper handling of multi-day positions (entry→settle→settle→exit)
+- ✅ Full test coverage for all scenarios (intraday, same-day cross, multi-day)
 
-### 3. PNL Pipeline Watcher (`PNLPipelineWatcher`)
-- **Script**: `scripts/run_pnl_watcher.py`
-- **Purpose**: Monitor for changes and trigger TYU5 P&L calculations
-- **Monitors**:
-  - Trade ledger files: `data/input/trade_ledger/trades_*.csv`
-  - Market prices DB: `data/output/market_prices/market_prices.db`
-- **Processing**: 
-  - Reads ALL trade ledger CSVs (not just most recent)
-  - Filters out zero-price and midnight trades
-  - Runs full TYU5 pipeline on any change
-- **Output**: Populates `tyu5_*` tables in `data/output/pnl/pnl_tracker.db`
+**Pre-Phase 2: Integration Tasks (COMPLETED)** ✅
+- ✅ Fixed TYU5 main.py to use PositionCalculator2 with settlement logic
+- ✅ Connected lot breakdown with timestamps through the pipeline
+- ✅ Created migration for P&L components table and alerts table
+- ✅ Enhanced TYU5DatabaseWriter to persist P&L components
+- ✅ Created SettlementPriceLoader to load px_settle from market_prices.db
+- ✅ Integrated settlement price loading into TYU5 main flow
+- ✅ Added explicit error handling for missing settlement prices (no silent defaults)
 
-### 4. Unified Watcher Service (NEW)
-- **Script**: `scripts/run_all_watchers.py`
-- **Batch File**: `run_all_watchers.bat`
-- **Purpose**: Start all three watchers in separate threads
-- **Benefits**:
-  - Single command to start all watchers
-  - Unified logging
-  - Graceful shutdown handling
-  - Thread monitoring for reliability
+**Key Integration Points:**
+1. **TYU5 Main Flow**:
+   - Now imports and uses SettlementPriceLoader
+   - Passes lot details with timestamps to PositionCalculator
+   - Loads settlement prices based on trade date range
 
-## Data Flow Architecture
+2. **Database Persistence**:
+   - New `tyu5_pnl_components` table stores P&L breakdown by period
+   - New `tyu5_alerts` table captures missing price warnings
+   - Enhanced position breakdown with entry/exit timestamps
+
+3. **Price Loading**:
+   - Handles Bloomberg suffix (TYU5 → "TYU5 Comdty")
+   - Reports missing prices explicitly - no silent failures
+   - Loads all settlement dates needed for position lifecycle
+
+### Settlement P&L Architecture (Updated)
+
+```python
+# Complete integration flow
+Trade Files → PnLPipelineWatcher → TradeLedgerAdapter → TYU5 Main
+                                                              ↓
+                                            TradeProcessor (timestamps)
+                                                              ↓
+                                    PositionCalculator2 + SettlementPriceLoader
+                                                              ↓
+                                         Settlement-Aware P&L Components
+                                                              ↓
+                                            TYU5DatabaseWriter
+                                                              ↓
+                                    pnl_tracker.db (components + alerts)
 ```
-Market Price CSVs (2pm/4pm) → MarketPriceFileMonitor → market_prices.db
-Spot Risk CSVs → SpotRiskWatcher → market_prices.db + spot risk output
-Trade Ledger CSVs + market_prices.db → PNLPipelineWatcher → TYU5 tables
-```
 
-## Important Notes
-- **NO LONGER USED**: `UnifiedPnLService`'s `TradeFileWatcher` (populated deprecated `cto_trades` table)
-- **All watchers can run independently** or via unified service
-- **Market prices populated from TWO sources**: regular price files AND spot risk files
+### Integration Test Results
 
-## Key Achievements (July 21, 2025)
-- Created unified watcher service (`run_all_watchers.py`)
-- Created Windows batch file for easy startup
-- Verified all watchers work independently
-- Eliminated duplicate trade file processing
-- Clear separation of concerns between watchers
+- ✅ Settlement prices loaded from market_prices.db
+- ✅ P&L components calculated with proper settlement splits
+- ✅ Missing price alerts generated when prices unavailable
+- ✅ Backward compatibility maintained for existing code
 
-## Previous Context (July 20, 2025)
-- Created TradeLedgerAdapter that bypasses legacy database completely
-- Implemented PNLPipelineWatcher for automated TYU5 processing
-- Successfully integrated with TYU5 P&L calculation engine
-- Added processing of ALL trade ledgers (not just most recent)
+### Ready for Phase 2: Period Attribution & Filtering
 
-## Previous Achievements (July 18, 2025)
-- Added Current_Price column to futures_prices and options_prices tables  
-- Created SpotRiskPriceProcessor to extract ADJTHEOR/BID-ASK midpoint
-- Integrated with existing SpotRiskFileHandler for automatic updates
-- Successfully tested with 57 prices (1 future, 56 options) updated
+With the integration complete, we can now:
+1. Implement trade filtering for 2pm-to-2pm P&L periods
+2. Add period parameters to TYU5Service.calculate_pnl()
+3. Update EODSnapshotService to use period-filtered calculations
+4. Test with real trade data and production scenarios
 
-## Files Created/Updated (July 21)
-- `scripts/run_all_watchers.py` - Unified watcher service
-- `run_all_watchers.bat` - Windows batch file for easy startup
-- `memory-bank/activeContext.md` - Updated documentation
-- `memory-bank/code-index.md` - Will update next 
+### Recent Code Additions
+
+**New Modules:**
+- `lib/trading/pnl_integration/settlement_price_loader.py` - Loads px_settle from DB
+- `scripts/migration/004_add_pnl_components_table.py` - Schema for components
+
+**Updated Modules:**
+- `lib/trading/pnl/tyu5_pnl/main.py` - Integrated settlement price loading
+- `lib/trading/pnl_integration/tyu5_database_writer.py` - Persists P&L components
+
+### Critical Integration Decisions
+
+1. **No Silent Defaults**: Missing settlement prices are explicitly reported
+2. **Bloomberg Format**: Price loader handles symbol suffix automatically
+3. **Alerts Table**: Provides audit trail for data quality issues
+4. **Run ID Tracking**: P&L components linked to calculation runs 

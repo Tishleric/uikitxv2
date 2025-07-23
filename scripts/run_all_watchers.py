@@ -2,10 +2,11 @@
 """
 Unified Watcher Service - Runs all file watchers for the trading system.
 
-This script starts and manages three watchers:
+This script starts and manages four watchers:
 1. Market Price File Monitor - Monitors futures/options price files (2pm/4pm)
 2. Spot Risk Watcher - Processes spot risk files and updates current prices
 3. PNL Pipeline Watcher - Monitors for changes to trigger TYU5 calculations
+4. EOD P&L Monitor - Monitors for 4pm settlement prices and calculates EOD snapshots
 """
 
 import sys
@@ -14,6 +15,7 @@ import signal
 import logging
 import threading
 import time
+import asyncio
 from pathlib import Path
 
 # Add project root to path
@@ -24,6 +26,8 @@ sys.path.insert(0, str(project_root))
 from lib.trading.market_prices import MarketPriceFileMonitor
 from lib.trading.actant.spot_risk.file_watcher import SpotRiskWatcher
 from lib.trading.pnl_integration.pnl_pipeline_watcher import PNLPipelineWatcher
+from lib.trading.pnl_integration.eod_snapshot_service import EODSnapshotService
+from lib.trading.pnl_integration.lot_snapshot_service import LotSnapshotService
 
 # Set up logging
 logging.basicConfig(
@@ -36,6 +40,8 @@ logger = logging.getLogger(__name__)
 market_price_monitor = None
 spot_risk_watcher = None
 pnl_pipeline_watcher = None
+eod_monitor = None
+lot_snapshot_monitor = None
 shutdown_event = threading.Event()
 
 
@@ -65,6 +71,13 @@ def signal_handler(signum, frame):
             logger.info("PNL Pipeline Watcher stopped")
         except Exception as e:
             logger.error(f"Error stopping PNL Pipeline Watcher: {e}")
+    
+    if eod_monitor:
+        try:
+            eod_monitor.stop_monitoring()
+            logger.info("EOD P&L Monitor stopped")
+        except Exception as e:
+            logger.error(f"Error stopping EOD P&L Monitor: {e}")
     
     sys.exit(0)
 
@@ -145,6 +158,57 @@ def run_pnl_pipeline_watcher():
         logger.error(f"Error in PNL Pipeline Watcher: {e}", exc_info=True)
 
 
+def run_eod_monitor():
+    """Run the EOD P&L monitor in a thread."""
+    global eod_monitor
+    
+    try:
+        logger.info("Starting EOD P&L Monitor...")
+        eod_monitor = EODSnapshotService()
+        
+        # Create async event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Run the monitor (3pm-6pm window, 60 second checks)
+        loop.run_until_complete(
+            eod_monitor.monitor_for_eod(check_interval=60)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in EOD P&L Monitor: {e}", exc_info=True)
+
+
+def run_lot_snapshot_monitor():
+    """Run the 2pm lot snapshot monitor in a thread."""
+    global lot_snapshot_monitor
+    
+    try:
+        logger.info("Starting 2PM Lot Snapshot Monitor...")
+        lot_snapshot_monitor = LotSnapshotService()
+        
+        # Simple monitoring loop that checks every minute
+        while not shutdown_event.is_set():
+            try:
+                # Check if 2pm snapshot is needed
+                if lot_snapshot_monitor.is_2pm_snapshot_needed():
+                    logger.info("2PM snapshot needed - capturing...")
+                    counts = lot_snapshot_monitor.capture_snapshot()
+                    logger.info(f"Captured snapshots for {len(counts)} symbols")
+                    
+            except Exception as e:
+                logger.error(f"Error capturing 2PM snapshot: {e}")
+            
+            # Wait 60 seconds before next check
+            for _ in range(60):
+                if shutdown_event.is_set():
+                    break
+                time.sleep(1)
+                
+    except Exception as e:
+        logger.error(f"Error in 2PM Lot Snapshot Monitor: {e}", exc_info=True)
+
+
 def main():
     """Main entry point."""
     logger.info("="*80)
@@ -154,6 +218,8 @@ def main():
     logger.info("  1. Market Price File Monitor - Monitors futures/options price files")
     logger.info("  2. Spot Risk Watcher - Processes spot risk files and updates prices")
     logger.info("  3. PNL Pipeline Watcher - Monitors for TYU5 pipeline triggers")
+    logger.info("  4. EOD P&L Monitor - Calculates EOD snapshots at 4pm")
+    logger.info("  5. Lot Snapshot Monitor - Captures open lot snapshots at 2pm")
     logger.info("")
     logger.info("Press Ctrl+C to stop all watchers...")
     logger.info("="*80)
@@ -188,6 +254,22 @@ def main():
         daemon=False
     )
     threads.append(pnl_thread)
+    
+    # EOD P&L Monitor thread
+    eod_thread = threading.Thread(
+        target=run_eod_monitor,
+        name="EODMonitor",
+        daemon=False
+    )
+    threads.append(eod_thread)
+    
+    # Lot Snapshot Monitor thread
+    snapshot_thread = threading.Thread(
+        target=run_lot_snapshot_monitor,
+        name="LotSnapshotMonitor",
+        daemon=False
+    )
+    threads.append(snapshot_thread)
     
     # Start all threads
     for thread in threads:

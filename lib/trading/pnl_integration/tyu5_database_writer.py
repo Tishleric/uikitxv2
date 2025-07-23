@@ -132,11 +132,21 @@ class TYU5DatabaseWriter:
             # Start transaction
             conn.execute("BEGIN TRANSACTION")
             
+            # Get run ID for this calculation
+            cursor = conn.cursor()
+            cursor.execute("SELECT MAX(id) FROM tyu5_runs")
+            result = cursor.fetchone()
+            run_id = (result[0] or 0) + 1 if result else 1
+            
             # Write lot positions
             self._write_lot_positions(conn, breakdown_df, calc_timestamp)
             
             # Write position Greeks (for options)
             self._write_position_greeks(conn, positions_df, calc_timestamp)
+            
+            # Write P&L components if available
+            if 'PNL_Components' in positions_df.columns:
+                self._write_pnl_components(conn, positions_df, breakdown_df, run_id, calc_timestamp)
             
             # Write risk scenarios
             if risk_df is not None:
@@ -160,6 +170,132 @@ class TYU5DatabaseWriter:
             return False
         finally:
             conn.close()
+
+    def _write_pnl_components(self, 
+                            conn: sqlite3.Connection, 
+                            positions_df: pd.DataFrame,
+                            breakdown_df: pd.DataFrame,
+                            run_id: int,
+                            calc_timestamp: datetime) -> None:
+        """Write P&L components to database with proper error handling for missing prices.
+        
+        Args:
+            conn: Database connection
+            positions_df: Positions with PNL_Components column
+            breakdown_df: Lot breakdown for mapping
+            run_id: Calculation run ID
+            calc_timestamp: Timestamp of calculation
+        """
+        cursor = conn.cursor()
+        components_written = 0
+        missing_price_warnings = []
+        
+        try:
+            # Clear old components for this run
+            cursor.execute("""
+                DELETE FROM tyu5_pnl_components 
+                WHERE calculation_run_id = ?
+            """, (run_id,))
+            
+            for _, position in positions_df.iterrows():
+                symbol = position['Symbol']
+                
+                # Skip if no components
+                if pd.isna(position.get('PNL_Components')):
+                    continue
+                
+                # Check for detailed components (new approach)
+                detailed_components = None
+                if 'detailed_components' in position:
+                    detailed_components = position['detailed_components']
+                elif hasattr(position.get('PNL_Components'), '__iter__') and 'detailed_components' in position.get('PNL_Components', {}):
+                    detailed_components = position['PNL_Components'].get('detailed_components', [])
+                
+                # If we have detailed components, write them
+                if detailed_components:
+                    for comp in detailed_components:
+                        # Get lot info from breakdown
+                        lot_id = getattr(comp, 'lot_id', f"LOT_{symbol}_{components_written}")
+                        
+                        cursor.execute("""
+                            INSERT INTO tyu5_pnl_components
+                            (lot_id, symbol, component_type, start_time, end_time,
+                             start_price, end_price, quantity, pnl_amount, 
+                             start_settlement_key, end_settlement_key,
+                             calculation_run_id, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            lot_id,
+                            symbol,
+                            comp.period_type,
+                            comp.start_time,
+                            comp.end_time,
+                            comp.start_price,
+                            comp.end_price,
+                            0,  # Quantity - we'll update this later
+                            comp.pnl_amount,
+                            comp.start_settlement_key,
+                            comp.end_settlement_key,
+                            run_id,
+                            calc_timestamp
+                        ))
+                        components_written += 1
+                else:
+                    # Fallback to aggregated components (old approach)
+                    components = position.get('PNL_Components', {})
+                    
+                    if isinstance(components, dict):
+                        for comp_type, comp_amount in components.items():
+                            if comp_amount != 0:  # Only store non-zero components
+                                cursor.execute("""
+                                    INSERT INTO tyu5_pnl_components
+                                    (lot_id, symbol, component_type, start_time, end_time,
+                                     start_price, end_price, quantity, pnl_amount, 
+                                     calculation_run_id, created_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (
+                                    f"AGG_{symbol}_{comp_type}",
+                                    symbol,
+                                    comp_type,
+                                    calc_timestamp,  # Placeholder
+                                    calc_timestamp,  # Placeholder
+                                    0,  # Placeholder
+                                    0,  # Placeholder
+                                    0,  # Placeholder
+                                    comp_amount,
+                                    run_id,
+                                    calc_timestamp
+                                ))
+                                components_written += 1
+                
+                # Check for missing settlement prices
+                if position.get('Settlement_PNL_Total') == 'MISSING_PRICE':
+                    missing_price_warnings.append({
+                        'symbol': symbol,
+                        'message': 'Missing settlement price for P&L calculation'
+                    })
+            
+            # Log warnings for missing prices
+            if missing_price_warnings:
+                logger.warning(f"Missing settlement prices for {len(missing_price_warnings)} symbols:")
+                for warning in missing_price_warnings:
+                    logger.warning(f"  - {warning['symbol']}: {warning['message']}")
+                    
+                # Write to alerts table
+                cursor.execute("""
+                    INSERT INTO tyu5_alerts (alert_type, message, details, created_at)
+                    VALUES ('MISSING_SETTLEMENT_PRICE', ?, ?, ?)
+                """, (
+                    f"Missing settlement prices for {len(missing_price_warnings)} symbols",
+                    json.dumps(missing_price_warnings),
+                    calc_timestamp
+                ))
+            
+            logger.info(f"Wrote {components_written} P&L components for run {run_id}")
+            
+        except Exception as e:
+            logger.error(f"Error writing P&L components: {e}")
+            raise
             
     def _map_symbol_to_bloomberg(self, symbol: str) -> str:
         """Map TYU5 internal symbol format to Bloomberg format for position lookup.

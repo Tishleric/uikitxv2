@@ -24,7 +24,8 @@ class TYU5DirectWriter:
         'positions_df': 'tyu5_positions',
         'summary_df': 'tyu5_summary',
         'risk_df': 'tyu5_risk_matrix',
-        'breakdown_df': 'tyu5_position_breakdown'
+        'breakdown_df': 'tyu5_position_breakdown',
+        'pnl_components_df': 'tyu5_pnl_components'
     }
     
     def __init__(self, db_path: str = 'data/output/pnl/pnl_tracker.db'):
@@ -151,6 +152,9 @@ class TYU5DirectWriter:
             # Write each DataFrame
             for df_key, table_name in self.TABLE_MAPPING.items():
                 if df_key not in dataframes:
+                    # Make pnl_components_df optional for backward compatibility
+                    if df_key == 'pnl_components_df':
+                        continue
                     raise ValueError(f"Missing required DataFrame: {df_key}")
                 
                 df = dataframes[df_key]

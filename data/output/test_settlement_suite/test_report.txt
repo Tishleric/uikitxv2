@@ -1,0 +1,32 @@
+SETTLEMENT P&L TEST SUITE RESULTS
+================================================================================
+Generated: 2025-07-22 18:34:27.610240
+Summary: 5 PASSED, 4 FAILED, 0 PARTIAL
+--------------------------------------------------------------------------------
+
+Settlement P&L Core: FAILED
+Details: 
+
+Trade Timestamp Tracking: FAILED
+Details: 'float' object is not subscriptable
+
+Settlement Price Loading: PASSED
+Details: Loaded prices for 3 dates, missing prices handled: True
+
+P&L Component Persistence: PASSED
+Details: Components table: exists, Alerts table: exists
+
+EOD Snapshot Service: FAILED
+Details: EODSnapshotService.__init__() got an unexpected keyword argument 'pnl_db_path'
+
+P&L Period Logic: PASSED
+Details: Trade attribution: correct, Period boundaries: correct
+
+Market Price Monitor: PASSED
+Details: 4pm batch detection: not triggered
+
+Missing Price Alerts: FAILED
+Details: 'NoneType' object is not subscriptable
+
+TYU5 Pipeline Integration: PASSED
+Details: TYU5 service initialized successfully

@@ -179,3 +179,37 @@ Windows batch file for Spot Risk Watcher service. Validates Anaconda Python path
 
 ### `lib/trading/pnl/tyu5_pnl/core/position_calculator.py`
 Core TYU5 component for position and P&L calculation. Contains two classes, PositionCalculator2 (older, not actively used by main.py) and PositionCalculator (active). Calculates positions from trades, tracks realized/unrealized P&L, handles price updates, and runs attribution analysis for options. Preserves full symbol with strike information (e.g., "ZN3N5 P 110.25") instead of truncating. Fixed symbol variable overwriting in attribution logic. Added Flash_Close column to positions output for complete price transparency. 
+
+`eod_snapshot_service.py` - Service that monitors for 4pm settlement price updates and calculates end-of-day P&L snapshots with settlement-aware logic. Leverages TYU5's existing FIFO logic and writes daily snapshots to tyu5_eod_pnl_history table.
+
+`market_price_monitor.py` - Monitors market_prices.db for 4pm settlement price batch completion. Tracks which symbols have received updates and determines when sufficient coverage (95% default) has been achieved to trigger EOD calculations.
+
+`settlement_constants.py` - Defines Chicago timezone constants and utilities for CME settlement times (2pm settlement, 4pm EOD). Provides functions to calculate settlement boundaries and split positions at 2pm for settlement-aware P&L calculations.
+
+`pnl_pipeline_watcher.py` - Monitors trade ledger CSV files and market prices database for changes, triggering TYU5 P&L calculations with a 10-second debounce. Integrates with the TYU5 pipeline for automated P&L updates.
+
+`tyu5_service.py` - Main TYU5 calculation service that runs FIFO-based P&L calculations. Reads trades from database, applies market prices, and generates position breakdowns with realized/unrealized P&L. Outputs to Excel or CSV and persists to tyu5_ tables.
+
+`tyu5_database_writer.py` - Persists TYU5 calculation results to database tables including tyu5_trades, tyu5_positions, tyu5_summary, tyu5_risk_matrix, and tyu5_position_breakdown. Maintains FIFO lot tracking for accurate P&L attribution.
+
+`trade_preprocessor.py` - Preprocesses raw trade data from CSV files, enriching with instrument metadata and standardizing formats. Handles both futures and options trades with proper symbol mapping and timestamp preservation.
+
+`trade_ledger_adapter.py` - Adapts raw trade ledger CSV data into standardized format for TYU5 processing. Maps column names, handles data types, and ensures trade timestamps are preserved for settlement boundary calculations.
+
+`tyu5_runner.py` - Lower-level runner that executes TYU5 calculations by orchestrating trade loading, position tracking, and P&L computation. Implements FIFO logic for position management and handles both futures and options.
+
+## scripts/
+
+`run_eod_monitor.py` - Standalone script or service component that monitors for 4pm price updates and triggers EOD P&L snapshots. Supports manual calculation mode and configurable monitoring windows (default 3pm-6pm Chicago time).
+
+`test_eod_phase1.py` - Phase 1 verification script that tests EOD history table creation, settlement time calculations, and basic EOD service initialization. Validates that settlement boundaries work correctly for P&L splitting.
+
+`test_eod_phase2.py` - Phase 2 verification script that tests market price monitoring, TYU5 integration, manual EOD calculation, and history views. Confirms the complete EOD pipeline is functioning with FIFO logic.
+
+## scripts/migration/
+
+`002_add_eod_history_table.py` - Database migration that creates tyu5_eod_pnl_history table for storing daily P&L snapshots with settlement-aware calculations. Includes views for daily totals and latest snapshots with proper indexes.
+
+## apps/dashboards/pnl_v2/
+
+`app.py` - Main P&L V2 dashboard entry point that creates the Dash application with TYU5-based real-time P&L display. Shows positions, P&L metrics, and integrates with the live calculation pipeline. 
