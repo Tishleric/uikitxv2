@@ -305,7 +305,13 @@ class EODSnapshotService:
         conn = sqlite3.connect(self.pnl_tracker_db) # Changed from self.pnl_db_path to self.pnl_tracker_db
         
         try:
+            # Compute datetime boundaries for the settlement period
+            # Previous day 2pm to current day 2pm in CDT
+            period_start = f"{yesterday.strftime('%Y-%m-%d')} 14:00:00"
+            period_end = f"{pnl_date.strftime('%Y-%m-%d')} 14:00:00"
+            
             # Query P&L components for the period
+            # Include ALL components that fall within or overlap the settlement period
             query = """
                 SELECT 
                     symbol,
@@ -313,16 +319,101 @@ class EODSnapshotService:
                     COUNT(*) as component_count,
                     GROUP_CONCAT(DISTINCT component_type) as component_types
                 FROM tyu5_pnl_components
-                WHERE start_settlement_key = ? 
-                  AND end_settlement_key = ?
+                WHERE (
+                    -- Standard settlement boundary components
+                    (start_settlement_key = ? AND end_settlement_key = ?)
+                    OR
+                    -- Components that START within the period
+                    (datetime(start_time) >= datetime(?) AND datetime(start_time) < datetime(?))
+                    OR
+                    -- Components that END within the period  
+                    (datetime(end_time) > datetime(?) AND datetime(end_time) <= datetime(?))
+                    OR
+                    -- Components that SPAN the entire period
+                    (datetime(start_time) < datetime(?) AND datetime(end_time) > datetime(?))
+                )
                 GROUP BY symbol
             """
             
-            results_df = pd.read_sql_query(query, conn, params=(start_key, end_key))
+            results_df = pd.read_sql_query(
+                query, 
+                conn, 
+                params=(
+                    start_key, end_key,           # Settlement key matching
+                    period_start, period_end,     # Start within period
+                    period_start, period_end,     # End within period
+                    period_start, period_end      # Span the period
+                )
+            )
             
+            # Get all symbols that need EOD records (positions or trades)
+            all_symbols_query = """
+                SELECT DISTINCT symbol FROM (
+                    -- Symbols with open positions
+                    SELECT Symbol as symbol 
+                    FROM tyu5_positions 
+                    WHERE Net_Quantity != 0
+                    
+                    UNION
+                    
+                    -- Symbols traded today
+                    SELECT DISTINCT symbol 
+                    FROM tyu5_trades
+                    WHERE DATE(DateTime) = ?
+                    
+                    UNION
+                    
+                    -- Symbols in P&L components (using same comprehensive logic)
+                    SELECT DISTINCT symbol
+                    FROM tyu5_pnl_components
+                    WHERE (
+                        -- Standard settlement boundary components
+                        (start_settlement_key = ? OR end_settlement_key = ?)
+                        OR
+                        -- Any component active within the period
+                        (datetime(start_time) <= datetime(?) AND datetime(end_time) >= datetime(?))
+                    )
+                )
+            """
+            
+            all_symbols_df = pd.read_sql_query(
+                all_symbols_query, 
+                conn, 
+                params=(pnl_date.isoformat(), start_key, end_key, period_start, period_end)
+            )
+            all_symbols = all_symbols_df['symbol'].tolist() if not all_symbols_df.empty else []
+            
+            # If no activity at all, still create a TOTAL record
+            if not all_symbols and results_df.empty:
+                return pd.DataFrame([{
+                    'snapshot_date': pnl_date,
+                    'symbol': 'TOTAL',
+                    'position_quantity': 0,
+                    'realized_pnl': 0,
+                    'unrealized_pnl_settle': 0,
+                    'unrealized_pnl_current': 0,
+                    'total_daily_pnl': 0,
+                    'settlement_price': None,
+                    'current_price': None,
+                    'pnl_period_start': f"{yesterday} 14:00:00",
+                    'pnl_period_end': f"{pnl_date} 14:00:00",
+                    'trades_in_period': 0
+                }])
+            
+            # Process symbols with P&L components
             if results_df.empty:
-                logger.warning(f"No P&L components found for period {start_key} to {end_key}")
-                return pd.DataFrame()
+                logger.info(f"No P&L components for period {start_key} to {end_key}, creating zero records")
+                # Create empty DataFrame with proper structure
+                results_df = pd.DataFrame(columns=['symbol', 'period_pnl', 'component_count'])
+            
+            # Add zero records for symbols without P&L components
+            for symbol in all_symbols:
+                if symbol not in results_df['symbol'].values:
+                    results_df = pd.concat([results_df, pd.DataFrame([{
+                        'symbol': symbol,
+                        'period_pnl': 0,
+                        'component_count': 0
+                    }])], ignore_index=True)
             
             # Get open positions from snapshots for unrealized P&L
             snapshot_query = """
@@ -338,9 +429,7 @@ class EODSnapshotService:
             open_positions = pd.read_sql_query(snapshot_query, conn, params=(end_key,))
             
             # Merge with settlement prices
-            settlement_prices = self._get_settlement_prices_for_period(
-                yesterday, pnl_date, results_df['symbol'].unique().tolist()
-            )
+            settlement_prices = self._get_settlement_prices_for_period(pnl_date)
             
             # Build final result
             final_results = []

@@ -15,7 +15,7 @@ from decimal import Decimal
 @dataclass
 class PnLComponent:
     """Represents a single P&L component across a time period."""
-    period_type: str  # 'entry_to_settle', 'settle_to_settle', 'settle_to_exit', 'intraday'
+    period_type: str  # 'entry_to_settle', 'settle_to_settle', 'settle_to_exit', 'settle_to_current', 'intraday'
     start_time: datetime
     end_time: datetime
     start_price: float
@@ -76,7 +76,8 @@ class SettlementPnLCalculator:
                          exit_price: Optional[float],
                          quantity: float,
                          current_price: float,
-                         settlement_prices: Dict[date, float]) -> Dict:
+                         settlement_prices: Dict[date, float],
+                         current_price_time: Optional[datetime] = None) -> Dict:
         """
         Calculate P&L for a single lot with settlement awareness.
         
@@ -88,6 +89,7 @@ class SettlementPnLCalculator:
             quantity: Lot quantity (positive for long, negative for short)
             current_price: Current market price
             settlement_prices: Map of settlement dates to prices
+            current_price_time: Timestamp of current market price (None = use current time)
             
         Returns:
             Dict containing:
@@ -112,10 +114,10 @@ class SettlementPnLCalculator:
                 'is_realized': True
             }
         
-        # For open positions - calculate to current time
-        current_time = datetime.now(self.CHICAGO_TZ)
-        components = self._calculate_closed_position_components(
-            entry_time, current_time, entry_price, current_price,
+        # For open positions - use market price timestamp or current time
+        mark_time = self._to_chicago(current_price_time) if current_price_time else datetime.now(self.CHICAGO_TZ)
+        components = self._calculate_open_position_components(
+            entry_time, mark_time, entry_price, current_price,
             quantity, settlement_prices
         )
         total_pnl = sum(c.pnl_amount for c in components)
@@ -218,6 +220,101 @@ class SettlementPnLCalculator:
                 pnl_amount=pnl,
                 start_settlement_key=self._generate_settlement_key(current_time),
                 end_settlement_key=self._generate_settlement_key(exit_time)
+            ))
+        
+        return components
+    
+    def _calculate_open_position_components(self,
+                                          entry_time: datetime,
+                                          current_time: datetime,
+                                          entry_price: float,
+                                          current_price: float,
+                                          quantity: float,
+                                          settlement_prices: Dict[date, float]) -> List[PnLComponent]:
+        """
+        Calculate P&L components for open positions with settle_to_current for unrealized P&L.
+        
+        Similar to closed position logic but the final component is 'settle_to_current'
+        instead of 'settle_to_exit' to indicate it's mark-to-market, not realized.
+        """
+        components = []
+        
+        # Get all settlement times between entry and current
+        settlement_times = self._get_settlement_times_between(entry_time, current_time)
+        
+        if not settlement_times:
+            # Intraday position that hasn't crossed any settlement
+            pnl = quantity * (current_price - entry_price) * self.multiplier
+            components.append(PnLComponent(
+                period_type='intraday',
+                start_time=entry_time,
+                end_time=current_time,
+                start_price=entry_price,
+                end_price=current_price,
+                pnl_amount=pnl,
+                start_settlement_key=self._generate_settlement_key(entry_time),
+                end_settlement_key=self._generate_settlement_key(current_time)
+            ))
+            return components
+        
+        # Position crosses one or more settlements
+        position_time = entry_time
+        position_price = entry_price
+        
+        # Entry to first settlement
+        first_settle_time = settlement_times[0]
+        first_settle_date = first_settle_time.date()
+        first_settle_price = settlement_prices.get(first_settle_date)
+        
+        if first_settle_price is not None:
+            pnl = quantity * (first_settle_price - position_price) * self.multiplier
+            components.append(PnLComponent(
+                period_type='entry_to_settle',
+                start_time=position_time,
+                end_time=first_settle_time,
+                start_price=position_price,
+                end_price=first_settle_price,
+                pnl_amount=pnl,
+                start_settlement_key=self._generate_settlement_key(position_time),
+                end_settlement_key=self._generate_settlement_key(first_settle_time)
+            ))
+            position_time = first_settle_time
+            position_price = first_settle_price
+        
+        # Settlement to settlement (for multi-day positions)
+        for i in range(1, len(settlement_times)):
+            prev_settle_time = settlement_times[i-1]
+            curr_settle_time = settlement_times[i]
+            curr_settle_date = curr_settle_time.date()
+            curr_settle_price = settlement_prices.get(curr_settle_date)
+            
+            if curr_settle_price is not None and position_price is not None:
+                pnl = quantity * (curr_settle_price - position_price) * self.multiplier
+                components.append(PnLComponent(
+                    period_type='settle_to_settle',
+                    start_time=prev_settle_time,
+                    end_time=curr_settle_time,
+                    start_price=position_price,
+                    end_price=curr_settle_price,
+                    pnl_amount=pnl,
+                    start_settlement_key=self._generate_settlement_key(prev_settle_time),
+                    end_settlement_key=self._generate_settlement_key(curr_settle_time)
+                ))
+                position_price = curr_settle_price
+            position_time = curr_settle_time
+        
+        # Last settlement to current (mark-to-market)
+        if position_price is not None:
+            pnl = quantity * (current_price - position_price) * self.multiplier
+            components.append(PnLComponent(
+                period_type='settle_to_current',  # Key difference: not 'settle_to_exit'
+                start_time=position_time,
+                end_time=current_time,
+                start_price=position_price,
+                end_price=current_price,
+                pnl_amount=pnl,
+                start_settlement_key=self._generate_settlement_key(position_time),
+                end_settlement_key=self._generate_settlement_key(current_time)
             ))
         
         return components

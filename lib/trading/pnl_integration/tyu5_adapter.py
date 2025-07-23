@@ -263,7 +263,8 @@ class TYU5Adapter:
             prior_close as PX_SETTLE,
             NULL as EXPIRE_DT,
             NULL as MONEYNESS,
-            'FUTURE' as asset_type
+            'FUTURE' as asset_type,
+            last_updated
         FROM futures_prices
         WHERE Flash_Close IS NOT NULL OR prior_close IS NOT NULL
         """
@@ -277,7 +278,8 @@ class TYU5Adapter:
             prior_close as PX_SETTLE,
             expire_dt as EXPIRE_DT,
             moneyness as MONEYNESS,
-            'OPTION' as asset_type
+            'OPTION' as asset_type,
+            last_updated
         FROM options_prices
         WHERE Flash_Close IS NOT NULL OR prior_close IS NOT NULL
         """
@@ -316,7 +318,8 @@ class TYU5Adapter:
             'Symbol': prices_df['Ticker'],  # TYU5 expects 'Symbol' not 'Ticker'
             'Current_Price': prices_df['Current_Price'],  # ACTIVE: added Current_Price
             'Flash_Close': prices_df['PX_LAST'],  # ACTIVE: renamed from Current_Price
-            'Prior_Close': prices_df['PX_SETTLE']
+            'Prior_Close': prices_df['PX_SETTLE'],
+            'last_updated': prices_df['last_updated']  # Include timestamp
         })
         
         # Add optional columns if present (but TYU5 doesn't use these in update_prices)

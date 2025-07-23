@@ -109,21 +109,21 @@ class LotSnapshotService:
         return chicago_dt.strftime("%Y%m%d_1400")  # Always 2pm for settlements
     
     def _get_open_lots(self, conn: sqlite3.Connection) -> pd.DataFrame:
-        """Get current open lots from position breakdown."""
+        """Get current open positions from positions table."""
+        # Use tyu5_positions which has the actual position data
         query = """
             SELECT 
-                Lot_ID,
+                Symbol || '_AGG' as Lot_ID,  -- Aggregate position ID
                 Symbol,
-                Position_ID,
-                Entry_Price,
-                Entry_DateTime,
-                Initial_Quantity,
-                Remaining_Quantity,
+                Symbol as Position_ID,
+                Avg_Entry_Price as Entry_Price,
+                CURRENT_TIMESTAMP as Entry_DateTime,  -- Placeholder
+                Net_Quantity as Initial_Quantity,
+                Net_Quantity as Remaining_Quantity,
                 Type
-            FROM tyu5_position_breakdown
-            WHERE Remaining_Quantity > 0
-              AND Exit_DateTime IS NULL
-            ORDER BY Symbol, Entry_DateTime
+            FROM tyu5_positions
+            WHERE Net_Quantity != 0
+            ORDER BY Symbol
         """
         
         return pd.read_sql_query(query, conn)
@@ -142,7 +142,7 @@ class LotSnapshotService:
                     SELECT current_price 
                     FROM futures_prices 
                     WHERE symbol = ? 
-                    ORDER BY timestamp DESC 
+                    ORDER BY last_updated DESC 
                     LIMIT 1
                 """, (symbol + " Comdty",))
                 
@@ -155,7 +155,7 @@ class LotSnapshotService:
                         SELECT current_price 
                         FROM options_prices 
                         WHERE symbol = ? 
-                        ORDER BY timestamp DESC 
+                        ORDER BY last_updated DESC 
                         LIMIT 1
                     """, (symbol + " Comdty",))
                     

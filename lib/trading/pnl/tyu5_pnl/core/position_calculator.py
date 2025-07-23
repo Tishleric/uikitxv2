@@ -19,6 +19,7 @@ class PositionCalculator2:
         self.settlement_calculator = SettlementPnLCalculator(multiplier)
         self.settlement_prices = {}    # Store all settlement prices by date
         self.lot_details = {}          # Enhanced lot tracking with timestamps
+        self.market_price_timestamps = {}  # Store timestamp of market prices
 
     def update_prices(self, market_prices_df: pd.DataFrame):
         from .debug_logger import get_debug_logger
@@ -33,6 +34,10 @@ class PositionCalculator2:
         for _, row in market_prices_df.iterrows():
             symbol = row['Symbol']
             # ACTIVE: Handle missing prices without fallbacks
+            
+            # Store market price timestamp if available
+            if 'last_updated' in row and pd.notna(row['last_updated']):
+                self.market_price_timestamps[symbol] = pd.to_datetime(row['last_updated'])
             
             # Only set prices if they are actually available
             if pd.notna(row.get('Current_Price')):
@@ -176,7 +181,7 @@ class PositionCalculator2:
                 close = close_today
             else:
                 close = close_prev
-
+            
             # Get all price values (will be None if not available)
             current = self.current_prices.get(symbol, None)
             flash = self.flash_prices.get(symbol, None)
@@ -233,7 +238,7 @@ class PositionCalculator2:
             })
 
         return pd.DataFrame(result)
-
+    
     def _calculate_settlement_aware_pnl(self, symbol: str) -> Dict:
         """
         Calculate settlement-aware P&L for a symbol using lot details.
@@ -269,7 +274,8 @@ class PositionCalculator2:
                 exit_price=lot['exit_price'],
                 quantity=lot['initial_quantity'],
                 current_price=current_price,
-                settlement_prices=symbol_settlement_prices
+                settlement_prices=symbol_settlement_prices,
+                current_price_time=self.market_price_timestamps.get(symbol)
             )
             
             total_pnl += lot_result['total_pnl']
@@ -304,7 +310,7 @@ class PositionCalculator2:
             if pnl_data['detailed_components']:
                 for component in pnl_data['detailed_components']:
                     breakdown.append({
-                        'Symbol': symbol,
+                'Symbol': symbol,
                         'Period_Type': component.period_type,
                         'Start_Time': component.start_time,
                         'End_Time': component.end_time,
@@ -312,5 +318,5 @@ class PositionCalculator2:
                         'End_Price': component.end_price,
                         'PNL_Amount': component.pnl_amount
                     })
-        
+
         return pd.DataFrame(breakdown)

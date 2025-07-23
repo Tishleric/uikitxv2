@@ -566,7 +566,7 @@ class TradeLedgerAdapter:
         if futures_symbols:
             placeholders = ','.join(['?'] * len(futures_symbols))
             futures_query = f"""
-                SELECT symbol, Current_Price, Flash_Close, prior_close
+                SELECT symbol, Current_Price, Flash_Close, prior_close, last_updated
                 FROM futures_prices 
                 WHERE symbol IN ({placeholders})
             """
@@ -578,7 +578,7 @@ class TradeLedgerAdapter:
         if options_symbols:
             placeholders = ','.join(['?'] * len(options_symbols))
             options_query = f"""
-                SELECT symbol, Current_Price, Flash_Close, prior_close
+                SELECT symbol, Current_Price, Flash_Close, prior_close, last_updated
                 FROM options_prices
                 WHERE symbol IN ({placeholders})
             """
@@ -608,7 +608,8 @@ class TradeLedgerAdapter:
                     'Symbol': tyu5_symbol,
                     'Current_Price': current,
                     'Flash_Close': flash,
-                    'Prior_Close': prior
+                    'Prior_Close': prior,
+                    'last_updated': row.get('last_updated')  # Include timestamp
                 })
                 logger.debug(f"Found price for {tyu5_symbol} via {bloomberg_symbol}")
             else:

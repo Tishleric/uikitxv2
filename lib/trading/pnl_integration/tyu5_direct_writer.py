@@ -91,6 +91,80 @@ class TYU5DirectWriter:
         
         return clean_df
     
+    def _update_pnl_components(self, conn: sqlite3.Connection, components_df: pd.DataFrame):
+        """
+        Update P&L components with intelligent handling for different component types.
+        
+        Strategy:
+        - Historical components (entry_to_settle, settle_to_settle): Preserve as-is
+        - settle_to_current: Update with latest market data
+        - intraday: Preserve if closed, update if still open
+        
+        Args:
+            conn: Database connection
+            components_df: DataFrame with P&L components to write
+        """
+        cursor = conn.cursor()
+        
+        # Get list of symbols being updated
+        symbols_to_update = components_df['symbol'].unique().tolist()
+        
+        # Delete only settle_to_current components for symbols we're updating
+        # This allows dynamic updates while preserving other symbols
+        if symbols_to_update:
+            placeholders = ','.join(['?' for _ in symbols_to_update])
+            cursor.execute(f"""
+                DELETE FROM tyu5_pnl_components 
+                WHERE component_type = 'settle_to_current'
+                  AND symbol IN ({placeholders})
+            """, symbols_to_update)
+        
+        # For each component in the DataFrame, determine how to handle it
+        historical_types = ['entry_to_settle', 'settle_to_settle', 'settle_to_exit']
+        
+        for _, comp in components_df.iterrows():
+            if comp['component_type'] in historical_types:
+                # Check if this historical component already exists
+                cursor.execute("""
+                    SELECT COUNT(*) FROM tyu5_pnl_components
+                    WHERE lot_id = ? AND component_type = ? 
+                      AND start_time = ? AND end_time = ?
+                """, (comp['lot_id'], comp['component_type'], 
+                      comp['start_time'], comp['end_time']))
+                
+                exists = cursor.fetchone()[0] > 0
+                
+                if not exists:
+                    # Insert new historical component
+                    cursor.execute("""
+                        INSERT INTO tyu5_pnl_components
+                        (lot_id, symbol, component_type, start_time, end_time,
+                         start_price, end_price, quantity, pnl_amount,
+                         start_settlement_key, end_settlement_key, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        comp['lot_id'], comp['symbol'], comp['component_type'],
+                        comp['start_time'], comp['end_time'],
+                        comp['start_price'], comp['end_price'],
+                        comp.get('quantity', 0), comp['pnl_amount'],
+                        comp.get('start_settlement_key'), comp.get('end_settlement_key'),
+                        datetime.now().isoformat()
+                    ))
+        
+        # Now append all new components (settle_to_current and new intraday)
+        new_components = components_df[
+            components_df['component_type'].isin(['settle_to_current', 'intraday'])
+        ]
+        
+        if not new_components.empty:
+            new_components.to_sql('tyu5_pnl_components', conn, if_exists='append', index=False)
+        
+        # Log summary
+        by_type = components_df.groupby('component_type').size()
+        print(f"Updated P&L components for {len(symbols_to_update)} symbols:")
+        for comp_type, count in by_type.items():
+            print(f"  - {comp_type}: {count} components")
+    
     def _create_runs_table(self, conn: sqlite3.Connection):
         """Create the tyu5_runs metadata table if it doesn't exist."""
         conn.execute("""
@@ -162,9 +236,14 @@ class TYU5DirectWriter:
                 # Clean the DataFrame
                 clean_df = self._clean_dataframe(df, table_name)
                 
-                # Write to database (replace existing data)
-                clean_df.to_sql(table_name, conn, if_exists='replace', index=False)
-                tables_written.append(table_name)
+                # Special handling for P&L components to update settle_to_current
+                if table_name == 'tyu5_pnl_components' and not clean_df.empty:
+                    self._update_pnl_components(conn, clean_df)
+                    tables_written.append(table_name)
+                else:
+                    # Write to database (replace existing data)
+                    clean_df.to_sql(table_name, conn, if_exists='replace', index=False)
+                    tables_written.append(table_name)
                 
                 # Collect metadata
                 if df_key == 'processed_trades_df':
