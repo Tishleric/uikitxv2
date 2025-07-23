@@ -17,6 +17,7 @@ import os
 from .fullpnl_symbol_mapper import FULLPNLSymbolMapper
 from ..market_prices.centralized_symbol_translator import CentralizedSymbolTranslator, SymbolFormat
 from ..market_prices.strike_converter import StrikeConverter
+from ..common.price_precision import round_dataframe_prices, FULLPNL_PRICE_COLUMNS
 
 logger = logging.getLogger(__name__)
 
@@ -478,11 +479,14 @@ class FULLPNLBuilder:
                 # Clear existing data
                 conn.execute("DELETE FROM FULLPNL")
                 
-                # Insert new data
-                fullpnl_data.to_sql('FULLPNL', conn, if_exists='append', index=False)
+                # Round all price columns to exactly 6 decimal places
+                rounded_data = round_dataframe_prices(fullpnl_data, FULLPNL_PRICE_COLUMNS)
+                
+                # Insert new data with rounded prices
+                rounded_data.to_sql('FULLPNL', conn, if_exists='append', index=False)
                 
                 conn.commit()
-                logger.info(f"Successfully wrote {len(fullpnl_data)} records to FULLPNL table")
+                logger.info(f"Successfully wrote {len(rounded_data)} records to FULLPNL table with 6dp precision")
                 return True
                 
         except Exception as e:

@@ -15,7 +15,7 @@ class DataTable(BaseComponent):
     This component creates a styled data table using Dash's DataTable component,
     with automatic theming support. It handles both dict-based data and pandas DataFrames.
     """
-    def __init__(self, id, data=None, columns=None, theme=None, style_table=None, style_cell=None, style_header=None, style_data_conditional=None, page_size=10, className=""):
+    def __init__(self, id, data=None, columns=None, theme=None, style_table=None, style_cell=None, style_header=None, style_data_conditional=None, page_size=10, className="", **kwargs):
         """
         Initialize a DataTable component.
         
@@ -44,6 +44,7 @@ class DataTable(BaseComponent):
         self.style_data_conditional = style_data_conditional if style_data_conditional is not None else []
         self.page_size = page_size
         self.className = className # Store it, but don't pass it directly to dash_table
+        self.extra_kwargs = kwargs  # Store any additional kwargs
 
         # Basic validation or processing if needed
         if isinstance(self.data, pd.DataFrame):
@@ -94,5 +95,8 @@ class DataTable(BaseComponent):
             filter_action=default_styles["filter_action"],
             # style_as_list_view=default_styles["style_as_list_view"]  # REMOVED: No longer valid
             # className=self.className # REMOVED: This argument is not allowed
+            **self.extra_kwargs  # Pass any additional kwargs to dash_table.DataTable
         )
+
+
 

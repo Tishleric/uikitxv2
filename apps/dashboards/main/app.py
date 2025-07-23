@@ -2805,6 +2805,28 @@ def scl_fetch_spot_price_from_pm():
 
 # --- End Scenario Ladder Helper Functions ---
 
+# --- FRGMonitor Helper Functions ---
+def format_number_strip_zeros(value):
+    """Format a number by stripping trailing zeros after decimal point.
+    
+    Args:
+        value: Numeric value or None
+        
+    Returns:
+        String representation without trailing zeros, or empty string if None
+    """
+    if value is None or pd.isna(value):
+        return ""
+    
+    # Convert to string with enough decimal places
+    formatted = f"{value:.6f}"
+    
+    # Strip trailing zeros and decimal point if no fractional part
+    if '.' in formatted:
+        formatted = formatted.rstrip('0').rstrip('.')
+    
+    return formatted
+
 # --- FRGMonitor Tab ---
 def create_frg_monitor_content():
     """Create the FRG Monitor page content with FULLPNL table display"""
@@ -2812,7 +2834,7 @@ def create_frg_monitor_content():
     # Create components using wrapped components
     # Header
     header = html.H4(
-        "FULLPNL Monitor", 
+        "FRGMonitor", 
         style={
             "color": default_theme.primary, 
             "marginBottom": "20px", 
@@ -2820,6 +2842,44 @@ def create_frg_monitor_content():
         }
     )
     
+    # Create the FULLPNL tab content
+    fullpnl_tab_content = create_fullpnl_tab_content()
+    
+    # Create the EOD History tab content
+    eod_history_tab_content = create_eod_history_tab_content()
+    
+    # Create tabs using dbc.Tabs
+    tabs_component = dbc.Tabs(
+        id="frg-monitor-tabs",
+        children=[
+            dbc.Tab(
+                label="FULLPNL", 
+                tab_id="fullpnl-tab",
+                children=fullpnl_tab_content
+            ),
+            dbc.Tab(
+                label="Historic EOD PnL", 
+                tab_id="eod-history-tab",
+                children=eod_history_tab_content
+            )
+        ],
+        active_tab="fullpnl-tab"
+    )
+    
+    # Main container
+    main_container = Container(
+        id="frg-monitor-container",
+        children=[
+            header,
+            tabs_component
+        ],
+        style={"padding": "15px"}
+    )
+    
+    return main_container.render()
+
+def create_fullpnl_tab_content():
+    """Create the FULLPNL table tab content"""
     # Status display
     status_display = html.Div(
         id="frg-monitor-status",
@@ -2860,6 +2920,7 @@ def create_frg_monitor_content():
             'width': '100%',
             'minWidth': '100%'
         },
+
         style_cell={
             'textAlign': 'center',
             'padding': '8px',
@@ -2879,26 +2940,12 @@ def create_frg_monitor_content():
             # Highlight positive P&L values
             {
                 'if': {
-                    'filter_query': '{daily_pnl} > 0',
-                    'column_id': 'daily_pnl'
-                },
-                'color': default_theme.success
-            },
-            {
-                'if': {
                     'filter_query': '{total_pnl} > 0',
                     'column_id': 'total_pnl'
                 },
                 'color': default_theme.success
             },
             # Highlight negative P&L values
-            {
-                'if': {
-                    'filter_query': '{daily_pnl} < 0',
-                    'column_id': 'daily_pnl'
-                },
-                'color': default_theme.danger
-            },
             {
                 'if': {
                     'filter_query': '{total_pnl} < 0',
@@ -2960,20 +3007,163 @@ def create_frg_monitor_content():
         }
     )
     
-    # Main container
-    main_container = Container(
-        id="frg-monitor-container",
+    # Tab content container
+    tab_content = Container(
+        id="fullpnl-tab-content",
         children=[
-            header,
             info_panel.render(),
             table_grid.render(),
             interval_component,
             last_update_store
         ],
-        style={"padding": "15px"}
+        style={"padding": "20px"}
     )
     
-    return main_container.render()
+    return tab_content.render()
+
+def create_eod_history_tab_content():
+    """Create the Historic EOD P&L table tab content"""
+    # Status display
+    status_display = html.Div(
+        id="eod-history-status",
+        children=[
+            html.Span("Status: ", style={"fontWeight": "bold"}),
+            html.Span("Initializing...", id="eod-history-status-text")
+        ],
+        style={
+            "color": default_theme.text_light,
+            "marginBottom": "15px",
+            "fontSize": "0.9rem"
+        }
+    )
+    
+    # Last update display
+    last_update_display = html.Div(
+        id="eod-history-last-update",
+        children=[
+            html.Span("Last Update: ", style={"fontWeight": "bold"}),
+            html.Span("--", id="eod-history-last-update-text"),
+            html.Span(" (All times in Chicago timezone)", style={"marginLeft": "20px", "fontStyle": "italic"})
+        ],
+        style={
+            "color": default_theme.text_subtle,
+            "marginBottom": "20px",
+            "fontSize": "0.9rem"
+        }
+    )
+    
+    # Create the DataTable
+    eod_table = DataTable(
+        id="eod-history-table",
+        columns=[],  # Will be populated by callback
+        data=[],     # Will be populated by callback
+        theme=default_theme,
+        page_size=20,
+        style_table={
+            'overflowX': 'auto',
+            'width': '100%',
+            'minWidth': '100%'
+        },
+        style_cell={
+            'textAlign': 'center',
+            'padding': '8px',
+            'fontSize': '0.85rem',
+            'whiteSpace': 'normal',
+            'height': 'auto',
+            'backgroundColor': default_theme.base_bg,
+            'color': default_theme.text_light
+        },
+        style_header={
+            'backgroundColor': default_theme.panel_bg,
+            'fontWeight': 'bold',
+            'color': default_theme.text_light,
+            'fontSize': '0.9rem'
+        },
+        style_data_conditional=[
+            # Highlight positive P&L values
+            {
+                'if': {
+                    'filter_query': '{total_daily_pnl} > 0',
+                    'column_id': 'total_daily_pnl'
+                },
+                'color': default_theme.success
+            },
+            # Highlight negative P&L values
+            {
+                'if': {
+                    'filter_query': '{total_daily_pnl} < 0',
+                    'column_id': 'total_daily_pnl'
+                },
+                'color': default_theme.danger
+            },
+            # Highlight TOTAL row
+            {
+                'if': {
+                    'filter_query': '{symbol} = "TOTAL"'
+                },
+                'backgroundColor': default_theme.secondary,
+                'color': default_theme.text_light,
+                'fontWeight': 'bold'
+            }
+        ]
+    )
+    
+    # Create interval component for polling
+    interval_component = dcc.Interval(
+        id='eod-history-interval',
+        interval=5000,  # 5 seconds (EOD updates less frequently)
+        n_intervals=0
+    )
+    
+    # Store for last update timestamp
+    last_update_store = dcc.Store(
+        id='eod-history-last-update-store',
+        data={'timestamp': None}
+    )
+    
+    # Wrap table in a Grid
+    table_grid = Grid(
+        id="eod-history-table-grid",
+        children=[eod_table.render()],
+        style={
+            "backgroundColor": default_theme.panel_bg, 
+            "padding": "15px", 
+            "borderRadius": "5px"
+        }
+    )
+    
+    # Create info panel
+    info_panel = Container(
+        id="eod-history-info-panel",
+        children=[
+            html.Div([
+                status_display,
+                last_update_display
+            ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"})
+        ],
+        theme=default_theme,
+        style={
+            'padding': '15px', 
+            'marginBottom': '20px', 
+            'backgroundColor': default_theme.panel_bg,
+            'borderRadius': '4px', 
+            'border': f'1px solid {default_theme.secondary}'
+        }
+    )
+    
+    # Tab content container
+    tab_content = Container(
+        id="eod-history-tab-content",
+        children=[
+            info_panel.render(),
+            table_grid.render(),
+            interval_component,
+            last_update_store
+        ],
+        style={"padding": "20px"}
+    )
+    
+    return tab_content.render()
 
 # --- End FRGMonitor Tab ---
 
@@ -3003,6 +3193,7 @@ def aeod_create_actant_eod_content():
 def create_sidebar():
     """Create the unified sidebar navigation"""
     sidebar_items = [
+        {"id": "nav-frg-monitor", "label": "FRGMonitor", "icon": "📊"},  # Moved to top
         {"id": "nav-pricing-monkey", "label": "Option Hedging", "icon": "💰"},
         {"id": "nav-analysis", "label": "Option Comparison", "icon": "📊"},
         {"id": "nav-greek-analysis", "label": "Greek Analysis", "icon": "📈"},
@@ -3012,7 +3203,6 @@ def create_sidebar():
         {"id": "nav-pnl-tracking", "label": "PnL Tracking", "icon": "💹"},  # New P&L Tracking tab
         # {"id": "nav-pnl-tracking-v2", "label": "PnL Tracking V2", "icon": "🚀"},  # CTO_INTEGRATION: V2 removed
         {"id": "nav-spot-risk", "label": "Spot Risk", "icon": "🎯"},
-        {"id": "nav-frg-monitor", "label": "FRGMonitor", "icon": "📊"},  # New FRGMonitor tab
         {"id": "nav-observatory", "label": "Observatory", "icon": "👀"},
         {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
         {"id": "nav-logs", "label": "Logs (Legacy)", "icon": "📋"}  # Mark as legacy
@@ -3186,7 +3376,7 @@ def get_page_content(page_name):
 
 # --- Layout Definition ---
 # Store for tracking active page
-active_page_store = dcc.Store(id="active-page-store", data="pricing-monkey")
+active_page_store = dcc.Store(id="active-page-store", data="frg-monitor")
 
 # Create sidebar
 sidebar = create_sidebar()
@@ -3205,7 +3395,7 @@ app.layout = html.Div([
     sidebar,
     html.Div(
         id="main-content-area",
-        children=[get_page_content("pricing-monkey")],  # Default content
+        children=[get_page_content("frg-monitor")],  # Default content
         style=content_style
     )
 ], style={
@@ -3255,8 +3445,8 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
     # Determine which button was clicked
     ctx = dash.callback_context
     if not ctx.triggered:
-        # Initial load - show pricing monkey page as default
-        active_page = "pricing-monkey"
+        # Initial load - show FRGMonitor page as default
+        active_page = "frg-monitor"
     else:
         trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
         page_mapping = {
@@ -3274,7 +3464,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
             "nav-frg-monitor": "frg-monitor",
             "nav-observatory": "observatory"
         }
-        active_page = page_mapping.get(trigger_id, current_page or "pricing-monkey")
+        active_page = page_mapping.get(trigger_id, current_page or "frg-monitor")
     
     # Get content for active page
     content = get_page_content(active_page)
@@ -3398,43 +3588,23 @@ def update_frg_monitor_table(n_intervals, last_update_data):
             conn.close()
             raise PreventUpdate
         
-        # Fetch all data from FULLPNL table
+        # Fetch selected columns from FULLPNL table
         query = """
         SELECT 
-            symbol_tyu5,
             symbol_bloomberg,
             type,
             net_quantity,
             closed_quantity,
-            avg_entry_price,
-            current_price,
-            flash_close,
-            prior_close,
-            current_present_value,
-            prior_present_value,
-            unrealized_pnl_current,
-            unrealized_pnl_flash,
-            unrealized_pnl_close,
-            realized_pnl,
-            daily_pnl,
             total_pnl,
-            vtexp,
             delta_f,
-            gamma_f,
-            speed_f,
-            theta_f,
-            vega_f,
-            dv01_y,
             delta_y,
+            gamma_f,
             gamma_y,
             speed_y,
             theta_y,
-            vega_y,
-            last_update,
-            spot_risk_file,
-            tyu5_run_id
+            vega_y
         FROM FULLPNL
-        ORDER BY symbol_tyu5
+        ORDER BY symbol_bloomberg
         """
         
         df = pd.read_sql_query(query, conn)
@@ -3442,39 +3612,36 @@ def update_frg_monitor_table(n_intervals, last_update_data):
         
         # Format numeric columns
         numeric_cols = [
-            'net_quantity', 'closed_quantity', 'avg_entry_price', 'current_price',
-            'flash_close', 'prior_close', 'current_present_value', 'prior_present_value',
-            'unrealized_pnl_current', 'unrealized_pnl_flash', 'unrealized_pnl_close',
-            'realized_pnl', 'daily_pnl', 'total_pnl', 'vtexp',
-            'delta_f', 'gamma_f', 'speed_f', 'theta_f', 'vega_f',
-            'dv01_y', 'delta_y', 'gamma_y', 'speed_y', 'theta_y', 'vega_y'
+            'net_quantity', 'closed_quantity', 'total_pnl',
+            'delta_f', 'delta_y', 'gamma_f', 'gamma_y',
+            'speed_y', 'theta_y', 'vega_y'
         ]
         
         for col in numeric_cols:
             if col in df.columns:
-                # Round to appropriate precision
-                if col in ['avg_entry_price', 'current_price', 'flash_close', 'prior_close']:
-                    df[col] = df[col].round(3)
-                elif col.endswith('_pnl') or col.endswith('_value'):
-                    df[col] = df[col].round(2)
-                elif col in ['gamma_f', 'speed_f', 'gamma_y', 'speed_y']:
-                    df[col] = df[col].round(6)
-                else:
-                    df[col] = df[col].round(4)
+                # Round to 6 decimal places for all values (as per FULLPNL precision requirement)
+                df[col] = df[col].round(6)
+                
+        # Apply formatting to strip trailing zeros for display
+        for col in numeric_cols:
+            if col in df.columns and col != 'total_pnl':  # Keep total_pnl for special formatting
+                df[col] = df[col].apply(format_number_strip_zeros)
         
-        # Create columns configuration
-        columns = []
-        for col in df.columns:
-            col_config = {"name": col.replace('_', ' ').title(), "id": col}
-            
-            # Add formatting for specific columns
-            if col.endswith('_pnl') or col.endswith('_value'):
-                col_config["type"] = "numeric"
-                col_config["format"] = {"specifier": "$,.2f"}
-            elif col in numeric_cols:
-                col_config["type"] = "numeric"
-            
-            columns.append(col_config)
+        # Create simple columns configuration (multi-level not supported)
+        columns = [
+            {"name": "Symbol", "id": "symbol_bloomberg"},
+            {"name": "Type", "id": "type"},
+            {"name": "Net Qty", "id": "net_quantity"},
+            {"name": "Closed Qty", "id": "closed_quantity"},
+            {"name": "Total P&L", "id": "total_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Delta (F)", "id": "delta_f"},
+            {"name": "Delta (Y)", "id": "delta_y"},
+            {"name": "Gamma (F)", "id": "gamma_f"},
+            {"name": "Gamma (Y)", "id": "gamma_y"},
+            {"name": "Speed (Y)", "id": "speed_y"},
+            {"name": "Theta (Y)", "id": "theta_y"},
+            {"name": "Vega (Y)", "id": "vega_y"}
+        ]
         
         # Convert dataframe to records
         data = df.to_dict('records')
@@ -3495,6 +3662,135 @@ def update_frg_monitor_table(n_intervals, last_update_data):
         raise
     except Exception as e:
         logger.error(f"Error updating FRGMonitor table: {type(e).__name__}: {str(e)}", exc_info=True)
+        return [], [], f"Error: {type(e).__name__}: {str(e)}", "--", last_update_data
+
+@app.callback(
+    [Output("eod-history-table", "columns"),
+     Output("eod-history-table", "data"),
+     Output("eod-history-status-text", "children"),
+     Output("eod-history-last-update-text", "children"),
+     Output("eod-history-last-update-store", "data")],
+    [Input("eod-history-interval", "n_intervals")],
+    [State("eod-history-last-update-store", "data")],
+    prevent_initial_call=False
+)
+@monitor()
+def update_eod_history_table(n_intervals, last_update_data):
+    """Update EOD History table with smart polling"""
+    import sqlite3
+    import pandas as pd
+    from datetime import datetime
+    import os
+    
+    try:
+        # Database path
+        db_path = "data/output/pnl/pnl_tracker.db"
+        
+        # Check if database exists
+        if not os.path.exists(db_path):
+            return [], [], "Database not found", "--", last_update_data
+        
+        # Connect to database
+        conn = sqlite3.connect(db_path)
+        
+        # Get the latest update timestamp from EOD history table
+        check_query = "SELECT MAX(created_at) FROM tyu5_eod_pnl_history"
+        cursor = conn.cursor()
+        cursor.execute(check_query)
+        result = cursor.fetchone()
+        latest_timestamp = result[0] if result else None
+        
+        # Check if data has changed
+        last_timestamp = last_update_data.get('timestamp') if last_update_data else None
+        
+        if latest_timestamp == last_timestamp and n_intervals > 0:
+            # No changes, prevent update
+            conn.close()
+            raise PreventUpdate
+        
+        # Fetch EOD history data
+        query = """
+        SELECT 
+            snapshot_date,
+            symbol,
+            position_quantity,
+            realized_pnl,
+            unrealized_pnl_settle,
+            unrealized_pnl_current,
+            total_daily_pnl,
+            settlement_price,
+            current_price,
+            pnl_period_start,
+            pnl_period_end,
+            trades_in_period
+        FROM tyu5_eod_pnl_history
+        ORDER BY 
+            CASE WHEN symbol = 'TOTAL' THEN 1 ELSE 0 END,
+            snapshot_date DESC,
+            symbol
+        """
+        
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        
+        # Handle bytes data in numeric columns (SQLite BLOB issue)
+        for col in df.columns:
+            if df[col].dtype == object:  # Check for object columns that might contain bytes
+                df[col] = df[col].apply(lambda x: int.from_bytes(x, 'little') if isinstance(x, bytes) else x)
+        
+        # Format date columns - handle mixed formats and convert to Chicago time
+        date_cols = ['snapshot_date', 'pnl_period_start', 'pnl_period_end']
+        for col in date_cols:
+            if col in df.columns and not df[col].isna().all():
+                # Parse dates flexibly and convert to Chicago time
+                df[col] = pd.to_datetime(df[col], format='mixed', utc=True).dt.tz_convert('America/Chicago').dt.strftime('%Y-%m-%d')
+        
+        # Format numeric columns
+        numeric_cols = [
+            'position_quantity', 'realized_pnl', 'unrealized_pnl_settle',
+            'unrealized_pnl_current', 'total_daily_pnl', 'settlement_price',
+            'current_price', 'trades_in_period'
+        ]
+        
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').round(2)
+        
+        # Create columns configuration
+        columns = [
+            {"name": "Date (Chicago)", "id": "snapshot_date"},
+            {"name": "Symbol", "id": "symbol"},
+            {"name": "Position", "id": "position_quantity", "type": "numeric"},
+            {"name": "Realized P&L", "id": "realized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Unrealized P&L (Settle)", "id": "unrealized_pnl_settle", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Unrealized P&L (Current)", "id": "unrealized_pnl_current", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Total Daily P&L", "id": "total_daily_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Settlement Price", "id": "settlement_price", "type": "numeric", "format": {"specifier": ",.4f"}},
+            {"name": "Current Price", "id": "current_price", "type": "numeric", "format": {"specifier": ",.4f"}},
+            {"name": "Period Start (Chicago)", "id": "pnl_period_start"},
+            {"name": "Period End (Chicago)", "id": "pnl_period_end"},
+            {"name": "Trades", "id": "trades_in_period", "type": "numeric"}
+        ]
+        
+        # Convert dataframe to records
+        data = df.to_dict('records')
+        
+        # Update status
+        status_text = f"Connected - {len(data)} rows"
+        
+        # Update last update time
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Store new timestamp
+        new_update_data = {'timestamp': latest_timestamp}
+        
+        return columns, data, status_text, current_time, new_update_data
+        
+    except PreventUpdate:
+        # This is expected behavior, re-raise it
+        raise
+    except Exception as e:
+        logger.error(f"Error updating EOD History table: {type(e).__name__}: {str(e)}", exc_info=True)
         return [], [], f"Error: {type(e).__name__}: {str(e)}", "--", last_update_data
 
 # --- End FRGMonitor Callbacks ---

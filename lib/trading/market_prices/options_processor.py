@@ -15,6 +15,7 @@ import re
 from lib.monitoring.decorators import monitor
 from .storage import MarketPriceStorage
 from .constants import CHICAGO_TZ, TIME_WINDOWS, FILE_PATTERNS
+from lib.trading.common.business_days import get_next_business_day
 
 logger = logging.getLogger(__name__)
 
@@ -272,9 +273,8 @@ class OptionsProcessor:
         processed_count = 0
         error_count = 0
         
-        # Calculate next trading day (simplified - just add 1 day)
-        # In production, you'd use a proper trading calendar
-        next_trade_date = file_date + timedelta(days=1)
+        # Calculate next trading day (handles Friday -> Sunday mapping)
+        next_trade_date = get_next_business_day(file_date)
         
         logger.info(f"Processing 4pm file: Inserting prior closes for {next_trade_date}")
         
