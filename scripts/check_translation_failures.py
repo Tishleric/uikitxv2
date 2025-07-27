@@ -7,18 +7,18 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
-from lib.trading.symbol_translator import SymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 # Load trades
 trades_df = pd.read_csv("data/input/trade_ledger/trades_20250714.csv")
-translator = SymbolTranslator()
+translator = RosettaStone()
 
 print("Analyzing symbol translation failures...")
 print("=" * 80)
 
 failed_count = 0
 for idx, row in trades_df.iterrows():
-    symbol = translator.translate(row['instrumentName'])
+    symbol = translator.translate(row['instrumentName'], 'actanttrades', 'bloomberg')
     if symbol is None:
         failed_count += 1
         print(f"\nFailed to translate: {row['instrumentName']}")

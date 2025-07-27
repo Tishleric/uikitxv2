@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from lib.trading.market_prices import MarketPriceStorage, SpotRiskPriceProcessor
-from lib.trading.actant.spot_risk.spot_risk_symbol_translator import SpotRiskSymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 # Set up logging
 logging.basicConfig(
@@ -43,7 +43,7 @@ def main():
     logger.info("TESTING SYMBOL TRANSLATION")
     logger.info("="*60)
     
-    translator = SpotRiskSymbolTranslator()
+    translator = RosettaStone()
     
     # Read CSV to get sample symbols
     df = pd.read_csv(test_file)
@@ -58,7 +58,7 @@ def main():
     ]
     
     for symbol in test_symbols:
-        bloomberg = translator.translate(symbol)
+                    bloomberg = translator.translate(symbol, 'actantrisk', 'bloomberg')
         logger.info(f"{symbol} → {bloomberg}")
     
     # Now test the full price processor

@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime
-from lib.trading.symbol_translator import SymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 def main():
     """Test translations against CTO examples."""
@@ -17,7 +17,7 @@ def main():
     print("TESTING SYMBOL TRANSLATOR AGAINST CTO EXAMPLES")
     print("="*60)
     
-    translator = SymbolTranslator()
+    translator = RosettaStone()
     
     # CTO examples from the document (line 877-885)
     cto_examples = [
@@ -72,7 +72,7 @@ def main():
         actant_symbol = f"XCMEOCADPS{date_str}N0{actant_series}2/110.00"
         
         # Translate
-        result = translator.translate(actant_symbol)
+        result = translator.translate(actant_symbol, 'actanttrades', 'bloomberg')
         
         if result:
             # Extract just the symbol part (before the strike)

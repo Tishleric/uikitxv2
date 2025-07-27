@@ -9,7 +9,7 @@ import logging
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from lib.trading.actant.spot_risk.spot_risk_symbol_translator import SpotRiskSymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def fix_bloomberg_symbols():
         logger.error(f"Database not found: {db_path}")
         return
         
-    translator = SpotRiskSymbolTranslator()
+    translator = RosettaStone()
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -42,7 +42,7 @@ def fix_bloomberg_symbols():
     
     for record_id, instrument_key in records:
         try:
-            bloomberg_symbol = translator.translate(instrument_key)
+            bloomberg_symbol = translator.translate(instrument_key, 'actantrisk', 'bloomberg')
             if bloomberg_symbol:
                 cursor.execute(
                     "UPDATE spot_risk_raw SET bloomberg_symbol = ? WHERE id = ?",

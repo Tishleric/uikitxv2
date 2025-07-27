@@ -213,3 +213,17 @@ Core TYU5 component for position and P&L calculation. Contains two classes, Posi
 ## apps/dashboards/pnl_v2/
 
 `app.py` - Main P&L V2 dashboard entry point that creates the Dash application with TYU5-based real-time P&L display. Shows positions, P&L metrics, and integrates with the live calculation pipeline. 
+
+## Trading Libraries
+
+### lib/trading/pnl_fifo_lifo/
+- `__init__.py` - Main module exports for FIFO/LIFO P&L calculation system
+- `config.py` - Configuration constants for P&L calculations including database names, table names, and trading methods
+- `pnl_engine.py` - Core calculation logic for FIFO/LIFO trade processing, realized/unrealized P&L calculations, and historical pricing support
+- `data_manager.py` - Database operations, CSV loading, pricing management, and data queries for the P&L system
+- `main.py` - Command-line interface and orchestration for P&L calculations with support for single/multi CSV processing and reporting
+- `test_simulation.py` - Test simulation that replicates notebook calculations to verify module accuracy
+
+### lib/trading/pnl_integration/ [DEPRECATED]
+- `pnl_pipeline_watcher.py` - Minimal file watcher skeleton (DEPRECATED - use lib/trading/pnl_fifo_lifo instead)
+- `DEPRECATED.md` - Deprecation notice directing to new FIFO/LIFO module 

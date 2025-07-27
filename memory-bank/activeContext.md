@@ -1,88 +1,36 @@
-# Mode: ACT
+# Active Context
 
-## Current Focus
+## Current Status: PnL System Clean Slate Achieved ✓
 
-Settlement-Aware P&L System Implementation - Pre-Phase 2 Integration Complete
+### What Just Happened (Phase 3 - Completed 2025-07-25)
+- **Complete PnL System Removal**: All existing PnL code has been removed
+- **Clean Slate Approach**: Pre-production system allowed aggressive removal
+- **~200 Files Removed**: Dashboards, scripts, tests, services, engines
+- **Database Cleanup**: All PnL tables dropped, pnl_tracker.db removed
+- **File Watchers Preserved**: Converted to minimal skeletons for integration
 
-### Project Status
+### Current State
+- **No PnL Logic**: All calculation code removed
+- **Clean Integration Points**: Two skeleton file watchers ready
+- **No Database Conflicts**: Fresh start for new schema
+- **Full Documentation**: Complete removal manifest and integration spec
 
-**Phase 1: Settlement-Aware P&L Core (COMPLETED)** ✅
-- ✅ Created `settlement_pnl.py` module with clean P&L component tracking
-- ✅ Enhanced trade processor to preserve entry/exit timestamps on all lots
-- ✅ Integrated settlement calculator into position calculator
-- ✅ Implemented proper handling of multi-day positions (entry→settle→settle→exit)
-- ✅ Full test coverage for all scenarios (intraday, same-day cross, multi-day)
+### Rollback Safety
+- **Git Tag**: `pre-pnl-removal-20250725-141713`
+- **Database Backups**: `backups/pre-removal-20250725/`
+- **Complete Audit Trail**: Every removal documented
 
-**Pre-Phase 2: Integration Tasks (COMPLETED)** ✅
-- ✅ Fixed TYU5 main.py to use PositionCalculator2 with settlement logic
-- ✅ Connected lot breakdown with timestamps through the pipeline
-- ✅ Created migration for P&L components table and alerts table
-- ✅ Enhanced TYU5DatabaseWriter to persist P&L components
-- ✅ Created SettlementPriceLoader to load px_settle from market_prices.db
-- ✅ Integrated settlement price loading into TYU5 main flow
-- ✅ Added explicit error handling for missing settlement prices (no silent defaults)
+### Integration Ready
+The codebase is now ready for clean integration of a new PnL module:
+- **Trade Watcher**: `lib/trading/pnl_calculator/trade_preprocessor.py`
+- **Pipeline Watcher**: `lib/trading/pnl_integration/pnl_pipeline_watcher.py`
+- **Integration Spec**: `memory-bank/pnl_migration/integration_specification.md`
 
-**Key Integration Points:**
-1. **TYU5 Main Flow**:
-   - Now imports and uses SettlementPriceLoader
-   - Passes lot details with timestamps to PositionCalculator
-   - Loads settlement prices based on trade date range
+### Next Steps
+1. New PnL module can be integrated cleanly
+2. No legacy code conflicts
+3. Clear integration points documented
+4. Simple callback-based architecture
 
-2. **Database Persistence**:
-   - New `tyu5_pnl_components` table stores P&L breakdown by period
-   - New `tyu5_alerts` table captures missing price warnings
-   - Enhanced position breakdown with entry/exit timestamps
-
-3. **Price Loading**:
-   - Handles Bloomberg suffix (TYU5 → "TYU5 Comdty")
-   - Reports missing prices explicitly - no silent failures
-   - Loads all settlement dates needed for position lifecycle
-
-### Settlement P&L Architecture (Updated)
-
-```python
-# Complete integration flow
-Trade Files → PnLPipelineWatcher → TradeLedgerAdapter → TYU5 Main
-                                                              ↓
-                                            TradeProcessor (timestamps)
-                                                              ↓
-                                    PositionCalculator2 + SettlementPriceLoader
-                                                              ↓
-                                         Settlement-Aware P&L Components
-                                                              ↓
-                                            TYU5DatabaseWriter
-                                                              ↓
-                                    pnl_tracker.db (components + alerts)
-```
-
-### Integration Test Results
-
-- ✅ Settlement prices loaded from market_prices.db
-- ✅ P&L components calculated with proper settlement splits
-- ✅ Missing price alerts generated when prices unavailable
-- ✅ Backward compatibility maintained for existing code
-
-### Ready for Phase 2: Period Attribution & Filtering
-
-With the integration complete, we can now:
-1. Implement trade filtering for 2pm-to-2pm P&L periods
-2. Add period parameters to TYU5Service.calculate_pnl()
-3. Update EODSnapshotService to use period-filtered calculations
-4. Test with real trade data and production scenarios
-
-### Recent Code Additions
-
-**New Modules:**
-- `lib/trading/pnl_integration/settlement_price_loader.py` - Loads px_settle from DB
-- `scripts/migration/004_add_pnl_components_table.py` - Schema for components
-
-**Updated Modules:**
-- `lib/trading/pnl/tyu5_pnl/main.py` - Integrated settlement price loading
-- `lib/trading/pnl_integration/tyu5_database_writer.py` - Persists P&L components
-
-### Critical Integration Decisions
-
-1. **No Silent Defaults**: Missing settlement prices are explicitly reported
-2. **Bloomberg Format**: Price loader handles symbol suffix automatically
-3. **Alerts Table**: Provides audit trail for data quality issues
-4. **Run ID Tracking**: P&L components linked to calculation runs 
+## Previous Context (Now Resolved)
+The previous confusion about multiple PnL systems has been completely eliminated through the Phase 3 clean slate removal. 

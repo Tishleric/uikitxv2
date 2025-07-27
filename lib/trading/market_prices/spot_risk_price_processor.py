@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple
 import re
 
 from lib.monitoring.decorators import monitor
-from .centralized_symbol_translator import CentralizedSymbolTranslator
+from .rosetta_stone import RosettaStone
 from .storage import MarketPriceStorage
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ class SpotRiskPriceProcessor:
             storage: MarketPriceStorage instance for database operations
         """
         self.storage = storage
-        self.symbol_translator = CentralizedSymbolTranslator()
+        self.symbol_translator = RosettaStone()
         
     @monitor()
     def process_file(self, file_path: Path) -> bool:
@@ -148,7 +148,7 @@ class SpotRiskPriceProcessor:
                     # Options: use centralized translator
                     bloomberg_symbol = self.symbol_translator.translate(
                         spot_risk_symbol, 
-                        'xcme', 
+                        'actantrisk', 
                         'bloomberg'
                     )
                     if not bloomberg_symbol:

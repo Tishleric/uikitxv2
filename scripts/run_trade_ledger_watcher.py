@@ -1,108 +1,101 @@
 #!/usr/bin/env python3
 """
-Standalone Trade Ledger File Watcher (TYU5 P&L Pipeline)
+Run Trade Ledger Watcher for PnL System
 
-This script runs only the trade ledger file watcher which:
-1. Monitors for new trade ledger CSV files in data/input/trade_ledger/
-2. Triggers the TYU5 P&L pipeline when files are created/modified
-3. Also monitors market prices database for updates
-4. Monitors spot risk CSV files to trigger FULLPNL updates
-
-The pipeline:
-- Processes trades through TradePreprocessor
-- Runs FIFO P&L calculations
-- Updates database tables: tyu5_trades, tyu5_positions, tyu5_pnl_components
-- Updates FULLPNL table when spot risk files change
-
-Database output:
-- data/output/pnl/pnl_tracker.db
+Usage:
+    python run_trade_ledger_watcher.py [--db path/to/trades.db] [--watch-dir path/to/trade/ledger]
 """
 
 import sys
+import os
+import argparse
 import logging
-import signal
-import time
 from pathlib import Path
 
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Add parent directory to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from lib.trading.pnl_integration.pnl_pipeline_watcher import PNLPipelineWatcher
+from lib.trading.pnl_fifo_lifo.trade_ledger_watcher import TradeLedgerWatcher
+from lib.trading.pnl_fifo_lifo.data_manager import create_all_tables
+from lib.trading.pnl_fifo_lifo.config import DB_NAME
+import sqlite3
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+
+def setup_logging():
+    """Configure logging for the application."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler('trade_ledger_watcher.log')
+        ]
+    )
+
+
+def ensure_database_exists(db_path: str):
+    """Ensure database exists with all required tables."""
+    conn = sqlite3.connect(db_path)
+    
+    # Check if tables exist
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='processed_files'
+    """)
+    
+    if not cursor.fetchone():
+        logging.info("Creating database tables...")
+        create_all_tables(conn)
+    
+    conn.close()
+
 
 def main():
-    """Main function to run trade ledger watcher."""
+    """Main entry point."""
+    parser = argparse.ArgumentParser(description='Run Trade Ledger Watcher for PnL System')
+    parser.add_argument(
+        '--db', 
+        default=DB_NAME,
+        help='Path to trades database (default: trades.db)'
+    )
+    parser.add_argument(
+        '--watch-dir',
+        default='data/input/trade_ledger',
+        help='Directory to watch for trade CSV files'
+    )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug logging'
+    )
     
-    # Banner
-    print("=" * 60)
-    print("TRADE LEDGER FILE WATCHER (TYU5 P&L Pipeline)")
-    print("=" * 60)
-    print("This watcher monitors for:")
-    print("  1. Trade ledger CSV files")
-    print("  2. Market price database updates")
-    print("  3. Spot risk CSV files (for FULLPNL updates)")
-    print()
-    print("Monitoring directories:")
-    print("  - Trade ledger: data/input/trade_ledger/")
-    print("  - Market prices: data/output/market_prices/market_prices.db")
-    print("  - Spot risk: data/output/spot_risk/")
-    print()
-    print("Output:")
-    print("  - Database: data/output/pnl/pnl_tracker.db")
-    print("  - Tables: tyu5_trades, tyu5_positions, tyu5_pnl_components, FULLPNL")
-    print()
-    print("Press Ctrl+C to stop")
-    print("=" * 60)
-    print()
+    args = parser.parse_args()
     
-    # Initialize watcher
-    watcher = None
+    # Setup logging
+    setup_logging()
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+    
+    logger = logging.getLogger(__name__)
+    
+    # Ensure database exists
+    ensure_database_exists(args.db)
+    
+    # Create and start watcher
+    logger.info(f"Starting Trade Ledger Watcher")
+    logger.info(f"Database: {args.db}")
+    logger.info(f"Watch directory: {args.watch_dir}")
     
     try:
-        # Create watcher with default paths
-        watcher = PNLPipelineWatcher(
-            trade_ledger_dir="data/input/trade_ledger",
-            market_prices_db="data/output/market_prices/market_prices.db",
-            spot_risk_dir="data/output/spot_risk"
-        )
-        
-        # Signal handler for graceful shutdown
-        def signal_handler(signum, frame):
-            logger.info("Shutdown signal received...")
-            if watcher:
-                watcher.stop()
-            sys.exit(0)
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-        
-        # Start the watcher
-        logger.info("Starting Trade Ledger File Watcher...")
-        watcher.start()
-        logger.info("Trade Ledger File Watcher started successfully")
-        
-        # Keep main thread alive
-        while True:
-            time.sleep(1)
-            
+        watcher = TradeLedgerWatcher(args.db, args.watch_dir)
+        watcher.run_forever()
     except KeyboardInterrupt:
-        logger.info("Keyboard interrupt received, shutting down...")
+        logger.info("Shutting down...")
     except Exception as e:
-        logger.error(f"Error in trade ledger watcher: {e}", exc_info=True)
-    finally:
-        if watcher:
-            try:
-                watcher.stop()
-                logger.info("Trade Ledger Watcher stopped")
-            except Exception as e:
-                logger.error(f"Error stopping watcher: {e}")
+        logger.error(f"Error: {e}", exc_info=True)
+        sys.exit(1)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main() 

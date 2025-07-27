@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
 """
+Market Price File Monitor - Main Entry Point
+
+DEPRECATED: This script depends on removed MarketPriceFileMonitor and market_prices.db
+The market prices infrastructure has been removed as part of PnL system migration.
+"""
+
+print("ERROR: This script is deprecated - MarketPriceFileMonitor and market_prices.db have been removed")
+exit(1)
+
+# ORIGINAL CODE BELOW - NO LONGER FUNCTIONAL
+"""
 Standalone Market Price File Monitor
 
 This script runs only the market price file monitor which:

@@ -12,7 +12,7 @@ from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime
 from contextlib import contextmanager
 import pandas as pd
-from lib.trading.actant.spot_risk.spot_risk_symbol_translator import SpotRiskSymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class SpotRiskDatabaseService:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Initialize symbol translator
-        self.symbol_translator = SpotRiskSymbolTranslator()
+        self.symbol_translator = RosettaStone()
         
         # Initialize database schema
         self._initialize_database()
@@ -177,7 +177,7 @@ class SpotRiskDatabaseService:
                 bloomberg_symbol = None
                 if instrument_key:
                     try:
-                        bloomberg_symbol = self.symbol_translator.translate(instrument_key)
+                        bloomberg_symbol = self.symbol_translator.translate(instrument_key, 'actantrisk', 'bloomberg')
                         if bloomberg_symbol:
                             logger.debug(f"Translated {instrument_key} → {bloomberg_symbol}")
                     except Exception as e:

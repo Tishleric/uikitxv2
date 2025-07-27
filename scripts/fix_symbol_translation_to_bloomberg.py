@@ -4,14 +4,14 @@ import sys
 sys.path.append('.')
 import sqlite3
 from datetime import datetime
-from lib.trading.symbol_translator import SymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 from lib.trading.treasury_notation_mapper import TreasuryNotationMapper
 
 print("=== FIXING SYMBOL TRANSLATION TO BLOOMBERG FORMAT ===")
 print(f"Time: {datetime.now()}\n")
 
 # Initialize translators
-symbol_translator = SymbolTranslator()
+symbol_translator = RosettaStone()
 treasury_mapper = TreasuryNotationMapper()
 
 # Connect to database

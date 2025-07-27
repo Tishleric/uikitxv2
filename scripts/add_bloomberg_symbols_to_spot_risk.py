@@ -10,7 +10,7 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from lib.trading.symbol_translator import SymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ def migrate_spot_risk_db(db_path: str = "data/output/spot_risk/spot_risk.db"):
         logger.error(f"Database not found: {db_path}")
         return False
     
-    translator = SymbolTranslator()
+    translator = RosettaStone()
     
     try:
         conn = sqlite3.connect(str(db_path))
@@ -72,7 +72,7 @@ def migrate_spot_risk_db(db_path: str = "data/output/spot_risk/spot_risk.db"):
                 continue
                 
             try:
-                bloomberg_symbol = translator.translate(instrument_key)
+                bloomberg_symbol = translator.translate(instrument_key, 'actantrisk', 'bloomberg')
                 if bloomberg_symbol:
                     cursor.execute("""
                         UPDATE spot_risk_raw 

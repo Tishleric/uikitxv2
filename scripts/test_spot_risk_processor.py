@@ -88,9 +88,9 @@ def test_spot_risk_processor():
 
 def check_translator_integration():
     """Verify the centralized translator is working."""
-    from lib.trading.market_prices.centralized_symbol_translator import CentralizedSymbolTranslator
+    from lib.trading.market_prices.rosetta_stone import RosettaStone
     
-    translator = CentralizedSymbolTranslator()
+    translator = RosettaStone()
     
     # Test translation
     test_symbol = "XCME.VY3.21JUL25.111.C"

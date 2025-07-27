@@ -227,16 +227,9 @@ except Exception as e:
 
 # --- Register P&L Tracking Callbacks Early ---
 # Import and register P&L Tracking callbacks at startup
-try:
-    from apps.dashboards.pnl.callbacks import register_callbacks as register_pnl_tracking_callbacks
-    
-    # Register callbacks
-    register_pnl_tracking_callbacks(app)
-    app._pnl_tracking_callbacks_registered = True
-    logger.info("P&L Tracking callbacks registered at startup")
-except Exception as e:
-    logger.error(f"Failed to register P&L Tracking callbacks at startup: {e}")
-    app._pnl_tracking_callbacks_registered = False
+# PnL tracking removed - Phase 3 clean slate
+# Previous PnL tracking callbacks were here
+app._pnl_tracking_callbacks_registered = False
 # --- End P&L Tracking Registration ---
 
 # --- Register P&L Tracking V2 Callbacks ---
@@ -2829,9 +2822,8 @@ def format_number_strip_zeros(value):
 
 # --- FRGMonitor Tab ---
 def create_frg_monitor_content():
-    """Create the FRG Monitor page content with FULLPNL table display"""
+    """Create FRGMonitor with positions and daily_positions tables from trades.db"""
     
-    # Create components using wrapped components
     # Header
     header = html.H4(
         "FRGMonitor", 
@@ -2842,328 +2834,154 @@ def create_frg_monitor_content():
         }
     )
     
-    # Create the FULLPNL tab content
-    fullpnl_tab_content = create_fullpnl_tab_content()
+    # Create tab contents
+    positions_content = create_positions_tab_content()
+    daily_positions_content = create_daily_positions_tab_content()
     
-    # Create the EOD History tab content
-    eod_history_tab_content = create_eod_history_tab_content()
-    
-    # Create tabs using dbc.Tabs
-    tabs_component = dbc.Tabs(
+    # Use wrapped Tabs component
+    tabs = Tabs(
         id="frg-monitor-tabs",
-        children=[
-            dbc.Tab(
-                label="FULLPNL", 
-                tab_id="fullpnl-tab",
-                children=fullpnl_tab_content
-            ),
-            dbc.Tab(
-                label="Historic EOD PnL", 
-                tab_id="eod-history-tab",
-                children=eod_history_tab_content
-            )
+        tabs=[
+            ("Live Positions", positions_content),
+            ("Daily Positions", daily_positions_content)
         ],
-        active_tab="fullpnl-tab"
+        active_tab="tab-0",
+        theme=default_theme
     )
     
     # Main container
-    main_container = Container(
+    container = Container(
         id="frg-monitor-container",
         children=[
             header,
-            tabs_component
+            tabs.render()
         ],
         style={"padding": "15px"}
     )
     
-    return main_container.render()
+    return container.render()
 
-def create_fullpnl_tab_content():
-    """Create the FULLPNL table tab content"""
-    # Status display
-    status_display = html.Div(
-        id="frg-monitor-status",
-        children=[
-            html.Span("Status: ", style={"fontWeight": "bold"}),
-            html.Span("Initializing...", id="frg-monitor-status-text")
-        ],
-        style={
-            "color": default_theme.text_light,
-            "marginBottom": "15px",
-            "fontSize": "0.9rem"
-        }
-    )
+def create_positions_tab_content():
+    """Create positions table with real-time updates"""
     
-    # Last update display
-    last_update_display = html.Div(
-        id="frg-monitor-last-update",
-        children=[
-            html.Span("Last Update: ", style={"fontWeight": "bold"}),
-            html.Span("--", id="frg-monitor-last-update-text")
-        ],
-        style={
-            "color": default_theme.text_subtle,
-            "marginBottom": "20px",
-            "fontSize": "0.9rem"
-        }
-    )
+    # Status and update info
+    info_row = html.Div([
+        html.Span("Status: ", style={"fontWeight": "bold"}),
+        html.Span("Initializing...", id="positions-status-text"),
+        html.Span(" | Last Update: ", style={"fontWeight": "bold", "marginLeft": "20px"}),
+        html.Span("--", id="positions-last-update-text"),
+        html.Span(" (Chicago time)", style={"fontSize": "0.8rem", "fontStyle": "italic", "marginLeft": "10px"})
+    ], style={"marginBottom": "15px", "fontSize": "0.9rem"})
     
-    # Create the DataTable
-    frg_table = DataTable(
-        id="frg-monitor-table",
-        columns=[],  # Will be populated by callback
-        data=[],     # Will be populated by callback
+    # DataTable
+    positions_table = DataTable(
+        id="positions-table",
+        columns=[],
+        data=[],
         theme=default_theme,
         page_size=20,
-        style_table={
-            'overflowX': 'auto',
-            'width': '100%',
-            'minWidth': '100%'
-        },
-
-        style_cell={
-            'textAlign': 'center',
-            'padding': '8px',
-            'fontSize': '0.85rem',
-            'whiteSpace': 'normal',
-            'height': 'auto',
-            'backgroundColor': default_theme.base_bg,
-            'color': default_theme.text_light
-        },
-        style_header={
-            'backgroundColor': default_theme.panel_bg,
-            'fontWeight': 'bold',
-            'color': default_theme.text_light,
-            'fontSize': '0.9rem'
-        },
+        style_table={'overflowX': 'visible', 'width': '100%'},
+        style_cell={'textAlign': 'center', 'padding': '5px', 'fontSize': '0.85rem'},
         style_data_conditional=[
-            # Highlight positive P&L values
+            # Positive P&L green
             {
-                'if': {
-                    'filter_query': '{total_pnl} > 0',
-                    'column_id': 'total_pnl'
-                },
+                'if': {'filter_query': '{fifo_realized_pnl} > 0', 'column_id': 'fifo_realized_pnl'},
                 'color': default_theme.success
             },
-            # Highlight negative P&L values
             {
-                'if': {
-                    'filter_query': '{total_pnl} < 0',
-                    'column_id': 'total_pnl'
-                },
+                'if': {'filter_query': '{lifo_realized_pnl} > 0', 'column_id': 'lifo_realized_pnl'},
+                'color': default_theme.success
+            },
+            # Negative P&L red
+            {
+                'if': {'filter_query': '{fifo_realized_pnl} < 0', 'column_id': 'fifo_realized_pnl'},
                 'color': default_theme.danger
             },
-            # Highlight futures rows
             {
-                'if': {
-                    'filter_query': '{type} = "FUT"'
-                },
-                'backgroundColor': default_theme.secondary,
-                'color': default_theme.text_light
+                'if': {'filter_query': '{lifo_realized_pnl} < 0', 'column_id': 'lifo_realized_pnl'},
+                'color': default_theme.danger
             }
         ]
     )
     
-    # Create interval component for polling
-    interval_component = dcc.Interval(
-        id='frg-monitor-interval',
-        interval=1000,  # 1 second
-        n_intervals=0
-    )
+    # Interval and store
+    interval = dcc.Interval(id='positions-interval', interval=1000, n_intervals=0)
+    store = dcc.Store(id='positions-timestamp-store', data={'timestamp': None})
     
-    # Store for last update timestamp
-    last_update_store = dcc.Store(
-        id='frg-monitor-last-update-store',
-        data={'timestamp': None}
-    )
-    
-    # Wrap table in a Grid
-    table_grid = Grid(
-        id="frg-monitor-table-grid",
-        children=[frg_table.render()],
-        style={
-            "backgroundColor": default_theme.panel_bg, 
-            "padding": "15px", 
-            "borderRadius": "5px"
-        }
-    )
-    
-    # Create info panel
-    info_panel = Container(
-        id="frg-monitor-info-panel",
+    # Container
+    container = Container(
+        id="positions-tab-container",
         children=[
-            html.Div([
-                status_display,
-                last_update_display
-            ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"})
+            info_row,
+            positions_table.render(),
+            interval,
+            store
         ],
-        theme=default_theme,
-        style={
-            'padding': '15px', 
-            'marginBottom': '20px', 
-            'backgroundColor': default_theme.panel_bg,
-            'borderRadius': '4px', 
-            'border': f'1px solid {default_theme.secondary}'
-        }
+        theme=default_theme
     )
     
-    # Tab content container
-    tab_content = Container(
-        id="fullpnl-tab-content",
-        children=[
-            info_panel.render(),
-            table_grid.render(),
-            interval_component,
-            last_update_store
-        ],
-        style={"padding": "20px"}
-    )
-    
-    return tab_content.render()
+    return container.render()
 
-def create_eod_history_tab_content():
-    """Create the Historic EOD P&L table tab content"""
-    # Status display
-    status_display = html.Div(
-        id="eod-history-status",
-        children=[
-            html.Span("Status: ", style={"fontWeight": "bold"}),
-            html.Span("Initializing...", id="eod-history-status-text")
-        ],
-        style={
-            "color": default_theme.text_light,
-            "marginBottom": "15px",
-            "fontSize": "0.9rem"
-        }
-    )
+def create_daily_positions_tab_content():
+    """Create daily positions table with real-time updates"""
     
-    # Last update display
-    last_update_display = html.Div(
-        id="eod-history-last-update",
-        children=[
-            html.Span("Last Update: ", style={"fontWeight": "bold"}),
-            html.Span("--", id="eod-history-last-update-text"),
-            html.Span(" (All times in Chicago timezone)", style={"marginLeft": "20px", "fontStyle": "italic"})
-        ],
-        style={
-            "color": default_theme.text_subtle,
-            "marginBottom": "20px",
-            "fontSize": "0.9rem"
-        }
-    )
+    # Status and update info
+    info_row = html.Div([
+        html.Span("Status: ", style={"fontWeight": "bold"}),
+        html.Span("Initializing...", id="daily-positions-status-text"),
+        html.Span(" | Last Update: ", style={"fontWeight": "bold", "marginLeft": "20px"}),
+        html.Span("--", id="daily-positions-last-update-text"),
+        html.Span(" (Chicago time)", style={"fontSize": "0.8rem", "fontStyle": "italic", "marginLeft": "10px"})
+    ], style={"marginBottom": "15px", "fontSize": "0.9rem"})
     
-    # Create the DataTable
-    eod_table = DataTable(
-        id="eod-history-table",
-        columns=[],  # Will be populated by callback
-        data=[],     # Will be populated by callback
+    # DataTable
+    daily_table = DataTable(
+        id="daily-positions-table",
+        columns=[],
+        data=[],
         theme=default_theme,
         page_size=20,
-        style_table={
-            'overflowX': 'auto',
-            'width': '100%',
-            'minWidth': '100%'
-        },
-        style_cell={
-            'textAlign': 'center',
-            'padding': '8px',
-            'fontSize': '0.85rem',
-            'whiteSpace': 'normal',
-            'height': 'auto',
-            'backgroundColor': default_theme.base_bg,
-            'color': default_theme.text_light
-        },
-        style_header={
-            'backgroundColor': default_theme.panel_bg,
-            'fontWeight': 'bold',
-            'color': default_theme.text_light,
-            'fontSize': '0.9rem'
-        },
+        style_table={'overflowX': 'auto'},
+        style_cell={'textAlign': 'center', 'padding': '8px'},
         style_data_conditional=[
-            # Highlight positive P&L values
+            # Positive P&L green
             {
-                'if': {
-                    'filter_query': '{total_daily_pnl} > 0',
-                    'column_id': 'total_daily_pnl'
-                },
+                'if': {'filter_query': '{realized_pnl} > 0', 'column_id': 'realized_pnl'},
                 'color': default_theme.success
             },
-            # Highlight negative P&L values
             {
-                'if': {
-                    'filter_query': '{total_daily_pnl} < 0',
-                    'column_id': 'total_daily_pnl'
-                },
+                'if': {'filter_query': '{unrealized_pnl} > 0', 'column_id': 'unrealized_pnl'},
+                'color': default_theme.success
+            },
+            # Negative P&L red
+            {
+                'if': {'filter_query': '{realized_pnl} < 0', 'column_id': 'realized_pnl'},
                 'color': default_theme.danger
             },
-            # Highlight TOTAL row
             {
-                'if': {
-                    'filter_query': '{symbol} = "TOTAL"'
-                },
-                'backgroundColor': default_theme.secondary,
-                'color': default_theme.text_light,
-                'fontWeight': 'bold'
+                'if': {'filter_query': '{unrealized_pnl} < 0', 'column_id': 'unrealized_pnl'},
+                'color': default_theme.danger
             }
         ]
     )
     
-    # Create interval component for polling
-    interval_component = dcc.Interval(
-        id='eod-history-interval',
-        interval=5000,  # 5 seconds (EOD updates less frequently)
-        n_intervals=0
-    )
+    # Interval and store
+    interval = dcc.Interval(id='daily-positions-interval', interval=1000, n_intervals=0)
+    store = dcc.Store(id='daily-positions-timestamp-store', data={'timestamp': None})
     
-    # Store for last update timestamp
-    last_update_store = dcc.Store(
-        id='eod-history-last-update-store',
-        data={'timestamp': None}
-    )
-    
-    # Wrap table in a Grid
-    table_grid = Grid(
-        id="eod-history-table-grid",
-        children=[eod_table.render()],
-        style={
-            "backgroundColor": default_theme.panel_bg, 
-            "padding": "15px", 
-            "borderRadius": "5px"
-        }
-    )
-    
-    # Create info panel
-    info_panel = Container(
-        id="eod-history-info-panel",
+    # Container
+    container = Container(
+        id="daily-positions-tab-container",
         children=[
-            html.Div([
-                status_display,
-                last_update_display
-            ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"})
+            info_row,
+            daily_table.render(),
+            interval,
+            store
         ],
-        theme=default_theme,
-        style={
-            'padding': '15px', 
-            'marginBottom': '20px', 
-            'backgroundColor': default_theme.panel_bg,
-            'borderRadius': '4px', 
-            'border': f'1px solid {default_theme.secondary}'
-        }
+        theme=default_theme
     )
     
-    # Tab content container
-    tab_content = Container(
-        id="eod-history-tab-content",
-        children=[
-            info_panel.render(),
-            table_grid.render(),
-            interval_component,
-            last_update_store
-        ],
-        style={"padding": "20px"}
-    )
-    
-    return tab_content.render()
+    return container.render()
 
 # --- End FRGMonitor Tab ---
 
@@ -3199,9 +3017,8 @@ def create_sidebar():
         {"id": "nav-greek-analysis", "label": "Greek Analysis", "icon": "📈"},
         {"id": "nav-scenario-ladder", "label": "Scenario Ladder", "icon": "📊"},
         {"id": "nav-actant-eod", "label": "Actant EOD", "icon": "📈"},
-        {"id": "nav-actant-pnl", "label": "Actant PnL", "icon": "📉"},
-        {"id": "nav-pnl-tracking", "label": "PnL Tracking", "icon": "💹"},  # New P&L Tracking tab
-        # {"id": "nav-pnl-tracking-v2", "label": "PnL Tracking V2", "icon": "🚀"},  # CTO_INTEGRATION: V2 removed
+            {"id": "nav-actant-pnl", "label": "Actant PnL", "icon": "📉"},
+    # PnL tracking removed - Phase 3 clean slate
         {"id": "nav-spot-risk", "label": "Spot Risk", "icon": "🎯"},
         {"id": "nav-observatory", "label": "Observatory", "icon": "👀"},
         {"id": "nav-project-docs", "label": "Project Documentation", "icon": "📚"},
@@ -3315,18 +3132,7 @@ def get_page_content(page_name):
                 style={"color": "red", "padding": "20px"}
             )
     
-    # Load P&L Tracking dashboard dynamically
-    if page_name == "pnl-tracking":
-        try:
-            from apps.dashboards.pnl import create_pnl_content
-            # Callbacks were already registered at app startup
-            return create_pnl_content()
-        except Exception as e:
-            logger.error(f"Error loading P&L Tracking dashboard: {e}")
-            return html.Div(
-                f"Error loading P&L Tracking dashboard: {str(e)}", 
-                style={"color": "red", "padding": "20px"}
-            )
+    # PnL tracking removed - Phase 3 clean slate
     
     # CTO_INTEGRATION: P&L v2 loading removed
     # # Load P&L Tracking V2 dashboard
@@ -3416,9 +3222,8 @@ app.layout = html.Div([
      Output("nav-project-docs", "style"),
      Output("nav-scenario-ladder", "style"),
      Output("nav-actant-eod", "style"),
-     Output("nav-actant-pnl", "style"),
-     Output("nav-pnl-tracking", "style"),
-     # Output("nav-pnl-tracking-v2", "style"),  # CTO_INTEGRATION: v2 removed
+         Output("nav-actant-pnl", "style"),
+    # PnL tracking outputs removed - Phase 3 clean slate
      Output("nav-spot-risk", "style"),
      Output("nav-frg-monitor", "style"),
      Output("nav-observatory", "style")],
@@ -3548,99 +3353,82 @@ logger.info("UI layout defined with sidebar navigation.")
 
 # --- FRGMonitor Callbacks ---
 @app.callback(
-    [Output("frg-monitor-table", "columns"),
-     Output("frg-monitor-table", "data"),
-     Output("frg-monitor-status-text", "children"),
-     Output("frg-monitor-last-update-text", "children"),
-     Output("frg-monitor-last-update-store", "data")],
-    [Input("frg-monitor-interval", "n_intervals")],
-    [State("frg-monitor-last-update-store", "data")],
+    [Output("positions-table", "columns"),
+     Output("positions-table", "data"),
+     Output("positions-status-text", "children"),
+     Output("positions-last-update-text", "children"),
+     Output("positions-timestamp-store", "data")],
+    [Input("positions-interval", "n_intervals")],
+    [State("positions-timestamp-store", "data")],
     prevent_initial_call=False
 )
 @monitor()
-def update_frg_monitor_table(n_intervals, last_update_data):
-    """Update FRGMonitor table with smart polling"""
+def update_positions_table(n_intervals, last_timestamp_data):
+    """Update positions table from trades.db with smart polling"""
     import sqlite3
     import pandas as pd
     from datetime import datetime
-    import os
+    import pytz
     
     try:
-        # Database path
-        db_path = "data/output/pnl/pnl_tracker.db"
-        
-        # Check if database exists
-        if not os.path.exists(db_path):
-            return [], [], "Database not found", "--", last_update_data
+        # Database path (root folder)
+        db_path = "trades.db"
         
         # Connect to database
         conn = sqlite3.connect(db_path)
         
-        # Get the latest update timestamp from FULLPNL table
-        check_query = "SELECT MAX(last_update) FROM FULLPNL"
+        # Get the latest update timestamp
+        check_query = "SELECT MAX(last_updated) FROM positions"
         latest_timestamp = conn.execute(check_query).fetchone()[0]
         
         # Check if data has changed
-        last_timestamp = last_update_data.get('timestamp') if last_update_data else None
+        last_timestamp = last_timestamp_data.get('timestamp') if last_timestamp_data else None
         
         if latest_timestamp == last_timestamp and n_intervals > 0:
             # No changes, prevent update
             conn.close()
             raise PreventUpdate
         
-        # Fetch selected columns from FULLPNL table
+        # Fetch positions data
         query = """
         SELECT 
-            symbol_bloomberg,
-            type,
-            net_quantity,
-            closed_quantity,
-            total_pnl,
-            delta_f,
+            symbol,
+            instrument_type,
+            open_position,
+            closed_position,
             delta_y,
-            gamma_f,
             gamma_y,
             speed_y,
-            theta_y,
-            vega_y
-        FROM FULLPNL
-        ORDER BY symbol_bloomberg
+            theta,
+            vega,
+            fifo_realized_pnl,
+            fifo_unrealized_pnl,
+            lifo_realized_pnl,
+            lifo_unrealized_pnl,
+            last_updated
+        FROM positions
+        WHERE open_position != 0 OR closed_position != 0
+        ORDER BY symbol
         """
         
         df = pd.read_sql_query(query, conn)
         conn.close()
         
-        # Format numeric columns
-        numeric_cols = [
-            'net_quantity', 'closed_quantity', 'total_pnl',
-            'delta_f', 'delta_y', 'gamma_f', 'gamma_y',
-            'speed_y', 'theta_y', 'vega_y'
-        ]
-        
-        for col in numeric_cols:
-            if col in df.columns:
-                # Round to 6 decimal places for all values (as per FULLPNL precision requirement)
-                df[col] = df[col].round(6)
-                
-        # Apply formatting to strip trailing zeros for display
-        for col in numeric_cols:
-            if col in df.columns and col != 'total_pnl':  # Keep total_pnl for special formatting
-                df[col] = df[col].apply(format_number_strip_zeros)
-        
-        # Create simple columns configuration (multi-level not supported)
+        # Format columns
         columns = [
-            {"name": "Symbol", "id": "symbol_bloomberg"},
-            {"name": "Type", "id": "type"},
-            {"name": "Net Qty", "id": "net_quantity"},
-            {"name": "Closed Qty", "id": "closed_quantity"},
-            {"name": "Total P&L", "id": "total_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Delta (F)", "id": "delta_f"},
-            {"name": "Delta (Y)", "id": "delta_y"},
-            {"name": "Gamma (F)", "id": "gamma_f"},
-            {"name": "Gamma (Y)", "id": "gamma_y"},
-            {"name": "Speed (Y)", "id": "speed_y"},
-            {"name": "Theta (Y)", "id": "theta_y"},
-            {"name": "Vega (Y)", "id": "vega_y"}
+            {"name": "Symbol", "id": "symbol"},
+            {"name": "Type", "id": "instrument_type"},
+            {"name": "Open", "id": "open_position", "type": "numeric"},
+            {"name": "Closed", "id": "closed_position", "type": "numeric"},
+            {"name": "ΔY", "id": "delta_y", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "ΓY", "id": "gamma_y", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "SpeedY", "id": "speed_y", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "Θ", "id": "theta", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "Vega", "id": "vega", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "FIFO Real", "id": "fifo_realized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "FIFO Unreal", "id": "fifo_unrealized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "LIFO Real", "id": "lifo_realized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "LIFO Unreal", "id": "lifo_unrealized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}}
         ]
         
         # Convert dataframe to records
@@ -3649,127 +3437,89 @@ def update_frg_monitor_table(n_intervals, last_update_data):
         # Update status
         status_text = f"Connected - {len(data)} rows"
         
-        # Update last update time
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Update last update time (Chicago time)
+        chicago_tz = pytz.timezone('America/Chicago')
+        current_time = datetime.now(chicago_tz).strftime("%Y-%m-%d %H:%M:%S")
         
         # Store new timestamp
-        new_update_data = {'timestamp': latest_timestamp}
+        new_timestamp_data = {'timestamp': latest_timestamp}
         
-        return columns, data, status_text, current_time, new_update_data
+        return columns, data, status_text, current_time, new_timestamp_data
         
     except PreventUpdate:
-        # This is expected behavior, re-raise it
         raise
     except Exception as e:
-        logger.error(f"Error updating FRGMonitor table: {type(e).__name__}: {str(e)}", exc_info=True)
-        return [], [], f"Error: {type(e).__name__}: {str(e)}", "--", last_update_data
+        logger.error(f"Error updating positions table: {type(e).__name__}: {str(e)}", exc_info=True)
+        return [], [], f"Error: {str(e)}", "--", last_timestamp_data
 
 @app.callback(
-    [Output("eod-history-table", "columns"),
-     Output("eod-history-table", "data"),
-     Output("eod-history-status-text", "children"),
-     Output("eod-history-last-update-text", "children"),
-     Output("eod-history-last-update-store", "data")],
-    [Input("eod-history-interval", "n_intervals")],
-    [State("eod-history-last-update-store", "data")],
+    [Output("daily-positions-table", "columns"),
+     Output("daily-positions-table", "data"),
+     Output("daily-positions-status-text", "children"),
+     Output("daily-positions-last-update-text", "children"),
+     Output("daily-positions-timestamp-store", "data")],
+    [Input("daily-positions-interval", "n_intervals")],
+    [State("daily-positions-timestamp-store", "data")],
     prevent_initial_call=False
 )
 @monitor()
-def update_eod_history_table(n_intervals, last_update_data):
-    """Update EOD History table with smart polling"""
+def update_daily_positions_table(n_intervals, last_timestamp_data):
+    """Update daily positions table from trades.db with smart polling"""
     import sqlite3
     import pandas as pd
     from datetime import datetime
-    import os
+    import pytz
     
     try:
-        # Database path
-        db_path = "data/output/pnl/pnl_tracker.db"
-        
-        # Check if database exists
-        if not os.path.exists(db_path):
-            return [], [], "Database not found", "--", last_update_data
+        # Database path (root folder)
+        db_path = "trades.db"
         
         # Connect to database
         conn = sqlite3.connect(db_path)
         
-        # Get the latest update timestamp from EOD history table
-        check_query = "SELECT MAX(created_at) FROM tyu5_eod_pnl_history"
-        cursor = conn.cursor()
-        cursor.execute(check_query)
-        result = cursor.fetchone()
-        latest_timestamp = result[0] if result else None
+        # Get the latest update timestamp
+        check_query = "SELECT MAX(timestamp) FROM daily_positions"
+        latest_timestamp = conn.execute(check_query).fetchone()[0]
         
         # Check if data has changed
-        last_timestamp = last_update_data.get('timestamp') if last_update_data else None
+        last_timestamp = last_timestamp_data.get('timestamp') if last_timestamp_data else None
         
         if latest_timestamp == last_timestamp and n_intervals > 0:
             # No changes, prevent update
             conn.close()
             raise PreventUpdate
         
-        # Fetch EOD history data
+        # Fetch daily positions data
         query = """
         SELECT 
-            snapshot_date,
+            date,
             symbol,
-            position_quantity,
+            method,
+            open_position,
+            closed_position,
             realized_pnl,
-            unrealized_pnl_settle,
-            unrealized_pnl_current,
-            total_daily_pnl,
-            settlement_price,
-            current_price,
-            pnl_period_start,
-            pnl_period_end,
-            trades_in_period
-        FROM tyu5_eod_pnl_history
-        ORDER BY 
-            CASE WHEN symbol = 'TOTAL' THEN 1 ELSE 0 END,
-            snapshot_date DESC,
-            symbol
+            unrealized_pnl,
+            timestamp
+        FROM daily_positions
+        ORDER BY date DESC, symbol, method
         """
         
         df = pd.read_sql_query(query, conn)
         conn.close()
         
-        # Handle bytes data in numeric columns (SQLite BLOB issue)
-        for col in df.columns:
-            if df[col].dtype == object:  # Check for object columns that might contain bytes
-                df[col] = df[col].apply(lambda x: int.from_bytes(x, 'little') if isinstance(x, bytes) else x)
+        # Convert timestamps to Chicago time
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
         
-        # Format date columns - handle mixed formats and convert to Chicago time
-        date_cols = ['snapshot_date', 'pnl_period_start', 'pnl_period_end']
-        for col in date_cols:
-            if col in df.columns and not df[col].isna().all():
-                # Parse dates flexibly and convert to Chicago time
-                df[col] = pd.to_datetime(df[col], format='mixed', utc=True).dt.tz_convert('America/Chicago').dt.strftime('%Y-%m-%d')
-        
-        # Format numeric columns
-        numeric_cols = [
-            'position_quantity', 'realized_pnl', 'unrealized_pnl_settle',
-            'unrealized_pnl_current', 'total_daily_pnl', 'settlement_price',
-            'current_price', 'trades_in_period'
-        ]
-        
-        for col in numeric_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').round(2)
-        
-        # Create columns configuration
+        # Format columns
         columns = [
-            {"name": "Date (Chicago)", "id": "snapshot_date"},
+            {"name": "Date", "id": "date"},
             {"name": "Symbol", "id": "symbol"},
-            {"name": "Position", "id": "position_quantity", "type": "numeric"},
+            {"name": "Method", "id": "method"},
+            {"name": "Open Position", "id": "open_position", "type": "numeric"},
+            {"name": "Closed Position", "id": "closed_position", "type": "numeric"},
             {"name": "Realized P&L", "id": "realized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Unrealized P&L (Settle)", "id": "unrealized_pnl_settle", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Unrealized P&L (Current)", "id": "unrealized_pnl_current", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Total Daily P&L", "id": "total_daily_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Settlement Price", "id": "settlement_price", "type": "numeric", "format": {"specifier": ",.4f"}},
-            {"name": "Current Price", "id": "current_price", "type": "numeric", "format": {"specifier": ",.4f"}},
-            {"name": "Period Start (Chicago)", "id": "pnl_period_start"},
-            {"name": "Period End (Chicago)", "id": "pnl_period_end"},
-            {"name": "Trades", "id": "trades_in_period", "type": "numeric"}
+            {"name": "Unrealized P&L", "id": "unrealized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}}
         ]
         
         # Convert dataframe to records
@@ -3778,20 +3528,20 @@ def update_eod_history_table(n_intervals, last_update_data):
         # Update status
         status_text = f"Connected - {len(data)} rows"
         
-        # Update last update time
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Update last update time (Chicago time)
+        chicago_tz = pytz.timezone('America/Chicago')
+        current_time = datetime.now(chicago_tz).strftime("%Y-%m-%d %H:%M:%S")
         
         # Store new timestamp
-        new_update_data = {'timestamp': latest_timestamp}
+        new_timestamp_data = {'timestamp': latest_timestamp}
         
-        return columns, data, status_text, current_time, new_update_data
+        return columns, data, status_text, current_time, new_timestamp_data
         
     except PreventUpdate:
-        # This is expected behavior, re-raise it
         raise
     except Exception as e:
-        logger.error(f"Error updating EOD History table: {type(e).__name__}: {str(e)}", exc_info=True)
-        return [], [], f"Error: {type(e).__name__}: {str(e)}", "--", last_update_data
+        logger.error(f"Error updating daily positions table: {type(e).__name__}: {str(e)}", exc_info=True)
+        return [], [], f"Error: {str(e)}", "--", last_timestamp_data
 
 # --- End FRGMonitor Callbacks ---
 

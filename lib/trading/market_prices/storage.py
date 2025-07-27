@@ -1,6 +1,9 @@
 """
 Storage layer for market price data.
 
+DEPRECATED: This module is being replaced by a new pricing infrastructure.
+The market_prices.db has been removed as part of PnL system migration.
+
 Handles database operations for futures and options prices with row-level tracking.
 """
 
@@ -15,26 +18,28 @@ from lib.monitoring.decorators import monitor
 import pytz
 
 # Constants
-DB_FILE_NAME = 'market_prices.db'
+# DB_FILE_NAME = 'market_prices.db'  # REMOVED: market_prices.db deprecated
 CHICAGO_TZ = pytz.timezone('America/Chicago')
 
 logger = logging.getLogger(__name__)
 
 
 class MarketPriceStorage:
-    """Handles database storage for market price data."""
+    """
+    Handles database storage for market price data.
+    
+    DEPRECATED: This class is being replaced by a new pricing infrastructure.
+    """
     
     def __init__(self, db_path: Optional[Path] = None):
         """
         Initialize storage with database path.
         
         Args:
-            db_path: Path to database file (defaults to data/output/market_prices/market_prices.db)
+            db_path: Path to database file (no longer has a default - must be explicitly provided)
         """
         if db_path is None:
-            # Default to data/output/market_prices/
-            project_root = Path(__file__).parent.parent.parent.parent
-            db_path = project_root / 'data' / 'output' / 'market_prices' / DB_FILE_NAME
+            raise ValueError("db_path must be provided - market_prices.db has been removed")
             
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)

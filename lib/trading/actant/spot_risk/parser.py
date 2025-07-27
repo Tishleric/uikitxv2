@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Union, Any
 import logging
-from lib.trading.symbol_translator import SymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 logger = logging.getLogger(__name__)
 
@@ -237,9 +237,9 @@ def parse_spot_risk_csv(filepath: Union[str, Path], calculate_time_to_expiry: bo
         
         # Translate to Bloomberg symbols
         if 'key' in df.columns:
-            translator = SymbolTranslator()
+            translator = RosettaStone()
             df['bloomberg_symbol'] = df['key'].apply(
-                lambda x: translator.translate(x) if x else None
+                lambda x: translator.translate(x, 'actantrisk', 'bloomberg') if x else None
             )
             translated_count = df['bloomberg_symbol'].notna().sum()
             logger.info(f"Translated {translated_count} out of {len(df)} symbols to Bloomberg format")

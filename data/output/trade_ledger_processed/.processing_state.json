@@ -1,8 +1,29 @@
 {
   "trades_20250723.csv": {
+    "size": 908,
+    "mtime": 1753304212.821917,
+    "processed_at": "2025-07-23T17:16:59.862083",
+    "processed_count": 13,
+    "last_processed_mtime": "1753304212.821917"
+  },
+  "trades_20250721.csv": {
+    "size": 189,
+    "mtime": 1753313794.158348,
+    "processed_at": "2025-07-23T19:36:33.577167",
+    "processed_count": 2,
+    "last_processed_mtime": "1753313794.158348"
+  },
+  "trades_20250722.csv": {
+    "size": 646,
+    "mtime": 1753313798.8403304,
+    "processed_at": "2025-07-23T19:36:38.467137",
+    "processed_count": 9,
+    "last_processed_mtime": "1753313798.8403304"
+  },
+  "trades_20250723 copy.csv": {
     "size": 253,
     "mtime": 1753278825.6400874,
-    "processed_at": "2025-07-23T13:04:14.838347",
+    "processed_at": "2025-07-23T16:03:01.767341",
     "processed_count": 3,
     "last_processed_mtime": "1753278825.6400874"
   }

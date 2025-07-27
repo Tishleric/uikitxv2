@@ -1,11 +1,11 @@
-"""Test the SymbolTranslator with actual positions."""
+"""Test the RosettaStone translator with actual positions."""
 
 import sys
 sys.path.append('.')
 import sqlite3
-from lib.trading.symbol_translator import SymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
-print("=== TESTING SYMBOL TRANSLATOR ===\n")
+print("=== TESTING ROSETTA STONE TRANSLATOR ===\n")
 
 # Get positions from database
 conn = sqlite3.connect("data/output/pnl/pnl_tracker.db")
@@ -14,13 +14,13 @@ cursor = conn.cursor()
 cursor.execute("SELECT DISTINCT instrument_name FROM positions ORDER BY instrument_name")
 instruments = [row[0] for row in cursor.fetchall()]
 
-translator = SymbolTranslator()
+translator = RosettaStone()
 
 print(f"Testing {len(instruments)} instruments:\n")
 
 success_count = 0
 for inst in instruments:
-    bloomberg = translator.translate(inst)
+    bloomberg = translator.translate(inst, 'actanttrades', 'bloomberg')
     if bloomberg:
         success_count += 1
         print(f"✓ {inst}")

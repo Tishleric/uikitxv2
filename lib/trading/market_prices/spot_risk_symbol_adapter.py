@@ -1,8 +1,8 @@
 """
 Spot Risk Symbol Adapter
 
-Converts spot risk symbol format to Actant format that SymbolTranslator expects.
-This allows us to use the more accurate weekday occurrence calculation.
+Simplified adapter that uses RosettaStone for all symbol translations.
+RosettaStone handles ActantRisk format directly.
 """
 
 import re
@@ -10,13 +10,13 @@ from typing import Optional
 from datetime import datetime
 import logging
 
-from lib.trading.symbol_translator import SymbolTranslator
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 logger = logging.getLogger(__name__)
 
 
 class SpotRiskSymbolAdapter:
-    """Adapts spot risk symbols to use the main SymbolTranslator."""
+    """Adapts spot risk symbols using RosettaStone for translation."""
     
     # Month name to month number
     MONTH_TO_NUM = {
@@ -49,8 +49,8 @@ class SpotRiskSymbolAdapter:
     }
     
     def __init__(self):
-        self.translator = SymbolTranslator()
-        # Spot risk patterns
+        self.translator = RosettaStone()
+        # Spot risk patterns (kept for validation)
         self.future_pattern = re.compile(r'XCME\.([A-Z]+)\.([A-Z]{3})(\d{2})')
         self.option_pattern = re.compile(r'XCME\.([A-Z]+\d?)\.(\d{1,2})([A-Z]{3})(\d{2})\.(\d+(?::\d+)?)\.([CP])')
         
@@ -59,22 +59,14 @@ class SpotRiskSymbolAdapter:
         Translate spot risk symbol to Bloomberg format.
         
         Args:
-            spot_risk_symbol: Symbol in spot risk format
+            spot_risk_symbol: Symbol in spot risk format (ActantRisk)
             
         Returns:
             Bloomberg symbol or None if translation fails
         """
         try:
-            # Try to convert to Actant format first
-            actant_symbol = self._convert_to_actant(spot_risk_symbol)
-            if actant_symbol:
-                # Use the main translator
-                bloomberg = self.translator.translate(actant_symbol)
-                if bloomberg:
-                    return bloomberg
-                    
-            # If conversion failed, fall back to direct translation
-            return self._direct_translate(spot_risk_symbol)
+            # RosettaStone handles ActantRisk format directly
+            return self.translator.translate(spot_risk_symbol, 'actantrisk', 'bloomberg')
             
         except Exception as e:
             logger.error(f"Error translating {spot_risk_symbol}: {e}")
@@ -151,10 +143,4 @@ class SpotRiskSymbolAdapter:
             
         return None
         
-    def _direct_translate(self, spot_risk_symbol: str) -> Optional[str]:
-        """Direct translation without going through Actant format."""
-        
-        # Use the SpotRiskSymbolTranslator as fallback
-        from lib.trading.actant.spot_risk.spot_risk_symbol_translator import SpotRiskSymbolTranslator
-        fallback = SpotRiskSymbolTranslator()
-        return fallback.translate(spot_risk_symbol) 
+ 

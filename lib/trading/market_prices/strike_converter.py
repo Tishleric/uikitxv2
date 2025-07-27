@@ -91,7 +91,7 @@ class StrikeConverter:
         
         Args:
             strike: Input strike (can be XCME format or decimal)
-            target_format: 'bloomberg', 'cme', or 'xcme'
+            target_format: 'bloomberg', 'cme', 'actantrisk', 'actanttrades', or 'actanttime'
             
         Returns:
             Formatted strike string
@@ -113,7 +113,16 @@ class StrikeConverter:
             else:
                 # Convert to basis points (hundredths)
                 return f"{int(decimal * 100)}"
-        elif target_format == 'xcme':
+        elif target_format == 'actantrisk':
             return StrikeConverter.decimal_to_xcme(decimal)
+        elif target_format == 'actanttrades':
+            # ActantTrades uses decimal format in strikes
+            if decimal % 1 == 0:
+                return str(int(decimal))
+            else:
+                return str(decimal)
+        elif target_format == 'actanttime':
+            # ActantTime doesn't use strikes in the base format
+            return ""
         else:
             raise ValueError(f"Unknown target format: {target_format}") 

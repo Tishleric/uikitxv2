@@ -11,8 +11,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 from lib.trading.market_prices.strike_converter import StrikeConverter
-from lib.trading.market_prices.centralized_symbol_translator import CentralizedSymbolTranslator
 
 
 def test_strike_converter():
@@ -42,7 +42,7 @@ def test_symbol_translations():
     """Test full symbol translations."""
     print("\n=== Testing Symbol Translations ===")
     
-    translator = CentralizedSymbolTranslator()
+    translator = RosettaStone()
     
     # Test cases: (symbol, from_format, to_format, description)
     test_cases = [
@@ -85,7 +85,7 @@ def test_edge_cases():
     """Test edge cases and error handling."""
     print("\n=== Testing Edge Cases ===")
     
-    translator = CentralizedSymbolTranslator()
+    translator = RosettaStone()
     
     # Invalid symbols
     invalid_cases = [
@@ -104,7 +104,7 @@ def test_real_database_symbols():
     """Test with symbols from actual database."""
     print("\n=== Testing Real Database Symbols ===")
     
-    translator = CentralizedSymbolTranslator()
+    translator = RosettaStone()
     
     # These are actual symbols from your database
     real_symbols = [

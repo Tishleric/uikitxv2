@@ -4,7 +4,7 @@
 from . import bond_future_options
 
 # P&L Calculator for FIFO-based profit and loss tracking
-from . import pnl_calculator
+# pnl_calculator removed - Phase 3 clean slate
 
 __all__ = [
     'bond_future_options',

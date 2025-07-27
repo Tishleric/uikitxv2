@@ -1,0 +1,3 @@
+usage: run_trade_ledger_watcher.py [-h] [--db DB] [--watch-dir WATCH_DIR]
+                                   [--debug]
+run_trade_ledger_watcher.py: error: unrecognized arguments: PM.log

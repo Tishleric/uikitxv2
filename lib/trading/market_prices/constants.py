@@ -41,8 +41,11 @@ FILE_PATTERNS = {
     'options': r'Options_(\d{8})_(\d{4})\.csv'
 }
 
+# Default file sizes
+DEFAULT_FILE_SIZE_MB = 0.0
+
 # Database configuration
-DB_FILE_NAME = 'market_prices.db'
+# DB_FILE_NAME = 'market_prices.db'  # REMOVED: market_prices.db deprecated in favor of new pricing infrastructure
 
 # Data root directory
 import os

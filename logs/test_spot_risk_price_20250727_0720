@@ -1,0 +1,3 @@
+usage: run_spot_risk_price_watcher.py [-h] [--db DB] [--input-dir INPUT_DIR]
+                                      [--verbose]
+run_spot_risk_price_watcher.py: error: unrecognized arguments: PM.log
