@@ -13,7 +13,7 @@ import pandas as pd
 
 from .config import DEFAULT_SYMBOL
 from .pnl_engine import calculate_unrealized_pnl
-from .data_manager import view_unrealized_positions, load_pricing_dictionaries
+from .data_manager import view_unrealized_positions, load_pricing_dictionaries, get_trading_day
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +93,9 @@ class PositionsAggregator:
         }
         
         try:
+            # Get current trading day
+            current_trading_day = get_trading_day(datetime.now()).strftime('%Y-%m-%d')
+            
             # Get open positions (net quantity)
             for method in ['fifo', 'lifo']:
                 cursor.execute(f"""
@@ -104,24 +107,24 @@ class PositionsAggregator:
                 if method == 'fifo':  # Use FIFO as primary position
                     data['open_position'] = result[0] if result[0] else 0
             
-            # Get realized P&L
+            # Get realized P&L for current trading day only
             for method in ['fifo', 'lifo']:
-                cursor.execute(f"""
-                    SELECT SUM(realizedPnL)
-                    FROM realized_{method}
-                    WHERE symbol = ?
-                """, (symbol,))
+                cursor.execute("""
+                    SELECT realized_pnl
+                    FROM daily_positions
+                    WHERE symbol = ? AND method = ? AND date = ?
+                """, (symbol, method, current_trading_day))
                 result = cursor.fetchone()
-                data[f'{method}_realized_pnl'] = result[0] if result[0] else 0
+                data[f'{method}_realized_pnl'] = result[0] if result and result[0] else 0
             
-            # Get closed positions from daily_positions
+            # Get closed positions from daily_positions for current trading day only
             cursor.execute("""
-                SELECT SUM(closed_position)
+                SELECT closed_position
                 FROM daily_positions
-                WHERE symbol = ? AND method = 'fifo'
-            """, (symbol,))
+                WHERE symbol = ? AND method = 'fifo' AND date = ?
+            """, (symbol, current_trading_day))
             result = cursor.fetchone()
-            data['closed_position'] = result[0] if result[0] else 0
+            data['closed_position'] = result[0] if result and result[0] else 0
             
             # Calculate unrealized P&L
             price_dicts = load_pricing_dictionaries(conn)

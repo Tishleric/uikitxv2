@@ -283,7 +283,8 @@ class TradeLedgerWatcher:
         logger.info("Checking for existing unprocessed files...")
         
         for filepath in sorted(self.watch_dir.glob('trades_*.csv')):
-            if not self.handler._is_file_processed(filepath):
+            # Check if file has been processed (-1 means never processed)
+            if self.handler._get_last_processed_line(filepath) == -1:
                 logger.info(f"Found unprocessed file: {filepath.name}")
                 self.handler._process_file(filepath)
                 

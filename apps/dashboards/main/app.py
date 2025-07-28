@@ -2856,7 +2856,7 @@ def create_frg_monitor_content():
             header,
             tabs.render()
         ],
-        style={"padding": "15px"}
+        style={"padding": "10px"}  # Reduced padding for more width
     )
     
     return container.render()
@@ -2917,7 +2917,8 @@ def create_positions_tab_content():
             interval,
             store
         ],
-        theme=default_theme
+        theme=default_theme,
+        style={"padding": "10px", "width": "100%"}  # Use full width
     )
     
     return container.render()
@@ -3190,7 +3191,7 @@ sidebar = create_sidebar()
 # Content area style
 content_style = {
     'marginLeft': '240px',
-    'padding': '20px',
+    'padding': '20px 10px',  # Reduced horizontal padding for more width
     'backgroundColor': default_theme.base_bg,
     'minHeight': '100vh'
 }
@@ -3235,7 +3236,7 @@ app.layout = html.Div([
      Input("nav-scenario-ladder", "n_clicks"),
      Input("nav-actant-eod", "n_clicks"),
      Input("nav-actant-pnl", "n_clicks"),
-     Input("nav-pnl-tracking", "n_clicks"),
+
      # Input("nav-pnl-tracking-v2", "n_clicks"),  # CTO_INTEGRATION: v2 removed
      Input("nav-spot-risk", "n_clicks"),
      Input("nav-frg-monitor", "n_clicks"),
@@ -3244,7 +3245,7 @@ app.layout = html.Div([
     prevent_initial_call=False
 )
 @monitor()
-def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, pnl_tracking_clicks, spot_risk_clicks, frg_monitor_clicks, observatory_clicks, current_page):
+def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, spot_risk_clicks, frg_monitor_clicks, observatory_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
     # Determine which button was clicked
@@ -3317,7 +3318,6 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
         "scenario-ladder": active_style if active_page == "scenario-ladder" else inactive_style,
         "actant-eod": active_style if active_page == "actant-eod" else inactive_style,
         "actant-pnl": active_style if active_page == "actant-pnl" else inactive_style,
-        "pnl-tracking": active_style if active_page == "pnl-tracking" else inactive_style,
         # "pnl-tracking-v2": active_style if active_page == "pnl-tracking-v2" else inactive_style,  # CTO_INTEGRATION: v2 removed
         "spot-risk": active_style if active_page == "spot-risk" else inactive_style,
         "frg-monitor": active_style if active_page == "frg-monitor" else inactive_style,
@@ -3326,7 +3326,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
     
     logger.info(f"Navigation: switched to page '{active_page}'")
     
-    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["pnl-tracking"], styles["spot-risk"], styles["frg-monitor"], styles["observatory"]
+    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["spot-risk"], styles["frg-monitor"], styles["observatory"]
 
 # Remove old tabs-based layout
 # main_tabs_rendered = Tabs(
@@ -3420,10 +3420,10 @@ def update_positions_table(n_intervals, last_timestamp_data):
             {"name": "Type", "id": "instrument_type"},
             {"name": "Open", "id": "open_position", "type": "numeric"},
             {"name": "Closed", "id": "closed_position", "type": "numeric"},
-            {"name": "ΔY", "id": "delta_y", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "ΓY", "id": "gamma_y", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "SpeedY", "id": "speed_y", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "Θ", "id": "theta", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "Delta Y", "id": "delta_y", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "Gamma Y", "id": "gamma_y", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "Speed Y", "id": "speed_y", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "Theta", "id": "theta", "type": "numeric", "format": {"specifier": ".4f"}},
             {"name": "Vega", "id": "vega", "type": "numeric", "format": {"specifier": ".4f"}},
             {"name": "FIFO Real", "id": "fifo_realized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "FIFO Unreal", "id": "fifo_unrealized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},

@@ -1,0 +1,10 @@
+Query failed for all expiries
+Timestamp: 2025-07-27 20:19:44.410975
+Server: 10.62.6.6:4722
+
+Failed expiries:
+  - 2025-07-28: Query failed after all retries
+  - 2025-07-29: Query failed after all retries
+  - 2025-07-30: Query failed after all retries
+  - 2025-07-31: Query failed after all retries
+  - 2025-08-01: Query failed after all retries
