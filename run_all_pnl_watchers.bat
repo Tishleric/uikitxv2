@@ -40,7 +40,7 @@ echo.
 REM =====================================================
 REM 1. Trade Ledger Watcher
 REM =====================================================
-echo [1/4] Starting Trade Ledger Watcher...
+echo [1/6] Starting Trade Ledger Watcher...
 echo      - Monitors: data\input\trade_ledger\
 echo      - Purpose: Process new trades through FIFO/LIFO engine
 start "Trade Ledger Watcher" /min cmd /c "python scripts\run_trade_ledger_watcher.py > logs\trade_ledger_watcher_%timestamp%.log 2>&1"
@@ -49,38 +49,45 @@ timeout /t 2 /nobreak >nul
 REM =====================================================
 REM 2. Spot Risk Price Watcher
 REM =====================================================
-echo [2/4] Starting Spot Risk Price Watcher...
+echo [2/6] Starting Spot Risk Price Watcher...
 echo      - Monitors: data\input\actant_spot_risk\
 echo      - Purpose: Update current prices in trades.db
 start "Spot Risk Price Watcher" /min cmd /c "python scripts\run_spot_risk_price_watcher.py > logs\spot_risk_price_watcher_%timestamp%.log 2>&1"
 timeout /t 2 /nobreak >nul
 
 REM =====================================================
-REM 3. Spot Risk Processing Watcher (for Greeks)
+REM 3. Close Price Watcher (NEW)
 REM =====================================================
-echo [3/4] Starting Spot Risk Processing Watcher...
+echo [3/6] Starting Close Price Watcher...
+echo      - Monitors: Z:\Trade_Control\Futures and Z:\Trade_Control\Options
+echo      - Purpose: Update close prices in trades.db
+start "Close Price Watcher" /min cmd /c "python scripts\run_close_price_watcher.py > logs\close_price_watcher_%timestamp%.log 2>&1"
+timeout /t 2 /nobreak >nul
+
+REM =====================================================
+REM 4. Spot Risk Processing Watcher (for Greeks)
+REM =====================================================
+echo [4/6] Starting Spot Risk Processing Watcher...
 echo      - Monitors: data\input\actant_spot_risk\
 echo      - Purpose: Calculate Greeks and process spot risk data
 start "Spot Risk Processing Watcher" /min cmd /c "python scripts\run_spot_risk_watcher.py > logs\spot_risk_processor_%timestamp%.log 2>&1"
 timeout /t 2 /nobreak >nul
 
 REM =====================================================
-REM 4. Market Price Monitor (if available)
+REM 5. Market Price Monitor (DEPRECATED)
 REM =====================================================
-echo [4/5] Checking Market Price Monitor...
+echo [5/6] Checking Market Price Monitor...
 if exist "scripts\run_corrected_market_price_monitor.py" (
-    echo      Starting Market Price Monitor...
-    echo      - Monitors: data\input\market_prices\
-    echo      - Purpose: Process futures and options price files
-    start "Market Price Monitor" /min cmd /c "python scripts\run_corrected_market_price_monitor.py > logs\market_price_monitor_%timestamp%.log 2>&1"
+    echo      NOTE: Market Price Monitor is DEPRECATED (replaced by Close Price Watcher)
+    echo      Skipping...
 ) else (
     echo      Market Price Monitor not available (deprecated)
 )
 
 REM =====================================================
-REM 5. Positions Watcher
+REM 6. Positions Watcher
 REM =====================================================
-echo [5/5] Starting Positions Watcher...
+echo [6/6] Starting Positions Watcher...
 echo      - Purpose: Aggregate and monitor position changes
 if exist "scripts\run_positions_watcher.py" (
     start "Positions Watcher" /min cmd /c "python scripts\run_positions_watcher.py > logs\positions_watcher_%timestamp%.log 2>&1"

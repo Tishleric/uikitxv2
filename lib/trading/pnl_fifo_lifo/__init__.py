@@ -22,6 +22,7 @@ from .data_manager import (
 from .main import process_multiple_csvs
 from .trade_ledger_watcher import TradeLedgerWatcher
 from .spot_risk_price_watcher import SpotRiskPriceWatcher
+from .close_price_watcher import ClosePriceWatcher
 
 __all__ = [
     'DB_NAME', 
@@ -42,5 +43,6 @@ __all__ = [
     'process_multiple_csvs',
     'TradeLedgerWatcher',
     'SpotRiskPriceWatcher',
-    'update_current_price'
+    'update_current_price',
+    'ClosePriceWatcher'
 ] 
