@@ -13,6 +13,8 @@ import time
 from pathlib import Path
 import sys
 from datetime import datetime
+import pyarrow as pa  # Import pyarrow for Arrow deserialization
+import pickle  # Import pickle for envelope deserialization
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -32,7 +34,7 @@ class PriceUpdaterService:
 
     def __init__(self, trades_db_path: str = "trades.db"):
         """Initializes the service with a connection to Redis."""
-        self.redis_client = redis.Redis(decode_responses=True)
+        self.redis_client = redis.Redis(host='127.0.0.1', port=6379)  # Changed to handle raw bytes for Arrow
         self.redis_channel = "spot_risk:results_channel"
         self.trades_db_path = trades_db_path
         self.symbol_translator = RosettaStone()
@@ -55,13 +57,21 @@ class PriceUpdaterService:
             try:
                 # --- Start Instrumentation ---
                 start_time = time.time()
-                payload = json.loads(message['data'])
+                
+                # Deserialize the pickled envelope containing Arrow data
+                payload = pickle.loads(message['data'])
                 publish_timestamp = payload.get('publish_timestamp', start_time)
                 latency = start_time - publish_timestamp
                 # --- End Instrumentation ---
 
                 logger.info(f"Received new data package from Redis for price update (Latency: {latency:.3f}s).")
-                df = pd.read_json(payload['data'], orient='records')
+                
+                # Deserialize Arrow data to DataFrame
+                buffer = payload['data']
+                reader = pa.ipc.open_stream(buffer)
+                arrow_table = reader.read_all()
+                df = arrow_table.to_pandas()
+                
                 timestamp = payload.get('timestamp', datetime.now().isoformat())
 
                 if df.empty:

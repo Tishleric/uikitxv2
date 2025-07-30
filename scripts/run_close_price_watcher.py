@@ -2,7 +2,7 @@
 """
 Run the close price watcher for trades.db
 
-Monitors Z:\Trade_Control\Futures and Z:\Trade_Control\Options for new CSV files
+Monitors Z:\\Trade_Control\\Futures and Z:\\Trade_Control\\Options for new CSV files
 and updates close prices in trades.db
 
 The watcher:
@@ -60,8 +60,8 @@ def main():
     logger.info("=" * 60)
     logger.info(f"Database: {args.db}")
     logger.info("Configuration:")
-    logger.info("  - Monitoring Z:\\Trade_Control\\Futures")
-    logger.info("  - Monitoring Z:\\Trade_Control\\Options")
+    logger.info(r"  - Monitoring Z:\Trade_Control\Futures")
+    logger.info(r"  - Monitoring Z:\Trade_Control\Options")
     logger.info("  - Processing new files only (no historical)")
     logger.info("  - Calling roll_2pm_prices for every CSV")
     logger.info("  - 4pm roll triggers:")

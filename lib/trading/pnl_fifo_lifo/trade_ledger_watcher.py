@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Optional, Set
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileModifiedEvent
+import redis
 
 from .data_manager import get_trading_day, update_daily_position
 from .pnl_engine import process_new_trade
@@ -31,6 +32,7 @@ class TradeLedgerFileHandler(FileSystemEventHandler):
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.translator = RosettaStone()
+        self.redis_client = redis.Redis(host='127.0.0.1', port=6379)
         
     def on_created(self, event):
         """Handle new file creation."""
@@ -157,6 +159,11 @@ class TradeLedgerFileHandler(FileSystemEventHandler):
             logger.info(f"Processed {trade_count} trades from {filepath.name}")
             
             conn.close()
+            
+            # Publish notification that positions have changed
+            if trade_count > 0:
+                self.redis_client.publish("positions:changed", "refresh")
+                logger.info("Published 'positions:changed' notification to Redis.")
             
         except Exception as e:
             logger.error(f"Error processing file {filepath}: {e}", exc_info=True)

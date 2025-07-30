@@ -20,6 +20,9 @@ import time # Add time for watchdog sleep
 import glob # Add glob for vtexp file searching
 import queue # Add queue for DatabaseWriter timeout
 import redis # Import redis
+import pyarrow as pa  # Import pyarrow for Arrow serialization
+import pickle  # Import pickle for envelope serialization
+import sqlite3  # Import sqlite3 for position loading
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -28,6 +31,7 @@ from lib.monitoring.decorators import monitor
 from lib.trading.actant.spot_risk.parser import parse_spot_risk_csv
 from lib.trading.actant.spot_risk.calculator import SpotRiskGreekCalculator
 from lib.trading.actant.spot_risk.database import SpotRiskDatabaseService
+from lib.trading.market_prices.rosetta_stone import RosettaStone
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,7 @@ def _wait_for_file_stabilization(filepath: Path, timeout: int = 10) -> bool:
     """
     Waits for a file to be fully written by checking for a non-zero, stable size.
     This function is intended to be called from a worker process.
-
+        
     Returns:
         True if the file is ready, False if it times out or remains empty.
     """
@@ -82,6 +86,7 @@ def calculation_worker(task_queue: multiprocessing.Queue, result_queue: multipro
     pid = os.getpid()
     logger.info(f"Calculation worker started with PID: {pid}")
     calculator = SpotRiskGreekCalculator()
+    symbol_translator = RosettaStone()
 
     while True:
         task = task_queue.get()
@@ -89,7 +94,7 @@ def calculation_worker(task_queue: multiprocessing.Queue, result_queue: multipro
             logger.info(f"Worker {pid} received sentinel. Exiting.")
             break
 
-        batch_id, filepath_str, vtexp_data = task
+        batch_id, filepath_str, vtexp_data, positions_snapshot = task
         filepath = Path(filepath_str)
 
         # --- NEW: Wait for file stabilization within the worker ---
@@ -106,6 +111,29 @@ def calculation_worker(task_queue: multiprocessing.Queue, result_queue: multipro
             df = parse_spot_risk_csv(filepath, calculate_time_to_expiry=True, vtexp_data=vtexp_data)
             if df is None or df.empty:
                 raise ValueError("Failed to parse CSV or CSV is empty.")
+            
+            # Filter by positions if we have any active positions
+            if positions_snapshot:
+                original_count = len(df)
+                
+                # Translate symbols to Bloomberg format for comparison
+                df['bloomberg_symbol'] = df['key'].apply(
+                    lambda x: symbol_translator.translate(x, 'actantrisk', 'bloomberg') if x else None
+                )
+                
+                # Keep only rows where we have positions
+                df_filtered = df[df['bloomberg_symbol'].isin(positions_snapshot)]
+                
+                rows_dropped = original_count - len(df_filtered)
+                logger.info(f"Worker {pid}: Filtered {filepath.name} - kept {len(df_filtered)}/{original_count} rows (dropped {rows_dropped} non-position rows)")
+                
+                df = df_filtered
+                
+            # Skip processing if no rows remain after filtering
+            if df.empty:
+                logger.info(f"Worker {pid}: No positions to process in {filepath.name}, skipping calculations")
+                result_queue.put((batch_id, filepath.name, pd.DataFrame()))
+                continue
 
             df_with_greeks, _ = calculator.calculate_greeks(df)
             df_with_aggregates = calculator.calculate_aggregates(df_with_greeks)
@@ -114,7 +142,7 @@ def calculation_worker(task_queue: multiprocessing.Queue, result_queue: multipro
             logger.info(f"[PARALLEL] Worker PID={pid} finished {filepath.name} in {processing_time:.2f}s")
             
             result_queue.put((batch_id, filepath.name, df_with_aggregates))
-
+            
         except Exception as e:
             logger.error(f"Worker {pid} failed to process {filepath.name}: {e}", exc_info=True)
             result_queue.put((batch_id, filepath.name, None)) # Signal failure for this file
@@ -129,7 +157,7 @@ class ResultPublisher(threading.Thread):
         self.result_queue = result_queue
         self.total_files_per_batch = total_files_per_batch
         self.pending_batches: Dict[str, Dict[str, Any]] = {}
-        self.redis_client = redis.Redis(decode_responses=True)
+        self.redis_client = redis.Redis(host='127.0.0.1', port=6379)  # Changed to handle raw bytes for Arrow
         self.redis_channel = "spot_risk:results_channel"
         self.daemon = True
         logger.info("ResultPublisher thread initialized.")
@@ -179,18 +207,53 @@ class ResultPublisher(threading.Thread):
                 logger.info(f"Batch {batch_id} is complete. Publishing to Redis... (Processing Duration: {processing_duration:.3f}s)")
                 # --- End Instrumentation ---
                 
+                # Add detailed timing for the publishing process
+                t0 = time.time()
+                
                 full_df = pd.concat(self.pending_batches[batch_id]['results'], ignore_index=True)
+                t1 = time.time()
                 
                 try:
-                    # Serialize the DataFrame and add a precise publish timestamp
+                    # Convert DataFrame to Apache Arrow format for high-speed serialization
+                    arrow_table = pa.Table.from_pandas(full_df)
+                    t2 = time.time()
+                    
+                    sink = pa.BufferOutputStream()
+                    with pa.ipc.new_stream(sink, arrow_table.schema) as writer:
+                        writer.write_table(arrow_table)
+                    buffer = sink.getvalue()
+                    t3 = time.time()
+                    
+                    # Create metadata envelope with Arrow data
                     payload = {
                         'batch_id': batch_id,
                         'publish_timestamp': time.time(),
-                        'data': full_df.to_json(orient='records')
+                        'format': 'arrow',
+                        'data': buffer  # The raw Arrow bytes
                     }
-                    # Publish to the channel
-                    self.redis_client.publish(self.redis_channel, json.dumps(payload))
-                    logger.info(f"Successfully published batch {batch_id} to Redis channel '{self.redis_channel}'.")
+                    
+                    # Use pickle for the envelope to handle binary data
+                    pickled_payload = pickle.dumps(payload)
+                    payload_size_mb = len(pickled_payload) / (1024 * 1024)
+                    
+                    # Add detailed logging to diagnose the delay
+                    logger.info(f"About to publish {payload_size_mb:.2f} MB to Redis...")
+                    t_pre_publish = time.time()
+                    
+                    result = self.redis_client.publish(self.redis_channel, pickled_payload)
+                    
+                    t4 = time.time()
+                    logger.info(f"Redis publish returned: {result} subscribers received the message")
+
+                    logger.info(
+                        f"Successfully published batch {batch_id} to Redis channel '{self.redis_channel}' using Arrow format.\n"
+                        f"    - pd.concat:      {(t1 - t0) * 1000:.2f} ms\n"
+                        f"    - pa.Table.from_pandas: {(t2 - t1) * 1000:.2f} ms\n"
+                        f"    - pa.write_table: {(t3 - t2) * 1000:.2f} ms\n"
+                        f"    - redis.publish:  {(t4 - t3) * 1000:.2f} ms\n"
+                        f"    -------------------------------------\n"
+                        f"    - Total Publish Time: {(t4 - t0) * 1000:.2f} ms"
+                    )
                 except Exception as e:
                     logger.error(f"Failed to publish batch {batch_id} to Redis: {e}", exc_info=True)
 
@@ -214,16 +277,19 @@ class ResultPublisher(threading.Thread):
 class SpotRiskFileHandler(FileSystemEventHandler):
     """A lightweight file event handler that puts file paths onto a task queue."""
     
-    def __init__(self, task_queue: multiprocessing.Queue, total_files_per_batch: Dict[str, int], vtexp_cache: Dict[str, Any]):
+    def __init__(self, task_queue: multiprocessing.Queue, total_files_per_batch: Dict[str, int], 
+                 vtexp_cache: Dict[str, Any], watcher_ref):
         self.task_queue = task_queue
         self.total_files_per_batch = total_files_per_batch
         self.vtexp_cache = vtexp_cache
+        self.watcher_ref = watcher_ref  # Reference to SpotRiskWatcher for position access
         self.processed_files_cache = set()
         self.last_processed_batch_id = None
+        self.batch_position_snapshots = {}  # Store position snapshot per batch
         self.filename_pattern = re.compile(
             r"bav_analysis_(\d{8}_\d{6})_chunk_(\d+)_of_(\d+)\.csv"
         )
-        logger.info("SpotRiskFileHandler initialized with new filename pattern.")
+        logger.info("SpotRiskFileHandler initialized with position awareness.")
     
     @monitor()
     def on_created(self, event):
@@ -253,17 +319,25 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             logger.info(f"New batch '{batch_id}' detected. Checking for vtexp file updates.")
             self._refresh_vtexp_cache()
             self.last_processed_batch_id = batch_id
+            
+            # Take a snapshot of positions for this batch
+            with self.watcher_ref.positions_lock:
+                self.batch_position_snapshots[batch_id] = self.watcher_ref.positions_cache.copy()
+                logger.info(f"Captured position snapshot for batch {batch_id}: {len(self.batch_position_snapshots[batch_id])} active positions")
         # --- End Efficient Refresh ---
 
         # Take a snapshot of the current vtexp data to ensure consistency for this entire batch
         vtexp_data_for_batch = self.vtexp_cache.get('data')
+        
+        # Get the position snapshot for this batch
+        positions_snapshot = self.batch_position_snapshots.get(batch_id, set())
 
         if batch_id not in self.total_files_per_batch:
             self.total_files_per_batch[batch_id] = total_chunks
             logger.info(f"Initialized batch {batch_id}. Expecting {total_chunks} total chunks.")
 
         logger.info(f"Immediately queueing task for chunk {chunk_num_str}/{total_chunks} of batch {batch_id}")
-        self.task_queue.put((batch_id, filepath_str, vtexp_data_for_batch))
+        self.task_queue.put((batch_id, filepath_str, vtexp_data_for_batch, positions_snapshot))
         
         self.processed_files_cache.add(filepath_str)
         threading.Timer(10.0, self.processed_files_cache.discard, [filepath_str]).start()
@@ -301,19 +375,72 @@ class SpotRiskWatcher:
             'data': None
         })
         
+        # Position-aware cache
+        self.positions_cache = set()  # Bloomberg symbols we have positions for
+        self.positions_lock = threading.Lock()
+        self.redis_client = redis.Redis(host='127.0.0.1', port=6379)
+        
         self.task_queue = multiprocessing.Queue()
         self.result_queue = multiprocessing.Queue()
         
         self.workers: List[multiprocessing.Process] = []
         self.result_publisher_thread: Optional[ResultPublisher] = None
         self.watchdog_thread: Optional[threading.Thread] = None
+        self.position_listener_thread: Optional[threading.Thread] = None
         
         logger.info(f"SpotRiskWatcher initialized for {input_dir} with {self.num_workers} workers (CPU count: {os.cpu_count()}).")
+        
+    def _load_positions_from_db(self):
+        """Load symbols with open positions from trades.db."""
+        try:
+            with self.positions_lock:
+                conn = sqlite3.connect("trades.db")
+                cursor = conn.cursor()
+                
+                # Query for all symbols with non-zero open positions
+                cursor.execute("""
+                    SELECT DISTINCT symbol 
+                    FROM positions 
+                    WHERE open_position != 0
+                """)
+                
+                symbols = {row[0] for row in cursor.fetchall()}
+                self.positions_cache = symbols
+                conn.close()
+                
+                logger.info(f"Loaded {len(self.positions_cache)} active position symbols from database")
+        except Exception as e:
+            logger.error(f"Failed to load positions from database: {e}", exc_info=True)
+    
+    def _listen_for_position_updates(self):
+        """Listen for position update notifications via Redis."""
+        logger.info("Starting position update listener thread...")
+        
+        pubsub = self.redis_client.pubsub()
+        pubsub.subscribe("positions:changed")
+        
+        for message in pubsub.listen():
+            if message['type'] != 'message':
+                continue
+            
+            logger.info("Received positions:changed signal. Refreshing position cache...")
+            self._load_positions_from_db()
         
     @monitor()
     def start(self):
         """Start the file watcher and the processing pool."""
         logger.info("Starting SpotRiskWatcher pipeline...")
+        
+        # Load initial positions
+        self._load_positions_from_db()
+        
+        # Start position listener thread
+        self.position_listener_thread = threading.Thread(
+            target=self._listen_for_position_updates, 
+            daemon=True,
+            name="PositionListener"
+        )
+        self.position_listener_thread.start()
 
         # 1. Start Result Publisher Thread
         self.result_publisher_thread = ResultPublisher(self.result_queue, self.total_files_per_batch)
@@ -336,7 +463,7 @@ class SpotRiskWatcher:
         logger.info("Worker watchdog thread started.")
 
         # 4. Start File System Observer
-        event_handler = SpotRiskFileHandler(self.task_queue, self.total_files_per_batch, self.vtexp_cache)
+        event_handler = SpotRiskFileHandler(self.task_queue, self.total_files_per_batch, self.vtexp_cache, self)
         self.observer.schedule(event_handler, str(self.input_dir), recursive=True)
         self.observer.start()
         
