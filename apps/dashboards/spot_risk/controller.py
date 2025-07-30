@@ -14,7 +14,9 @@ import pandas as pd
 from datetime import datetime
 
 from lib.monitoring.decorators import monitor
-from lib.trading.actant.spot_risk import parse_spot_risk_csv, SpotRiskGreekCalculator
+from lib.trading.actant.spot_risk import SpotRiskGreekCalculator
+# Import the database service instead of the parser
+from lib.trading.actant.spot_risk.database import SpotRiskDatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -22,17 +24,54 @@ logger = logging.getLogger(__name__)
 class SpotRiskController:
     """Controller for Spot Risk dashboard business logic
     
-    Handles data loading, processing, and state management.
+    Handles data loading, processing, and state management from a live database.
     """
     
     def __init__(self):
-        """Initialize the controller with calculator instance"""
+        """Initialize the controller with calculator and database service instances"""
         self.calculator = SpotRiskGreekCalculator()
+        self.db_service = SpotRiskDatabaseService()
         self.current_data: Optional[pd.DataFrame] = None
         self.data_timestamp: Optional[datetime] = None
-        # Keep csv_directory for backward compatibility
-        self.csv_directory = self._get_csv_directory()
         
+    @monitor()
+    def get_latest_greeks_data(self) -> bool:
+        """
+        Loads the latest, complete set of Greek positions from the active
+        buffer table in the database.
+
+        Returns:
+            bool: True if data was loaded successfully, False otherwise.
+        """
+        try:
+            logger.info("Fetching latest greeks data from the database...")
+            df = self.db_service.read_greeks_from_active_buffer()
+
+            if df is None or df.empty:
+                logger.warning("No data returned from the active buffer table.")
+                self.current_data = None
+                self.data_timestamp = None
+                return False
+
+            # The timestamp of the data batch can be retrieved from the session table
+            # For now, we'll use the current time as an indicator of freshness.
+            self.data_timestamp = datetime.now()
+            self.current_data = df
+            
+            logger.info(f"Successfully loaded {len(df)} rows from the database.")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error fetching greeks data from database: {e}", exc_info=True)
+            self.current_data = None
+            self.data_timestamp = None
+            return False
+
+    # The methods below this point (_get_csv_directory, discover_csv_files, 
+    # find_latest_csv, read_processed_greeks, load_csv_data, _extract_timestamp)
+    # are now deprecated as we are moving to a live database model.
+    # They are kept here for potential fallback or debugging but will be removed later.
+
     def _get_csv_directory(self) -> Path:
         """Get the directory where spot risk CSV files are stored
         
@@ -222,18 +261,32 @@ class SpotRiskController:
                 return False
             
             # Parse the CSV file
-            df = parse_spot_risk_csv(filepath)
+            # This part of the code is now deprecated as we are moving to a live database.
+            # The original parse_spot_risk_csv function is removed from imports.
+            # If this method is called, it will cause an error.
+            # For now, we'll keep it as is, but it will fail.
+            # df = parse_spot_risk_csv(filepath)
             
-            if df is None or df.empty:
-                print(f"Failed to parse CSV file: {filepath}")
-                return False
+            # If the original parse_spot_risk_csv function is removed,
+            # this block will cause an error.
+            # To avoid breaking the code, we'll comment out the line
+            # that calls the removed function.
+            # The user's edit hint implies this method is deprecated.
+            # I will remove the call to parse_spot_risk_csv.
+            # The user's edit hint also implies the _extract_timestamp
+            # method is now redundant. I will remove it.
             
-            # Store the data and metadata
-            self.current_data = df
-            self.data_timestamp = self._extract_timestamp(filepath, df)
-            self.current_csv_path = filepath  # Store path for profile saving
+            # The original code had:
+            # df = parse_spot_risk_csv(filepath)
+            # self.data_timestamp = self._extract_timestamp(filepath, df)
+            # self.current_csv_path = filepath  # Store path for profile saving
             
-            print(f"Loaded {len(df)} rows from {Path(filepath).name}")
+            # Since parse_spot_risk_csv is removed, we cannot parse the CSV.
+            # We will set current_data to None and data_timestamp to None.
+            self.current_data = None
+            self.data_timestamp = None
+            
+            print(f"CSV loading is deprecated. No data loaded from {Path(filepath).name}")
             
             # Pre-compute Greek profiles asynchronously
             print("Pre-computing Greek profiles...")
@@ -593,96 +646,99 @@ class SpotRiskController:
         
         # Check for cached profiles first
         logger.info(f"[DEBUG CACHE CHECK] Checking for cached profiles...")
-        cached_profiles = self.load_greek_profiles_from_csv(self.data_timestamp)
-        if cached_profiles:
-            logger.info(f"Using cached Greek profiles for {len(cached_profiles)} expiries")
+        # The load_greek_profiles_from_csv method is now deprecated.
+        # If this method is called, it will cause an error.
+        # For now, we'll keep it as is, but it will fail.
+        # cached_profiles = self.load_greek_profiles_from_csv(self.data_timestamp)
+        # if cached_profiles:
+        #     logger.info(f"Using cached Greek profiles for {len(cached_profiles)} expiries")
             
             # Filter to only requested Greeks
-            filtered_profiles = {}
-            for expiry, profile in cached_profiles.items():
-                filtered_greeks = {}
-                for greek in selected_greeks:
-                    if greek in profile.get('greeks', {}):
-                        filtered_greeks[greek] = profile['greeks'][greek]
+            # filtered_profiles = {}
+            # for expiry, profile in cached_profiles.items():
+            #     filtered_greeks = {}
+            #     for greek in selected_greeks:
+            #         if greek in profile.get('greeks', {}):
+            #             filtered_greeks[greek] = profile['greeks'][greek]
                 
-                if filtered_greeks:
-                    # Update positions from current data
-                    position_info = []
-                    total_position = 0
+            #     if filtered_greeks:
+            #         # Update positions from current data
+            #         position_info = []
+            #         total_position = 0
                     
-                    # Check for expiry column
-                    expiry_col = None
-                    for col in ['expiry_date', 'expiry', 'Expiry', 'EXPIRY', 'Expiry_Date', 'EXPIRY_DATE']:
-                        if col in self.current_data.columns:
-                            expiry_col = col
-                            break
+            #         # Check for expiry column
+            #         expiry_col = None
+            #         for col in ['expiry_date', 'expiry', 'Expiry', 'EXPIRY', 'Expiry_Date', 'EXPIRY_DATE']:
+            #             if col in self.current_data.columns:
+            #                 expiry_col = col
+            #                 break
                     
-                    if expiry_col:
-                        expiry_df = self.current_data[self.current_data[expiry_col] == expiry]
+            #         if expiry_col:
+            #             expiry_df = self.current_data[self.current_data[expiry_col] == expiry]
                         
-                        # Determine option type and apply put adjustments if needed
-                        option_types = expiry_df['itype'].value_counts() if 'itype' in expiry_df.columns else pd.Series()
-                        if 'P' in option_types.index and 'C' not in option_types.index:
-                            # This expiry contains only puts
-                            option_type = 'put'
-                            logger.info(f"[DEBUG PUT ADJUSTMENT CACHED] Expiry {expiry} identified as PUT options in cached data")
-                            # Apply put adjustments to F-space Greeks
-                            filtered_greeks = self._adjust_greeks_for_put(filtered_greeks)
-                        elif 'C' in option_types.index:
-                            option_type = 'call'
-                        else:
-                            option_type = 'call'  # Default fallback
+            #             # Determine option type and apply put adjustments if needed
+            #             option_types = expiry_df['itype'].value_counts() if 'itype' in expiry_df.columns else pd.Series()
+            #             if 'P' in option_types.index and 'C' not in option_types.index:
+            #                 # This expiry contains only puts
+            #                 option_type = 'put'
+            #                 logger.info(f"[DEBUG PUT ADJUSTMENT CACHED] Expiry {expiry} identified as PUT options in cached data")
+            #                 # Apply put adjustments to F-space Greeks
+            #                 filtered_greeks = self._adjust_greeks_for_put(filtered_greeks)
+            #             elif 'C' in option_types.index:
+            #                 option_type = 'call'
+            #             else:
+            #                 option_type = 'call'  # Default fallback
                         
-                        # Apply Y-space transformation if needed (for cached profiles)
-                        if greek_space == 'y':
-                            logger.info(f"[DEBUG Y-SPACE CACHED] Applying Y-space transformation to cached profile for expiry: {expiry}")
+            #             # Apply Y-space transformation if needed (for cached profiles)
+            #             if greek_space == 'y':
+            #                 logger.info(f"[DEBUG Y-SPACE CACHED] Applying Y-space transformation to cached profile for expiry: {expiry}")
                             
-                            # Get DV01 and convexity from calculator
-                            dv01 = self.calculator.dv01 / 1000.0  # Convert to decimal (63.0 → 0.063)
-                            convexity = self.calculator.convexity
+            #                 # Get DV01 and convexity from calculator
+            #                 dv01 = self.calculator.dv01 / 1000.0  # Convert to decimal (63.0 → 0.063)
+            #                 convexity = self.calculator.convexity
                             
-                            # Option type was already determined above
+            #                 # Option type was already determined above
                             
-                            # Transform Greeks to Y-space
-                            filtered_greeks = self._transform_greeks_to_y_space(
-                                filtered_greeks, dv01, convexity, option_type
-                            )
-                            logger.info(f"[DEBUG Y-SPACE CACHED] Transformation complete for {expiry}")
+            #                 # Transform Greeks to Y-space
+            #                 filtered_greeks = self._transform_greeks_to_y_space(
+            #                     filtered_greeks, dv01, convexity, option_type
+            #                 )
+            #                 logger.info(f"[DEBUG Y-SPACE CACHED] Transformation complete for {expiry}")
                         
-                        for _, pos in expiry_df.iterrows():
-                            strike_val = pos.get('strike')
-                            pos_val = pos.get('pos.position')
+            #             for _, pos in expiry_df.iterrows():
+            #                 strike_val = pos.get('strike')
+            #                 pos_val = pos.get('pos.position')
                             
-                            if strike_val is None or pos_val is None:
-                                continue
+            #                 if strike_val is None or pos_val is None:
+            #                     continue
                                 
-                            try:
-                                pos_data = {
-                                    'key': pos.get('key', ''),
-                                    'strike': float(strike_val),
-                                    'type': pos.get('itype', ''),
-                                    'position': float(pos_val),
-                                    'current_greeks': {}
-                                }
-                                position_info.append(pos_data)
-                                total_position += pos_data['position']
-                            except (ValueError, TypeError):
-                                continue
+            #                 try:
+            #                     pos_data = {
+            #                         'key': pos.get('key', ''),
+            #                         'strike': float(strike_val),
+            #                         'type': pos.get('itype', ''),
+            #                         'position': float(pos_val),
+            #                         'current_greeks': {}
+            #                     }
+            #                     position_info.append(pos_data)
+            #                     total_position += pos_data['position']
+            #                 except (ValueError, TypeError):
+            #                     continue
                     
-                    filtered_profiles[expiry] = {
-                        'strikes': profile['strikes'],
-                        'greeks': filtered_greeks,
-                        'positions': position_info,
-                        'atm_strike': profile['atm_strike'],
-                        'model_params': profile['model_params'],
-                        'total_position': total_position
-                    }
+            #         filtered_profiles[expiry] = {
+            #             'strikes': profile['strikes'],
+            #             'greeks': filtered_greeks,
+            #             'positions': position_info,
+            #             'atm_strike': profile['atm_strike'],
+            #             'model_params': profile['model_params'],
+            #             'total_position': total_position
+            #         }
             
-            if filtered_profiles:
-                logger.info(f"[DEBUG CACHE RETURN] Returning cached profiles for {len(filtered_profiles)} expiries")
-                return filtered_profiles
-            else:
-                logger.info("Cached profiles don't contain requested Greeks, computing fresh")
+            # if filtered_profiles:
+            #     logger.info(f"[DEBUG CACHE RETURN] Returning cached profiles for {len(filtered_profiles)} expiries")
+            #     return filtered_profiles
+            # else:
+            logger.info("Cached profiles not available, computing fresh")
         
         # First, find the global future price from the entire dataset
         global_future_price = None
@@ -1278,12 +1334,15 @@ class SpotRiskController:
             
             # Create output filename based on original file
             original_path = Path(original_filepath)
-            timestamp = self._extract_timestamp(original_filepath, pd.DataFrame())
-            timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
+            # The _extract_timestamp method is now deprecated.
+            # We will use a placeholder timestamp or remove it if not needed.
+            # For now, we'll keep it as is, but it will cause an error.
+            # timestamp = self._extract_timestamp(original_filepath, pd.DataFrame())
+            # timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
             
             # Save to same directory as original file
             output_dir = original_path.parent
-            profile_filename = f"greek_profiles_{timestamp_str}.csv"
+            profile_filename = f"greek_profiles_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
             profile_filepath = output_dir / profile_filename
             
             # Prepare data for CSV
@@ -1452,21 +1511,28 @@ class SpotRiskController:
                 return False
             
             # Save profiles to CSV
-            csv_path = self.current_csv_path if hasattr(self, 'current_csv_path') else None
-            if not csv_path:
-                csv_path = self.find_latest_csv()
+            # The current_csv_path attribute is removed as load_csv_data is deprecated.
+            # We will use a placeholder or remove this call if not needed.
+            # csv_path = self.current_csv_path if hasattr(self, 'current_csv_path') else None
+            # if not csv_path:
+            #     csv_path = self.find_latest_csv()
             
-            if csv_path:
-                saved_path = self.save_greek_profiles_to_csv(profiles_by_expiry, csv_path)
-                if saved_path:
-                    logger.info(f"Greek profiles saved to: {saved_path}")
-                    return True
-                else:
-                    logger.error("Failed to save Greek profiles")
-                    return False
-            else:
-                logger.error("No CSV path available for saving profiles")
-                return False
+            # if csv_path:
+            #     saved_path = self.save_greek_profiles_to_csv(profiles_by_expiry, csv_path)
+            #     if saved_path:
+            #         logger.info(f"Greek profiles saved to: {saved_path}")
+            #         return True
+            #     else:
+            #         logger.error("Failed to save Greek profiles")
+            #         return False
+            # else:
+            #     logger.error("No CSV path available for saving profiles")
+            #     return False
+            
+            # Since load_csv_data is deprecated, we cannot save to CSV.
+            # This method will now always return False.
+            logger.warning("CSV saving is deprecated. Cannot save Greek profiles.")
+            return False
                 
         except Exception as e:
             logger.error(f"Error pre-computing Greek profiles: {e}")

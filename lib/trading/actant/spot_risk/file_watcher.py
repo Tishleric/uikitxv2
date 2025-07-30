@@ -1,481 +1,395 @@
 """File watcher for automatic Spot Risk CSV processing.
 
 This module monitors the input directory for new CSV files and automatically
-processes them through the Greek calculation pipeline.
+processes them through the Greek calculation pipeline using a parallel worker pool.
 """
 
 import os
 import time
 import logging
 import json
+import uuid
+import threading
+import multiprocessing
 from pathlib import Path
-from typing import Set, Optional, Dict, Any
-from datetime import datetime, timezone, timedelta
-import pytz
+from typing import Set, Optional, Dict, Any, List
+from datetime import datetime
+import pandas as pd
+import re
+import time # Add time for watchdog sleep
+import glob # Add glob for vtexp file searching
+import queue # Add queue for DatabaseWriter timeout
+import redis # Import redis
 
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileCreatedEvent
+from watchdog.events import FileSystemEventHandler
 
 from lib.monitoring.decorators import monitor
 from lib.trading.actant.spot_risk.parser import parse_spot_risk_csv
 from lib.trading.actant.spot_risk.calculator import SpotRiskGreekCalculator
 from lib.trading.actant.spot_risk.database import SpotRiskDatabaseService
-from lib.trading.market_prices.storage import MarketPriceStorage
-from lib.trading.market_prices.spot_risk_price_processor import SpotRiskPriceProcessor
 
 logger = logging.getLogger(__name__)
 
 
-def get_spot_risk_date_folder(timestamp: Optional[datetime] = None) -> str:
-    """Get the date folder name for a given timestamp using 3pm EST boundaries.
-    
-    The trading day runs from 3pm EST to 3pm EST the next day.
-    Files created between 3pm EST Monday and 3pm EST Tuesday belong to Tuesday's folder.
-    
-    Args:
-        timestamp: The timestamp to check. If None, uses current time.
-        
-    Returns:
-        str: Date folder name in YYYY-MM-DD format
+def _wait_for_file_stabilization(filepath: Path, timeout: int = 10) -> bool:
     """
-    if timestamp is None:
-        timestamp = datetime.now()
+    Waits for a file to be fully written by checking for a non-zero, stable size.
+    This function is intended to be called from a worker process.
+
+    Returns:
+        True if the file is ready, False if it times out or remains empty.
+    """
+    last_size = -1
+    stable_for = 0
+    start_time = time.time()
+    logger.debug(f"Waiting for file to stabilize: {filepath.name}")
+
+    while time.time() - start_time < timeout:
+        try:
+            current_size = filepath.stat().st_size
+            if current_size > 0 and current_size == last_size:
+                stable_for += 1
+                if stable_for >= 2:  # Stable for 2 checks (approx 0.4 seconds)
+                    logger.info(f"File is stable and ready: {filepath.name} (size: {current_size} bytes)")
+                    return True
+            else:
+                stable_for = 0
+            last_size = current_size
+        except FileNotFoundError:
+            logger.warning(f"File not found while waiting for stabilization: {filepath.name}")
+            return False
+        except PermissionError:
+            # On Windows, a file might be temporarily locked while being written.
+            # We reset the stability check and continue trying.
+            stable_for = 0
+            last_size = -1
+        except Exception as e:
+            logger.warning(f"Unexpected error checking file {filepath.name}: {e}")
+            return False
+        time.sleep(0.2)
     
-    # Ensure we have timezone info
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-    
-    # Convert to EST
-    est = pytz.timezone('US/Eastern')
-    est_time = timestamp.astimezone(est)
-    
-    # If before 3pm EST, use previous day
-    if est_time.hour < 15:
-        folder_date = est_time.date() - timedelta(days=1)
-    else:
-        folder_date = est_time.date()
-    
-    return folder_date.strftime('%Y-%m-%d')
+    logger.warning(f"File did not stabilize after {timeout} seconds: {filepath.name}")
+    return False
 
 
-def ensure_date_folder(base_path: Path, date_folder: str) -> Path:
-    """Ensure a date folder exists and return its path.
-    
-    Args:
-        base_path: Base directory path
-        date_folder: Date folder name (YYYY-MM-DD format)
-        
-    Returns:
-        Path: Full path to the date folder
+def calculation_worker(task_queue: multiprocessing.Queue, result_queue: multiprocessing.Queue):
     """
-    date_path = base_path / date_folder
-    date_path.mkdir(parents=True, exist_ok=True)
-    return date_path
+    Worker process for calculating Greeks. Pulls file paths from a queue,
+    waits for them to be stable, processes them, and puts the resulting
+    DataFrame in the result queue.
+    """
+    pid = os.getpid()
+    logger.info(f"Calculation worker started with PID: {pid}")
+    calculator = SpotRiskGreekCalculator()
+
+    while True:
+        task = task_queue.get()
+        if task is None:
+            logger.info(f"Worker {pid} received sentinel. Exiting.")
+            break
+
+        batch_id, filepath_str, vtexp_data = task
+        filepath = Path(filepath_str)
+
+        # --- NEW: Wait for file stabilization within the worker ---
+        if not _wait_for_file_stabilization(filepath):
+            logger.error(f"Worker {pid} failed to process {filepath.name} because it did not stabilize. Invalidating.")
+            result_queue.put((batch_id, filepath.name, None)) # Signal failure for this file
+            continue
+        # --- END NEW ---
+
+        logger.info(f"[PARALLEL] Worker PID={pid} started processing {filepath.name} for batch {batch_id}")
+
+        try:
+            start_time = time.time()
+            df = parse_spot_risk_csv(filepath, calculate_time_to_expiry=True, vtexp_data=vtexp_data)
+            if df is None or df.empty:
+                raise ValueError("Failed to parse CSV or CSV is empty.")
+
+            df_with_greeks, _ = calculator.calculate_greeks(df)
+            df_with_aggregates = calculator.calculate_aggregates(df_with_greeks)
+            
+            processing_time = time.time() - start_time
+            logger.info(f"[PARALLEL] Worker PID={pid} finished {filepath.name} in {processing_time:.2f}s")
+            
+            result_queue.put((batch_id, filepath.name, df_with_aggregates))
+
+        except Exception as e:
+            logger.error(f"Worker {pid} failed to process {filepath.name}: {e}", exc_info=True)
+            result_queue.put((batch_id, filepath.name, None)) # Signal failure for this file
+
+class ResultPublisher(threading.Thread):
+    """
+    A dedicated thread to take completed batches, serialize them, and publish
+    them to a Redis channel for downstream consumption.
+    """
+    def __init__(self, result_queue: multiprocessing.Queue, total_files_per_batch: Dict[str, int]):
+        super().__init__()
+        self.result_queue = result_queue
+        self.total_files_per_batch = total_files_per_batch
+        self.pending_batches: Dict[str, Dict[str, Any]] = {}
+        self.redis_client = redis.Redis(decode_responses=True)
+        self.redis_channel = "spot_risk:results_channel"
+        self.daemon = True
+        logger.info("ResultPublisher thread initialized.")
+
+    def run(self):
+        logger.info("ResultPublisher thread started, connected to Redis.")
+        while True:
+            self._check_for_stale_batches()
+            try:
+                result = self.result_queue.get(timeout=20.0)
+            except queue.Empty:
+                continue
+
+            if result is None:
+                logger.info("ResultPublisher received sentinel. Exiting.")
+                break
+
+            batch_id, filename, df = result
+            
+            if batch_id not in self.pending_batches and batch_id in self.total_files_per_batch:
+                logger.info(f"Initializing tracking for new batch '{batch_id}'.")
+                self.pending_batches[batch_id] = {
+                    'results': [],
+                    'start_time': time.time()
+                }
+
+            if batch_id not in self.pending_batches:
+                logger.warning(f"Received result for an unknown or stale batch '{batch_id}'. Discarding.")
+                continue
+
+            if df is None:
+                logger.error(f"Received failed result for {filename} in batch {batch_id}. Batch will be invalidated.")
+                self.pending_batches.pop(batch_id, None)
+                self.total_files_per_batch.pop(batch_id, None)
+                continue
+
+            self.pending_batches[batch_id]['results'].append(df)
+            logger.info(f"Aggregated chunk {filename} for batch {batch_id}. "
+                        f"({len(self.pending_batches[batch_id]['results'])}/{self.total_files_per_batch.get(batch_id, '?')})")
+
+            if batch_id in self.total_files_per_batch and \
+               len(self.pending_batches[batch_id]['results']) == self.total_files_per_batch[batch_id]:
+                
+                # --- Start Instrumentation ---
+                batch_start_time = self.pending_batches[batch_id]['start_time']
+                processing_duration = time.time() - batch_start_time
+                logger.info(f"Batch {batch_id} is complete. Publishing to Redis... (Processing Duration: {processing_duration:.3f}s)")
+                # --- End Instrumentation ---
+                
+                full_df = pd.concat(self.pending_batches[batch_id]['results'], ignore_index=True)
+                
+                try:
+                    # Serialize the DataFrame and add a precise publish timestamp
+                    payload = {
+                        'batch_id': batch_id,
+                        'publish_timestamp': time.time(),
+                        'data': full_df.to_json(orient='records')
+                    }
+                    # Publish to the channel
+                    self.redis_client.publish(self.redis_channel, json.dumps(payload))
+                    logger.info(f"Successfully published batch {batch_id} to Redis channel '{self.redis_channel}'.")
+                except Exception as e:
+                    logger.error(f"Failed to publish batch {batch_id} to Redis: {e}", exc_info=True)
+
+                self.pending_batches.pop(batch_id, None)
+                self.total_files_per_batch.pop(batch_id, None)
+
+    def _check_for_stale_batches(self, timeout_seconds: int = 120):
+        """Checks for batches that have not completed within the timeout and removes them."""
+        now = time.time()
+        stale_batches = []
+        for batch_id, data in self.pending_batches.items():
+            if now - data['start_time'] > timeout_seconds:
+                stale_batches.append(batch_id)
+        
+        for batch_id in stale_batches:
+            logger.error(f"Batch '{batch_id}' is stale (older than {timeout_seconds}s). Discarding {len(self.pending_batches[batch_id]['results'])} received chunks.")
+            self.pending_batches.pop(batch_id, None)
+            self.total_files_per_batch.pop(batch_id, None)
 
 
 class SpotRiskFileHandler(FileSystemEventHandler):
-    """Handles file system events for Spot Risk CSV files."""
+    """A lightweight file event handler that puts file paths onto a task queue."""
     
-    def __init__(self, input_dir: str, output_dir: str, processed_files: Optional[Set[str]] = None):
-        """Initialize the file handler.
-        
-        Args:
-            input_dir: Directory to watch for new CSV files
-            output_dir: Directory to save processed files
-            processed_files: Set of already processed filenames (for restart recovery)
-        """
-        self.input_dir = Path(input_dir)
-        self.output_dir = Path(output_dir)
-        self.processed_files = processed_files or set()
-        self.calculator = SpotRiskGreekCalculator()
-        
-        # Initialize database service
-        self.db_service = SpotRiskDatabaseService()
-        
-        # Initialize market price update components
-        self.market_price_storage = MarketPriceStorage()
-        self.price_processor = SpotRiskPriceProcessor(self.market_price_storage)
-        
-        # Create output directory if needed
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Pattern for valid files: bav_analysis_YYYYMMDD_HHMMSS.csv
-        self.file_pattern = r'bav_analysis_\d{8}_\d{6}\.csv'
-        
-        # State tracking
-        self.state_file = self.output_dir / '.file_watcher_state.json'
-        self.state = self._load_state()
-        
-        logger.info(f"SpotRiskFileHandler initialized: watching {input_dir}")
-    
-    def _load_state(self) -> Dict[str, Any]:
-        """Load state from JSON file."""
-        if self.state_file.exists():
-            try:
-                with open(self.state_file, 'r') as f:
-                    return json.load(f)
-            except Exception as e:
-                logger.warning(f"Failed to load state file: {e}")
-        return {}
-    
-    def _save_state(self):
-        """Save state to JSON file."""
-        try:
-            with open(self.state_file, 'w') as f:
-                json.dump(self.state, f, indent=2)
-        except Exception as e:
-            logger.warning(f"Failed to save state file: {e}")
-    
-    def _get_file_key(self, filepath: Path) -> str:
-        """Get a unique key for a file based on path, mtime, and size."""
-        try:
-            stat = filepath.stat()
-            return f"{filepath}|{stat.st_mtime}|{stat.st_size}"
-        except Exception:
-            return str(filepath)
+    def __init__(self, task_queue: multiprocessing.Queue, total_files_per_batch: Dict[str, int], vtexp_cache: Dict[str, Any]):
+        self.task_queue = task_queue
+        self.total_files_per_batch = total_files_per_batch
+        self.vtexp_cache = vtexp_cache
+        self.processed_files_cache = set()
+        self.last_processed_batch_id = None
+        self.filename_pattern = re.compile(
+            r"bav_analysis_(\d{8}_\d{6})_chunk_(\d+)_of_(\d+)\.csv"
+        )
+        logger.info("SpotRiskFileHandler initialized with new filename pattern.")
     
     @monitor()
     def on_created(self, event):
-        """Handle file creation events."""
         if event.is_directory:
             return
+
+        filepath_str = event.src_path
+        if filepath_str in self.processed_files_cache:
+            return
+        
+        filepath = Path(filepath_str)
             
-        if isinstance(event, FileCreatedEvent):
-            self._process_file_event(event.src_path)
-    
-    @monitor()
-    def on_modified(self, event):
-        """Handle file modification events."""
-        if event.is_directory:
+        # --- REMOVED: No longer waiting here. The worker will wait. ---
+        
+        match = self.filename_pattern.match(filepath.name)
+
+        if not match:
+            logger.debug(f"File did not match expected chunk format: {filepath.name}")
             return
             
-        # Also process on modify in case file was created empty and then written
-        self._process_file_event(event.src_path)
-    
-    def _process_file_event(self, filepath: str):
-        """Process a file event with debouncing and validation."""
+        batch_id, chunk_num_str, total_chunks_str = match.groups()
+        total_chunks = int(total_chunks_str)
+        
+        # --- Efficient vtexp Cache Refresh ---
+        # Only check for a new vtexp file if this is the first chunk of a new batch
+        if batch_id != self.last_processed_batch_id:
+            logger.info(f"New batch '{batch_id}' detected. Checking for vtexp file updates.")
+            self._refresh_vtexp_cache()
+            self.last_processed_batch_id = batch_id
+        # --- End Efficient Refresh ---
+
+        # Take a snapshot of the current vtexp data to ensure consistency for this entire batch
+        vtexp_data_for_batch = self.vtexp_cache.get('data')
+
+        if batch_id not in self.total_files_per_batch:
+            self.total_files_per_batch[batch_id] = total_chunks
+            logger.info(f"Initialized batch {batch_id}. Expecting {total_chunks} total chunks.")
+
+        logger.info(f"Immediately queueing task for chunk {chunk_num_str}/{total_chunks} of batch {batch_id}")
+        self.task_queue.put((batch_id, filepath_str, vtexp_data_for_batch))
+        
+        self.processed_files_cache.add(filepath_str)
+        threading.Timer(10.0, self.processed_files_cache.discard, [filepath_str]).start()
+
+    def _refresh_vtexp_cache(self):
+        """Checks for a new vtexp file and updates the shared cache if found."""
         try:
-            path = Path(filepath)
-            
-            # Check if it's a CSV file matching our pattern
-            if not path.suffix.lower() == '.csv':
-                return
-                
-            if not path.name.startswith('bav_analysis_'):
-                return
-            
-            # Get relative path from input directory
-            try:
-                relative_path = path.relative_to(self.input_dir)
-            except ValueError:
-                # File is not in our input directory
-                return
-            
-            # Get relative path string for logging
-            relative_path_str = str(relative_path)
-            
-            # Skip if already processed (check state first)
-            file_key = self._get_file_key(path)
-            if file_key in self.state:
-                logger.debug(f"Skipping already processed file (from state): {relative_path_str}")
-                return
-            
-            # Also check legacy tracking for backward compatibility
-            if relative_path_str in self.processed_files:
-                logger.debug(f"Skipping already processed file: {relative_path_str}")
-                return
-            
-            # Wait for file to be fully written (simple debounce)
-            if not self._wait_for_file_ready(path):
-                logger.warning(f"File not ready after timeout: {path.name}")
-                return
-            
-            logger.info(f"Processing new file: {relative_path_str}")
-            self._process_csv_file(path)
-            
+            vtexp_dir = Path('data/input/vtexp')
+            latest_vtexp_file = max(glob.glob(str(vtexp_dir / 'vtexp_*.csv')), key=os.path.getctime, default=None)
+
+            if latest_vtexp_file and latest_vtexp_file != self.vtexp_cache.get('filepath'):
+                logger.info(f"New vtexp file found: {latest_vtexp_file}. Reloading cache.")
+                df = pd.read_csv(latest_vtexp_file)
+                # Corrected from 'expiry_code' to 'symbol' to match the actual CSV header.
+                self.vtexp_cache['data'] = df.set_index('symbol')['vtexp'].to_dict()
+                self.vtexp_cache['filepath'] = latest_vtexp_file
+                logger.info(f"vtexp cache updated with {len(df)} entries.")
         except Exception as e:
-            logger.error(f"Error handling file event for {filepath}: {e}", exc_info=True)
-    
-    def _wait_for_file_ready(self, filepath: Path, timeout: int = 10) -> bool:
-        """Wait for file to be fully written by checking size stability.
-        
-        Args:
-            filepath: Path to the file
-            timeout: Maximum seconds to wait
-            
-        Returns:
-            bool: True if file is ready, False if timeout
-        """
-        last_size = -1
-        stable_count = 0
-        
-        for _ in range(timeout):
-            try:
-                current_size = filepath.stat().st_size
-                
-                if current_size == last_size and current_size > 0:
-                    stable_count += 1
-                    if stable_count >= 2:  # Size stable for 2 seconds
-                        return True
-                else:
-                    stable_count = 0
-                    
-                last_size = current_size
-                time.sleep(1)
-                
-            except OSError:
-                # File might be locked or deleted
-                time.sleep(1)
-                
-        return False
-    
-    @monitor()
-    def _process_csv_file(self, input_path: Path):
-        """Process a single CSV file through the Greek calculation pipeline.
-        
-        Args:
-            input_path: Path to the input CSV file
-        """
-        try:
-            # Start timing
-            start_time = time.time()
-            
-            # Determine relative path and output structure
-            try:
-                relative_path = input_path.relative_to(self.input_dir)
-            except ValueError:
-                logger.error(f"File not in input directory: {input_path}")
-                return
-            
-            # Check if file is in a date subfolder or root
-            parts = relative_path.parts
-            if len(parts) > 1:
-                # File is in a subfolder - maintain structure
-                date_folder = parts[0]
-                output_base_path = ensure_date_folder(self.output_dir, date_folder)
-            else:
-                # File is in root - determine date folder based on current time
-                date_folder = get_spot_risk_date_folder()
-                output_base_path = ensure_date_folder(self.output_dir, date_folder)
-                logger.info(f"File in root directory, using date folder: {date_folder}")
-            
-            # Generate output filename with timestamp preserved
-            filename_parts = input_path.stem.split('_')
-            if len(filename_parts) >= 4:
-                timestamp = f"{filename_parts[2]}_{filename_parts[3]}"
-                output_filename = f"bav_analysis_processed_{timestamp}.csv"
-            else:
-                # Fallback
-                output_filename = f"{input_path.stem}_processed.csv"
-            
-            output_path = output_base_path / output_filename
-            
-            # Parse CSV
-            logger.info(f"Parsing CSV file: {input_path}")
-            df = parse_spot_risk_csv(input_path, calculate_time_to_expiry=True)
-            
-            if df is None or df.empty:
-                logger.error(f"Failed to parse CSV file: {input_path}")
-                return
-            
-            logger.info(f"Parsed {len(df)} rows, calculating Greeks...")
-            
-            # Create database session
-            session_id = None
-            try:
-                # Extract timestamp from filename for data_timestamp
-                filename_parts = input_path.stem.split('_')
-                data_timestamp = None
-                if len(filename_parts) >= 4:
-                    data_timestamp = f"{filename_parts[2]}_{filename_parts[3]}"
-                
-                session_id = self.db_service.create_session(
-                    source_file=str(input_path),
-                    data_timestamp=data_timestamp
-                )
-                
-                # Insert raw data
-                rows_inserted = self.db_service.insert_raw_data(df, session_id)
-                logger.info(f"Stored {rows_inserted} raw data rows in database")
-            except Exception as e:
-                logger.error(f"Failed to create database session or insert raw data: {e}")
-                # Continue processing even if database fails
-            
-            # Calculate Greeks
-            df_with_greeks, results = self.calculator.calculate_greeks(df)
-            
-            # Log summary
-            success_count = sum(1 for r in results if r.success)
-            logger.info(f"Greek calculations: {success_count} successful, {len(results) - success_count} failed")
-            
-            # Calculate aggregates
-            df_with_aggregates = self.calculator.calculate_aggregates(df_with_greeks)
-            logger.info("Added aggregate rows")
-            
-            # Save output (preserving sorting from parser)
-            df_with_aggregates.to_csv(output_path, index=False)
-            logger.info(f"Saved processed file: {output_path}")
-            
-            # Update market prices database with current prices
-            try:
-                logger.info("Updating market prices database with current prices...")
-                if self.price_processor.process_file(input_path):
-                    logger.info("Successfully updated market prices")
-                else:
-                    logger.warning("Failed to update market prices")
-            except Exception as e:
-                logger.error(f"Error updating market prices: {e}")
-                # Don't stop processing, just log the error
-            
-            # Store calculated Greeks in database
-            if session_id:
-                try:
-                    successful_inserts, failed_inserts = self.db_service.insert_calculated_greeks(
-                        df_with_greeks, results, session_id
-                    )
-                    
-                    # Update session with final status
-                    error_count = len(results) - success_count + failed_inserts
-                    self.db_service.update_session(
-                        session_id=session_id,
-                        status='completed',
-                        row_count=len(df),
-                        error_count=error_count
-                    )
-                    
-                    logger.info(f"Database storage complete: {successful_inserts} Greeks stored, {failed_inserts} failed")
-                except Exception as e:
-                    logger.error(f"Failed to store calculated Greeks in database: {e}")
-                    # Update session as failed but don't stop processing
-                    try:
-                        self.db_service.update_session(
-                            session_id=session_id,
-                            status='failed',
-                            notes=f"Failed to store Greeks: {str(e)}"
-                        )
-                    except:
-                        pass
-            
-            # Calculate and log total processing time
-            elapsed_time = time.time() - start_time
-            logger.info(f"Total processing time: {elapsed_time:.2f} seconds")
-            
-            # Mark as processed using relative path
-            self.processed_files.add(str(relative_path))
-            
-            # Save to persistent state
-            file_key = self._get_file_key(input_path)
-            self.state[file_key] = {
-                'processed_at': datetime.now().isoformat(),
-                'output_file': str(output_path),
-                'relative_path': str(relative_path)
-            }
-            self._save_state()
-            
-        except Exception as e:
-            logger.error(f"Error processing CSV file {input_path}: {e}", exc_info=True)
-            
-            # Update session as failed if it was created
-            if session_id:
-                try:
-                    self.db_service.update_session(
-                        session_id=session_id,
-                        status='failed',
-                        notes=f"Processing error: {str(e)}"
-                    )
-                except:
-                    pass
-            
-            # Don't mark as processed on error - allow retry on next run
+            logger.error(f"Failed to refresh vtexp cache: {e}", exc_info=True)
 
 
 class SpotRiskWatcher:
-    """Main watcher service for Spot Risk CSV files."""
+    """Main watcher service that orchestrates the parallel processing pipeline."""
     
-    def __init__(self, input_dir: str, output_dir: str):
-        """Initialize the watcher service.
-        
-        Args:
-            input_dir: Directory to watch for new CSV files
-            output_dir: Directory to save processed files
-        """
+    def __init__(self, input_dir: str, num_workers: Optional[int] = None):
         self.input_dir = Path(input_dir)
-        self.output_dir = Path(output_dir)
+        self.num_workers = int(num_workers or os.cpu_count())
         self.observer = Observer()
-        self.handler = SpotRiskFileHandler(input_dir, output_dir)
+        
+        # Using a Manager for the shared dictionary across processes
+        self.manager = multiprocessing.Manager()
+        self.total_files_per_batch = self.manager.dict()
+        self.vtexp_cache = self.manager.dict({
+            'filepath': None,
+            'data': None
+        })
+        
+        self.task_queue = multiprocessing.Queue()
+        self.result_queue = multiprocessing.Queue()
+        
+        self.workers: List[multiprocessing.Process] = []
+        self.result_publisher_thread: Optional[ResultPublisher] = None
+        self.watchdog_thread: Optional[threading.Thread] = None
+        
+        logger.info(f"SpotRiskWatcher initialized for {input_dir} with {self.num_workers} workers (CPU count: {os.cpu_count()}).")
         
     @monitor()
     def start(self):
-        """Start watching for files."""
-        logger.info(f"Starting SpotRiskWatcher on {self.input_dir}")
-        
-        # Process any existing files first
-        self._process_existing_files()
-        
-        # Start watching for new files (recursive=True to watch subfolders)
-        self.observer.schedule(self.handler, str(self.input_dir), recursive=True)
+        """Start the file watcher and the processing pool."""
+        logger.info("Starting SpotRiskWatcher pipeline...")
+
+        # 1. Start Result Publisher Thread
+        self.result_publisher_thread = ResultPublisher(self.result_queue, self.total_files_per_batch)
+        self.result_publisher_thread.start()
+
+        # 2. Start Worker Processes
+        for i in range(self.num_workers):
+            process = multiprocessing.Process(
+                target=calculation_worker,
+                args=(self.task_queue, self.result_queue),
+                name=f"Worker-{i+1}"
+            )
+            process.daemon = True
+            process.start()
+            self.workers.append(process)
+
+        # 3. Start the Worker Watchdog Thread
+        self.watchdog_thread = threading.Thread(target=self._worker_watchdog, daemon=True)
+        self.watchdog_thread.start()
+        logger.info("Worker watchdog thread started.")
+
+        # 4. Start File System Observer
+        event_handler = SpotRiskFileHandler(self.task_queue, self.total_files_per_batch, self.vtexp_cache)
+        self.observer.schedule(event_handler, str(self.input_dir), recursive=True)
         self.observer.start()
         
-        logger.info("SpotRiskWatcher started successfully")
+        logger.info("SpotRiskWatcher pipeline started successfully.")
+
+    def _worker_watchdog(self):
+        """Monitors worker processes and restarts any that have died."""
+        while True:
+            for i, worker in enumerate(self.workers):
+                if not worker.is_alive():
+                    logger.error(f"Worker process {worker.name} (PID: {worker.pid}) has died unexpectedly. Restarting.")
+                    
+                    # Create and start a new worker to replace the dead one
+                    new_worker = multiprocessing.Process(
+                        target=calculation_worker,
+                        args=(self.task_queue, self.result_queue),
+                        name=f"Worker-{i+1}"
+                    )
+                    new_worker.daemon = True
+                    new_worker.start()
+                    self.workers[i] = new_worker
+                    logger.info(f"Restarted worker {new_worker.name} (PID: {new_worker.pid}).")
+            
+            time.sleep(15) # Check every 15 seconds
     
     def stop(self):
-        """Stop watching for files."""
-        logger.info("Stopping SpotRiskWatcher...")
+        """Gracefully stop the watcher and all child processes/threads."""
+        logger.info("Stopping SpotRiskWatcher pipeline...")
+
+        # 1. Stop watching for new files
         self.observer.stop()
         self.observer.join()
-        logger.info("SpotRiskWatcher stopped")
-    
-    def _process_existing_files(self):
-        """Process any existing unprocessed files in the input directory."""
-        logger.info("Checking for existing unprocessed files...")
+        logger.info("File observer stopped.")
+
+        # 2. Signal workers to terminate
+        for _ in self.workers:
+            self.task_queue.put(None)
         
-        # Load state to get already processed files
-        state_processed = set()
-        for file_info in self.handler.state.values():
-            if 'relative_path' in file_info:
-                state_processed.add(file_info['relative_path'])
+        # 3. Wait for workers to finish
+        for worker in self.workers:
+            worker.join()
+        logger.info("Calculation workers stopped.")
+
+        # 4. Signal Result Publisher to terminate
+        self.result_queue.put(None)
+        if self.result_publisher_thread:
+            self.result_publisher_thread.join()
+        logger.info("Result publisher thread stopped.")
+
+        # Watchdog is a daemon thread, so it will exit automatically.
         
-        # Get list of already processed files (check all subfolders)
-        processed_files = set(state_processed)  # Start with state-tracked files
+        # 5. Stop the manager
+        self.manager.shutdown()
+        logger.info("Multiprocessing manager stopped.")
         
-        # Look for processed files in root and all date subfolders
-        for processed_file in self.output_dir.rglob("bav_analysis_processed_*.csv"):
-            # Extract original filename from processed name
-            # bav_analysis_processed_YYYYMMDD_HHMMSS.csv -> bav_analysis_YYYYMMDD_HHMMSS.csv
-            parts = processed_file.stem.split('_')
-            if len(parts) >= 4:
-                original_name = f"bav_analysis_{parts[2]}_{parts[3]}.csv"
-                
-                # Determine relative path based on where the processed file is
-                try:
-                    relative_output_path = processed_file.relative_to(self.output_dir)
-                    if len(relative_output_path.parts) > 1:
-                        # File is in a date subfolder
-                        date_folder = relative_output_path.parts[0]
-                        original_relative_path = f"{date_folder}/{original_name}"
-                    else:
-                        # File is in root (legacy)
-                        original_relative_path = original_name
-                    processed_files.add(original_relative_path)
-                except ValueError:
-                    logger.warning(f"Could not determine relative path for: {processed_file}")
-        
-        self.handler.processed_files = processed_files
-        logger.info(f"Found {len(processed_files)} already processed files")
-        
-        # Process any unprocessed files in root and subfolders
-        for csv_file in self.input_dir.rglob("bav_analysis_*.csv"):
-            try:
-                relative_path = csv_file.relative_to(self.input_dir)
-                relative_path_str = str(relative_path)
-                
-                # Check state first for efficiency
-                file_key = self.handler._get_file_key(csv_file)
-                if file_key in self.handler.state:
-                    continue
-                
-                if relative_path_str not in processed_files:
-                    logger.info(f"Processing existing file: {relative_path_str}")
-                    self.handler._process_csv_file(csv_file)
-            except ValueError:
-                logger.warning(f"File not in input directory: {csv_file}") 
+        logger.info("SpotRiskWatcher pipeline stopped successfully.") 

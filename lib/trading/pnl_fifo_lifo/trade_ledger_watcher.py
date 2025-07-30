@@ -14,7 +14,7 @@ from typing import Optional, Set
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileModifiedEvent
 
-from .data_manager import get_trading_day
+from .data_manager import get_trading_day, update_daily_position
 from .pnl_engine import process_new_trade
 
 # Import RosettaStone for symbol translation
@@ -140,6 +140,14 @@ class TradeLedgerFileHandler(FileSystemEventHandler):
                                                row['marketTradeTime'].strftime('%Y-%m-%d %H:%M:%S'))
                     if realized:
                         logger.debug(f"{method.upper()}: {len(realized)} realizations for trade {row['tradeId']}")
+                    
+                    # Update daily position tracking
+                    realized_qty = sum(r['quantity'] for r in realized) if realized else 0
+                    realized_pnl_delta = sum(r['realizedPnL'] for r in realized) if realized else 0
+                    trade_date_str = get_trading_day(row['marketTradeTime']).strftime('%Y-%m-%d')
+                    
+                    update_daily_position(conn, trade_date_str, bloomberg_symbol, method, 
+                                        realized_qty, realized_pnl_delta)
                 
                 trade_count += 1
             

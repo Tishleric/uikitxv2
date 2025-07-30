@@ -4,7 +4,7 @@ import re
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, Dict
 import logging
 from lib.trading.market_prices.rosetta_stone import RosettaStone
 
@@ -13,38 +13,32 @@ logger = logging.getLogger(__name__)
 
 def extract_datetime_from_filename(filename: Union[str, Path]) -> datetime:
     """
-    Extract datetime from filename format: bav_analysis_YYYYMMDD_HHMMSS.csv
-    
-    Args:
-        filename: Path or string of the CSV filename
-        
-    Returns:
-        datetime object parsed from filename
-        
-    Raises:
-        ValueError: If datetime cannot be parsed from filename
+    Extract datetime from filename format. Handles both original and chunked formats.
+    - Original: bav_analysis_YYYYMMDD_HHMMSS.csv
+    - Chunked:  bav_analysis_YYYYMMDD_HHMMSS_chunk_N_of_M.csv
     """
     try:
-        # Convert to string if Path object
-        filename_str = str(filename)
+        filename_str = Path(filename).name
+
+        # New pattern for chunked files
+        chunk_pattern = r'bav_analysis_(\d{8}_\d{6})_chunk_\d+_of_\d+\.csv'
+        match = re.search(chunk_pattern, filename_str)
         
-        # Extract just the filename without path
-        if '/' in filename_str or '\\' in filename_str:
-            filename_str = Path(filename_str).name
-            
-        # Pattern: bav_analysis_YYYYMMDD_HHMMSS.csv
-        pattern = r'bav_analysis_(\d{8})_(\d{6})\.csv'
-        match = re.search(pattern, filename_str)
+        if match:
+            timestamp_str = match.group(1)
+            return datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+
+        # Fallback to the original pattern
+        original_pattern = r'bav_analysis_(\d{8})_(\d{6})\.csv'
+        match = re.search(original_pattern, filename_str)
         
         if not match:
             raise ValueError(f"Could not extract datetime from filename: {filename_str}")
             
-        date_str = match.group(1)  # YYYYMMDD
-        time_str = match.group(2)  # HHMMSS
+        date_str = match.group(1)
+        time_str = match.group(2)
         
-        # Parse datetime
-        dt = datetime.strptime(date_str + time_str, '%Y%m%d%H%M%S')
-        return dt
+        return datetime.strptime(date_str + time_str, '%Y%m%d%H%M%S')
         
     except Exception as e:
         logger.error(f"Error parsing datetime from filename {filename}: {e}")
@@ -84,13 +78,16 @@ def parse_expiry_from_key(key: Any) -> Optional[str]:
         return None
 
 
-def parse_spot_risk_csv(filepath: Union[str, Path], calculate_time_to_expiry: bool = False) -> pd.DataFrame:
+def parse_spot_risk_csv(filepath: Union[str, Path], 
+                        calculate_time_to_expiry: bool = False, 
+                        vtexp_data: Optional[Dict[str, float]] = None) -> pd.DataFrame:
     """
     Parse Actant spot risk CSV file and prepare DataFrame.
     
     Args:
         filepath: Path to the CSV file
         calculate_time_to_expiry: Whether to calculate vtexp column
+        vtexp_data: Pre-loaded vtexp data to bypass file reads.
         
     Returns:
         Sorted DataFrame with added columns:
@@ -110,13 +107,23 @@ def parse_spot_risk_csv(filepath: Union[str, Path], calculate_time_to_expiry: bo
             
         logger.info(f"Reading CSV file: {filepath}")
         
-        # Read CSV, skip the type row (second row) only for original files
-        # For processed files (already have headers), don't skip any rows
-        if 'processed' in str(filepath):
-            df = pd.read_csv(filepath)
-        else:
-            df = pd.read_csv(filepath, skiprows=[1])
-        
+        # Read the raw CSV first without skipping any rows
+        df = pd.read_csv(filepath)
+
+        # Programmatically filter out the "Type" rows, which are metadata from the source.
+        # This is more robust than relying on a fixed skiprows index.
+        if not df.empty and df.columns[0].lower() == 'key':
+            original_rows = len(df)
+            df = df[df['Key'] != 'Type'].copy()
+            filtered_rows = len(df)
+            if original_rows > filtered_rows:
+                logger.info(f"Filtered out {original_rows - filtered_rows} 'Type' metadata rows.")
+
+        # Check if the DataFrame is empty *after* filtering
+        if df.empty:
+            logger.error(f"CSV file is empty after filtering metadata: {filepath}")
+            raise ValueError(f"CSV file is empty after filtering: {filepath}")
+
         # Normalize column names to lowercase for consistent access
         df.columns = df.columns.str.lower()
         
@@ -282,8 +289,8 @@ def parse_spot_risk_csv(filepath: Union[str, Path], calculate_time_to_expiry: bo
             # Extract timestamp from filename
             csv_timestamp = extract_datetime_from_filename(filepath)
             
-            # Load vtexp from pre-calculated CSV
-            df = load_vtexp_for_dataframe(df, csv_timestamp)
+            # Load vtexp from pre-calculated CSV or use provided data
+            df = load_vtexp_for_dataframe(df, csv_timestamp, vtexp_data=vtexp_data)
             logger.info(f"Loaded vtexp for {df['vtexp'].notna().sum()} options")
         
         logger.info(f"Successfully parsed {len(df)} rows from {filepath.name}")

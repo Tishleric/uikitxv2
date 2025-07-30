@@ -57,6 +57,8 @@ class ObservatoryRecord:
     memory_delta_mb: Optional[float] = None  # Memory usage change in MB
     # New field for parameter mappings (variable-level tracking)
     parameter_mappings: Optional[List[tuple]] = None  # List of (name, value, type) tuples
+    # New field for profiling correlation
+    task_id: Optional[str] = None  # Unique task ID for profile correlation
     
     def is_error(self) -> bool:
         """Check if this is an error record"""

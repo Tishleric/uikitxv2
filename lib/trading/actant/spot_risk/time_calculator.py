@@ -191,22 +191,27 @@ def read_vtexp_from_csv(vtexp_dir: str = "data/input/vtexp") -> Dict[str, float]
     return vtexp_map
 
 
-def load_vtexp_for_dataframe(df: pd.DataFrame, csv_timestamp: datetime) -> pd.DataFrame:
+def load_vtexp_for_dataframe(df: pd.DataFrame, 
+                              csv_timestamp: datetime, 
+                              vtexp_data: Optional[Dict[str, float]] = None) -> pd.DataFrame:
     """
-    Load vtexp values from pre-calculated CSV file and map to dataframe.
-    
-    This replaces calculate_vtexp_for_dataframe() to use pre-calculated values
-    instead of calculating them internally.
+    Load vtexp values and map to dataframe.
+    Uses pre-loaded vtexp_data if provided, otherwise reads from CSV.
     
     Args:
         df: DataFrame with 'key' column containing instrument symbols
         csv_timestamp: Evaluation datetime (kept for API compatibility)
+        vtexp_data: Pre-loaded dictionary of {expiry_code: vtexp_value}
         
     Returns:
-        DataFrame with added 'vtexp' column from pre-calculated values
+        DataFrame with added 'vtexp' column
     """
-    # Read vtexp values from CSV
-    vtexp_base_map = read_vtexp_from_csv()
+    if vtexp_data:
+        logger.info("Using pre-loaded vtexp data from cache.")
+        vtexp_base_map = vtexp_data
+    else:
+        logger.warning("No vtexp cache provided. Falling back to reading from CSV.")
+        vtexp_base_map = read_vtexp_from_csv()
     
     # Import the mapper
     from .vtexp_mapper import VtexpSymbolMapper

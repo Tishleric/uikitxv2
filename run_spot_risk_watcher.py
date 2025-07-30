@@ -15,11 +15,13 @@ import signal
 import logging
 import time
 from pathlib import Path
+import os
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from lib.trading.actant.spot_risk.file_watcher import SpotRiskWatcher
+from lib.monitoring.decorators import monitor, start_observatory_writer, stop_observatory_writer
 
 # Configure logging
 logging.basicConfig(
@@ -32,6 +34,7 @@ INPUT_DIR = "data/input/actant_spot_risk"
 OUTPUT_DIR = "data/output/spot_risk"
 
 
+@monitor()
 def main():
     """Main entry point for the watcher service."""
     print("="*60)
@@ -41,8 +44,13 @@ def main():
     print(f"Output to: {OUTPUT_DIR}")
     print("\nPress Ctrl+C to stop\n")
     
+    # Reserve cores for other processes. A safe number is N-4.
+    # Ensure we use at least 1 worker.
+    num_workers = max(1, os.cpu_count() - 4)
+    print(f"Initializing with {num_workers} worker processes...")
+
     # Create watcher
-    watcher = SpotRiskWatcher(INPUT_DIR, OUTPUT_DIR)
+    watcher = SpotRiskWatcher(input_dir=INPUT_DIR, num_workers=num_workers)
     
     # Handle Ctrl+C gracefully
     def signal_handler(signum, frame):
@@ -73,4 +81,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    # Start the observatory writer for monitoring
+    print("Starting observatory writer...")
+    start_observatory_writer(db_path="logs/observatory.db")
+    
+    try:
+        main()
+    finally:
+        # Stop the observatory writer on exit
+        stop_observatory_writer() 

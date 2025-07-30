@@ -1,9 +1,14 @@
-"""
-Spot Risk Price Processor
+"""(DEPRECATED) Spot Risk Price Processor
 
-Extracts current prices from Actant spot risk CSV files and updates 
-market prices database. Uses ADJTHEOR when available, falls back to 
-BID/ASK midpoint.
+This module is now deprecated and replaced by a more robust, decoupled architecture
+using a Redis pub/sub channel.
+
+- The SpotRiskWatcher (`run_spot_risk_watcher.py`) now acts as the "Producer",
+  publishing completed data batches to the `spot_risk:results_channel`.
+- The new PriceUpdaterService (`run_price_updater_service.py`) acts as a "Consumer",
+  subscribing to the channel and updating the pricing table in trades.db.
+
+This file is kept for historical reference but should not be used.
 """
 
 import logging

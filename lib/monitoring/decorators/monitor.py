@@ -8,6 +8,8 @@ Environment Variables:
         - "QUIET": Suppress all output
     
     MONITOR_QUIET: Legacy option, if set to any value, suppresses all output
+    
+    MONITOR_PROFILING: If set to "1", enables cProfile profiling for decorated functions
 """
 
 import functools
@@ -18,6 +20,9 @@ import random
 import asyncio
 import inspect
 import threading
+import cProfile
+import pstats
+import io
 from typing import Callable, Optional, Any, Dict, List, Tuple
 from datetime import datetime
 from collections import namedtuple
@@ -398,6 +403,7 @@ def monitor(
     sensitive_fields: tuple = (),
     queue_warning_threshold: int = 8000,
     use_param_names: bool = True,  # New parameter to enable/disable parameter name extraction
+    profiling_enabled: bool = False, # New parameter to enable/disable profiling
 ) -> Callable:
     """
     Decorator to monitor function execution and capture data.
@@ -420,6 +426,7 @@ def monitor(
         sensitive_fields: Field names to mask in serialization
         queue_warning_threshold: Queue size to trigger warnings
         use_param_names: Whether to extract actual parameter names (default: True)
+        profiling_enabled: Whether to enable cProfile profiling for the decorated function
         
     Returns:
         Decorated function
@@ -466,6 +473,9 @@ def monitor(
             final_process_group = func_module
         else:
             final_process_group = process_group
+        
+        # Build the full process name for this function
+        process_name = f"{final_process_group}.{func_name}"
         
         # Extract parameter metadata once and cache it
         func_id = id(func)
@@ -738,8 +748,21 @@ def monitor(
                 if sample_rate < 1.0 and random.random() > sample_rate:
                     return func(*args, **kwargs)
                 
+                # Check if profiling is enabled globally or for this function
+                enable_profiling = profiling_enabled or os.environ.get("MONITOR_PROFILING") == "1"
+                
                 start_time = time.perf_counter()
                 start_snapshot = None
+                profiler = None
+                
+                # Simple profiling with cProfile
+                if enable_profiling:
+                    try:
+                        profiler = cProfile.Profile()
+                        profiler.enable()
+                    except ValueError:
+                        # Another profiler is already active
+                        profiler = None
                 
                 # Take resource snapshot at start if enabled
                 if capture.get("cpu_usage") or capture.get("memory_usage"):
@@ -751,15 +774,34 @@ def monitor(
                     # Execute the function
                     result = func(*args, **kwargs)
                     
+                    # Stop profiling if enabled
+                    profile_stats = None
+                    if profiler:
+                        profiler.disable()
+                        s = io.StringIO()
+                        ps = pstats.Stats(profiler, stream=s).sort_stats('cumulative')
+                        ps.print_stats(20)  # Top 20 functions
+                        profile_stats = s.getvalue()
+                    
                     # Record success
-                    create_record(start_time, "OK", None, args, kwargs, result, start_snapshot)
+                    record = create_record(start_time, "OK", None, args, kwargs, result, start_snapshot)
+                    
+                    # Add profile stats to the record if available
+                    if profile_stats and record:
+                        # Store profile stats in the exception field with a marker
+                        record.exception = f"[PROFILE]\n{profile_stats}"
                     
                     return result
                     
                 except Exception as e:
+                    # Stop profiling if enabled
+                    if profiler:
+                        profiler.disable()
+                    
                     # Record error
                     tb = traceback.format_exc()
-                    create_record(start_time, "ERR", tb, args, kwargs, None, start_snapshot)
+                    record = create_record(start_time, "ERR", tb, args, kwargs, None, start_snapshot)
+                    
                     raise
             
             return sync_wrapper

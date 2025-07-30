@@ -227,3 +227,14 @@ Core TYU5 component for position and P&L calculation. Contains two classes, Posi
 ### lib/trading/pnl_integration/ [DEPRECATED]
 - `pnl_pipeline_watcher.py` - Minimal file watcher skeleton (DEPRECATED - use lib/trading/pnl_fifo_lifo instead)
 - `DEPRECATED.md` - Deprecation notice directing to new FIFO/LIFO module 
+
+### Standalone Services & Core Logic
+
+- **`positions_aggregator.py`**: The `PositionsAggregator` class. Runs as a persistent service, subscribing to the `spot_risk:results_channel` on Redis. It consumes complete Greek data packages and combines them with trade data to update the master `positions` table in `trades.db`. This is the central point of integration for P&L.
+
+#### Spot Risk Pipeline (`lib/trading/actant/spot_risk/`)
+- **`file_watcher.py`**: Contains the `SpotRiskWatcher` (the "Producer"). Manages file watching, the parallel worker pool for calculations, and publishes results to the Redis channel.
+- **`database.py`**: `SpotRiskDatabaseService` for all interactions with the `spot_risk.db` SQLite database (now primarily for logging and historical session tracking).
+- **`parser.py`**: Logic for parsing the raw `bav_analysis_*.csv` files into a clean pandas DataFrame.
+- **`calculator.py`**: `SpotRiskGreekCalculator` which takes a DataFrame and calculates all required Greeks using the `bond_future_options` library.
+- **`time_calculator.py`**: Utilities for calculating `vtexp` (time to expiry) for options, using pre-calculated values from `data/input/vtexp/`. 

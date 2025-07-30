@@ -18,7 +18,10 @@ from .constants import TIME_WINDOWS, CHICAGO_TZ
 from .futures_processor import FuturesProcessor
 from .options_processor import OptionsProcessor
 from .spot_risk_price_processor import SpotRiskPriceProcessor
-from .spot_risk_file_handler import SpotRiskFileHandler
+from .rosetta_stone import RosettaStone
+
+# (DEPRECATED) The SpotRiskFileHandler has been removed as part of the new pub/sub architecture.
+# from .spot_risk_file_handler import SpotRiskFileHandler
 
 __all__ = [
     'MarketPriceStorage',
@@ -27,5 +30,5 @@ __all__ = [
     'FuturesProcessor',
     'OptionsProcessor',
     'SpotRiskPriceProcessor',
-    'SpotRiskFileHandler'
+    'RosettaStone'
 ] 

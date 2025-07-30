@@ -527,3 +527,25 @@ The pipeline automatically selects the most recent vtexp CSV file based on filen
 | TY_WEEKLY_OPTIONS | Constant | dict[str, dict] | VBY→Monday, TJP→Tuesday, TYW→Wednesday, TJW→Thursday, 3M→Friday | treasury_notation_mapper.py |
 | vtexp | Input | float | > 0, time to expiry in years | spot_risk_raw.vtexp column |
 | vtexp_dir | Constant | str | "data/input/vtexp" | time_calculator.py |
+
+## Positions Table (trades.db)
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| positions.symbol | Internal | TEXT PRIMARY KEY | Valid Bloomberg symbol | "TYH5" |
+| positions.open_position | Internal | REAL | Any numeric value (positive for long, negative for short) | 100.0 |
+| positions.closed_position | Internal | REAL | Cumulative closed quantity | 50.0 |
+| positions.delta_y | Internal | REAL | Position-weighted delta in Y-space (delta_y * open_position) | 25.5 |
+| positions.gamma_y | Internal | REAL | Position-weighted gamma in Y-space (gamma_y * open_position) | 0.85 |
+| positions.speed_y | Internal | REAL | Position-weighted speed in Y-space (speed_y * open_position) | 0.032 |
+| positions.theta | Internal | REAL | Position-weighted theta (theta_F * open_position) | -15.75 |
+| positions.vega | Internal | REAL | Position-weighted vega (vega_y * open_position) | 8.25 |
+| positions.fifo_realized_pnl | Internal | REAL | Realized P&L using FIFO method | 1250.50 |
+| positions.fifo_unrealized_pnl | Internal | REAL | Unrealized P&L using FIFO method | -325.75 |
+| positions.lifo_realized_pnl | Internal | REAL | Realized P&L using LIFO method | 1180.25 |
+| positions.lifo_unrealized_pnl | Internal | REAL | Unrealized P&L using LIFO method | -395.00 |
+| positions.instrument_type | Internal | TEXT | "FUTURE", "CALL", "PUT" | "CALL" |
+| positions.has_greeks | Internal | BOOLEAN | 0 or 1 | 1 |
+| positions.last_updated | Internal | TIMESTAMP | ISO datetime format | "2025-01-31 10:30:45" |
+
+**Note**: Greek values in the positions table are position-weighted (multiplied by open_position). For per-unit Greeks, divide by open_position.

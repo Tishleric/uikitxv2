@@ -302,4 +302,114 @@ class SpotRiskDatabaseService:
                     failed_inserts += 1
         
         logger.info(f"Inserted calculated Greeks: {successful_inserts} successful, {failed_inserts} failed")
-        return successful_inserts, failed_inserts 
+        return successful_inserts, failed_inserts
+
+    def read_greeks_from_active_buffer(self) -> Optional[pd.DataFrame]:
+        """
+        Reads all data from the currently active buffer table.
+
+        Returns:
+            A pandas DataFrame containing the data, or None if an error occurs.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 1. Determine the active view
+            cursor.execute("SELECT active_view FROM active_view_pointer WHERE id = 1;")
+            result = cursor.fetchone()
+            if not result:
+                logging.error("Active view pointer not found in database.")
+                return None
+            
+            active_view = result[0]
+            active_table = f"greeks_live_{active_view}"
+            logging.info(f"Reading from active view: {active_table}")
+
+            # 2. Read all data from the active table
+            try:
+                df = pd.read_sql_query(f"SELECT * FROM {active_table}", conn)
+                return df
+            except Exception as e:
+                logging.error(f"Failed to read data from {active_table}: {e}", exc_info=True)
+                return None
+
+    def write_greeks_to_buffer(self, df: pd.DataFrame) -> int:
+        """
+        Writes a full DataFrame of calculated greeks to the inactive buffer table
+        and then atomically swaps the view pointer.
+
+        Args:
+            df: DataFrame containing the complete, processed data for a batch.
+
+        Returns:
+            Number of rows inserted.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # 1. Determine the active and inactive views
+            cursor.execute("SELECT active_view FROM active_view_pointer WHERE id = 1;")
+            active_view = cursor.fetchone()[0]
+            inactive_view_suffix = 'B' if active_view == 'A' else 'A'
+            inactive_table = f"greeks_live_{inactive_view_suffix}"
+            
+            logging.info(f"Active view is '{active_view}'. Writing to inactive buffer '{inactive_table}'.")
+
+            # 2. Clear the inactive buffer table
+            logging.info(f"Clearing inactive buffer table: {inactive_table}")
+            cursor.execute(f"DELETE FROM {inactive_table};")
+
+            # 3. Bulk insert the new data into the inactive buffer
+            logging.info(f"Bulk inserting {len(df)} rows into {inactive_table}...")
+            
+            # Prepare data for insertion, matching the schema of greeks_live_A/B
+            # This is a simplified example; a real implementation would need more robust column mapping.
+            df_to_insert = df[[
+                'implied_vol', 'delta_F', 'delta_y', 'gamma_F', 'gamma_y',
+                'vega_price', 'vega_y', 'theta_F', 'volga_price', 'vanna_F_price',
+                'charm_F', 'speed_F', 'color_F', 'ultima', 'zomma',
+                'greek_calc_success', 'greek_calc_error', 'model_version'
+            ]].copy()
+            
+            # Add placeholders for columns not in the calculated df
+            df_to_insert['raw_id'] = 0 # Placeholder
+            df_to_insert['session_id'] = 0 # Placeholder
+            df_to_insert['rho_y'] = None
+            df_to_insert['vanna_F_y'] = None
+            df_to_insert['volga_y'] = None
+            df_to_insert['veta_y'] = None
+            df_to_insert['calculation_time_ms'] = 0 # Placeholder
+
+            # Rename columns to match DB schema
+            df_to_insert.rename(columns={'greek_calc_success': 'calculation_status',
+                                         'greek_calc_error': 'error_message'}, inplace=True)
+            df_to_insert['calculation_status'] = df_to_insert['calculation_status'].apply(
+                lambda x: 'success' if x else 'failed'
+            )
+
+            tuples_to_insert = [tuple(x) for x in df_to_insert.to_numpy()]
+            
+            # This is simplified. A robust version would generate the column list dynamically.
+            columns = [
+                'implied_vol', 'delta_F', 'delta_y', 'gamma_F', 'gamma_y',
+                'vega_price', 'vega_y', 'theta_F', 'volga_price', 'vanna_F_price',
+                'charm_F', 'speed_F', 'color_F', 'ultima', 'zomma',
+                'calculation_status', 'error_message', 'model_version',
+                'raw_id', 'session_id', 'rho_y', 'vanna_F_y', 'volga_y', 'veta_y', 'calculation_time_ms'
+            ]
+            
+            placeholders = ', '.join(['?'] * len(columns))
+            
+            cursor.executemany(
+                f"INSERT INTO {inactive_table} ({', '.join(columns)}) VALUES ({placeholders})",
+                tuples_to_insert
+            )
+            logging.info(f"Successfully inserted {cursor.rowcount} rows.")
+
+            # 4. Atomically swap the view pointer
+            logging.info(f"Swapping active view to '{inactive_view_suffix}'.")
+            cursor.execute("UPDATE active_view_pointer SET active_view = ? WHERE id = 1;", (inactive_view_suffix,))
+
+            conn.commit()
+            logging.info("Database write and view swap complete.")
+            return cursor.rowcount 

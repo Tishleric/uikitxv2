@@ -145,6 +145,14 @@ class RosettaStone:
                 self.lookups[f"cme_{cme_base}_to_actanttime"] = actanttime_base
                 self.lookups[f"actantrisk_{actantrisk_base}_to_actanttime"] = actanttime_base
             
+            # Handle Futures contracts from the calendar
+            if 'Option Product' in row and "Future" in row['Option Product']:
+                bloomberg_future = str(row.get('Bloomberg_Call')) # For futures, both are the same
+                if bloomberg_future and actantrisk_base:
+                    # Create simple, non-option-type specific mappings for futures
+                    self.lookups[f"actantrisk_{actantrisk_base}_to_bloomberg"] = bloomberg_future
+                    self.lookups[f"bloomberg_{bloomberg_future}_to_actantrisk"] = actantrisk_base
+
     def classify_symbol(self, symbol: str, format_type: SymbolFormat) -> SymbolClass:
         """Determine symbol classification."""
         if format_type == SymbolFormat.CME:
@@ -196,6 +204,15 @@ class RosettaStone:
         """Parse symbol into components based on format."""
         symbol = symbol.strip()
         
+        # Handle simple futures that don't fit the complex option pattern
+        if format_type == SymbolFormat.ACTANT_RISK and len(symbol.split('.')) == 3:
+            return ParsedSymbol(
+                base=symbol,
+                strike="0",
+                option_type="F", # Designate as Future type
+                symbol_class=SymbolClass.QUARTERLY
+            )
+            
         if format_type == SymbolFormat.ACTANT_RISK:
             # Format: XCME.VY3.21JUL25.111:75.C
             parts = symbol.split('.')
@@ -305,6 +322,9 @@ class RosettaStone:
         if from_fmt == SymbolFormat.BLOOMBERG:
             # Bloomberg base already includes option type
             lookup_key = f"bloomberg_{parsed.base}_to_{to_format}"
+        # Handle futures translation separately
+        elif parsed.option_type == 'F':
+            lookup_key = f"{from_format}_{parsed.base}_to_{to_format}"
         else:
             # For non-Bloomberg formats, we need to specify option type when going to Bloomberg
             if to_fmt == SymbolFormat.BLOOMBERG:
@@ -336,6 +356,10 @@ class RosettaStone:
     def _reconstruct_symbol(self, base: str, strike: str, option_type: str,
                           format_type: SymbolFormat, symbol_class: SymbolClass) -> str:
         """Reconstruct full symbol from components."""
+        if option_type == 'F': # Handle futures
+            # For futures, the translation is a direct lookup of the base.
+            return base
+
         if format_type == SymbolFormat.BLOOMBERG:
             # Bloomberg always uses same format
             return f"{base} {strike} Comdty"

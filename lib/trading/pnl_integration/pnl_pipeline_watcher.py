@@ -1,3 +1,16 @@
+"""(DEPRECATED) PNL Pipeline File Watcher
+
+This module is now deprecated and replaced by a more robust, decoupled architecture
+using a Redis queue.
+
+- The SpotRiskWatcher (`run_spot_risk_watcher.py`) now acts as the "Producer",
+  publishing completed Greek data batches to a Redis queue.
+- The PositionsAggregator (`run_positions_aggregator_service.py`) now acts as
+  the "Consumer", listening to the Redis queue for new data to process into trades.db.
+
+This file is kept for historical reference but should not be used.
+"""
+
 #!/usr/bin/env python3
 """
 Minimal Pipeline Watcher Skeleton

@@ -361,12 +361,12 @@ class SpotRiskGreekCalculator:
             # For each futures row, set hardcoded Greek values
             for idx in futures_df.index:
                 # Set hardcoded futures Greeks
-                df_copy.at[idx, 'delta_F'] = 63.0
-                df_copy.at[idx, 'gamma_F'] = 0.0042
+                df_copy.at[idx, 'delta_F'] = 1.0
+                df_copy.at[idx, 'gamma_F'] = 0.0
                 
                 # Y-space conversions using DV01
-                df_copy.at[idx, 'delta_y'] = 63.0 * self.dv01 / 1000.0
-                df_copy.at[idx, 'gamma_y'] = 0.0042 * (self.dv01 / 1000.0) ** 2
+                df_copy.at[idx, 'delta_y'] = 63.0
+                df_copy.at[idx, 'gamma_y'] = 0.0042 # This is convexity, not gamma
                 
                 # All other Greeks are 0 for futures
                 df_copy.at[idx, 'vega_price'] = 0.0

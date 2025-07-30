@@ -10,10 +10,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple
 import pandas as pd
+import redis
+import json
+import time
 
 from .config import DEFAULT_SYMBOL
 from .pnl_engine import calculate_unrealized_pnl
 from .data_manager import view_unrealized_positions, load_pricing_dictionaries, get_trading_day
+from lib.trading.market_prices.rosetta_stone import RosettaStone
+from lib.trading.actant.spot_risk.database import SpotRiskDatabaseService
+from lib.monitoring.decorators import monitor
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +27,7 @@ logger = logging.getLogger(__name__)
 class PositionsAggregator:
     """Aggregates position, P&L, and Greek data into master positions table."""
     
-    def __init__(self, trades_db_path: str, spot_risk_db_path: Optional[str] = None):
+    def __init__(self, trades_db_path: str = "trades.db"):
         """
         Initialize aggregator with database paths.
         
@@ -30,32 +36,79 @@ class PositionsAggregator:
             spot_risk_db_path: Path to spot_risk.db (optional)
         """
         self.trades_db_path = trades_db_path
-        self.spot_risk_db_path = spot_risk_db_path or "data/output/spot_risk/spot_risk.db"
-        
-    def update_position(self, symbol: str) -> bool:
+        self.symbol_translator = RosettaStone()
+        self.redis_client = redis.Redis(decode_responses=True)
+        self.redis_channel = "spot_risk:results_channel"
+        self.greek_data_cache = {}
+        logger.info("Initialized PositionsAggregator")
+
+    @monitor()
+    def run_aggregation_service(self):
         """
-        Update a single position in the POSITIONS table.
-        
-        Args:
-            symbol: Bloomberg format symbol to update
-            
-        Returns:
-            bool: True if successful, False otherwise
+        Runs as a persistent service, subscribing to a Redis channel for new
+        Greek data and updating the positions table in trades.db accordingly.
         """
-        try:
-            # Gather data from both sources
-            trade_data = self._get_trade_data(symbol)
-            greek_data = self._get_greek_data(symbol) if Path(self.spot_risk_db_path).exists() else {}
+        logger.info(f"Starting Positions Aggregator service, subscribing to Redis channel '{self.redis_channel}'...")
+        
+        pubsub = self.redis_client.pubsub()
+        pubsub.subscribe(self.redis_channel)
+        
+        for message in pubsub.listen():
+            # Filter out subscribe confirmation messages
+            if message['type'] != 'message':
+                continue
             
-            # Update positions table
-            self._update_positions_table(symbol, trade_data, greek_data)
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error updating position for {symbol}: {e}")
-            return False
-    
+            try:
+                # --- Start Instrumentation ---
+                start_time = time.time()
+                payload = json.loads(message['data'])
+                publish_timestamp = payload.get('publish_timestamp', start_time)
+                latency = start_time - publish_timestamp
+                # --- End Instrumentation ---
+
+                logger.info(f"Received new Greek data package from Redis (Latency: {latency:.3f}s).")
+                
+                greeks_df = pd.read_json(payload['data'], orient='records')
+                if greeks_df.empty:
+                    logger.warning("Received an empty DataFrame in the payload. Skipping.")
+                    continue
+
+                # The symbol translator expects ActantRisk format. Our DataFrame from the spot risk
+                # pipeline uses 'key' as the column for this. We need to ensure that column exists.
+                if 'key' not in greeks_df.columns:
+                    logger.error("Incoming Greek data is missing the 'key' column for symbol translation.")
+                    continue
+                
+                # Create the bloomberg_symbol column using the Rosetta Stone translator
+                greeks_df['bloomberg_symbol'] = greeks_df['key'].apply(
+                    lambda x: self.symbol_translator.translate(x, 'actantrisk', 'bloomberg') if x else None
+                )
+
+                # Drop rows where translation failed, as they cannot be indexed
+                greeks_df.dropna(subset=['bloomberg_symbol'], inplace=True)
+
+                # There can be multiple entries for the same instrument (e.g., from NET_FUTURES aggregates
+                # in each chunk). We must keep only the last, most complete entry.
+                greeks_df.drop_duplicates(subset=['bloomberg_symbol'], keep='last', inplace=True)
+
+                self.greek_data_cache = greeks_df.set_index('bloomberg_symbol').to_dict('index')
+                logger.info(f"Greek cache updated with {len(self.greek_data_cache)} unique symbols from batch '{payload['batch_id']}'.")
+
+                self.update_all_positions()
+                
+                execution_time = time.time() - start_time
+                logger.info(f"Finished processing batch '{payload['batch_id']}'. (Execution: {execution_time:.3f}s)")
+
+            except redis.exceptions.ConnectionError as e:
+                logger.error(f"Redis connection error: {e}. Retrying in 30 seconds...")
+                time.sleep(30)
+                # Re-subscribe after connection loss
+                pubsub.subscribe(self.redis_channel)
+            except Exception as e:
+                logger.error(f"An unexpected error occurred in the aggregation service: {e}", exc_info=True)
+                time.sleep(10)
+
+    @monitor()
     def update_all_positions(self) -> Tuple[int, int]:
         """
         Update all positions in the POSITIONS table.
@@ -77,6 +130,31 @@ class PositionsAggregator:
                 
         logger.info(f"Updated {success_count} positions, {fail_count} failures")
         return success_count, fail_count
+    
+    def update_position(self, symbol: str) -> bool:
+        """
+        Update a single position in the POSITIONS table.
+        
+        Args:
+            symbol: Bloomberg format symbol to update
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Gather data from both sources
+            trade_data = self._get_trade_data(symbol)
+            # Use the in-memory cache, which was just updated.
+            greek_data = self._get_greek_data(symbol)
+            
+            # Update positions table
+            self._update_positions_table(symbol, trade_data, greek_data)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating position for {symbol}: {e}")
+            return False
     
     def _get_trade_data(self, symbol: str) -> Dict:
         """Get position and P&L data from trades.db."""
@@ -144,51 +222,29 @@ class PositionsAggregator:
         return data
     
     def _get_greek_data(self, symbol: str) -> Dict:
-        """Get Greek data from spot_risk.db."""
-        data = {
-            'delta_y': None,
-            'gamma_y': None,
-            'speed_y': None,
-            'theta': None,
-            'vega': None,
-            'has_greeks': False,
-            'instrument_type': None
-        }
-        
-        try:
-            conn = sqlite3.connect(self.spot_risk_db_path)
-            cursor = conn.cursor()
-            
-            # Get latest Greeks for this symbol
-            cursor.execute("""
-                SELECT 
-                    c.delta_y, c.gamma_y, c.speed_F as speed_y, 
-                    c.theta_F as theta, c.vega_y as vega,
-                    r.instrument_type
-                FROM spot_risk_calculated c
-                JOIN spot_risk_raw r ON c.raw_id = r.id
-                WHERE r.bloomberg_symbol = ?
-                    AND c.calculation_status = 'success'
-                ORDER BY c.calculation_timestamp DESC
-                LIMIT 1
-            """, (symbol,))
-            
-            result = cursor.fetchone()
-            if result:
-                data['delta_y'] = result[0]
-                data['gamma_y'] = result[1]
-                data['speed_y'] = result[2]
-                data['theta'] = result[3]
-                data['vega'] = result[4]
-                data['instrument_type'] = result[5]
-                data['has_greeks'] = True
-                
-            conn.close()
-            
-        except Exception as e:
-            logger.debug(f"Could not get Greeks for {symbol}: {e}")
-            
-        return data
+        """
+        Get Greek data for a symbol from the in-memory cache.
+        The cache is populated by the Redis listener.
+        """
+        if not self.greek_data_cache:
+            return {'has_greeks': False}
+
+        # The symbol is expected to be a Bloomberg symbol here
+        greek_row = self.greek_data_cache.get(symbol)
+
+        if greek_row:
+            # Map the DataFrame columns to the expected dictionary keys
+            return {
+                'has_greeks': True,
+                'delta_y': greek_row.get('delta_y'),
+                'gamma_y': greek_row.get('gamma_y'),
+                'speed_y': greek_row.get('speed_y'),
+                'theta': greek_row.get('theta_F'), # Note: Mapping theta_F to theta
+                'vega': greek_row.get('vega_y'),
+                'instrument_type': greek_row.get('instrument_type')
+            }
+        else:
+            return {'has_greeks': False}
     
     def _update_positions_table(self, symbol: str, trade_data: Dict, greek_data: Dict):
         """Update the positions table with aggregated data."""
@@ -198,6 +254,28 @@ class PositionsAggregator:
         try:
             # Prepare the update
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Get open position for Greek multiplication
+            open_position = trade_data.get('open_position', 0)
+            
+            # Helper function to multiply Greek by position safely
+            def position_weighted_greek(greek_value, position):
+                """Calculate position-weighted Greek, handling None and edge cases."""
+                if greek_value is None or position is None:
+                    return None
+                # If position is 0, the weighted Greek is 0
+                return greek_value * position
+            
+            # Calculate position-weighted Greeks
+            weighted_delta_y = position_weighted_greek(greek_data.get('delta_y'), open_position)
+            weighted_gamma_y = position_weighted_greek(greek_data.get('gamma_y'), open_position)
+            weighted_speed_y = position_weighted_greek(greek_data.get('speed_y'), open_position)
+            weighted_theta = position_weighted_greek(greek_data.get('theta'), open_position)
+            weighted_vega = position_weighted_greek(greek_data.get('vega'), open_position)
+            
+            # Log if we're applying position weighting
+            if greek_data.get('has_greeks') and open_position != 0:
+                logger.debug(f"Applied position weighting to Greeks for {symbol} (position={open_position})")
             
             cursor.execute("""
                 INSERT OR REPLACE INTO positions (
@@ -212,11 +290,11 @@ class PositionsAggregator:
                 symbol,
                 trade_data['open_position'],
                 trade_data['closed_position'],
-                greek_data.get('delta_y'),
-                greek_data.get('gamma_y'),
-                greek_data.get('speed_y'),
-                greek_data.get('theta'),
-                greek_data.get('vega'),
+                weighted_delta_y,
+                weighted_gamma_y,
+                weighted_speed_y,
+                weighted_theta,
+                weighted_vega,
                 trade_data['fifo_realized_pnl'],
                 trade_data['fifo_unrealized_pnl'],
                 trade_data['lifo_realized_pnl'],

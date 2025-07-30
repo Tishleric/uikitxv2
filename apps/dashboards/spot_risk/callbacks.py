@@ -444,84 +444,57 @@ def register_callbacks(app):
     )
     @monitor()
     def refresh_data(n_clicks, stored_data):
-        """Load or refresh spot risk data from CSV
+        """Load or refresh spot risk data from the live database.
         
         Returns:
             tuple: (data_store, timestamp, no_data_style, table_style, loading_children)
         """
         try:
-            # Load data
-            controller.load_csv_data()
+            # Load data from the database using the new controller method
+            success = controller.get_latest_greeks_data()
             
-            if controller.current_data is None or controller.current_data.empty:
-                logger.warning("No data loaded from CSV")
+            if not success or controller.current_data is None or controller.current_data.empty:
+                logger.warning("No data loaded from database.")
                 return (
                     None,
-                    'No CSV data available',
+                    'No live data available in database.',
                     {'display': 'block'},
                     {'display': 'none'},
                     no_update,
-                    None # Added None for last_processed_time
+                    None
                 )
             
-            # Process Greeks
-            logger.info("Processing Greeks for loaded data...")
-            df_with_greeks = controller.process_greeks(filter_positions=True)
+            # Data is already processed, so we can use it directly.
+            # The controller's `current_data` is now our source of truth.
+            df_with_greeks = controller.current_data
             
-            if df_with_greeks is None:
-                logger.error("Failed to process Greeks")
-                return (
-                    None,
-                    'Error processing Greeks',
-                    {'display': 'block'},
-                    {'display': 'none'},
-                    no_update,
-                    None # Added None for last_processed_time
-                )
-            
-            # Check if any positions were found
+            # The old logic filtered for positions only. We assume the buffer table
+            # contains the final view, so we don't need to filter again.
+            # If we do, we can add: df_with_greeks = controller.filter_positions_only(df_with_greeks)
+
             if df_with_greeks.empty:
-                logger.info("No positions found in the data")
+                logger.info("No positions found in the live data.")
                 return (
                     None,
-                    'No positions found',
+                    'No positions found in live data.',
                     {'display': 'block'},
                     {'display': 'none'},
                     no_update,
-                    None # Added None for last_processed_time
+                    None
                 )
-            
-            # Update controller data with processed Greeks
-            controller.current_data = df_with_greeks
             
             # Get timestamp
             timestamp = controller.get_timestamp()
-            timestamp_text = f'{len(df_with_greeks)} positions from: {timestamp}' if timestamp else f'{len(df_with_greeks)} positions loaded'
+            timestamp_text = f'{len(df_with_greeks)} positions loaded at: {timestamp}'
             
             # Convert DataFrame to dict for storage
-            data_dict = controller.current_data.to_dict('records')
+            data_dict = df_with_greeks.to_dict('records')
             
-            logger.info(f"Loaded {len(data_dict)} positions with Greeks")
+            logger.info(f"Loaded {len(data_dict)} positions with Greeks from database.")
             
-            # Get latest processed timestamp from state file
-            latest_processed_time = None
-            try:
-                import json
-                from pathlib import Path
-                project_root = Path(__file__).parent.parent.parent.parent
-                state_file = project_root / "data" / "output" / "spot_risk" / ".file_watcher_state.json"
-                
-                if state_file.exists():
-                    with open(state_file, 'r') as f:
-                        state = json.load(f)
-                    
-                    # Find the most recent processed_at timestamp
-                    for file_info in state.values():
-                        if 'processed_at' in file_info:
-                            if latest_processed_time is None or file_info['processed_at'] > latest_processed_time:
-                                latest_processed_time = file_info['processed_at']
-            except Exception as e:
-                logger.error(f"Error reading file watcher state: {e}")
+            # The concept of 'last_processed_time' from the state file is now obsolete.
+            # We can use the data_timestamp from the controller.
+            last_processed_time = controller.data_timestamp.isoformat() if controller.data_timestamp else None
             
             return (
                 data_dict,
@@ -529,18 +502,18 @@ def register_callbacks(app):
                 {'display': 'none'},  # Hide no-data message
                 {'display': 'block'},  # Show table
                 no_update,
-                latest_processed_time  # Return the latest processed timestamp
+                last_processed_time
             )
             
         except Exception as e:
-            logger.error(f"Error loading data: {e}")
+            logger.error(f"Error loading data from database: {e}", exc_info=True)
             return (
                 None,
                 f'Error: {str(e)}',
                 {'display': 'block'},
                 {'display': 'none'},
                 no_update,
-                None # Added None for last_processed_time
+                None
             )
     
     @app.callback(
@@ -871,7 +844,7 @@ def register_callbacks(app):
     )
     @monitor()
     def auto_refresh_data(n_intervals, auto_refresh_enabled, stored_data):
-        """Auto-refresh data based on interval
+        """Auto-refresh data based on interval by checking the database.
         
         Returns:
             tuple: (data_store, timestamp, no_data_style, table_style)
@@ -879,60 +852,46 @@ def register_callbacks(app):
         if not auto_refresh_enabled:
             raise PreventUpdate
         
+        # This callback can now be simplified to just re-trigger the main data load.
+        # However, to avoid complexity, we'll just replicate the logic from refresh_data.
+        # A better long-term solution might be to have this just click the refresh button.
+        
         try:
-            # Load data
-            controller.load_csv_data()
+            # Load data from the database
+            success = controller.get_latest_greeks_data()
             
-            if controller.current_data is None or controller.current_data.empty:
-                logger.warning("No data loaded from CSV during auto-refresh")
-                return (
-                    None,
-                    'No data loaded',
-                    {'display': 'block'},
-                    {'display': 'none'}
-                )
+            if not success or controller.current_data is None or controller.current_data.empty:
+                logger.warning("No data loaded from database during auto-refresh.")
+                raise PreventUpdate # Don't clear the screen if there's a temporary DB issue
             
-            # Process Greeks
-            logger.info("Processing Greeks for auto-refreshed data...")
-            df_with_greeks = controller.process_greeks(filter_positions=True)
+            df_with_greeks = controller.current_data
             
-            if df_with_greeks is None:
-                logger.error("Failed to process Greeks during auto-refresh")
-                # Don't update UI on error during auto-refresh
-                raise PreventUpdate
-            
-            # Check if any positions were found
             if df_with_greeks.empty:
-                logger.info("No positions found in the data during auto-refresh")
+                # This could be a valid state (no positions), so we should update.
                 return (
-                    None,
-                    'No positions found',
+                    [],
+                    'No positions found in live data (Auto-refreshed)',
                     {'display': 'block'},
                     {'display': 'none'}
                 )
-            
-            # Update controller data with processed Greeks
-            controller.current_data = df_with_greeks
             
             # Get timestamp
             timestamp = controller.get_timestamp()
-            timestamp_text = f'{len(df_with_greeks)} positions from: {timestamp} (Auto-refreshed)' if timestamp else f'{len(df_with_greeks)} positions loaded (Auto-refreshed)'
+            timestamp_text = f'{len(df_with_greeks)} positions from: {timestamp} (Auto-refreshed)'
             
-            # Convert DataFrame to dict for storage
-            data_dict = controller.current_data.to_dict('records')
+            data_dict = df_with_greeks.to_dict('records')
             
-            logger.info(f"Auto-refreshed {len(data_dict)} positions with Greeks")
+            logger.info(f"Auto-refreshed {len(data_dict)} positions from database.")
             
             return (
                 data_dict,
                 timestamp_text,
-                {'display': 'none'},  # Hide no-data message
-                {'display': 'block'}  # Show table
+                {'display': 'none'},
+                {'display': 'block'}
             )
             
         except Exception as e:
-            logger.error(f"Error during auto-refresh: {e}")
-            # Don't update UI on error during auto-refresh
+            logger.error(f"Error during auto-refresh: {e}", exc_info=True)
             raise PreventUpdate
     
     @app.callback(
@@ -1576,98 +1535,9 @@ def register_callbacks(app):
     )
     # @monitor()  # Commented out to reduce queue load - this runs every second
     def check_file_completion(n_intervals, last_processed_time, current_data):
-        """Check if file watcher has completed processing new files
-        
-        Returns updated data if new files were processed, otherwise no_update
         """
-        import json
-        from pathlib import Path
-        
-        try:
-            # Get the state file path
-            project_root = Path(__file__).parent.parent.parent.parent
-            state_file = project_root / "data" / "output" / "spot_risk" / ".file_watcher_state.json"
-            
-            if not state_file.exists():
-                raise PreventUpdate
-            
-            # Read the state file
-            with open(state_file, 'r') as f:
-                state = json.load(f)
-            
-            if not state:
-                raise PreventUpdate
-            
-            # Find the most recent processed_at timestamp
-            latest_processed = None
-            for file_info in state.values():
-                if 'processed_at' in file_info:
-                    if latest_processed is None or file_info['processed_at'] > latest_processed:
-                        latest_processed = file_info['processed_at']
-            
-            # Check if we have a new file processed
-            if latest_processed and latest_processed != last_processed_time:
-                logger.info(f"New file processed at {latest_processed}, triggering refresh")
-                
-                # Reload data using the same logic as refresh_data
-                controller.load_csv_data()
-                
-                if controller.current_data is None or controller.current_data.empty:
-                    logger.warning("No data loaded from CSV")
-                    return (
-                        latest_processed,
-                        None,
-                        'No CSV data available',
-                        {'display': 'block'},
-                        {'display': 'none'}
-                    )
-                
-                # Process Greeks
-                logger.info("Processing Greeks for loaded data...")
-                df_with_greeks = controller.process_greeks(filter_positions=True)
-                
-                if df_with_greeks is None:
-                    logger.error("Failed to process Greeks")
-                    return (
-                        latest_processed,
-                        None,
-                        'Error processing Greeks',
-                        {'display': 'block'},
-                        {'display': 'none'}
-                    )
-                
-                # Check if any positions were found
-                if df_with_greeks.empty:
-                    logger.info("No positions found in the data")
-                    return (
-                        latest_processed,
-                        None,
-                        'No positions found',
-                        {'display': 'block'},
-                        {'display': 'none'}
-                    )
-                
-                # Update controller data with processed Greeks
-                controller.current_data = df_with_greeks
-                
-                # Get timestamp
-                timestamp = controller.get_timestamp()
-                timestamp_text = f'{len(df_with_greeks)} positions from: {timestamp}' if timestamp else f'{len(df_with_greeks)} positions loaded'
-                
-                # Convert DataFrame to dict for storage
-                data_dict = controller.current_data.to_dict('records')
-                
-                logger.info(f"Auto-loaded {len(data_dict)} positions with Greeks after file completion")
-                
-                return (
-                    latest_processed,
-                    data_dict,
-                    timestamp_text,
-                    {'display': 'none'},
-                    {'display': 'block'}
-                )
-            
-        except Exception as e:
-            logger.error(f"Error checking file completion: {e}")
-        
+        This callback is now deprecated. The refresh button and interval timer
+        directly query the database, making this file-based check redundant.
+        It is left here but should be removed in a future cleanup.
+        """
         raise PreventUpdate 

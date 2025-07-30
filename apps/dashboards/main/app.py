@@ -748,7 +748,6 @@ def create_logs_tab():
     )
     
     return logs_container.render()
-
 def create_mermaid_tab():
     """Creates the Mermaid tab with a diagram visualization."""
     
@@ -1443,7 +1442,6 @@ def pdoc_parse_code_index():
     })
     
     return descriptions
-
 def pdoc_create_file_tree_section():
     """Create the file tree section with hover tooltips"""
     
@@ -2102,7 +2100,6 @@ def pdoc_create_entry_points_section():
         theme=default_theme,
         style={'backgroundColor': default_theme.panel_bg, 'padding': '30px', 'marginBottom': '30px', 'borderRadius': '8px', 'border': f'1px solid {default_theme.secondary}'}
     )
-
 def create_project_documentation_content():
     """Create the complete Project Documentation page content"""
     
@@ -2856,11 +2853,11 @@ def create_frg_monitor_content():
             header,
             tabs.render()
         ],
-        style={"padding": "10px"}  # Reduced padding for more width
+        style={"padding": "10px"},  # Reduced padding for more width
+        fluid=True  # Make the main container full-width
     )
     
     return container.render()
-
 def create_positions_tab_content():
     """Create positions table with real-time updates"""
     
@@ -2885,20 +2882,28 @@ def create_positions_tab_content():
         style_data_conditional=[
             # Positive P&L green
             {
-                'if': {'filter_query': '{fifo_realized_pnl} > 0', 'column_id': 'fifo_realized_pnl'},
+                'if': {'filter_query': '{pnl_live} > 0', 'column_id': 'pnl_live'},
                 'color': default_theme.success
             },
             {
-                'if': {'filter_query': '{lifo_realized_pnl} > 0', 'column_id': 'lifo_realized_pnl'},
+                'if': {'filter_query': '{non_gamma_lifo} > 0', 'column_id': 'non_gamma_lifo'},
+                'color': default_theme.success
+            },
+            {
+                'if': {'filter_query': '{gamma_lifo} > 0', 'column_id': 'gamma_lifo'},
                 'color': default_theme.success
             },
             # Negative P&L red
             {
-                'if': {'filter_query': '{fifo_realized_pnl} < 0', 'column_id': 'fifo_realized_pnl'},
+                'if': {'filter_query': '{pnl_live} < 0', 'column_id': 'pnl_live'},
                 'color': default_theme.danger
             },
             {
-                'if': {'filter_query': '{lifo_realized_pnl} < 0', 'column_id': 'lifo_realized_pnl'},
+                'if': {'filter_query': '{non_gamma_lifo} < 0', 'column_id': 'non_gamma_lifo'},
+                'color': default_theme.danger
+            },
+            {
+                'if': {'filter_query': '{gamma_lifo} < 0', 'column_id': 'gamma_lifo'},
                 'color': default_theme.danger
             }
         ]
@@ -2918,7 +2923,8 @@ def create_positions_tab_content():
             store
         ],
         theme=default_theme,
-        style={"padding": "10px", "width": "100%"}  # Use full width
+        style={"padding": "10px", "width": "100%", "maxWidth": "100%"},  # Use full width and override any max-width
+        fluid=True
     )
     
     return container.render()
@@ -3372,7 +3378,7 @@ def update_positions_table(n_intervals, last_timestamp_data):
     
     try:
         # Database path (root folder)
-        db_path = "trades.db"
+        db_path = os.path.join(project_root, "trades.db")
         
         # Connect to database
         conn = sqlite3.connect(db_path)
@@ -3403,8 +3409,11 @@ def update_positions_table(n_intervals, last_timestamp_data):
             vega,
             fifo_realized_pnl,
             fifo_unrealized_pnl,
+            (fifo_realized_pnl + fifo_unrealized_pnl) as pnl_live,
             lifo_realized_pnl,
             lifo_unrealized_pnl,
+            CASE WHEN instrument_type = 'FUTURE' THEN (lifo_realized_pnl + lifo_unrealized_pnl) ELSE NULL END AS non_gamma_lifo,
+            CASE WHEN instrument_type = 'OPTION' THEN (lifo_realized_pnl + lifo_unrealized_pnl) ELSE NULL END AS gamma_lifo,
             last_updated
         FROM positions
         WHERE open_position != 0 OR closed_position != 0
@@ -3425,10 +3434,15 @@ def update_positions_table(n_intervals, last_timestamp_data):
             {"name": "Speed Y", "id": "speed_y", "type": "numeric", "format": {"specifier": ".4f"}},
             {"name": "Theta", "id": "theta", "type": "numeric", "format": {"specifier": ".4f"}},
             {"name": "Vega", "id": "vega", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "FIFO Real", "id": "fifo_realized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "FIFO Unreal", "id": "fifo_unrealized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "LIFO Real", "id": "lifo_realized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "LIFO Unreal", "id": "lifo_unrealized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}}
+            {"name": "PnL Live", "id": "pnl_live", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "PnL Close", "id": "pnl_close", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Theta Decay Pnl", "id": "theta_decay_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Non-Gamma LIFO", "id": "non_gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Non-Gamma LIFOc", "id": "non_gamma_lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Gamma LIFO", "id": "gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "LIFOC", "id": "lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "LivePX", "id": "live_px", "type": "numeric", "format": {"specifier": ".6f"}},
+            {"name": "ClosePX", "id": "close_px", "type": "numeric", "format": {"specifier": ".6f"}}
         ]
         
         # Convert dataframe to records
@@ -3472,7 +3486,7 @@ def update_daily_positions_table(n_intervals, last_timestamp_data):
     
     try:
         # Database path (root folder)
-        db_path = "trades.db"
+        db_path = os.path.join(project_root, "trades.db")
         
         # Connect to database
         conn = sqlite3.connect(db_path)
@@ -4325,7 +4339,6 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scena
     )
     
     return fig
-
 @monitor()
 def prepare_table_data(data_dict, underlying_key, y_axis_column):
     """
@@ -4825,27 +4838,6 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, time_to_expiry, ma
                 line=dict(color=default_theme.primary, width=2)
             ))
             
-            # Add numerical profile if available
-            # COMMENTED OUT: Numerical calculations display
-            # if bachelier_name in profile_data.get('greeks_num', {}):
-            #     greek_values_num = np.array(profile_data['greeks_num'][bachelier_name])
-            #     
-            #     # Apply same adjustments for numerical
-            #     if bachelier_name == 'delta' and option_type == 'put':
-            #         greek_values_num = greek_values_num - 1.0
-            #     if bachelier_name == 'theta':
-            #         greek_values_num = greek_values_num / 252.0
-            #         
-            #     greek_values_num = greek_values_num * scale_factor * 1000
-            #     
-            #     fig.add_trace(go.Scatter(
-            #         x=F_values,
-            #         y=greek_values_num,
-            #         mode='lines',
-            #         name='Numerical (Finite Differences)',
-            #         line=dict(color=default_theme.accent, width=2, dash='dash')
-            #     ))
-            
             # Add vertical lines for current price and strike
             fig.add_vline(x=future_price, line_dash="dash", line_color=default_theme.accent, 
                          annotation_text="Current", annotation_position="top")
@@ -4895,13 +4887,11 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, time_to_expiry, ma
     colors = {
         'errors_ana': default_theme.primary,
         'errors_ana_cross': default_theme.accent,
-        # 'errors_num_cross': default_theme.danger  # Commented out numerical
     }
     
     method_names = {
         'errors_ana': 'Analytical',
         'errors_ana_cross': 'Analytical + Cross',
-        # 'errors_num_cross': 'Numerical + Cross'  # Commented out numerical
     }
     
     # Get future prices for basis points calculation
@@ -5184,7 +5174,7 @@ def acp_generate_table_view(store_data, table_clicks, graph_clicks):
                     row['Analytical'] = f"{taylor_data['errors_ana'][i] * 10000:.1f} bps"
                 if 'errors_ana_cross' in taylor_data:
                     row['Analytical + Cross'] = f"{taylor_data['errors_ana_cross'][i] * 10000:.1f} bps"
-                # Commented out numerical + cross error display
+                # Commented out numerical + cross column
                 # if 'errors_num_cross' in taylor_data:
                 #     row['Numerical + Cross'] = f"{taylor_data['errors_num_cross'][i] * 10000:.1f} bps"
             
@@ -5790,7 +5780,6 @@ def aeod_create_density_aware_marks(shock_values, shock_type):
                     marks[val] = ""  # Tick exists but no label
     
     return marks
-
 def aeod_create_tooltip_config(shock_type):
     """
     Create tooltip configuration that matches label formatting.
