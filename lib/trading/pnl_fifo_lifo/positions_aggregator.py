@@ -160,6 +160,15 @@ class PositionsAggregator:
                     logger.info("Received positions:changed signal. Refreshing cache from database...")
                     self._load_positions_from_db()
                     
+                    # Also update daily positions with new prices
+                    conn = sqlite3.connect(self.trades_db_path)
+                    try:
+                        from .data_manager import update_daily_positions_unrealized_pnl
+                        update_daily_positions_unrealized_pnl(conn)
+                        logger.debug("Updated daily positions unrealized P&L after positions change")
+                    finally:
+                        conn.close()
+                    
                 elif channel == self.redis_channel:
                     # Greek data received - process with in-memory cache
                     start_time = time.time()
@@ -301,6 +310,11 @@ class PositionsAggregator:
             
             conn.commit()
             logger.debug(f"Written {len(self.positions_cache)} positions to database")
+            
+            # Update daily positions unrealized P&L with simplified calculation
+            from .data_manager import update_daily_positions_unrealized_pnl
+            update_daily_positions_unrealized_pnl(conn)
+            logger.debug("Updated daily positions unrealized P&L")
             
         finally:
             conn.close()

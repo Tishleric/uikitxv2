@@ -169,7 +169,7 @@ def process_multiple_csvs(folder_path, conn, close_prices=None):
             if last_processed_date in close_prices:
                 # Set up pricing and calculate unrealized for the completed day
                 valuation_dt = datetime.combine(last_processed_date, datetime.min.time()).replace(hour=16, minute=0)
-                setup_pricing_as_of(conn, valuation_dt, close_prices, close_prices[last_processed_date], symbol)
+                setup_pricing_as_of(conn, valuation_dt, close_prices, symbol)
                 price_dicts = load_pricing_dictionaries(conn)
                 update_daily_unrealized_pnl(conn, last_processed_date.strftime('%Y-%m-%d'), price_dicts, symbol)
         

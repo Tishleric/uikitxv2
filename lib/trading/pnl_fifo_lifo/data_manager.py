@@ -22,10 +22,12 @@ def create_all_tables(conn):
         transactionId INTEGER,
         symbol TEXT,
         price REAL,
+        original_price REAL,
         quantity REAL,
         buySell TEXT,
         sequenceId TEXT PRIMARY KEY,
         time TEXT,
+        original_time TEXT,
         fullPartial TEXT DEFAULT 'full'
     )"""
     
@@ -182,10 +184,59 @@ def load_csv_to_database(csv_file, conn, process_trade_func):
     return df, realized_summary
 
 
-def view_unrealized_positions(conn, method='fifo'):
+def update_daily_positions_unrealized_pnl(conn):
+    """
+    Update unrealized P&L for all symbols in daily_positions using simplified calculation
+    Formula: (Settle Price - Entry Price) × Quantity × 1000
+    """
+    from .pnl_engine import calculate_daily_simple_unrealized_pnl
+    
+    cursor = conn.cursor()
+    today = pd.Timestamp.now().strftime('%Y-%m-%d')
+    
+    # Get settle prices (close price type)
+    settle_query = "SELECT symbol, price FROM pricing WHERE price_type = 'close'"
+    settle_df = pd.read_sql_query(settle_query, conn)
+    settle_prices = dict(zip(settle_df['symbol'], settle_df['price']))
+    
+    # Get all symbols with daily positions today
+    symbols_query = "SELECT DISTINCT symbol FROM daily_positions WHERE date = ?"
+    symbols = [row[0] for row in cursor.execute(symbols_query, (today,)).fetchall()]
+    
+    for symbol in symbols:
+        for method in ['fifo', 'lifo']:
+            # Get unrealized positions for this symbol/method
+            positions = view_unrealized_positions(conn, method, symbol)
+            if positions.empty:
+                continue
+            
+            # Calculate using simplified formula
+            unrealized_list = calculate_daily_simple_unrealized_pnl(positions, settle_prices)
+            total_unrealized = sum(u['unrealizedPnL'] for u in unrealized_list)
+            
+            # Update daily position
+            update_query = """
+                UPDATE daily_positions 
+                SET unrealized_pnl = ?, timestamp = ?
+                WHERE date = ? AND symbol = ? AND method = ?
+            """
+            cursor.execute(update_query, (
+                total_unrealized, 
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                today, symbol, method
+            ))
+    
+    conn.commit()
+
+
+def view_unrealized_positions(conn, method='fifo', symbol=None):
     """View current unrealized positions"""
-    query = f"SELECT * FROM trades_{method} WHERE quantity > 0 ORDER BY sequenceId"
-    df = pd.read_sql_query(query, conn)
+    if symbol:
+        query = f"SELECT * FROM trades_{method} WHERE quantity > 0 AND symbol = ? ORDER BY sequenceId"
+        df = pd.read_sql_query(query, conn, params=[symbol])
+    else:
+        query = f"SELECT * FROM trades_{method} WHERE quantity > 0 ORDER BY sequenceId"
+        df = pd.read_sql_query(query, conn)
     return df
 
 
@@ -220,11 +271,11 @@ def load_pricing_dictionaries(conn):
     return price_dicts
 
 
-def setup_pricing_as_of(conn, valuation_datetime, close_prices, current_price, symbol):
+def setup_pricing_as_of(conn, valuation_datetime, close_prices, symbol):
     """
     Set up pricing table to represent state at a specific point in time.
     valuation_datetime: datetime object in Chicago
-    close_prices: dict of date -> close price
+    close_prices: dict of date -> dict of symbol -> close price
     """
     cursor = conn.cursor()
     
@@ -238,19 +289,28 @@ def setup_pricing_as_of(conn, valuation_datetime, close_prices, current_price, s
     # Sort dates to find relevant prices
     sorted_dates = sorted(close_prices.keys())
     
+    # Find dates with prices for this symbol
+    dates_with_symbol = [d for d in sorted_dates if symbol in close_prices.get(d, {})]
+    
+    if not dates_with_symbol:
+        raise ValueError(f"No price data found for symbol {symbol}")
+    
     # Find the most recent close price (today or previous day)
-    close_date = val_date if val_date in close_prices else max(d for d in sorted_dates if d < val_date)
-    close_price = close_prices[close_date]
+    close_date = val_date if val_date in dates_with_symbol else max(d for d in dates_with_symbol if d < val_date)
+    close_price = close_prices[close_date][symbol]
     close_timestamp = f"{close_date} 14:00:00"  # 2pm
+    
+    # Use close price as current price for historical simulation
+    current_price = close_price
     
     # Determine sodTod and sodTom based on time
     if val_hour >= 16:  # After 4pm
         # sodTod = yesterday's close, sodTom = NULL
-        if close_date in sorted_dates:
-            idx = sorted_dates.index(close_date)
+        if close_date in dates_with_symbol:
+            idx = dates_with_symbol.index(close_date)
             if idx > 0:
-                sodtod_date = sorted_dates[idx - 1]
-                sodtod_price = close_prices[sodtod_date]
+                sodtod_date = dates_with_symbol[idx - 1]
+                sodtod_price = close_prices[sodtod_date][symbol]
                 sodtod_timestamp = f"{sodtod_date} 14:00:00"
                 
                 cursor.execute("""
@@ -261,11 +321,11 @@ def setup_pricing_as_of(conn, valuation_datetime, close_prices, current_price, s
         
     elif val_hour >= 14:  # 2pm-4pm
         # sodTod = yesterday's close, sodTom = today's close
-        if close_date in sorted_dates:
-            idx = sorted_dates.index(close_date)
+        if close_date in dates_with_symbol:
+            idx = dates_with_symbol.index(close_date)
             if idx > 0:
-                sodtod_date = sorted_dates[idx - 1]
-                sodtod_price = close_prices[sodtod_date]
+                sodtod_date = dates_with_symbol[idx - 1]
+                sodtod_price = close_prices[sodtod_date][symbol]
                 sodtod_timestamp = f"{sodtod_date} 14:00:00"
                 
                 cursor.execute("""
@@ -281,11 +341,11 @@ def setup_pricing_as_of(conn, valuation_datetime, close_prices, current_price, s
     
     else:  # Before 2pm
         # sodTod = yesterday's close, sodTom = NULL
-        if close_date in sorted_dates:
-            idx = sorted_dates.index(close_date)
+        if close_date in dates_with_symbol:
+            idx = dates_with_symbol.index(close_date)
             if idx > 0:
-                sodtod_date = sorted_dates[idx - 1]
-                sodtod_price = close_prices[sodtod_date]
+                sodtod_date = dates_with_symbol[idx - 1]
+                sodtod_price = close_prices[sodtod_date][symbol]
                 sodtod_timestamp = f"{sodtod_date} 14:00:00"
                 
                 cursor.execute("""
@@ -379,15 +439,10 @@ def update_daily_position(conn, trade_date, symbol, method, realized_qty=0, real
     """
     existing = cursor.execute(existing_query, (trade_date, symbol, method)).fetchone()
     
-    if existing:
-        # Increment existing values
-        closed_position = existing[0] + realized_qty
-        realized_pnl = existing[1] + realized_pnl_delta
-        # Unrealized will be updated separately
-    else:
-        # New day - start fresh
-        closed_position = realized_qty
-        realized_pnl = realized_pnl_delta
+    # Don't accumulate - use the values passed in directly
+    # The caller is responsible for tracking daily totals
+    closed_position = realized_qty
+    realized_pnl = realized_pnl_delta
     
     # Update or insert daily position (unrealized_pnl will be updated separately)
     upsert_query = """
@@ -537,4 +592,73 @@ def update_current_price(conn, symbol, price, timestamp):
     except Exception as e:
         print(f"Error updating current price for {symbol}: {e}")
         conn.rollback()
-        return False 
+        return False
+
+
+def perform_eod_settlement(conn, settlement_date, close_prices):
+    """
+    Perform end-of-day settlement: calculate total unrealized P&L and mark positions to market.
+    
+    Args:
+        conn: Database connection
+        settlement_date: Date object for the trading day being settled
+        close_prices: Dict of symbol -> settlement price for the day
+        
+    This function:
+    1. Calculates total unrealized P&L for each symbol/method
+    2. Updates daily_positions with the total (not change)
+    3. Updates all open positions' prices to the settlement price (mark-to-market)
+    """
+    cursor = conn.cursor()
+    
+    # Get all symbols with open positions
+    unique_symbols = pd.read_sql_query(
+        "SELECT DISTINCT symbol FROM trades_fifo WHERE quantity > 0", conn
+    )['symbol'].tolist()
+    
+    for symbol in unique_symbols:
+        settle_price = close_prices.get(symbol)
+        if not settle_price:
+            continue
+            
+        for method in METHODS:
+            # Calculate total unrealized P&L using current cost basis
+            positions = view_unrealized_positions(conn, method, symbol=symbol)
+            total_unrealized_pnl = 0
+            
+            if not positions.empty:
+                for _, pos in positions.iterrows():
+                    # Simple P&L: (settle - cost_basis) * qty * 1000
+                    pnl = (settle_price - pos['price']) * pos['quantity'] * PNL_MULTIPLIER
+                    if pos['buySell'] == 'S':  # Short positions have inverted P&L
+                        pnl = -pnl
+                    total_unrealized_pnl += pnl
+            
+            # Get current open position at end of day
+            open_query = f"""
+                SELECT 
+                    SUM(CASE WHEN buySell = 'B' THEN quantity ELSE -quantity END) as net_position
+                FROM trades_{method}
+                WHERE symbol = ? AND quantity > 0
+            """
+            result = cursor.execute(open_query, (symbol,)).fetchone()
+            open_position = result[0] if result[0] else 0
+            
+            # Store the TOTAL unrealized P&L (not the change)
+            date_str = settlement_date.strftime('%Y-%m-%d')
+            cursor.execute("""
+                UPDATE daily_positions 
+                SET unrealized_pnl = ?, open_position = ?, timestamp = ?
+                WHERE date = ? AND symbol = ? AND method = ?
+            """, (total_unrealized_pnl, open_position, 
+                  date_str + ' 16:00:00',
+                  date_str, symbol, method))
+            
+            # Mark-to-market: Update all open positions to settle price
+            cursor.execute(f"""
+                UPDATE trades_{method}
+                SET price = ?, time = ?
+                WHERE symbol = ? AND quantity > 0
+            """, (settle_price, date_str + ' 16:00:00', symbol))
+    
+    conn.commit() 

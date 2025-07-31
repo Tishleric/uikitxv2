@@ -98,14 +98,16 @@ def process_new_trade(conn, new_trade, method='fifo', trade_timestamp=None):
         
         insert_new = f"""
             INSERT INTO trades_{table_suffix} 
-            (transactionId, symbol, price, quantity, buySell, sequenceId, time, fullPartial)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (transactionId, symbol, price, original_price, quantity, buySell, sequenceId, time, original_time, fullPartial)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         cursor.execute(insert_new, (
             new_trade_data['transactionId'], new_trade_data['symbol'], 
-            new_trade_data['price'], new_trade_data['quantity'], 
+            new_trade_data['price'], new_trade_data['price'],  # original_price = price on insert
+            new_trade_data['quantity'], 
             new_trade_data['buySell'], new_trade_data['sequenceId'], 
-            new_trade_data['time'], new_trade_data['fullPartial']
+            new_trade_data['time'], new_trade_data['time'],  # original_time = time on insert
+            new_trade_data['fullPartial']
         ))
     
     conn.commit()
@@ -210,6 +212,51 @@ def calculate_unrealized_pnl(positions_df, price_dicts, method='live'):
             'exitPrice': now_price,
             'unrealizedPnL': pnl,
             'method': method,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+    
+    return results
+
+
+def calculate_daily_simple_unrealized_pnl(positions_df, settle_prices):
+    """
+    Calculate simplified unrealized P&L for daily positions
+    Formula: (Settle Price - Entry Price) × Quantity × 1000
+    
+    Args:
+        positions_df: DataFrame with unrealized positions (from trades_fifo/lifo)
+        settle_prices: Dict of symbol -> settle price (from 'close' price type)
+    
+    Returns:
+        List of dicts with P&L details per position
+    """
+    if positions_df.empty:
+        return []
+    
+    results = []
+    for _, pos in positions_df.iterrows():
+        symbol = pos['symbol']
+        qty = pos['quantity']
+        entry_price = pos['price']  # Actual trade price
+        
+        # Get settle price, default to entry if not available
+        settle_price = settle_prices.get(symbol, entry_price)
+        
+        # Simple calculation: (settle - entry) × qty × 1000
+        pnl = (settle_price - entry_price) * qty * PNL_MULTIPLIER
+        
+        # Invert for short positions
+        if pos['buySell'] == 'S':
+            pnl = -pnl
+        
+        results.append({
+            'sequenceId': pos['sequenceId'],
+            'symbol': symbol,
+            'quantity': qty,
+            'buySell': pos['buySell'],
+            'entryPrice': entry_price,
+            'settlePrice': settle_price,
+            'unrealizedPnL': pnl,
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
     

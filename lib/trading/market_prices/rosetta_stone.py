@@ -74,7 +74,7 @@ class RosettaStone:
         
         # Regex patterns for ActantTrades format
         self.actant_option_pattern = re.compile(
-            r'XCMEOCADPS(\d{8})([A-Z])0([A-Z]{2,3})(\d*)/(\d+(?:\.\d+)?)'
+            r'XCMEOCADPS(\d{8})([A-Z])0([A-Z]{2,3})(\d*)(?:/(\d+(?:\.\d+)?))?'
         )
         self.actant_futures_pattern = re.compile(
             r'XCMEFFDPSX(\d{8})([A-Z])(\d)([A-Z]{2})'
@@ -152,6 +152,11 @@ class RosettaStone:
                     # Create simple, non-option-type specific mappings for futures
                     self.lookups[f"actantrisk_{actantrisk_base}_to_bloomberg"] = bloomberg_future
                     self.lookups[f"bloomberg_{bloomberg_future}_to_actantrisk"] = actantrisk_base
+                    # Also map the actanttrades future format if it exists
+                    if 'ActantTrades' in row and not pd.isna(row['ActantTrades']):
+                        actanttrades_future = str(row['ActantTrades'])
+                        self.lookups[f"actanttrades_{actanttrades_future}_to_bloomberg"] = bloomberg_future
+                        self.lookups[f"bloomberg_{bloomberg_future}_to_actanttrades"] = actanttrades_future
 
     def classify_symbol(self, symbol: str, format_type: SymbolFormat) -> SymbolClass:
         """Determine symbol classification."""
@@ -265,19 +270,21 @@ class RosettaStone:
                 
         elif format_type == SymbolFormat.ACTANT_TRADES:
             # Format: XCMEOCADPS20250728N0VY4/111
-            match = self.actant_option_pattern.match(symbol)
-            if match:
-                date_str, month_code, series, week_num, strike = match.groups()
+            option_match = self.actant_option_pattern.match(symbol)
+            if option_match:
+                date_str, month_code, series, week_num, strike = option_match.groups()
                 # Reconstruct base without strike
                 base = f"XCMEOCADPS{date_str}{month_code}0{series}{week_num}"
                 # Determine option type from OCAD (Call) or OPAD (Put)
                 option_type = 'C' if 'OCAD' in symbol else 'P'
             else:
-                # Try futures pattern
-                match = self.actant_futures_pattern.match(symbol)
-                if match:
-                    # Handle futures separately if needed
-                    raise ValueError(f"Futures not yet supported: {symbol}")
+                futures_match = self.actant_futures_pattern.match(symbol)
+                if futures_match:
+                    # Reconstruct base for lookup
+                    date_str, month_code, year_digit, series = futures_match.groups()
+                    base = f"XCMEFFDPSX{date_str}{month_code}{year_digit}{series}"
+                    strike = "0"
+                    option_type = "F" # Future type
                 else:
                     raise ValueError(f"Invalid ActantTrades format: {symbol}")
                     
@@ -308,6 +315,14 @@ class RosettaStone:
         Returns:
             Translated symbol or None if mapping not found
         """
+        
+        # --- NEW: Handle complex symbols with appended strikes (e.g., from ActantTrades) ---
+        appended_strike = None
+        if '/' in symbol and from_format == 'actanttrades':
+            parts = symbol.split('/')
+            symbol = parts[0] # The base symbol for lookup
+            appended_strike = parts[1]
+
         from_fmt = SymbolFormat(from_format)
         to_fmt = SymbolFormat(to_format)
         
@@ -315,16 +330,28 @@ class RosettaStone:
         try:
             parsed = self.parse_symbol(symbol, from_fmt)
         except ValueError as e:
+            # Fallback for simple futures that may not parse
+            if from_format == 'actanttrades':
+                lookup_key = f"actanttrades_{symbol}_to_{to_format}"
+                translated = self.lookups.get(lookup_key)
+                if translated:
+                    return translated
             print(f"Failed to parse {symbol}: {e}")
             return None
+
+        # If we had an appended strike, it overrides the parsed one
+        if appended_strike:
+            parsed = parsed._replace(strike=appended_strike)
             
         # Look up base mapping
-        if from_fmt == SymbolFormat.BLOOMBERG:
+        # Handle futures translation separately
+        if parsed.option_type == 'F':
+            # For futures, we need a simpler lookup that doesn't involve option type
+            # The base IS the full symbol for lookup purposes
+            lookup_key = f"{from_format}_{parsed.base}_to_{to_format}"
+        elif from_fmt == SymbolFormat.BLOOMBERG:
             # Bloomberg base already includes option type
             lookup_key = f"bloomberg_{parsed.base}_to_{to_format}"
-        # Handle futures translation separately
-        elif parsed.option_type == 'F':
-            lookup_key = f"{from_format}_{parsed.base}_to_{to_format}"
         else:
             # For non-Bloomberg formats, we need to specify option type when going to Bloomberg
             if to_fmt == SymbolFormat.BLOOMBERG:

@@ -26,6 +26,8 @@ from typing import List, Dict
 import math
 import requests
 import urllib.parse
+import threading
+import redis
 
 # --- Adjust Python path ---
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -145,6 +147,34 @@ app = dash.Dash(
     suppress_callback_exceptions=True 
 )
 app.title = "FRGM Trade Accelerator"
+
+# --- Global In-Memory Signal for UI Updates ---
+UPDATE_SIGNAL = {'timestamp': None}
+
+@monitor()
+def redis_listener_thread():
+    """A background thread that listens to Redis for update signals."""
+    logger.info("Starting Redis listener thread for UI updates...")
+    r = redis.Redis(host='127.0.0.1', port=6379)
+    p = r.pubsub()
+    p.subscribe('positions:changed')
+    
+    logger.info("Subscribed to 'positions:changed' channel.")
+    
+    for message in p.listen():
+        if message['type'] == 'message':
+            try:
+                # Just the act of receiving a message is the signal.
+                # The content doesn't matter, only that something changed.
+                UPDATE_SIGNAL['timestamp'] = time.time()
+                logger.debug(f"Received update signal. New timestamp: {UPDATE_SIGNAL['timestamp']:.2f}")
+            except Exception as e:
+                logger.error(f"Error processing message in redis_listener_thread: {e}", exc_info=True)
+
+# Start the listener thread in the background
+listener = threading.Thread(target=redis_listener_thread, daemon=True)
+listener.start()
+# --- End Signal ---
 
 # Add route to serve Doxygen documentation files
 @app.server.route('/doxygen-docs/')
@@ -2831,6 +2861,17 @@ def create_frg_monitor_content():
         }
     )
     
+    # --- New Shared Components for Signal-Based Updates ---
+    # This interval polls the server's in-memory signal. It's very lightweight.
+    signal_interval = dcc.Interval(id='frg-signal-interval', interval=500, n_intervals=0)
+    
+    # This store holds the timestamp of the last update signal the *client* has seen.
+    client_timestamp_store = dcc.Store(id='frg-client-timestamp-store', data={'timestamp': None})
+    
+    # This store is the *trigger* for the heavy database query. It only gets updated when a new signal is detected.
+    data_trigger_store = dcc.Store(id='frg-data-trigger-store', data=None)
+    # --- End New Components ---
+
     # Create tab contents
     positions_content = create_positions_tab_content()
     daily_positions_content = create_daily_positions_tab_content()
@@ -2851,7 +2892,11 @@ def create_frg_monitor_content():
         id="frg-monitor-container",
         children=[
             header,
-            tabs.render()
+            tabs.render(),
+            # Add the shared components to the layout
+            signal_interval,
+            client_timestamp_store,
+            data_trigger_store
         ],
         style={"padding": "10px"},  # Reduced padding for more width
         fluid=True  # Make the main container full-width
@@ -2909,18 +2954,12 @@ def create_positions_tab_content():
         ]
     )
     
-    # Interval and store
-    interval = dcc.Interval(id='positions-interval', interval=1000, n_intervals=0)
-    store = dcc.Store(id='positions-timestamp-store', data={'timestamp': None})
-    
     # Container
     container = Container(
         id="positions-tab-container",
         children=[
             info_row,
-            positions_table.render(),
-            interval,
-            store
+            positions_table.render()
         ],
         theme=default_theme,
         style={"padding": "10px", "width": "100%", "maxWidth": "100%"},  # Use full width and override any max-width
@@ -2972,18 +3011,12 @@ def create_daily_positions_tab_content():
         ]
     )
     
-    # Interval and store
-    interval = dcc.Interval(id='daily-positions-interval', interval=1000, n_intervals=0)
-    store = dcc.Store(id='daily-positions-timestamp-store', data={'timestamp': None})
-    
     # Container
     container = Container(
         id="daily-positions-tab-container",
         children=[
             info_row,
-            daily_table.render(),
-            interval,
-            store
+            daily_table.render()
         ],
         theme=default_theme
     )
@@ -3359,23 +3392,51 @@ logger.info("UI layout defined with sidebar navigation.")
 
 # --- FRGMonitor Callbacks ---
 @app.callback(
+    [Output("frg-client-timestamp-store", "data"),
+     Output("frg-data-trigger-store", "data")],
+    Input("frg-signal-interval", "n_intervals"),
+    State("frg-client-timestamp-store", "data"),
+    prevent_initial_call=False
+)
+@monitor(profiling_enabled=False)  # Disable profiling for this high-frequency callback
+def frg_check_for_update_signal(n_intervals, client_timestamp_data):
+    """
+    Lightweight callback that polls the in-memory signal.
+    If the server signal is newer than the client's last known signal, it updates
+    the trigger store, which in turn fires the heavy database query callback.
+    """
+    server_timestamp = UPDATE_SIGNAL.get('timestamp')
+    client_timestamp = client_timestamp_data.get('timestamp') if client_timestamp_data else None
+
+    # If server has no timestamp yet, or if client is up-to-date, do nothing.
+    if server_timestamp is None or (client_timestamp is not None and server_timestamp <= client_timestamp):
+        raise PreventUpdate
+
+    # Server has a newer timestamp, so we send it to the client and trigger the data fetch.
+    logger.debug(f"Signal detected. Server: {server_timestamp:.2f}, Client: {client_timestamp}. Triggering data fetch.")
+    
+    new_timestamp_data = {'timestamp': server_timestamp}
+    # The second output (trigger store) receives the new timestamp, which will trigger the data callbacks.
+    return new_timestamp_data, new_timestamp_data
+
+@app.callback(
     [Output("positions-table", "columns"),
      Output("positions-table", "data"),
      Output("positions-status-text", "children"),
-     Output("positions-last-update-text", "children"),
-     Output("positions-timestamp-store", "data")],
-    [Input("positions-interval", "n_intervals")],
-    [State("positions-timestamp-store", "data")],
-    prevent_initial_call=False
+     Output("positions-last-update-text", "children")],
+    Input("frg-data-trigger-store", "data"),  # Triggered only when a signal is detected
+    prevent_initial_call=False  # Allow initial call to populate on startup
 )
 @monitor()
-def update_positions_table(n_intervals, last_timestamp_data):
-    """Update positions table from trades.db with smart polling"""
+def update_positions_table(trigger_data):
+    """Update positions table from trades.db only when triggered by a new signal."""
     import sqlite3
     import pandas as pd
     from datetime import datetime
     import pytz
-    
+
+    # Allow initial load (trigger_data will be None on startup)
+        
     try:
         # Database path (root folder)
         db_path = os.path.join(project_root, "trades.db")
@@ -3383,41 +3444,44 @@ def update_positions_table(n_intervals, last_timestamp_data):
         # Connect to database
         conn = sqlite3.connect(db_path)
         
-        # Get the latest update timestamp
-        check_query = "SELECT MAX(last_updated) FROM positions"
-        latest_timestamp = conn.execute(check_query).fetchone()[0]
-        
-        # Check if data has changed
-        last_timestamp = last_timestamp_data.get('timestamp') if last_timestamp_data else None
-        
-        if latest_timestamp == last_timestamp and n_intervals > 0:
-            # No changes, prevent update
-            conn.close()
-            raise PreventUpdate
-        
         # Fetch positions data
         query = """
         SELECT 
-            symbol,
-            instrument_type,
-            open_position,
-            closed_position,
-            delta_y,
-            gamma_y,
-            speed_y,
-            theta,
-            vega,
-            fifo_realized_pnl,
-            fifo_unrealized_pnl,
-            (fifo_realized_pnl + fifo_unrealized_pnl) as pnl_live,
-            lifo_realized_pnl,
-            lifo_unrealized_pnl,
-            CASE WHEN instrument_type = 'FUTURE' THEN (lifo_realized_pnl + lifo_unrealized_pnl) ELSE NULL END AS non_gamma_lifo,
-            CASE WHEN instrument_type = 'OPTION' THEN (lifo_realized_pnl + lifo_unrealized_pnl) ELSE NULL END AS gamma_lifo,
-            last_updated
-        FROM positions
-        WHERE open_position != 0 OR closed_position != 0
-        ORDER BY symbol
+            p.symbol,
+            p.instrument_type,
+            p.open_position,
+            p.closed_position,
+            p.delta_y,
+            p.gamma_y,
+            p.speed_y,
+            p.theta,
+            p.vega,
+            p.fifo_realized_pnl,
+            p.fifo_unrealized_pnl,
+            (p.fifo_realized_pnl + p.fifo_unrealized_pnl) as pnl_live,
+            p.lifo_realized_pnl,
+            p.lifo_unrealized_pnl,
+            CASE WHEN p.instrument_type = 'FUTURE' THEN (p.lifo_realized_pnl + p.lifo_unrealized_pnl) ELSE NULL END AS non_gamma_lifo,
+            CASE WHEN p.instrument_type = 'OPTION' THEN (p.lifo_realized_pnl + p.lifo_unrealized_pnl) ELSE NULL END AS gamma_lifo,
+            p.last_updated,
+            pr_now.price as live_px,
+            pr_close.price as close_px,
+            CASE 
+                WHEN TIME(DATETIME('now', '-5 hours')) >= '14:00:00' THEN
+                    COALESCE((
+                        SELECT SUM(dp.realized_pnl + dp.unrealized_pnl)
+                        FROM daily_positions dp
+                        WHERE dp.symbol = p.symbol 
+                        AND dp.date = DATE('now', '-5 hours')
+                        AND LOWER(dp.method) = 'fifo'
+                    ), 0)
+                ELSE NULL
+            END as pnl_close
+        FROM positions p
+        LEFT JOIN pricing pr_now ON p.symbol = pr_now.symbol AND pr_now.price_type = 'now'
+        LEFT JOIN pricing pr_close ON p.symbol = pr_close.symbol AND pr_close.price_type = 'close'
+        WHERE p.open_position != 0 OR p.closed_position != 0
+        ORDER BY p.symbol
         """
         
         df = pd.read_sql_query(query, conn)
@@ -3455,35 +3519,30 @@ def update_positions_table(n_intervals, last_timestamp_data):
         chicago_tz = pytz.timezone('America/Chicago')
         current_time = datetime.now(chicago_tz).strftime("%Y-%m-%d %H:%M:%S")
         
-        # Store new timestamp
-        new_timestamp_data = {'timestamp': latest_timestamp}
+        return columns, data, status_text, current_time
         
-        return columns, data, status_text, current_time, new_timestamp_data
-        
-    except PreventUpdate:
-        raise
     except Exception as e:
         logger.error(f"Error updating positions table: {type(e).__name__}: {str(e)}", exc_info=True)
-        return [], [], f"Error: {str(e)}", "--", last_timestamp_data
+        return [], [], f"Error: {str(e)}", "--"
 
 @app.callback(
     [Output("daily-positions-table", "columns"),
      Output("daily-positions-table", "data"),
      Output("daily-positions-status-text", "children"),
-     Output("daily-positions-last-update-text", "children"),
-     Output("daily-positions-timestamp-store", "data")],
-    [Input("daily-positions-interval", "n_intervals")],
-    [State("daily-positions-timestamp-store", "data")],
-    prevent_initial_call=False
+     Output("daily-positions-last-update-text", "children")],
+    Input("frg-data-trigger-store", "data"), # Triggered only when a signal is detected
+    prevent_initial_call=False  # Allow initial call to populate on startup
 )
 @monitor()
-def update_daily_positions_table(n_intervals, last_timestamp_data):
-    """Update daily positions table from trades.db with smart polling"""
+def update_daily_positions_table(trigger_data):
+    """Update daily positions table from trades.db only when triggered by a new signal."""
     import sqlite3
     import pandas as pd
     from datetime import datetime
     import pytz
     
+    # Allow initial load (trigger_data will be None on startup)
+
     try:
         # Database path (root folder)
         db_path = os.path.join(project_root, "trades.db")
@@ -3491,31 +3550,16 @@ def update_daily_positions_table(n_intervals, last_timestamp_data):
         # Connect to database
         conn = sqlite3.connect(db_path)
         
-        # Get the latest update timestamp
-        check_query = "SELECT MAX(timestamp) FROM daily_positions"
-        latest_timestamp = conn.execute(check_query).fetchone()[0]
-        
-        # Check if data has changed
-        last_timestamp = last_timestamp_data.get('timestamp') if last_timestamp_data else None
-        
-        if latest_timestamp == last_timestamp and n_intervals > 0:
-            # No changes, prevent update
-            conn.close()
-            raise PreventUpdate
-        
-        # Fetch daily positions data
+        # Fetch daily positions data - FIFO only, aggregated by date
         query = """
         SELECT 
             date,
-            symbol,
-            method,
-            open_position,
-            closed_position,
-            realized_pnl,
-            unrealized_pnl,
-            timestamp
+            SUM(realized_pnl) as realized_pnl,
+            SUM(unrealized_pnl) as unrealized_pnl
         FROM daily_positions
-        ORDER BY date DESC, symbol, method
+        WHERE LOWER(method) = 'fifo'
+        GROUP BY date
+        ORDER BY date DESC
         """
         
         df = pd.read_sql_query(query, conn)
@@ -3525,15 +3569,15 @@ def update_daily_positions_table(n_intervals, last_timestamp_data):
         if 'date' in df.columns:
             df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
         
+        # Add total P&L column
+        df['total_pnl'] = df['realized_pnl'] + df['unrealized_pnl']
+        
         # Format columns
         columns = [
             {"name": "Date", "id": "date"},
-            {"name": "Symbol", "id": "symbol"},
-            {"name": "Method", "id": "method"},
-            {"name": "Open Position", "id": "open_position", "type": "numeric"},
-            {"name": "Closed Position", "id": "closed_position", "type": "numeric"},
             {"name": "Realized P&L", "id": "realized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Unrealized P&L", "id": "unrealized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}}
+            {"name": "Unrealized P&L", "id": "unrealized_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Total P&L", "id": "total_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}}
         ]
         
         # Convert dataframe to records
@@ -3546,16 +3590,11 @@ def update_daily_positions_table(n_intervals, last_timestamp_data):
         chicago_tz = pytz.timezone('America/Chicago')
         current_time = datetime.now(chicago_tz).strftime("%Y-%m-%d %H:%M:%S")
         
-        # Store new timestamp
-        new_timestamp_data = {'timestamp': latest_timestamp}
+        return columns, data, status_text, current_time
         
-        return columns, data, status_text, current_time, new_timestamp_data
-        
-    except PreventUpdate:
-        raise
     except Exception as e:
         logger.error(f"Error updating daily positions table: {type(e).__name__}: {str(e)}", exc_info=True)
-        return [], [], f"Error: {str(e)}", "--", last_timestamp_data
+        return [], [], f"Error: {str(e)}", "--"
 
 # --- End FRGMonitor Callbacks ---
 
