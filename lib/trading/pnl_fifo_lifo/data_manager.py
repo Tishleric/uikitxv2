@@ -97,6 +97,7 @@ def create_all_tables(conn):
     cursor.execute(processed_files_schema)
     
     # Create positions master table
+    cursor.execute("DROP TABLE IF EXISTS positions")
     positions_schema = """
     CREATE TABLE IF NOT EXISTS positions (
         symbol TEXT PRIMARY KEY,
@@ -458,7 +459,7 @@ def update_daily_position(conn, trade_date, symbol, method, realized_qty=0, real
         trade_date + ' 16:00:00'  # Use trade date at 4pm instead of current time
     ))
     
-    conn.commit()
+    # The calling function is now responsible for committing the transaction.
 
 
 def view_daily_positions(conn, date=None, method=None):
@@ -659,6 +660,6 @@ def perform_eod_settlement(conn, settlement_date, close_prices):
                 UPDATE trades_{method}
                 SET price = ?, time = ?
                 WHERE symbol = ? AND quantity > 0
-            """, (settle_price, date_str + ' 16:00:00', symbol))
+            """, (settle_price, date_str + ' 16:00:00.000', symbol))
     
     conn.commit() 

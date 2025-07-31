@@ -103,8 +103,13 @@ class StrikeConverter:
             decimal = float(strike)
             
         if target_format == 'bloomberg':
-            # Bloomberg uses 3 decimal places
-            return f"{decimal:.3f}"
+            # Bloomberg uses up to 3 decimal places, without trailing zeros
+            # Format with 3 decimals then strip trailing zeros and decimal point if not needed
+            formatted = f"{decimal:.3f}"
+            # Remove trailing zeros after decimal point
+            if '.' in formatted:
+                formatted = formatted.rstrip('0').rstrip('.')
+            return formatted
         elif target_format == 'cme':
             # CME uses integer format with special handling
             # E.g., 111.75 → "11175"

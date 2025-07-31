@@ -48,7 +48,8 @@ def main():
         datetime(2025, 7, 28).date(): {symbol_futures: 110.765625},
         datetime(2025, 7, 29).date(): {
             symbol_futures: 111.359375,
-            '1MQ5P 111.75 Comdty': 1.03125  # Added new option closing price
+            '1MQ5P 111.75 Comdty': 1.03125,
+            '1MQ5C 111.75 Comdty': 0.00100000016391277  # Placeholder from 7/30
         },
         datetime(2025, 7, 30).date(): {
             symbol_futures: 111.0,  # TYU5 close
@@ -57,7 +58,8 @@ def main():
     }
 
     # Wipe and recreate all database tables
-    conn = sqlite3.connect(config.DB_NAME)
+    conn = sqlite3.connect(config.DB_NAME, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")  # Ensure WAL mode for better concurrency
     print("  - Wiping and recreating database tables...")
     create_all_tables(conn)
 
@@ -203,7 +205,7 @@ def main():
                             UPDATE trades_{method}
                             SET price = ?, time = ?
                             WHERE symbol = ? AND quantity > 0
-                        """, (settle_price, last_processed_date.strftime('%Y-%m-%d') + ' 16:00:00', symbol))
+                        """, (settle_price, last_processed_date.strftime('%Y-%m-%d') + ' 16:00:00.000', symbol))
                         
                 conn.commit()
 
@@ -284,19 +286,25 @@ def main():
                     UPDATE trades_{method}
                     SET price = ?, time = ?
                     WHERE symbol = ? AND quantity > 0
-                """, (settle_price, last_processed_date.strftime('%Y-%m-%d') + ' 16:00:00', symbol))
+                """, (settle_price, last_processed_date.strftime('%Y-%m-%d') + ' 16:00:00.000', symbol))
                 
         conn.commit()
+        
+    # Close connection before aggregator runs to avoid lock
+    conn.close()
 
     # --- Phase 3: Final Aggregation ---
     print("\n[Phase 3/4] Aggregating final positions...")
     aggregator = PositionsAggregator(trades_db_path=config.DB_NAME)
     aggregator._load_positions_from_db()
-    aggregator._write_positions_to_db()
+    # Pass the loaded positions cache to the write method
+    aggregator._write_positions_to_db(aggregator.positions_cache)
     print("  - Final `positions` table has been populated.")
 
     # --- Phase 4: Verification ---
     print("\n[Phase 4/4] Verification...")
+    # Reopen connection for verification
+    conn = sqlite3.connect(config.DB_NAME)
     print("\n--- Final 'daily_positions' Table ---")
     daily_df = view_daily_positions(conn)
     print(daily_df.to_string())

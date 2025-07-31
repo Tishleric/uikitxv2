@@ -76,7 +76,7 @@ PROJECT_ICON           =
 # left blank the current directory will be used.
 
 # REVERSION NOTE: Previously used \\eric-host-pc\FRGMSharedSpace  
-OUTPUT_DIRECTORY       = "\\100.95.155.81\FRGMSharedSpace\uikitxv2\html"
+OUTPUT_DIRECTORY       = "html"
 
 # If the CREATE_SUBDIRS tag is set to YES then Doxygen will create up to 4096
 # sub-directories (in 2 levels) under the output directory of each output format

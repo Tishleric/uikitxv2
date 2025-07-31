@@ -250,7 +250,7 @@ class SpotRiskGreekCalculator:
                 greeks = api_result['greeks']
                 for greek_name in ['delta_F', 'delta_y', 'gamma_F', 'gamma_y', 
                                   'vega_price', 'vega_y', 'theta_F', 'volga_price',
-                                  'vanna_F_price', 'charm_F', 'speed_F', 'color_F',
+                                  'vanna_F_price', 'charm_F', 'speed_F', 'speed_y', 'color_F',
                                   'ultima', 'zomma']:
                     setattr(result, greek_name, greeks.get(greek_name, 0.0))
                 
@@ -290,6 +290,7 @@ class SpotRiskGreekCalculator:
                 df_copy.at[idx, 'vanna_F_price'] = result.vanna_F_price
                 df_copy.at[idx, 'charm_F'] = result.charm_F
                 df_copy.at[idx, 'speed_F'] = result.speed_F
+                df_copy.at[idx, 'speed_y'] = result.speed_y
                 df_copy.at[idx, 'color_F'] = result.color_F
                 df_copy.at[idx, 'ultima'] = result.ultima
                 df_copy.at[idx, 'zomma'] = result.zomma

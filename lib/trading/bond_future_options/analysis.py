@@ -124,6 +124,9 @@ def calculate_all_greeks(option_model, F, K, T, price_volatility, option_type='p
     greeks['vega_price'] = option_model.vega_price(F, K, T, price_volatility)
     greeks['vomma_F'] = option_model.vomma_F(F, K, T, price_volatility)
     
+    # Add Speed Y-space calculation
+    greeks['speed_y'] = greeks.get('speed_F', 0.0) * (option_model.future_dv01 ** 3)
+    
     return greeks 
 
 def generate_greek_profiles(option_model, base_F, K, T, price_volatility, 

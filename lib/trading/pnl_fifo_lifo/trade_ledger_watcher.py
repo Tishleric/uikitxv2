@@ -101,72 +101,87 @@ class TradeLedgerFileHandler(FileSystemEventHandler):
             df['date'] = df['trading_day'].apply(lambda d: d.strftime('%Y%m%d'))
             
             # Connect to database
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Get the max sequence number for proper sequencing
-            max_seq_query = """
-                SELECT MAX(CAST(SUBSTR(sequenceId, INSTR(sequenceId, '-') + 1) AS INTEGER))
-                FROM (
-                    SELECT sequenceId FROM trades_fifo
-                    UNION ALL
-                    SELECT sequenceId FROM trades_lifo
-                )
-            """
-            result = cursor.execute(max_seq_query).fetchone()
-            start_seq = (result[0] or 0) + 1
-            
-            # Process each trade
-            trade_count = 0
-            for idx, row in df.iterrows():
-                # Translate symbol to Bloomberg format
-                bloomberg_symbol = self._translate_symbol(row['instrumentName'])
-                if not bloomberg_symbol:
-                    logger.warning(f"Could not translate symbol: {row['instrumentName']}")
-                    bloomberg_symbol = row['instrumentName']  # Fallback to original
+            conn = None
+            try:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
                 
-                trade = {
-                    'transactionId': row['tradeId'],
-                    'symbol': bloomberg_symbol,
-                    'price': row['price'],
-                    'quantity': row['quantity'],
-                    'buySell': row['buySell'],
-                    'sequenceId': f"{row['date']}-{start_seq + trade_count}",
-                    'time': row['marketTradeTime'].strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],
-                    'fullPartial': 'full'
-                }
+                # Get the max sequence number for proper sequencing
+                max_seq_query = """
+                    SELECT MAX(CAST(SUBSTR(sequenceId, INSTR(sequenceId, '-') + 1) AS INTEGER))
+                    FROM (
+                        SELECT sequenceId FROM trades_fifo
+                        UNION ALL
+                        SELECT sequenceId FROM trades_lifo
+                    )
+                """
+                result = cursor.execute(max_seq_query).fetchone()
+                start_seq = (result[0] or 0) + 1
                 
-                # Process through both FIFO and LIFO
-                for method in ['fifo', 'lifo']:
-                    realized = process_new_trade(conn, trade, method, 
-                                               row['marketTradeTime'].strftime('%Y-%m-%d %H:%M:%S'))
-                    if realized:
-                        logger.debug(f"{method.upper()}: {len(realized)} realizations for trade {row['tradeId']}")
+                # Process each trade
+                trade_count = 0
+                for idx, row in df.iterrows():
+                    # Translate symbol to Bloomberg format
+                    bloomberg_symbol = self._translate_symbol(row['instrumentName'])
+                    if not bloomberg_symbol:
+                        logger.warning(f"Could not translate symbol: {row['instrumentName']}")
+                        bloomberg_symbol = row['instrumentName']  # Fallback to original
                     
-                    # Update daily position tracking
-                    realized_qty = sum(r['quantity'] for r in realized) if realized else 0
-                    realized_pnl_delta = sum(r['realizedPnL'] for r in realized) if realized else 0
-                    trade_date_str = get_trading_day(row['marketTradeTime']).strftime('%Y-%m-%d')
+                    trade = {
+                        'transactionId': row['tradeId'],
+                        'symbol': bloomberg_symbol,
+                        'price': row['price'],
+                        'quantity': row['quantity'],
+                        'buySell': row['buySell'],
+                        'sequenceId': f"{row['date']}-{start_seq + trade_count}",
+                        'time': row['marketTradeTime'].strftime('%Y-%m-%d %H:%M:%S.%f')[:-3],
+                        'fullPartial': 'full'
+                    }
                     
-                    update_daily_position(conn, trade_date_str, bloomberg_symbol, method, 
-                                        realized_qty, realized_pnl_delta)
+                    # Process through both FIFO and LIFO
+                    for method in ['fifo', 'lifo']:
+                        process_new_trade(conn, trade, method, 
+                                                   row['marketTradeTime'].strftime('%Y-%m-%d %H:%M:%S'))
+                        
+                        # Update daily position tracking (realized only)
+                        realized = pd.read_sql_query(f"SELECT SUM(realizedPnL) as pnl, SUM(quantity) as qty FROM realized_{method} WHERE sequenceIdDoingOffsetting = ?", conn, params=(trade['sequenceId'],))
+                        realized_qty = realized['qty'].iloc[0] or 0
+                        realized_pnl_delta = realized['pnl'].iloc[0] or 0
+                        
+                        trade_date_str = get_trading_day(row['marketTradeTime']).strftime('%Y-%m-%d')
+                        
+                        update_daily_position(conn, trade_date_str, bloomberg_symbol, method, 
+                                            realized_qty, realized_pnl_delta)
+                    
+                    trade_count += 1
                 
-                trade_count += 1
-            
-            # Update file tracking with new line count
-            total_lines_processed = from_line + trade_count
-            self._update_file_tracking(filepath, total_lines_processed)
-            logger.info(f"Processed {trade_count} trades from {filepath.name}")
-            
-            conn.close()
-            
-            # Publish notification that positions have changed
-            if trade_count > 0:
-                self.redis_client.publish("positions:changed", "refresh")
-                logger.info("Published 'positions:changed' notification to Redis.")
+                # Commit all changes for the file as a single transaction
+                conn.commit()
+                logger.info(f"Successfully committed {conn.total_changes} changes for {trade_count} trades.")
+                
+                # Update file tracking with new line count
+                total_lines_processed = from_line + trade_count
+                self._update_file_tracking(filepath, total_lines_processed)
+                logger.info(f"Processed {trade_count} trades from {filepath.name}")
+                
+                # Publish notification that positions have changed
+                if trade_count > 0:
+                    # Use both SET (for persistence) and PUBLISH (for compatibility)
+                    update_time = time.time()
+                    self.redis_client.set("positions:last_update", update_time)
+                    self.redis_client.publish("positions:changed", "refresh")
+                    logger.info(f"Set positions:last_update to {update_time} and published positions:changed")
+
+            except Exception as e:
+                logger.error(f"Error processing file {filepath}, rolling back transaction: {e}", exc_info=True)
+                if conn:
+                    conn.rollback()
+            finally:
+                if conn:
+                    conn.close()
             
         except Exception as e:
-            logger.error(f"Error processing file {filepath}: {e}", exc_info=True)
+            logger.error(f"Outer error processing file {filepath}: {e}", exc_info=True)
             
     def _translate_symbol(self, actant_symbol: str) -> Optional[str]:
         """Translate ActantTrades symbol to Bloomberg format."""

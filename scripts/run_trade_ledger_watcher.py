@@ -77,6 +77,11 @@ def main():
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     
+    # --- DIAGNOSTIC: Print CWD ---
+    import os
+    print(f"--- TradeLedgerWatcher CWD: {os.getcwd()} ---")
+    # --- END DIAGNOSTIC ---
+    
     logger = logging.getLogger(__name__)
     
     # Ensure database exists

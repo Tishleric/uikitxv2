@@ -109,8 +109,7 @@ def process_new_trade(conn, new_trade, method='fifo', trade_timestamp=None):
             new_trade_data['time'], new_trade_data['time'],  # original_time = time on insert
             new_trade_data['fullPartial']
         ))
-    
-    conn.commit()
+    # The calling function is now responsible for committing the transaction.
     return realized_trades
 
 

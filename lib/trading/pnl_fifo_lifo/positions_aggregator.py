@@ -14,6 +14,7 @@ import redis
 import json
 import time
 import threading
+import queue
 import pyarrow as pa  # Import pyarrow for Arrow deserialization
 import pickle  # Import pickle for envelope deserialization
 
@@ -48,7 +49,10 @@ class PositionsAggregator:
         self.positions_cache = pd.DataFrame()
         self.db_lock = threading.Lock()
         
-        logger.info("Initialized PositionsAggregator with in-memory caching")
+        # Queue for decoupling database writes
+        self.db_write_queue = queue.Queue()
+        
+        logger.info("Initialized PositionsAggregator with in-memory caching and writer queue")
     
     def _load_positions_from_db(self):
         """
@@ -185,6 +189,7 @@ class PositionsAggregator:
                     reader = pa.ipc.open_stream(buffer)
                     arrow_table = reader.read_all()
                     greeks_df = arrow_table.to_pandas()
+                    logger.info(f"--- DIAGNOSTIC: Received Greeks DataFrame from Redis ---\n{greeks_df.to_string()}")
                     
                     if greeks_df.empty:
                         logger.warning("Received an empty DataFrame in the payload. Skipping.")
@@ -260,8 +265,9 @@ class PositionsAggregator:
                     self.positions_cache.loc[idx, 'has_greeks'] = True
                     self.positions_cache.loc[idx, 'instrument_type'] = greek_data.get('instrument_type')
             
-            # Write updated positions to database
-            self._write_positions_to_db()
+            # Write updated positions to the queue for the writer thread
+            if not self.positions_cache.empty:
+                self.db_write_queue.put(self.positions_cache.copy())
     
     def _safe_multiply(self, value, position):
         """Safely multiply Greek value by position, handling None values."""
@@ -269,8 +275,9 @@ class PositionsAggregator:
             return None
         return value * position
     
-    def _write_positions_to_db(self):
-        """Write the in-memory positions cache to the database."""
+    def _write_positions_to_db(self, positions_df):
+        """Write a DataFrame of positions to the database."""
+        # This function now runs in its own thread with its own short-lived connection
         conn = sqlite3.connect(self.trades_db_path)
         cursor = conn.cursor()
         
@@ -278,7 +285,7 @@ class PositionsAggregator:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
             # Write all positions to database
-            for _, row in self.positions_cache.iterrows():
+            for _, row in positions_df.iterrows():
                 cursor.execute("""
                     INSERT OR REPLACE INTO positions (
                         symbol, open_position, closed_position,
@@ -309,15 +316,34 @@ class PositionsAggregator:
                 ))
             
             conn.commit()
-            logger.debug(f"Written {len(self.positions_cache)} positions to database")
+            logger.debug(f"Writer thread: successfully wrote {len(positions_df)} positions to database.")
             
-            # Update daily positions unrealized P&L with simplified calculation
+            # This part still uses a direct connection but it's a read-heavy operation
+            # and should be fast. Keeping it here for simplicity for now.
             from .data_manager import update_daily_positions_unrealized_pnl
             update_daily_positions_unrealized_pnl(conn)
-            logger.debug("Updated daily positions unrealized P&L")
+            logger.debug("Writer thread: updated daily positions unrealized P&L.")
             
         finally:
             conn.close()
+
+    def _db_writer_thread(self):
+        """Dedicated thread to write positions from the queue to the database."""
+        logger.info("Database writer thread started.")
+        while True:
+            try:
+                # Block until an item is available in the queue
+                positions_df_to_write = self.db_write_queue.get()
+                
+                if positions_df_to_write is None:  # Sentinel value to stop the thread
+                    logger.info("Writer thread received stop signal. Exiting.")
+                    break
+                
+                self._write_positions_to_db(positions_df_to_write)
+                self.db_write_queue.task_done()
+                
+            except Exception as e:
+                logger.error(f"Error in DB writer thread: {e}", exc_info=True)
 
     @monitor()
     def run_aggregation_service(self):
@@ -329,14 +355,20 @@ class PositionsAggregator:
         """
         logger.info("Starting Positions Aggregator service with in-memory caching...")
         
-        # Load initial positions into memory
+        # Load initial positions into memory and push to writer queue
         self._load_positions_from_db()
+        if not self.positions_cache.empty:
+            self.db_write_queue.put(self.positions_cache.copy())
+            
+        # Start the database writer thread
+        writer_thread = threading.Thread(target=self._db_writer_thread, daemon=True)
+        writer_thread.start()
         
         # Start the Redis listener in a separate thread
         listener_thread = threading.Thread(target=self._listen_for_redis_messages, daemon=True)
         listener_thread.start()
         
-        logger.info("Positions Aggregator service started successfully.")
+        logger.info("Positions Aggregator service started successfully with writer and listener threads.")
         
         # Keep the main thread alive
         try:

@@ -149,31 +149,32 @@ app = dash.Dash(
 app.title = "FRGM Trade Accelerator"
 
 # --- Global In-Memory Signal for UI Updates ---
-UPDATE_SIGNAL = {'timestamp': None}
+# This old pattern is being replaced by a direct Redis poll in the callback.
+# UPDATE_SIGNAL = {'timestamp': None}
 
-@monitor()
-def redis_listener_thread():
-    """A background thread that listens to Redis for update signals."""
-    logger.info("Starting Redis listener thread for UI updates...")
-    r = redis.Redis(host='127.0.0.1', port=6379)
-    p = r.pubsub()
-    p.subscribe('positions:changed')
+# @monitor()
+# def redis_listener_thread():
+#     """A background thread that listens to Redis for update signals."""
+#     logger.info("Starting Redis listener thread for UI updates...")
+#     r = redis.Redis(host='127.0.0.1', port=6379)
+#     p = r.pubsub()
+#     p.subscribe('positions:changed')
     
-    logger.info("Subscribed to 'positions:changed' channel.")
+#     logger.info("Subscribed to 'positions:changed' channel.")
     
-    for message in p.listen():
-        if message['type'] == 'message':
-            try:
-                # Just the act of receiving a message is the signal.
-                # The content doesn't matter, only that something changed.
-                UPDATE_SIGNAL['timestamp'] = time.time()
-                logger.debug(f"Received update signal. New timestamp: {UPDATE_SIGNAL['timestamp']:.2f}")
-            except Exception as e:
-                logger.error(f"Error processing message in redis_listener_thread: {e}", exc_info=True)
+#     for message in p.listen():
+#         if message['type'] == 'message':
+#             try:
+#                 # Just the act of receiving a message is the signal.
+#                 # The content doesn't matter, only that something changed.
+#                 UPDATE_SIGNAL['timestamp'] = time.time()
+#                 logger.debug(f"Received update signal. New timestamp: {UPDATE_SIGNAL['timestamp']:.2f}")
+#             except Exception as e:
+#                 logger.error(f"Error processing message in redis_listener_thread: {e}", exc_info=True)
 
-# Start the listener thread in the background
-listener = threading.Thread(target=redis_listener_thread, daemon=True)
-listener.start()
+# # Start the listener thread in the background
+# listener = threading.Thread(target=redis_listener_thread, daemon=True)
+# listener.start()
 # --- End Signal ---
 
 # Add route to serve Doxygen documentation files
@@ -2861,15 +2862,12 @@ def create_frg_monitor_content():
         }
     )
     
-    # --- New Shared Components for Signal-Based Updates ---
-    # This interval polls the server's in-memory signal. It's very lightweight.
-    signal_interval = dcc.Interval(id='frg-signal-interval', interval=500, n_intervals=0)
+    # --- Simple auto-refresh components ---
+    # This interval triggers database queries every 2 seconds
+    refresh_interval = dcc.Interval(id='frg-refresh-interval', interval=2000, n_intervals=0)
     
-    # This store holds the timestamp of the last update signal the *client* has seen.
-    client_timestamp_store = dcc.Store(id='frg-client-timestamp-store', data={'timestamp': None})
-    
-    # This store is the *trigger* for the heavy database query. It only gets updated when a new signal is detected.
-    data_trigger_store = dcc.Store(id='frg-data-trigger-store', data=None)
+    # This store holds the previous data hash to detect changes
+    data_hash_store = dcc.Store(id='frg-data-hash-store', data={'hash': None})
     # --- End New Components ---
 
     # Create tab contents
@@ -2893,10 +2891,9 @@ def create_frg_monitor_content():
         children=[
             header,
             tabs.render(),
-            # Add the shared components to the layout
-            signal_interval,
-            client_timestamp_store,
-            data_trigger_store
+            # Add the auto-refresh components to the layout
+            refresh_interval,
+            data_hash_store
         ],
         style={"padding": "10px"},  # Reduced padding for more width
         fluid=True  # Make the main container full-width
@@ -3392,51 +3389,25 @@ logger.info("UI layout defined with sidebar navigation.")
 
 # --- FRGMonitor Callbacks ---
 @app.callback(
-    [Output("frg-client-timestamp-store", "data"),
-     Output("frg-data-trigger-store", "data")],
-    Input("frg-signal-interval", "n_intervals"),
-    State("frg-client-timestamp-store", "data"),
-    prevent_initial_call=False
-)
-@monitor(profiling_enabled=False)  # Disable profiling for this high-frequency callback
-def frg_check_for_update_signal(n_intervals, client_timestamp_data):
-    """
-    Lightweight callback that polls the in-memory signal.
-    If the server signal is newer than the client's last known signal, it updates
-    the trigger store, which in turn fires the heavy database query callback.
-    """
-    server_timestamp = UPDATE_SIGNAL.get('timestamp')
-    client_timestamp = client_timestamp_data.get('timestamp') if client_timestamp_data else None
-
-    # If server has no timestamp yet, or if client is up-to-date, do nothing.
-    if server_timestamp is None or (client_timestamp is not None and server_timestamp <= client_timestamp):
-        raise PreventUpdate
-
-    # Server has a newer timestamp, so we send it to the client and trigger the data fetch.
-    logger.debug(f"Signal detected. Server: {server_timestamp:.2f}, Client: {client_timestamp}. Triggering data fetch.")
-    
-    new_timestamp_data = {'timestamp': server_timestamp}
-    # The second output (trigger store) receives the new timestamp, which will trigger the data callbacks.
-    return new_timestamp_data, new_timestamp_data
-
-@app.callback(
     [Output("positions-table", "columns"),
      Output("positions-table", "data"),
      Output("positions-status-text", "children"),
-     Output("positions-last-update-text", "children")],
-    Input("frg-data-trigger-store", "data"),  # Triggered only when a signal is detected
-    prevent_initial_call=False  # Allow initial call to populate on startup
+     Output("positions-last-update-text", "children"),
+     Output("frg-data-hash-store", "data")],
+    Input("frg-refresh-interval", "n_intervals"),
+    State("frg-data-hash-store", "data"),
+    prevent_initial_call=False
 )
 @monitor()
-def update_positions_table(trigger_data):
+def update_positions_table(n_intervals, hash_store):
     """Update positions table from trades.db only when triggered by a new signal."""
     import sqlite3
     import pandas as pd
     from datetime import datetime
     import pytz
 
-    # Allow initial load (trigger_data will be None on startup)
-        
+    import hashlib
+    
     try:
         # Database path (root folder)
         db_path = os.path.join(project_root, "trades.db")
@@ -3444,8 +3415,37 @@ def update_positions_table(trigger_data):
         # Connect to database
         conn = sqlite3.connect(db_path)
         
+        # Determine if close price should be displayed based on Chicago time
+        chicago_tz = pytz.timezone('America/Chicago')
+        now_cdt = datetime.now(chicago_tz)
+        h = now_cdt.hour
+        is_close_price_available = 14 <= h < 16
+
+        # Dynamically determine UTC offset for SQLite
+        utc_offset = now_cdt.utcoffset()
+        if utc_offset:
+            offset_hours = int(utc_offset.total_seconds() / 3600)
+            date_modifier = f"'{offset_hours} hours'"
+        else:
+            date_modifier = "'0 hours'"  # Fallback
+
+        if is_close_price_available:
+            close_px_sql = "pr_close.price"
+            pnl_close_sql = f"""
+                COALESCE((
+                    SELECT SUM(dp.realized_pnl + dp.unrealized_pnl)
+                    FROM daily_positions dp
+                    WHERE dp.symbol = p.symbol 
+                    AND dp.date = DATE('now', {date_modifier})
+                    AND LOWER(dp.method) = 'fifo'
+                ), 0)
+            """
+        else:
+            close_px_sql = "NULL"
+            pnl_close_sql = "NULL"
+
         # Fetch positions data
-        query = """
+        query = f"""
         SELECT 
             p.symbol,
             p.instrument_type,
@@ -3465,18 +3465,8 @@ def update_positions_table(trigger_data):
             CASE WHEN p.instrument_type = 'OPTION' THEN (p.lifo_realized_pnl + p.lifo_unrealized_pnl) ELSE NULL END AS gamma_lifo,
             p.last_updated,
             pr_now.price as live_px,
-            pr_close.price as close_px,
-            CASE 
-                WHEN TIME(DATETIME('now', '-5 hours')) >= '14:00:00' THEN
-                    COALESCE((
-                        SELECT SUM(dp.realized_pnl + dp.unrealized_pnl)
-                        FROM daily_positions dp
-                        WHERE dp.symbol = p.symbol 
-                        AND dp.date = DATE('now', '-5 hours')
-                        AND LOWER(dp.method) = 'fifo'
-                    ), 0)
-                ELSE NULL
-            END as pnl_close
+            {close_px_sql} as close_px,
+            {pnl_close_sql} as pnl_close
         FROM positions p
         LEFT JOIN pricing pr_now ON p.symbol = pr_now.symbol AND pr_now.price_type = 'now'
         LEFT JOIN pricing pr_close ON p.symbol = pr_close.symbol AND pr_close.price_type = 'close'
@@ -3519,18 +3509,34 @@ def update_positions_table(trigger_data):
         chicago_tz = pytz.timezone('America/Chicago')
         current_time = datetime.now(chicago_tz).strftime("%Y-%m-%d %H:%M:%S")
         
-        return columns, data, status_text, current_time
+        # Calculate hash of the data to detect changes
+        data_str = str(sorted(data, key=lambda x: x.get('symbol', '')))
+        current_hash = hashlib.md5(data_str.encode()).hexdigest()
         
+        # Get previous hash
+        previous_hash = hash_store.get('hash') if hash_store else None
+        
+        # If data hasn't changed, prevent update (but still return data for initial load)
+        if previous_hash == current_hash and n_intervals > 0:
+            logger.debug("Data unchanged, preventing update")
+            raise PreventUpdate
+        
+        # Return data with new hash
+        new_hash_store = {'hash': current_hash}
+        return columns, data, status_text, current_time, new_hash_store
+        
+    except PreventUpdate:
+        raise
     except Exception as e:
         logger.error(f"Error updating positions table: {type(e).__name__}: {str(e)}", exc_info=True)
-        return [], [], f"Error: {str(e)}", "--"
+        return [], [], f"Error: {str(e)}", "--", hash_store
 
 @app.callback(
     [Output("daily-positions-table", "columns"),
      Output("daily-positions-table", "data"),
      Output("daily-positions-status-text", "children"),
      Output("daily-positions-last-update-text", "children")],
-    Input("frg-data-trigger-store", "data"), # Triggered only when a signal is detected
+    Input("frg-refresh-interval", "n_intervals"),
     prevent_initial_call=False  # Allow initial call to populate on startup
 )
 @monitor()
