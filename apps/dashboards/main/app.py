@@ -2922,6 +2922,14 @@ def create_positions_tab_content():
         style_table={'overflowX': 'visible', 'width': '100%'},
         style_cell={'textAlign': 'center', 'padding': '5px', 'fontSize': '0.85rem'},
         style_data_conditional=[
+            # Aggregate rows styling
+            {
+                'if': {'filter_query': '{instrument_type} = "AGGREGATE"'},
+                'backgroundColor': 'rgba(0, 0, 0, 0.05)',
+                'fontWeight': 'bold',
+                'borderTop': '2px solid #333',
+                'borderBottom': '2px solid #333'
+            },
             # Positive P&L green
             {
                 'if': {'filter_query': '{pnl_live} > 0', 'column_id': 'pnl_live'},
@@ -2974,7 +2982,9 @@ def create_daily_positions_tab_content():
         html.Span("Initializing...", id="daily-positions-status-text"),
         html.Span(" | Last Update: ", style={"fontWeight": "bold", "marginLeft": "20px"}),
         html.Span("--", id="daily-positions-last-update-text"),
-        html.Span(" (Chicago time)", style={"fontSize": "0.8rem", "fontStyle": "italic", "marginLeft": "10px"})
+        html.Span(" (Chicago time)", style={"fontSize": "0.8rem", "fontStyle": "italic", "marginLeft": "10px"}),
+        html.Span(" | Inception to Date P&L: ", style={"fontWeight": "bold", "marginLeft": "20px"}),
+        html.Span("--", id="daily-positions-inception-pnl")
     ], style={"marginBottom": "15px", "fontSize": "0.9rem"})
     
     # DataTable
@@ -3455,6 +3465,7 @@ def update_positions_table(n_intervals, hash_store):
             p.gamma_y,
             p.speed_y,
             p.theta,
+            (p.theta / 252.0) as theta_decay_pnl,
             p.vega,
             p.fifo_realized_pnl,
             p.fifo_unrealized_pnl,
@@ -3490,7 +3501,7 @@ def update_positions_table(n_intervals, hash_store):
             {"name": "Vega", "id": "vega", "type": "numeric", "format": {"specifier": ".4f"}},
             {"name": "PnL Live", "id": "pnl_live", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "PnL Close", "id": "pnl_close", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Theta Decay Pnl", "id": "theta_decay_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Theta Decay Pnl", "id": "theta_decay_pnl", "type": "numeric", "format": {"specifier": "$,.6f"}},
             {"name": "Non-Gamma LIFO", "id": "non_gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "Non-Gamma LIFOc", "id": "non_gamma_lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "Gamma LIFO", "id": "gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
@@ -3502,8 +3513,37 @@ def update_positions_table(n_intervals, hash_store):
         # Convert dataframe to records
         data = df.to_dict('records')
         
-        # Update status
-        status_text = f"Connected - {len(data)} rows"
+        # Calculate aggregate rows for options and futures
+        numeric_cols = ['open_position', 'closed_position', 'delta_y', 'gamma_y', 'speed_y', 
+                       'theta', 'vega', 'pnl_live', 'pnl_close', 'theta_decay_pnl', 
+                       'non_gamma_lifo', 'gamma_lifo', 'fifo_realized_pnl', 'fifo_unrealized_pnl',
+                       'lifo_realized_pnl', 'lifo_unrealized_pnl', 'live_px', 'close_px']
+        
+        # Filter data by instrument type and calculate sums
+        # Only use explicit instrument_type values from database (no fallback)
+        options_data = [row for row in data if row.get('instrument_type') in ['OPTION', 'CALL', 'PUT']]
+        futures_data = [row for row in data if row.get('instrument_type') == 'FUTURE']
+        
+        # Create aggregate rows
+        options_total = {'symbol': 'OPTIONS TOTAL', 'instrument_type': 'AGGREGATE'}
+        futures_total = {'symbol': 'FUTURES TOTAL', 'instrument_type': 'AGGREGATE'}
+        
+        for col in numeric_cols:
+            # Sum options
+            options_sum = sum(float(row.get(col) or 0) for row in options_data)
+            options_total[col] = options_sum if options_sum != 0 else None
+            
+            # Sum futures
+            futures_sum = sum(float(row.get(col) or 0) for row in futures_data)
+            futures_total[col] = futures_sum if futures_sum != 0 else None
+        
+        # Always add both aggregate rows
+        data.append(options_total)
+        data.append(futures_total)
+        
+        # Update status (always subtract 2 for both aggregate rows)
+        base_count = len(data) - 2
+        status_text = f"Connected - {base_count} rows"
         
         # Update last update time (Chicago time)
         chicago_tz = pytz.timezone('America/Chicago')
@@ -3535,7 +3575,8 @@ def update_positions_table(n_intervals, hash_store):
     [Output("daily-positions-table", "columns"),
      Output("daily-positions-table", "data"),
      Output("daily-positions-status-text", "children"),
-     Output("daily-positions-last-update-text", "children")],
+     Output("daily-positions-last-update-text", "children"),
+     Output("daily-positions-inception-pnl", "children")],
     Input("frg-refresh-interval", "n_intervals"),
     prevent_initial_call=False  # Allow initial call to populate on startup
 )
@@ -3589,6 +3630,10 @@ def update_daily_positions_table(trigger_data):
         # Convert dataframe to records
         data = df.to_dict('records')
         
+        # Calculate inception to date P&L
+        inception_pnl = df['total_pnl'].sum() if 'total_pnl' in df.columns and not df.empty else 0
+        inception_pnl_text = f"${inception_pnl:,.2f}"
+        
         # Update status
         status_text = f"Connected - {len(data)} rows"
         
@@ -3596,11 +3641,11 @@ def update_daily_positions_table(trigger_data):
         chicago_tz = pytz.timezone('America/Chicago')
         current_time = datetime.now(chicago_tz).strftime("%Y-%m-%d %H:%M:%S")
         
-        return columns, data, status_text, current_time
+        return columns, data, status_text, current_time, inception_pnl_text
         
     except Exception as e:
         logger.error(f"Error updating daily positions table: {type(e).__name__}: {str(e)}", exc_info=True)
-        return [], [], f"Error: {str(e)}", "--"
+        return [], [], f"Error: {str(e)}", "--", "--"
 
 # --- End FRGMonitor Callbacks ---
 
@@ -4685,6 +4730,13 @@ def empty_logs(n_clicks):
 def acp_update_greek_analysis(n_clicks, strike, future_price, time_to_expiry, market_price_decimal,
                          dv01, convexity, option_type):
     """Recalculate Greeks based on input parameters"""
+    
+    # Validate inputs - ensure no None values
+    if any(x is None for x in [strike, future_price, time_to_expiry, market_price_decimal, dv01, convexity]):
+        # Return empty results if any input is missing
+        return {}, "Please fill in all input fields", html.Div("Missing input values"), html.Div(), \
+               html.Div(), html.Div(), html.Div(), html.Div(), html.Div(), html.Div(), \
+               html.Div(), html.Div(), html.Div(), html.Div(), html.Div(), html.Div()
     
     # Market price is already in decimal format
     market_price = market_price_decimal

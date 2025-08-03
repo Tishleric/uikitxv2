@@ -13,8 +13,13 @@ import re
 from glob import glob
 from .config import DEFAULT_SYMBOL, ALL_TABLES, METHODS
 
-def create_all_tables(conn):
-    """Create all required tables for PnL tracking"""
+def create_all_tables(conn, preserve_processed_files=False):
+    """Create all required tables for PnL tracking
+    
+    Args:
+        conn: SQLite connection
+        preserve_processed_files: If True, skip dropping the processed_files table
+    """
     cursor = conn.cursor()
     
     # Schema for unrealized trades (FIFO and LIFO versions)
@@ -85,9 +90,10 @@ def create_all_tables(conn):
     cursor.execute(daily_positions_schema)
     
     # Create processed files tracking table
-    cursor.execute("DROP TABLE IF EXISTS processed_files")
+    if not preserve_processed_files:
+        cursor.execute("DROP TABLE IF EXISTS processed_files")
     processed_files_schema = """
-    CREATE TABLE processed_files (
+    CREATE TABLE IF NOT EXISTS processed_files (
         file_path TEXT PRIMARY KEY,
         processed_at TEXT,
         trade_count INTEGER,
@@ -418,8 +424,18 @@ def roll_4pm_prices(conn, symbol):
         conn.commit()
 
 
-def update_daily_position(conn, trade_date, symbol, method, realized_qty=0, realized_pnl_delta=0):
-    """Update daily position tracking after a trade"""
+def update_daily_position(conn, trade_date, symbol, method, realized_qty=0, realized_pnl_delta=0, accumulate=True):
+    """Update daily position tracking after a trade
+    
+    Args:
+        conn: Database connection
+        trade_date: Trading date (YYYY-MM-DD)
+        symbol: Trading symbol
+        method: 'fifo' or 'lifo'
+        realized_qty: Quantity realized in this update
+        realized_pnl_delta: P&L realized in this update
+        accumulate: If True, add to existing values. If False, set values directly.
+    """
     cursor = conn.cursor()
     
     # Calculate current open position (net quantity)
@@ -440,10 +456,15 @@ def update_daily_position(conn, trade_date, symbol, method, realized_qty=0, real
     """
     existing = cursor.execute(existing_query, (trade_date, symbol, method)).fetchone()
     
-    # Don't accumulate - use the values passed in directly
-    # The caller is responsible for tracking daily totals
-    closed_position = realized_qty
-    realized_pnl = realized_pnl_delta
+    # Accumulate closed position and realized PnL based on parameter
+    if accumulate and existing:
+        # Add to existing values (for incremental updates)
+        closed_position = (existing[0] or 0) + realized_qty
+        realized_pnl = (existing[1] or 0) + realized_pnl_delta
+    else:
+        # Set values directly (for batch processing or first entry)
+        closed_position = realized_qty
+        realized_pnl = realized_pnl_delta
     
     # Update or insert daily position (unrealized_pnl will be updated separately)
     upsert_query = """

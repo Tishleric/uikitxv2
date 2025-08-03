@@ -74,7 +74,7 @@ class RosettaStone:
         
         # Regex patterns for ActantTrades format
         self.actant_option_pattern = re.compile(
-            r'XCMEOCADPS(\d{8})([A-Z])0([A-Z]{2,3})(\d*)(?:/(\d+(?:\.\d+)?))?'
+            r'XCMEO([CP])ADPS(\d{8})([A-Z])0([A-Z]{2,3})(\d*)(?:/(\d+(?:\.\d+)?))?'
         )
         self.actant_futures_pattern = re.compile(
             r'XCMEFFDPSX(\d{8})([A-Z])(\d)([A-Z]{2})'
@@ -181,7 +181,7 @@ class RosettaStone:
             # Parse the symbol to extract series
             match = self.actant_option_pattern.match(symbol)
             if match:
-                series = match.group(3)  # VY, GY, WY, HY, ZN, OZN
+                series = match.group(4)  # VY, GY, WY, HY, ZN, OZN (shifted due to option_type group)
                 if series == 'OZN':
                     return SymbolClass.QUARTERLY
                 elif series == 'ZN':
@@ -272,11 +272,10 @@ class RosettaStone:
             # Format: XCMEOCADPS20250728N0VY4/111
             option_match = self.actant_option_pattern.match(symbol)
             if option_match:
-                date_str, month_code, series, week_num, strike = option_match.groups()
-                # Reconstruct base without strike
+                option_type, date_str, month_code, series, week_num, strike = option_match.groups()
+                # Reconstruct base without strike (preserving original OCADPS format for lookup)
                 base = f"XCMEOCADPS{date_str}{month_code}0{series}{week_num}"
-                # Determine option type from OCAD (Call) or OPAD (Put)
-                option_type = 'C' if 'OCAD' in symbol else 'P'
+                # Option type already captured from regex
             else:
                 futures_match = self.actant_futures_pattern.match(symbol)
                 if futures_match:

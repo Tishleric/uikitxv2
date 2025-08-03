@@ -121,11 +121,15 @@ def calculation_worker(task_queue: multiprocessing.Queue, result_queue: multipro
                     lambda x: symbol_translator.translate(x, 'actantrisk', 'bloomberg') if x else None
                 )
                 
-                # Keep only rows where we have positions
-                df_filtered = df[df['bloomberg_symbol'].isin(positions_snapshot)]
+                # Keep rows where we have positions OR future rows (needed for Greek calculations)
+                # Future rows identified by itype='F' - handle case sensitivity
+                is_future = df['itype'].astype(str).str.upper() == 'F' if 'itype' in df.columns else pd.Series(False, index=df.index)
+                has_position = df['bloomberg_symbol'].isin(positions_snapshot)
+                df_filtered = df[is_future | has_position]
                 
                 rows_dropped = original_count - len(df_filtered)
-                logger.info(f"Worker {pid}: Filtered {filepath.name} - kept {len(df_filtered)}/{original_count} rows (dropped {rows_dropped} non-position rows)")
+                futures_kept = is_future.sum()
+                logger.info(f"Worker {pid}: Filtered {filepath.name} - kept {len(df_filtered)}/{original_count} rows (dropped {rows_dropped} non-position rows, preserved {futures_kept} future rows)")
                 
                 df = df_filtered
                 

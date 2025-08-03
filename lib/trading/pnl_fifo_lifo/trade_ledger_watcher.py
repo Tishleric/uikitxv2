@@ -202,9 +202,9 @@ class TradeLedgerFileHandler(FileSystemEventHandler):
                     # Common futures mappings
                     futures_map = {
                         'ZN': 'TY',  # 10-year Treasury Note
-                        'TU': 'TU',  # 2-year
-                        'FV': 'FV',  # 5-year
-                        'US': 'US',  # Ultra Bond
+                        'ZT': 'TU',  # 2-year
+                        'ZF': 'FV',  # 5-year
+                        'ZB': 'US',  # Ultra Bond
                     }
                     
                     bloomberg_base = futures_map.get(series, 'TY')  # Default to TY

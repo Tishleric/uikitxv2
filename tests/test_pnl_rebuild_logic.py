@@ -20,8 +20,8 @@ from scripts.rebuild_historical_pnl import main as rebuild_historical_pnl
 
 def test_mark_to_market_data_integrity():
     """Test that mark-to-market updates preserve original data"""
-    # Run the historical rebuild first
-    rebuild_historical_pnl()
+    # Run the historical rebuild first, preserving processed_files table
+    rebuild_historical_pnl(preserve_processed_files=True)
     
     # Connect to the database
     conn = sqlite3.connect('trades.db')
@@ -66,8 +66,8 @@ def test_mark_to_market_data_integrity():
 
 def test_daily_positions_are_totals_not_changes():
     """Test that daily_positions now contains total unrealized P&L, not daily changes"""
-    # Run the historical rebuild
-    rebuild_historical_pnl()
+    # Run the historical rebuild, preserving processed_files table
+    rebuild_historical_pnl(preserve_processed_files=True)
     
     # Connect to the database
     conn = sqlite3.connect('trades.db')
@@ -121,8 +121,8 @@ def run_golden_copy_comparison():
         # Load expected results
         expected_df = pd.read_csv('expected_daily_pnl.csv')
         
-        # Run new implementation
-        rebuild_historical_pnl()
+        # Run new implementation, preserving processed_files table
+        rebuild_historical_pnl(preserve_processed_files=True)
         
         # Load actual results
         conn = sqlite3.connect('trades.db')

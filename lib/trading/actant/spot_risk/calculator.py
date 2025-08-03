@@ -91,6 +91,36 @@ class SpotRiskGreekCalculator:
         
         logger.info(f"Initialized SpotRiskGreekCalculator with DV01={dv01}, convexity={convexity}, model={model}")
     
+    def _convert_itype_to_instrument_type(self, itype: str) -> str:
+        """
+        Convert itype values to standardized instrument_type.
+        
+        Args:
+            itype: Single character type ('F', 'C', 'P') or special values
+            
+        Returns:
+            Standardized instrument type string
+        """
+        if pd.isna(itype) or not itype:
+            return 'UNKNOWN'
+        
+        itype_upper = str(itype).upper().strip()
+        
+        mapping = {
+            'F': 'FUTURE',
+            'C': 'CALL',
+            'P': 'PUT',
+            'CALL': 'CALL',
+            'PUT': 'PUT',
+            'FUTURE': 'FUTURE',
+            'NET': 'AGGREGATE',
+            'NET_FUTURES': 'AGGREGATE',
+            'NET_OPTIONS_F': 'AGGREGATE',
+            'NET_OPTIONS_Y': 'AGGREGATE'
+        }
+        
+        return mapping.get(itype_upper, 'UNKNOWN')
+    
     def calculate_greeks(self, 
                          df: pd.DataFrame,
                          future_price_col: str = 'future_price',
@@ -670,5 +700,16 @@ class SpotRiskGreekCalculator:
             aggregate_df = pd.DataFrame(aggregate_rows)
             df_copy = pd.concat([df_copy, aggregate_df], ignore_index=True)
             logger.info(f"Added {len(aggregate_rows)} aggregate rows")
+        
+        # Add instrument_type column based on itype
+        if 'itype' in df_copy.columns:
+            logger.info("Adding instrument_type column based on itype values")
+            df_copy['instrument_type'] = df_copy['itype'].apply(self._convert_itype_to_instrument_type)
+            
+            # Log the conversion results for debugging
+            type_counts = df_copy['instrument_type'].value_counts()
+            logger.info(f"Instrument type distribution: {type_counts.to_dict()}")
+        else:
+            logger.warning("No itype column found, cannot add instrument_type")
         
         return df_copy 

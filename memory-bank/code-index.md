@@ -236,5 +236,5 @@ Core TYU5 component for position and P&L calculation. Contains two classes, Posi
 - **`file_watcher.py`**: Contains the `SpotRiskWatcher` (the "Producer"). Manages file watching, the parallel worker pool for calculations, and publishes results to the Redis channel.
 - **`database.py`**: `SpotRiskDatabaseService` for all interactions with the `spot_risk.db` SQLite database (now primarily for logging and historical session tracking).
 - **`parser.py`**: Logic for parsing the raw `bav_analysis_*.csv` files into a clean pandas DataFrame.
-- **`calculator.py`**: `SpotRiskGreekCalculator` which takes a DataFrame and calculates all required Greeks using the `bond_future_options` library.
+- **`calculator.py`**: `SpotRiskGreekCalculator` which takes a DataFrame and calculates all required Greeks using the `bond_future_options` library. Now includes `_convert_itype_to_instrument_type()` method and adds `instrument_type` column to output DataFrame for proper instrument classification in the positions table.
 - **`time_calculator.py`**: Utilities for calculating `vtexp` (time to expiry) for options, using pre-calculated values from `data/input/vtexp/`. 

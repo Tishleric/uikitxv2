@@ -32,8 +32,8 @@ TRADE_LEDGER_INPUT_DIR = 'data/input/trade_ledger'
 
 # Close Price Watcher
 CLOSE_PRICE_WATCHER = {
-    'futures_dir': r'Z:\Trade_Control\Futures',
-    'options_dir': r'Z:\Trade_Control\Options',
+    'futures_dir': r'C:\Users\ceterisparibus\Documents\ProductionSpace\Trade_Control\futures',
+    'options_dir': r'C:\Users\ceterisparibus\Documents\ProductionSpace\Trade_Control\options',
     'file_patterns': {
         'futures': r'Futures_(\d{8})_(\d{4})\.csv',
         'options': r'Options_(\d{8})_(\d{4})\.csv'

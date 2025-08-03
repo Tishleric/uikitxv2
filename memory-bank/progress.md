@@ -1,5 +1,13 @@
 # Progress Tracker
 
+## Current Status (February 2025)
+
+### Recent Accomplishments
+- ✅ **Fixed NULL instrument_type in positions table** - Added `_convert_itype_to_instrument_type()` method to SpotRiskGreekCalculator
+- ✅ **Added instrument_type column to spot risk DataFrame** - Now properly converts 'F' -> 'FUTURE', 'C'/'P' -> 'OPTION' before publishing to Redis
+- ✅ **Added aggregate rows to FRGMonitor positions table** - OPTIONS TOTAL and FUTURES TOTAL rows with summed values
+- ✅ **Made aggregate logic robust** - Added fallback to determine instrument type from symbol pattern when database value is NULL
+
 ## Current Status (January 2025)
 
 ### FULLPNL Automation - Milestone 1 Complete ✅

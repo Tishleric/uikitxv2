@@ -544,8 +544,16 @@ The pipeline automatically selects the most recent vtexp CSV file based on filen
 | positions.fifo_unrealized_pnl | Internal | REAL | Unrealized P&L using FIFO method | -325.75 |
 | positions.lifo_realized_pnl | Internal | REAL | Realized P&L using LIFO method | 1180.25 |
 | positions.lifo_unrealized_pnl | Internal | REAL | Unrealized P&L using LIFO method | -395.00 |
-| positions.instrument_type | Internal | TEXT | "FUTURE", "CALL", "PUT" | "CALL" |
+| positions.instrument_type | Internal | TEXT | "FUTURE", "CALL", "PUT", "OPTION" (legacy) | "CALL" |
 | positions.has_greeks | Internal | BOOLEAN | 0 or 1 | 1 |
 | positions.last_updated | Internal | TIMESTAMP | ISO datetime format | "2025-01-31 10:30:45" |
 
 **Note**: Greek values in the positions table are position-weighted (multiplied by open_position). For per-unit Greeks, divide by open_position.
+
+## Spot Risk DataFrame (Redis Channel: spot_risk:results_channel)
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| spot_risk_df.instrument_type | Internal | str | "FUTURE", "CALL", "PUT", "AGGREGATE", "UNKNOWN" | "CALL" |
+
+**Note**: The instrument_type column is derived from the itype column ('F' -> 'FUTURE', 'C' -> 'CALL', 'P' -> 'PUT') and is added by SpotRiskGreekCalculator before publishing to Redis. Legacy data may contain 'OPTION' for calls/puts.
