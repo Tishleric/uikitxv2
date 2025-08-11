@@ -30,8 +30,10 @@ from watchdog.events import FileSystemEventHandler
 from lib.monitoring.decorators import monitor
 from lib.trading.actant.spot_risk.parser import parse_spot_risk_csv
 from lib.trading.actant.spot_risk.calculator import SpotRiskGreekCalculator
+from lib.trading.actant.spot_risk.greek_config import GreekConfiguration
 from lib.trading.actant.spot_risk.database import SpotRiskDatabaseService
 from lib.trading.market_prices.rosetta_stone import RosettaStone
+from lib.trading.actant.spot_risk.greek_logger import greek_logger
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +87,12 @@ def calculation_worker(task_queue: multiprocessing.Queue, result_queue: multipro
     """
     pid = os.getpid()
     logger.info(f"Calculation worker started with PID: {pid}")
-    calculator = SpotRiskGreekCalculator()
+    
+    # Initialize Greek configuration (loaded from environment if set)
+    greek_config = GreekConfiguration()
+    logger.info(f"Worker {pid}: {greek_config.summary()}")
+    
+    calculator = SpotRiskGreekCalculator(greek_config=greek_config)
     symbol_translator = RosettaStone()
 
     while True:
@@ -120,6 +127,14 @@ def calculation_worker(task_queue: multiprocessing.Queue, result_queue: multipro
                 df['bloomberg_symbol'] = df['key'].apply(
                     lambda x: symbol_translator.translate(x, 'actantrisk', 'bloomberg') if x else None
                 )
+                
+                # Debug log sample translations
+                if greek_logger.isEnabledFor(logging.DEBUG) and len(df) > 0:
+                    for i in range(min(3, len(df))):  # Log first 3 translations
+                        actant_key = df.iloc[i]['key']
+                        bloomberg_symbol = df.iloc[i]['bloomberg_symbol']
+                        if actant_key and bloomberg_symbol:
+                            greek_logger.debug(f"SYMBOL_MAP: {actant_key} -> {bloomberg_symbol}")
                 
                 # Keep rows where we have positions OR future rows (needed for Greek calculations)
                 # Future rows identified by itype='F' - handle case sensitivity
@@ -216,6 +231,15 @@ class ResultPublisher(threading.Thread):
                 
                 full_df = pd.concat(self.pending_batches[batch_id]['results'], ignore_index=True)
                 t1 = time.time()
+                
+                # Debug log batch statistics
+                if greek_logger.isEnabledFor(logging.DEBUG):
+                    total_positions = len(full_df)
+                    successful_greeks = full_df['greek_calc_success'].sum() if 'greek_calc_success' in full_df.columns else 0
+                    greek_logger.debug(
+                        f"BATCH_COMPLETE: batch={batch_id}, files={len(self.pending_batches[batch_id]['results'])}, "
+                        f"positions={total_positions}, successful_greeks={successful_greeks}"
+                    )
                 
                 try:
                     # Convert DataFrame to Apache Arrow format for high-speed serialization
@@ -340,7 +364,21 @@ class SpotRiskFileHandler(FileSystemEventHandler):
             self.total_files_per_batch[batch_id] = total_chunks
             logger.info(f"Initialized batch {batch_id}. Expecting {total_chunks} total chunks.")
 
-        logger.info(f"Immediately queueing task for chunk {chunk_num_str}/{total_chunks} of batch {batch_id}")
+        # Log file detection with stats
+        try:
+            file_size = filepath.stat().st_size
+            size_kb = file_size / 1024
+            # Estimate rows (assuming ~500 bytes per row average)
+            estimated_rows = max(1, file_size // 500)
+            logger.info(f"Immediately queueing task for chunk {chunk_num_str}/{total_chunks} of batch {batch_id}")
+            
+            if greek_logger.isEnabledFor(logging.DEBUG):
+                greek_logger.debug(
+                    f"FILE_DETECTED: {filepath.name} ({size_kb:.1f} KB, ~{estimated_rows} rows)"
+                )
+        except:
+            logger.info(f"Immediately queueing task for chunk {chunk_num_str}/{total_chunks} of batch {batch_id}")
+        
         self.task_queue.put((batch_id, filepath_str, vtexp_data_for_batch, positions_snapshot))
         
         self.processed_files_cache.add(filepath_str)
@@ -356,7 +394,8 @@ class SpotRiskFileHandler(FileSystemEventHandler):
                 logger.info(f"New vtexp file found: {latest_vtexp_file}. Reloading cache.")
                 df = pd.read_csv(latest_vtexp_file)
                 # Corrected from 'expiry_code' to 'symbol' to match the actual CSV header.
-                self.vtexp_cache['data'] = df.set_index('symbol')['vtexp'].to_dict()
+                # Convert from days to years (252 trading days per year)
+                self.vtexp_cache['data'] = {k: v/252 for k, v in df.set_index('symbol')['vtexp'].to_dict().items()}
                 self.vtexp_cache['filepath'] = latest_vtexp_file
                 logger.info(f"vtexp cache updated with {len(df)} entries.")
         except Exception as e:

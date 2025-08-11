@@ -24,6 +24,7 @@ class SymbolFormat(Enum):
     ACTANT_RISK = "actantrisk"  # formerly XCME
     ACTANT_TRADES = "actanttrades"  # regex-based trade format
     ACTANT_TIME = "actanttime"  # vtexp format
+    BROKER = "broker"  # Broker format from trades
 
 
 class SymbolClass(Enum):
@@ -157,6 +158,60 @@ class RosettaStone:
                         actanttrades_future = str(row['ActantTrades'])
                         self.lookups[f"actanttrades_{actanttrades_future}_to_bloomberg"] = bloomberg_future
                         self.lookups[f"bloomberg_{bloomberg_future}_to_actanttrades"] = actanttrades_future
+            
+            # Add Broker mappings if available
+            if 'Broker' in row and not pd.isna(row['Broker']):
+                broker_str = str(row['Broker'])
+                # Handle CALL/PUT format from calendar
+                if broker_str.startswith('CALL/PUT '):
+                    # Remove CALL/PUT prefix to get base broker format
+                    broker_base = broker_str[9:]  # Skip "CALL/PUT "
+                    
+                    # Map for both CALL and PUT variants
+                    call_broker = f'CALL {broker_base}'
+                    put_broker = f'PUT {broker_base}'
+                    
+                    # Create mappings for calls
+                    if not pd.isna(row.get('Bloomberg_Call')):
+                        self.lookups[f"broker_{call_broker}_to_bloomberg_C"] = str(row['Bloomberg_Call'])
+                        self.lookups[f"bloomberg_{str(row['Bloomberg_Call'])}_to_broker"] = call_broker
+                    self.lookups[f"broker_{call_broker}_to_cme"] = cme_base
+                    self.lookups[f"broker_{call_broker}_to_actantrisk"] = actantrisk_base
+                    if 'ActantTrades' in row and not pd.isna(row['ActantTrades']):
+                        self.lookups[f"broker_{call_broker}_to_actanttrades"] = str(row['ActantTrades'])
+                    if 'ActantTime' in row and not pd.isna(row['ActantTime']):
+                        self.lookups[f"broker_{call_broker}_to_actanttime"] = str(row['ActantTime'])
+                    self.lookups[f"cme_{cme_base}_to_broker_C"] = call_broker
+                    self.lookups[f"actantrisk_{actantrisk_base}_to_broker_C"] = call_broker
+                    
+                    # Create mappings for puts
+                    if not pd.isna(row.get('Bloomberg_Put')):
+                        self.lookups[f"broker_{put_broker}_to_bloomberg_P"] = str(row['Bloomberg_Put'])
+                        self.lookups[f"bloomberg_{str(row['Bloomberg_Put'])}_to_broker"] = put_broker
+                    self.lookups[f"broker_{put_broker}_to_cme"] = cme_base
+                    self.lookups[f"broker_{put_broker}_to_actantrisk"] = actantrisk_base
+                    if 'ActantTrades' in row and not pd.isna(row['ActantTrades']):
+                        self.lookups[f"broker_{put_broker}_to_actanttrades"] = str(row['ActantTrades'])
+                    if 'ActantTime' in row and not pd.isna(row['ActantTime']):
+                        self.lookups[f"broker_{put_broker}_to_actanttime"] = str(row['ActantTime'])
+                    self.lookups[f"cme_{cme_base}_to_broker_P"] = put_broker
+                    self.lookups[f"actantrisk_{actantrisk_base}_to_broker_P"] = put_broker
+                else:
+                    # Direct futures mapping
+                    # For futures, Bloomberg_Call and Bloomberg_Put have the same value
+                    if 'Future' in row.get('Option Product', ''):
+                        bloomberg_val = str(row.get('Bloomberg_Call')) if not pd.isna(row.get('Bloomberg_Call')) else None
+                        if bloomberg_val:
+                            self.lookups[f"broker_{broker_str}_to_bloomberg"] = bloomberg_val
+                            self.lookups[f"bloomberg_{bloomberg_val}_to_broker"] = broker_str
+                    self.lookups[f"broker_{broker_str}_to_cme"] = cme_base
+                    self.lookups[f"broker_{broker_str}_to_actantrisk"] = actantrisk_base
+                    if 'ActantTrades' in row and not pd.isna(row['ActantTrades']):
+                        self.lookups[f"broker_{broker_str}_to_actanttrades"] = str(row['ActantTrades'])
+                    if 'ActantTime' in row and not pd.isna(row['ActantTime']):
+                        self.lookups[f"broker_{broker_str}_to_actanttime"] = str(row['ActantTime'])
+                    self.lookups[f"cme_{cme_base}_to_broker"] = broker_str
+                    self.lookups[f"actantrisk_{actantrisk_base}_to_broker"] = broker_str
 
     def classify_symbol(self, symbol: str, format_type: SymbolFormat) -> SymbolClass:
         """Determine symbol classification."""
@@ -295,6 +350,28 @@ class RosettaStone:
             base = symbol  # Use full symbol as base for ActantTime
             strike = "0"  # ActantTime doesn't include strike in base
             option_type = 'C'  # Default, will be determined by context
+            
+        elif format_type == SymbolFormat.BROKER:
+            # Format: CALL AUG 25 CBT 10YR TNOTE WED WK1 112.25
+            # or: SEP 25 CBT 10YR TNOTE (futures)
+            # No need to strip quotes - they're not stored in the data
+            
+            # Normalize product variations (10YR T NOTE -> 10YR TNOTE)
+            symbol = symbol.replace(' T NOTE', ' TNOTE').replace(' T BOND', ' TBOND')
+            parts = symbol.split()
+            
+            if parts[0] in ['CALL', 'PUT']:
+                # Option format
+                option_type = parts[0][0]  # 'C' or 'P'
+                # Strike is always the last part
+                strike = parts[-1]
+                # Base is everything except strike
+                base = ' '.join(parts[:-1])
+            else:
+                # Futures format
+                option_type = 'F'
+                strike = "0"
+                base = symbol
                 
         else:
             raise ValueError(f"Unknown format: {format_type}")
@@ -406,6 +483,13 @@ class RosettaStone:
             # ActantTime doesn't include strike or option type in the format
             # The base already contains the full symbol
             return base
+            
+        elif format_type == SymbolFormat.BROKER:
+            # Broker format already complete in base for futures
+            if option_type == 'F':
+                return base
+            # For options, base includes CALL/PUT, just add strike
+            return f'{base} {strike}'
             
         else:
             raise ValueError(f"Unknown format: {format_type}") 

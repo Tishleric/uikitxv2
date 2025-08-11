@@ -102,7 +102,7 @@ class ClosePriceFileHandler(FileSystemEventHandler):
         self.startup_time = startup_time
         self.daily_tracker = DailyCSVTracker()
         self.processed_files = set()  # Track processed files to avoid duplicates
-        self._start_4pm_monitor()
+        # self._start_4pm_monitor()  # Disabled - use manual trigger (run_manual_eod_settlement.bat)
         
     def _ignore_old_file(self, event_path: str) -> bool:
         """Return True if the file existed before the watcher started."""
@@ -340,9 +340,15 @@ class ClosePriceFileHandler(FileSystemEventHandler):
                 if not symbol or symbol == 'nan' or symbol == '0.0':
                     continue
                 
-                # Remove 'COMB' if present (normalize symbol format)
-                if ' COMB ' in symbol:
-                    symbol = symbol.replace(' COMB ', ' ')
+                # Remove 'COMB' with flexible spacing
+                symbol = re.sub(r'(\s+COMB\s+)+', ' ', symbol)
+                
+                # Also handle COMB at start or end
+                symbol = re.sub(r'^COMB\s+', '', symbol)
+                symbol = re.sub(r'\s+COMB$', '', symbol)
+                
+                # Normalize multiple spaces to single space
+                symbol = re.sub(r'\s+', ' ', symbol).strip()
                     
                 # Check status for this specific row
                 status = str(row['Settle Price = Today']).strip().upper()

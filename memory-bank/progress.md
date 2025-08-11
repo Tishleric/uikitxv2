@@ -1,5 +1,25 @@
 # Progress Tracker
 
+## Current Status (August 2025)
+
+### Recent Accomplishments
+- ✅ **Fixed Live PnL showing 0 unrealized component** - Modified `update_current_price()` to publish Redis signal
+- ✅ **Diagnosed root cause of Live PnL issue** - Price updates weren't triggering positions_aggregator refresh
+- ✅ **Created diagnostic and verification scripts** - `diagnose_live_pnl_issue.py` and `verify_live_pnl_fix.py`
+- ✅ **Comprehensive integration tests** - Added `tests/integration/live_pnl_test/` test suite
+- ✅ **Created Price Updater diagnostic suite** - Three diagnostic tools to identify 14-second latency bottleneck
+- ✅ **Identified linear latency accumulation** - Price updater processing messages sequentially, cannot keep up
+
+### Live PnL Fix Details (2025-08-04)
+- **Problem**: After historical rebuild, Live PnL column showed only realized P&L (unrealized = 0)
+- **Root Cause**: PositionsAggregator only refreshed on trade events via Redis "positions:changed" signal
+- **Solution**: Three-part fix:
+  1. Added Redis publish to `update_current_price()` in data_manager.py
+  2. Added database write queue operation in positions_aggregator.py after refresh
+  3. Added Greek preservation logic - restores Greeks from cache after DB load
+- **Impact**: Now price updates trigger immediate P&L recalculation
+- **Known Issues**: sodTod/sodTom prices still need automated management
+
 ## Current Status (February 2025)
 
 ### Recent Accomplishments
@@ -7,6 +27,8 @@
 - ✅ **Added instrument_type column to spot risk DataFrame** - Now properly converts 'F' -> 'FUTURE', 'C'/'P' -> 'OPTION' before publishing to Redis
 - ✅ **Added aggregate rows to FRGMonitor positions table** - OPTIONS TOTAL and FUTURES TOTAL rows with summed values
 - ✅ **Made aggregate logic robust** - Added fallback to determine instrument type from symbol pattern when database value is NULL
+- ✅ **Added green/red coloration to PnL Close column** - Surgical styling change to match PnL Live column's positive/negative value colors in FRGMonitor positions table
+- ✅ **Rounded all Greek values to whole numbers** - Changed Greek column formats (Delta Y, Gamma Y, Speed Y, Theta, Vega) from `.4f` to `.0f` for cleaner display
 
 ## Current Status (January 2025)
 
@@ -594,4 +616,53 @@ Successfully implemented full rebuild capability:
     - `file_processing_log` (44 rows)
   - System is now ready to reprocess all trade files from scratch
   - All table schemas preserved - only data was cleared 
+
+## Positions Aggregator Phantom Positions Fix (January 15, 2025)
+
+**Status: Complete**
+
+Fixed issue where positions aggregator was showing 11 positions when only 10 existed in the data.
+
+**Root Cause:**
+- The `all_symbols` CTE was pulling ALL historical symbols from realized_fifo/lifo tables
+- After changing to show only today's closed positions, symbols with historical trades but no activity today would appear as phantom rows with all zeros
+
+**Solution:**
+- Updated `all_symbols` CTE to only include symbols from realized tables that have trades TODAY
+- This ensures the positions table only shows symbols with either:
+  - Current open positions, OR
+  - Trades that closed today
+- Prevents historical symbols from appearing as zero-value rows
+
+**Files Modified:**
+- `lib/trading/pnl_fifo_lifo/positions_aggregator.py` - Updated all_symbols CTE
+- `tests/trading/pnl_fifo_lifo/test_trade_insertions.py` - Updated test query to match
+
+## Trade Database Insertion Testing (January 15, 2025)
+
+**Status: Complete**
+
+Created comprehensive unit test suite for trade database insertions in the FIFO/LIFO PnL system.
+
+**Test Coverage:**
+1. **Single New Position** - Verifies trades correctly insert into trades_fifo/lifo tables
+2. **Full Offset Trade** - Tests complete position closure and realized P&L calculation
+3. **Partial Offset Trade** - Validates partial position updates and quantity tracking
+4. **FIFO vs LIFO Ordering** - Confirms correct ordering differences between methods
+5. **No Duplicate Sequence IDs** - Ensures unique constraints are maintained
+6. **Daily Position Updates** - Tests the update_daily_position function
+7. **Transaction Atomicity** - Verifies all-or-nothing transaction behavior
+8. **Short Position P&L** - Tests P&L calculations for short positions
+
+**Key Components Tested:**
+- `process_new_trade()` - Core trade processing engine
+- `update_daily_position()` - Daily position aggregation
+- All four tables: trades_fifo, trades_lifo, realized_fifo, realized_lifo
+- P&L calculation accuracy (with proper floating point handling)
+
+**Files Created:**
+- `tests/trading/pnl_fifo_lifo/test_trade_insertions.py` - Complete test suite
+- Updated memory-bank/code-index.md with test documentation
+
+**Test Results:** All 8 tests passing successfully
  

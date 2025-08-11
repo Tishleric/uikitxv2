@@ -129,5 +129,11 @@ class StrikeConverter:
         elif target_format == 'actanttime':
             # ActantTime doesn't use strikes in the base format
             return ""
+        elif target_format == 'broker':
+            # Broker uses decimal format like Bloomberg
+            if decimal % 1 == 0:
+                return str(int(decimal))
+            else:
+                return str(decimal)
         else:
             raise ValueError(f"Unknown target format: {target_format}") 

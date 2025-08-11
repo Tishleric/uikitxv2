@@ -20,6 +20,7 @@ import os
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+from lib.trading.actant.spot_risk.greek_logger import greek_logger
 from lib.trading.actant.spot_risk.file_watcher import SpotRiskWatcher
 from lib.monitoring.decorators import monitor, start_observatory_writer, stop_observatory_writer
 
@@ -43,6 +44,13 @@ def main():
     print(f"\nMonitoring: {INPUT_DIR}")
     print(f"Output to: {OUTPUT_DIR}")
     print("\nPress Ctrl+C to stop\n")
+
+    # Enable detailed Greek logging
+    os.environ['GREEK_TRACE_ENABLED'] = '1'
+    greek_logger.info("=" * 80)
+    greek_logger.info("GREEK VALUE TRACING ENABLED")
+    greek_logger.info("Monitoring key positions for Greek value transformations")
+    greek_logger.info("=" * 80)
     
     # Reserve cores for other processes. A safe number is N-4.
     # Ensure we use at least 1 worker.

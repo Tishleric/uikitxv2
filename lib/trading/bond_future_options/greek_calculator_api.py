@@ -27,7 +27,8 @@ class GreekCalculatorAPI:
         self,
         options_data: Union[Dict, List[Dict]],
         model: Optional[str] = None,
-        model_params: Optional[Dict[str, Any]] = None
+        model_params: Optional[Dict[str, Any]] = None,
+        requested_greeks: Optional[List[str]] = None
     ) -> Union[Dict, List[Dict]]:
         """
         Analyze options to calculate implied volatility and Greeks.
@@ -41,6 +42,7 @@ class GreekCalculatorAPI:
                 - option_type: 'call' or 'put' (default: 'put')
             model: Model name to use (default: self.default_model)
             model_params: Model-specific parameters (e.g., future_dv01)
+            requested_greeks: Optional list of specific Greeks to calculate (default: all)
             
         Returns:
             Single result dict or list of result dicts with:
@@ -74,7 +76,7 @@ class GreekCalculatorAPI:
         # Process each option
         results = []
         for option in options_data:
-            result = self._analyze_single(option, model_instance, model_version)
+            result = self._analyze_single(option, model_instance, model_version, requested_greeks)
             results.append(result)
         
         # Return single result if input was single
@@ -84,7 +86,8 @@ class GreekCalculatorAPI:
         self,
         option: Dict,
         model: Any,
-        model_version: str
+        model_version: str,
+        requested_greeks: Optional[List[str]] = None
     ) -> Dict:
         """Analyze a single option."""
         # Extract required fields
@@ -105,9 +108,20 @@ class GreekCalculatorAPI:
             )
             
             # Calculate Greeks
-            greeks = model.calculate_greeks(
+            all_greeks = model.calculate_greeks(
                 F, K, T, volatility, option_type
             )
+            
+            # Filter Greeks if requested
+            if requested_greeks is not None:
+                # Only include requested Greeks
+                greeks = {k: v for k, v in all_greeks.items() if k in requested_greeks}
+                # Also handle derived Greeks
+                if 'speed_F' in requested_greeks and 'speed_y' in all_greeks:
+                    greeks['speed_y'] = all_greeks['speed_y']
+            else:
+                # Return all Greeks if no filter specified (backward compatibility)
+                greeks = all_greeks
             
             # Add results
             result['volatility'] = volatility

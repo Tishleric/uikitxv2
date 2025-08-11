@@ -71,7 +71,53 @@ def main(preserve_processed_files=False):
             'TYWQ25C1 112.75 Comdty': 0.078125,
             'TYWQ25C1 112.5 Comdty': 0.140625,
             'TYWQ25C1 112.25 Comdty': 0.234375,
-            'TJWQ25C1 112.500 Comdty': 0.171875  # This is XCMEOCADPS20250807Q0HY1/112.5
+            'TJWQ25C1 112.5 Comdty': 0.171875  # This is XCMEOCADPS20250807Q0HY1/112.5
+        },
+        datetime(2025, 8, 4).date(): {
+            symbol_futures: 112.375,  # TYU5 close
+            'USU5 Comdty': 115.9063,  # USU5 close
+            '2MQ5C 112.5 Comdty': 0.25,
+            '2MQ5C 112.75 Comdty': 0.15625,
+            'TJPQ25P1 110.5 Comdty': 0.00100000016391277,
+            'TJWQ25C1 112.5 Comdty': 0.203125,
+            'TYWQ25C1 112.75 Comdty': 0.09375,
+            'TYWQ25C1 112.5 Comdty': 0.171875,
+            'TYWQ25C1 112.25 Comdty': 0.296875
+        },
+        datetime(2025, 8, 5).date(): {
+            symbol_futures: 112.296875,  # TYU5 close
+            'USU5 Comdty': 116.125,  # USU5 close
+            '2MQ5C 112.5 Comdty': 0.125,
+            '2MQ5C 112.75 Comdty': 0.0625,
+            'TJPQ25P1 110.5 Comdty': 0.006999999,
+            'TJWQ25C1 112.5 Comdty': 0.09375,
+            'TJWQ25C1 113.25 Comdty': 0.0156,
+            'TYWQ25C1 112.25 Comdty': 0.140625,
+            'TYWQ25C1 112.5 Comdty': 0.046875,
+            'TYWQ25C1 112.75 Comdty': 0.015625
+        },
+        datetime(2025, 8, 6).date(): {
+            symbol_futures: 112.234375,  # TYU5 close
+            'USU5 Comdty': 115.5625,  # USU5 close
+            '2MQ5C 112.5 Comdty': 0.0625,
+            '2MQ5C 112.75 Comdty': 0.03125,
+            'TJWQ25C1 112.5 Comdty': 0.03125,
+            'TJWQ25C1 113.25 Comdty': 0,
+            'TYWQ25C1 112.75 Comdty': 0.006999999
+        },
+        datetime(2025, 8, 7).date(): {
+            symbol_futures: 112.09375,  # TYU5 close
+            'USU5 Comdty': 115.53125,  # USU5 close
+            '2MQ5C 112.75 Comdty': 0.001,
+            '2MQ5C 112.25 Comdty': 0.03125,
+            'TJWQ25C1 112.5 Comdty': 0,
+            'TJWQ25C1 113.25 Comdty': 0
+        },
+        datetime(2025, 8, 8).date(): {
+            symbol_futures: 111.828125,  # TYU5 close
+            'USU5 Comdty': 115.0,       # USU5 close
+            '2MQ5C 112.25 Comdty': 0,
+            '2MQ5C 112.75 Comdty': 0
         },
     }
 
@@ -281,10 +327,14 @@ def main(preserve_processed_files=False):
     print(f"  - Running final EOD process for {last_processed_date}...")
     if last_processed_date in close_prices:
         unique_symbols = pd.read_sql_query("SELECT DISTINCT symbol FROM trades_fifo WHERE quantity > 0", conn)['symbol'].tolist()
+        print(f"    DEBUG: Open positions found for symbols: {unique_symbols}")
+        print(f"    DEBUG: Close prices available for {last_processed_date}: {list(close_prices[last_processed_date].keys())}")
         for symbol in unique_symbols:
             settle_price = close_prices.get(last_processed_date, {}).get(symbol)
             if not settle_price:
+                print(f"    DEBUG: No settle price found for symbol '{symbol}' on {last_processed_date}")
                 continue
+            print(f"    DEBUG: Processing {symbol} with settle price {settle_price}")
                 
             for method in ['fifo', 'lifo']:
                 # Calculate total unrealized P&L using current cost basis
@@ -292,12 +342,16 @@ def main(preserve_processed_files=False):
                 total_unrealized_pnl = 0
                 
                 if not positions.empty:
+                    print(f"      DEBUG {method}: Found {len(positions)} open positions for {symbol}")
                     for _, pos in positions.iterrows():
                         # Simple P&L: (settle - cost_basis) * qty * 1000
                         pnl = (settle_price - pos['price']) * pos['quantity'] * 1000
                         if pos['buySell'] == 'S':  # Short positions have inverted P&L
                             pnl = -pnl
                         total_unrealized_pnl += pnl
+                        print(f"        Position: qty={pos['quantity']}, price={pos['price']}, settle={settle_price}, pnl={pnl}")
+                else:
+                    print(f"      DEBUG {method}: No open positions found for {symbol}")
                 
                 # Get current open position at end of day
                 open_query = f"""
@@ -353,6 +407,22 @@ def main(preserve_processed_files=False):
             """, (symbol, price, date.strftime('%Y-%m-%d') + ' 16:00:00'))
     conn.commit()
     print(f"  - Inserted {sum(len(prices) for prices in close_prices.values())} close prices into pricing table")
+    
+    # Add last day's close prices as sodTod prices
+    print("\n  - Adding last day's close prices as sodTod...")
+    last_trading_date = max(close_prices.keys())
+    last_day_prices = close_prices[last_trading_date]
+    sodtod_count = 0
+    
+    for symbol, price in last_day_prices.items():
+        cursor.execute("""
+            INSERT OR REPLACE INTO pricing (symbol, price_type, price, timestamp)
+            VALUES (?, 'sodTod', ?, ?)
+        """, (symbol, price, last_trading_date.strftime('%Y-%m-%d') + ' 06:00:00'))
+        sodtod_count += 1
+    
+    conn.commit()
+    print(f"  - Inserted {sodtod_count} sodTod prices from {last_trading_date.strftime('%Y-%m-%d')}")
         
     # Close connection before aggregator runs to avoid lock
     conn.close()

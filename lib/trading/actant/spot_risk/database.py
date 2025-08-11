@@ -179,7 +179,7 @@ class SpotRiskDatabaseService:
                     try:
                         bloomberg_symbol = self.symbol_translator.translate(instrument_key, 'actantrisk', 'bloomberg')
                         if bloomberg_symbol:
-                            logger.debug(f"Translated {instrument_key} → {bloomberg_symbol}")
+                            logger.debug(f"Translated {instrument_key} -> {bloomberg_symbol}")
                     except Exception as e:
                         logger.warning(f"Failed to translate symbol {instrument_key}: {e}")
                 

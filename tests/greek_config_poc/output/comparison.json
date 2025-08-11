@@ -1,0 +1,49 @@
+{
+  "full_greeks": {
+    "count": 16,
+    "columns": [
+      "charm_F",
+      "color_F",
+      "delta_F",
+      "delta_y",
+      "gamma_F",
+      "gamma_y",
+      "greek_calc_error",
+      "greek_calc_success",
+      "instrument_key",
+      "instrument_type",
+      "midpoint_price",
+      "position",
+      "speed_F",
+      "speed_y",
+      "strike",
+      "theta_F",
+      "ultima",
+      "vanna_F_price",
+      "vega_price",
+      "vega_y",
+      "volga_price",
+      "zomma"
+    ]
+  },
+  "minimal_greeks": {
+    "count": 9,
+    "columns": [
+      "delta_F",
+      "delta_y",
+      "gamma_F",
+      "gamma_y",
+      "greek_calc_error",
+      "greek_calc_success",
+      "instrument_key",
+      "instrument_type",
+      "midpoint_price",
+      "position",
+      "speed_F",
+      "speed_y",
+      "strike",
+      "theta_F",
+      "vega_y"
+    ]
+  }
+}

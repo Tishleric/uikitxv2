@@ -71,6 +71,7 @@ try:
     # Import trading utilities
     from lib.trading.common import format_shock_value_for_display
     from lib.trading.common.price_parser import parse_treasury_price, decimal_to_tt_bond_format
+    from lib.trading.pnl_fifo_lifo.data_manager import get_trading_day
     # Import Actant modules from new location
     from lib.trading.actant.eod import ActantDataService, get_most_recent_json_file, get_json_file_metadata
 except ImportError as e:
@@ -2943,6 +2944,10 @@ def create_positions_tab_content():
                 'if': {'filter_query': '{gamma_lifo} > 0', 'column_id': 'gamma_lifo'},
                 'color': default_theme.success
             },
+            {
+                'if': {'filter_query': '{pnl_close} > 0', 'column_id': 'pnl_close'},
+                'color': default_theme.success
+            },
             # Negative P&L red
             {
                 'if': {'filter_query': '{pnl_live} < 0', 'column_id': 'pnl_live'},
@@ -2954,6 +2959,10 @@ def create_positions_tab_content():
             },
             {
                 'if': {'filter_query': '{gamma_lifo} < 0', 'column_id': 'gamma_lifo'},
+                'color': default_theme.danger
+            },
+            {
+                'if': {'filter_query': '{pnl_close} < 0', 'column_id': 'pnl_close'},
                 'color': default_theme.danger
             }
         ]
@@ -3425,11 +3434,13 @@ def update_positions_table(n_intervals, hash_store):
         # Connect to database
         conn = sqlite3.connect(db_path)
         
-        # Determine if close price should be displayed based on Chicago time
+        # Get current Chicago time for display
         chicago_tz = pytz.timezone('America/Chicago')
         now_cdt = datetime.now(chicago_tz)
-        h = now_cdt.hour
-        is_close_price_available = 14 <= h < 16
+        today_str = now_cdt.strftime('%Y-%m-%d')
+        
+        # Get trading day (respects 5pm cutoff)
+        trading_day = get_trading_day(datetime.now()).strftime('%Y-%m-%d')
 
         # Dynamically determine UTC offset for SQLite
         utc_offset = now_cdt.utcoffset()
@@ -3438,21 +3449,6 @@ def update_positions_table(n_intervals, hash_store):
             date_modifier = f"'{offset_hours} hours'"
         else:
             date_modifier = "'0 hours'"  # Fallback
-
-        if is_close_price_available:
-            close_px_sql = "pr_close.price"
-            pnl_close_sql = f"""
-                COALESCE((
-                    SELECT SUM(dp.realized_pnl + dp.unrealized_pnl)
-                    FROM daily_positions dp
-                    WHERE dp.symbol = p.symbol 
-                    AND dp.date = DATE('now', {date_modifier})
-                    AND LOWER(dp.method) = 'fifo'
-                ), 0)
-            """
-        else:
-            close_px_sql = "NULL"
-            pnl_close_sql = "NULL"
 
         # Fetch positions data
         query = f"""
@@ -3476,8 +3472,18 @@ def update_positions_table(n_intervals, hash_store):
             CASE WHEN p.instrument_type = 'OPTION' THEN (p.lifo_realized_pnl + p.lifo_unrealized_pnl) ELSE NULL END AS gamma_lifo,
             p.last_updated,
             pr_now.price as live_px,
-            {close_px_sql} as close_px,
-            {pnl_close_sql} as pnl_close
+            -- Close price: show only if from today
+            CASE 
+                WHEN pr_close.timestamp LIKE '{trading_day}' || '%' 
+                THEN pr_close.price
+                ELSE NULL 
+            END as close_px,
+            -- Close PnL: show only if close price is from today
+            CASE 
+                WHEN pr_close.timestamp LIKE '{trading_day}' || '%' 
+                THEN (p.fifo_realized_pnl + p.fifo_unrealized_pnl_close)
+                ELSE NULL 
+            END as pnl_close
         FROM positions p
         LEFT JOIN pricing pr_now ON p.symbol = pr_now.symbol AND pr_now.price_type = 'now'
         LEFT JOIN pricing pr_close ON p.symbol = pr_close.symbol AND pr_close.price_type = 'close'
@@ -3492,57 +3498,45 @@ def update_positions_table(n_intervals, hash_store):
         columns = [
             {"name": "Symbol", "id": "symbol"},
             {"name": "Type", "id": "instrument_type"},
-            {"name": "Open", "id": "open_position", "type": "numeric"},
-            {"name": "Closed", "id": "closed_position", "type": "numeric"},
-            {"name": "Delta Y", "id": "delta_y", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "Gamma Y", "id": "gamma_y", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "Speed Y", "id": "speed_y", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "Theta", "id": "theta", "type": "numeric", "format": {"specifier": ".4f"}},
-            {"name": "Vega", "id": "vega", "type": "numeric", "format": {"specifier": ".4f"}},
+            {"name": "Open", "id": "open_position", "type": "numeric", "format": {"specifier": ","}},
+            {"name": "Closed", "id": "closed_position", "type": "numeric", "format": {"specifier": ","}},
+            {"name": "Delta Y", "id": "delta_y", "type": "numeric", "format": {"specifier": ",.0f"}},
+            {"name": "Gamma Y", "id": "gamma_y", "type": "numeric", "format": {"specifier": ",.0f"}},
+            {"name": "Speed Y", "id": "speed_y", "type": "numeric", "format": {"specifier": ",.0f"}},
+            {"name": "Theta", "id": "theta", "type": "numeric", "format": {"specifier": ",.0f"}},
+            {"name": "Vega", "id": "vega", "type": "numeric", "format": {"specifier": ",.0f"}},
             {"name": "PnL Live", "id": "pnl_live", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "PnL Close", "id": "pnl_close", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "Theta Decay Pnl", "id": "theta_decay_pnl", "type": "numeric", "format": {"specifier": "$,.6f"}},
-            {"name": "Non-Gamma LIFO", "id": "non_gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Non-Gamma LIFOc", "id": "non_gamma_lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "LIFO", "id": "non_gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "LIFOc", "id": "non_gamma_lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "Gamma LIFO", "id": "gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "LIFOC", "id": "lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "LivePX", "id": "live_px", "type": "numeric", "format": {"specifier": ".6f"}},
-            {"name": "ClosePX", "id": "close_px", "type": "numeric", "format": {"specifier": ".6f"}}
+            {"name": "LivePX", "id": "live_px", "type": "numeric", "format": {"specifier": ",.6f"}},
+            {"name": "ClosePX", "id": "close_px", "type": "numeric", "format": {"specifier": ",.6f"}}
         ]
         
         # Convert dataframe to records
         data = df.to_dict('records')
         
-        # Calculate aggregate rows for options and futures
-        numeric_cols = ['open_position', 'closed_position', 'delta_y', 'gamma_y', 'speed_y', 
-                       'theta', 'vega', 'pnl_live', 'pnl_close', 'theta_decay_pnl', 
-                       'non_gamma_lifo', 'gamma_lifo', 'fifo_realized_pnl', 'fifo_unrealized_pnl',
-                       'lifo_realized_pnl', 'lifo_unrealized_pnl', 'live_px', 'close_px']
+        # Calculate single aggregate row
+        aggregate_row = {'symbol': 'AGGREGATE', 'instrument_type': 'AGGREGATE'}
         
-        # Filter data by instrument type and calculate sums
-        # Only use explicit instrument_type values from database (no fallback)
-        options_data = [row for row in data if row.get('instrument_type') in ['OPTION', 'CALL', 'PUT']]
-        futures_data = [row for row in data if row.get('instrument_type') == 'FUTURE']
-        
-        # Create aggregate rows
-        options_total = {'symbol': 'OPTIONS TOTAL', 'instrument_type': 'AGGREGATE'}
-        futures_total = {'symbol': 'FUTURES TOTAL', 'instrument_type': 'AGGREGATE'}
-        
-        for col in numeric_cols:
-            # Sum options
-            options_sum = sum(float(row.get(col) or 0) for row in options_data)
-            options_total[col] = options_sum if options_sum != 0 else None
+        if not df.empty:
+            # Sum all numeric columns except prices
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+            exclude_cols = ['live_px', 'close_px', 'open_position', 'closed_position']
             
-            # Sum futures
-            futures_sum = sum(float(row.get(col) or 0) for row in futures_data)
-            futures_total[col] = futures_sum if futures_sum != 0 else None
+            for col in numeric_cols:
+                if col not in exclude_cols:
+                    total = df[col].sum()
+                    aggregate_row[col] = total if total != 0 else None
         
-        # Always add both aggregate rows
-        data.append(options_total)
-        data.append(futures_total)
+        # Add aggregate row
+        data.append(aggregate_row)
         
-        # Update status (always subtract 2 for both aggregate rows)
-        base_count = len(data) - 2
+        # Update status (subtract 1 for single aggregate row)
+        base_count = len(data) - 1
         status_text = f"Connected - {base_count} rows"
         
         # Update last update time (Chicago time)

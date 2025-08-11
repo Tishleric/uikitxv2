@@ -20,8 +20,6 @@ import pickle  # Import pickle for envelope deserialization
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from lib.monitoring.decorators import monitor
-# Import the specific, correct DB function instead of the whole storage class
-from lib.trading.pnl_fifo_lifo.data_manager import update_current_price
 from lib.trading.market_prices.rosetta_stone import RosettaStone
 import sqlite3 # Import sqlite3 for the connection
 
@@ -83,8 +81,23 @@ class PriceUpdaterService:
                 if prices_to_update:
                     logger.info(f"Extracted {len(prices_to_update)} prices to update in 'pricing' table.")
                     with sqlite3.connect(self.trades_db_path) as conn:
+                        # Disable auto-commit for batch operation
+                        conn.isolation_level = None
+                        conn.execute("BEGIN")
+                        
                         for symbol, price_data in prices_to_update.items():
-                            update_current_price(conn, symbol, price_data['price'], timestamp)
+                            # Update price without committing
+                            conn.execute(
+                                "INSERT OR REPLACE INTO pricing (symbol, price_type, price, timestamp) VALUES (?, 'now', ?, ?)",
+                                (symbol, price_data['price'], timestamp)
+                            )
+                        
+                        # Single commit for all updates
+                        conn.commit()
+                        
+                        # Publish Redis notification after successful commit
+                        self.redis_client.publish("positions:changed", "price_update")
+                        
                     logger.info(f"Successfully updated {len(prices_to_update)} prices.")
                 else:
                     logger.info("No relevant prices found in the data package for updating.")
@@ -104,6 +117,9 @@ class PriceUpdaterService:
         """
         df.columns = [col.lower() for col in df.columns]
         prices = {}
+        
+        # Track duplicates for logging
+        symbol_count = {}
 
         for _, row in df.iterrows():
             actant_symbol = row.get('key')
@@ -124,6 +140,19 @@ class PriceUpdaterService:
                     price = None
             
             if price is not None:
+                # Track duplicates
+                if bloomberg_symbol in prices:
+                    symbol_count[bloomberg_symbol] = symbol_count.get(bloomberg_symbol, 1) + 1
+                else:
+                    symbol_count[bloomberg_symbol] = 1
+                    
                 prices[bloomberg_symbol] = {'price': price}
+        
+        # Log deduplication stats if any duplicates found
+        duplicates = {sym: count for sym, count in symbol_count.items() if count > 1}
+        if duplicates:
+            total_removed = sum(count - 1 for count in duplicates.values())
+            logger.info(f"Deduplicated symbols: {duplicates}")
+            logger.info(f"Removed {total_removed} duplicate price updates")
         
         return prices 

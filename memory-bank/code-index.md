@@ -20,10 +20,31 @@ Runner script for PNLPipelineWatcher service. Monitors trade ledger CSV files an
 ### scripts/run_market_price_monitor.py
 Runner script for MarketPriceFileMonitor. Monitors futures and options price directories for CSV files. Processes files based on time windows: 2pm CDT ± 15 min for Current_Price, 4pm CDT ± 15 min for Prior_Close. Updates market_prices table in market_prices.db. Includes callbacks for processing status.
 
+### scripts/indexer/scan_repo.py
+Repository scanner that walks the entire tree (excluding `.git`, `__pycache__`, `.pytest_cache`) and emits a JSONL manifest with path, size, mtime, extension, binary flag, and SHA-1. Output written to `memory-bank/index/manifest.jsonl`. Serves as the foundation for comprehensive indexing and coverage checks.
+
+### scripts/indexer/extract_python_ast.py
+AST extractor for all Python files. Captures module docstrings, imports, top-level functions (names and args), and classes (bases and methods). Outputs JSONL to `memory-bank/index/python_ast.jsonl`. Used to synthesize summaries, import graphs, and API surfaces.
+
+### scripts/translate_bbg_to_actantrisk.py
+Utility script that reads a list of Bloomberg symbols (one per line, default `bbgsymbolstotranslate.md`), translates each to ActantRisk using `RosettaStone.translate(symbol, 'bloomberg', 'actantrisk')`, and writes results to CSV at `data/output/symbol_translations/bbg_to_actantrisk.csv`. Allows overriding input/output paths via `--input` and `--output`.
+
 ## Tests
 
 ### tests/trading/test_tyu5_schema_migration.py
 Comprehensive test suite for TYU5 schema migration. Tests migration up/down operations, verifies all tables and indexes are created, checks schema compatibility with existing data, and ensures migration is idempotent. Uses temporary databases for isolated testing.
+
+### tests/test_spot_risk_parsing_pipeline.py
+Comprehensive unit test suite for spot risk CSV parsing pipeline. Tests file detection, CSV parsing, symbol translation, future price extraction, VTEXP mapping, and parameter assembly for Greek calculations. Uses actual CSV data from production format. Key findings: symbol translation working (e.g., XCME.ZN.SEP25 -> TYU5 Comdty, XCME.WY1.06AUG25.110.C -> TYWQ25C1 110 Comdty), VTEXP mapping successful for all options, all parameters correctly assembled for Greek API calls.
+
+### tests/diagnostics/price_updater_diagnostic.py
+Comprehensive diagnostic tool for price updater latency issues. Simulates spot risk pipeline with detailed timing breakdown for each operation: pickle deserialization, Arrow deserialization, price extraction, symbol translation, and database updates. Includes SpotRiskSimulator to generate test data and PriceUpdaterDiagnostic for timing analysis. Provides summary statistics to identify bottlenecks.
+
+### tests/diagnostics/monitor_price_pipeline.py
+Real-time pipeline monitor that observes Redis pub/sub traffic without interference. Tracks message latency, payload sizes, and processing rates. Calculates statistics including average/max latency and message throughput. Also includes DatabaseMonitor to check for lock contention. Non-intrusive tool for production monitoring.
+
+### tests/diagnostics/test_database_bottleneck.py
+Focused database performance testing tool. Tests single update timing, batch vs individual commits, WAL mode configuration, concurrent writer performance, and file system I/O speeds. Provides optimization suggestions based on findings. Designed to identify if database operations are causing the observed 14-second per message latency.
 
 ## Documentation
 
@@ -109,6 +130,10 @@ New P&L tracking dashboard with real-time updates. Components:
 
 ### tests/trading/
 - **test_unified_service_enhanced.py** - Comprehensive test suite for enhanced UnifiedPnLService. Tests TYU5 feature integration including lot tracking, Greeks, risk scenarios, and fallback behavior. Includes direct API tests.
+
+### tests/trading/pnl_fifo_lifo/
+- **test_trade_insertions.py** - Comprehensive unit tests for trade database insertions in FIFO/LIFO system. Tests correct insertion into trades_fifo, trades_lifo, realized_fifo, and realized_lifo tables. Verifies no duplicate entries, proper FIFO vs LIFO ordering, partial/full offsets, P&L calculations, and transaction atomicity. Includes test for positions aggregator query using master symbol list approach.
+- **test_end_to_end_flow.py** - End-to-end integration test simulating complete flow from trade entry to dashboard display. Tests trade processing, positions aggregation, and dashboard queries. Verifies open/closed positions calculation directly from trades and realized tables.
 
 ### scripts/
 - **test_unified_service_enhanced.py** - Demonstration script showing Phase 3 unified service capabilities. Examples of accessing lot details, Greeks, risk scenarios, and comprehensive position views through the unified API.
@@ -230,11 +255,12 @@ Core TYU5 component for position and P&L calculation. Contains two classes, Posi
 
 ### Standalone Services & Core Logic
 
-- **`positions_aggregator.py`**: The `PositionsAggregator` class. Runs as a persistent service, subscribing to the `spot_risk:results_channel` on Redis. It consumes complete Greek data packages and combines them with trade data to update the master `positions` table in `trades.db`. This is the central point of integration for P&L.
+- **`positions_aggregator.py`**: The `PositionsAggregator` class. Runs as a persistent service, subscribing to the `spot_risk:results_channel` on Redis. Consumes Greek data and combines with trade data to update the master `positions` table. Uses master symbol list approach to pull open positions from trades_fifo and closed positions directly from realized_fifo/lifo tables, avoiding dependency on daily_positions table.
 
 #### Spot Risk Pipeline (`lib/trading/actant/spot_risk/`)
 - **`file_watcher.py`**: Contains the `SpotRiskWatcher` (the "Producer"). Manages file watching, the parallel worker pool for calculations, and publishes results to the Redis channel.
 - **`database.py`**: `SpotRiskDatabaseService` for all interactions with the `spot_risk.db` SQLite database (now primarily for logging and historical session tracking).
 - **`parser.py`**: Logic for parsing the raw `bav_analysis_*.csv` files into a clean pandas DataFrame.
-- **`calculator.py`**: `SpotRiskGreekCalculator` which takes a DataFrame and calculates all required Greeks using the `bond_future_options` library. Now includes `_convert_itype_to_instrument_type()` method and adds `instrument_type` column to output DataFrame for proper instrument classification in the positions table.
+- **`calculator.py`**: `SpotRiskGreekCalculator` which takes a DataFrame and calculates all required Greeks using the `bond_future_options` library. Now includes `_convert_itype_to_instrument_type()` method and adds `instrument_type` column to output DataFrame for proper instrument classification in the positions table. Supports contract-specific DV01 values for futures (ZN: 64.2, US: 140, FV: 42, TU: 22.7) and configurable Greek calculations via GreekConfiguration.
+- **`greek_config.py`**: Greek configuration module that allows selective calculation of Greeks for performance optimization. Default enabled: delta, gamma, speed, theta in F and Y space. Supports environment variable override via SPOT_RISK_GREEKS_ENABLED.
 - **`time_calculator.py`**: Utilities for calculating `vtexp` (time to expiry) for options, using pre-calculated values from `data/input/vtexp/`. 

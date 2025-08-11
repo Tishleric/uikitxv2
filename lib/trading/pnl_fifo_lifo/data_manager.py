@@ -11,7 +11,10 @@ from pathlib import Path
 import os
 import re
 from glob import glob
-from .config import DEFAULT_SYMBOL, ALL_TABLES, METHODS
+import logging
+from .config import DEFAULT_SYMBOL, ALL_TABLES, METHODS, PNL_MULTIPLIER
+
+logger = logging.getLogger(__name__)
 
 def create_all_tables(conn, preserve_processed_files=False):
     """Create all required tables for PnL tracking
@@ -118,6 +121,8 @@ def create_all_tables(conn, preserve_processed_files=False):
         fifo_unrealized_pnl REAL DEFAULT 0,
         lifo_realized_pnl REAL DEFAULT 0,
         lifo_unrealized_pnl REAL DEFAULT 0,
+        fifo_unrealized_pnl_close REAL DEFAULT 0,
+        lifo_unrealized_pnl_close REAL DEFAULT 0,
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_trade_update TIMESTAMP,
         last_greek_update TIMESTAMP,
@@ -193,18 +198,28 @@ def load_csv_to_database(csv_file, conn, process_trade_func):
 
 def update_daily_positions_unrealized_pnl(conn):
     """
-    Update unrealized P&L for all symbols in daily_positions using simplified calculation
-    Formula: (Settle Price - Entry Price) × Quantity × 1000
+    Update unrealized P&L for all symbols in daily_positions using close prices.
+    Only updates if close price is from today (for Close PnL calculation).
+    Formula: (Close Price - Entry Price) × Quantity × 1000
     """
     from .pnl_engine import calculate_daily_simple_unrealized_pnl
     
     cursor = conn.cursor()
     today = pd.Timestamp.now().strftime('%Y-%m-%d')
     
-    # Get settle prices (close price type)
-    settle_query = "SELECT symbol, price FROM pricing WHERE price_type = 'close'"
-    settle_df = pd.read_sql_query(settle_query, conn)
+    # Get settle prices (close price type) - only from today
+    settle_query = """
+        SELECT symbol, price 
+        FROM pricing 
+        WHERE price_type = 'close' 
+        AND timestamp LIKE ? || '%'
+    """
+    settle_df = pd.read_sql_query(settle_query, conn, params=(today,))
     settle_prices = dict(zip(settle_df['symbol'], settle_df['price']))
+    
+    if not settle_prices:
+        logger.debug(f"No close prices found for {today}, skipping daily_positions unrealized update")
+        return
     
     # Get all symbols with daily positions today
     symbols_query = "SELECT DISTINCT symbol FROM daily_positions WHERE date = ?"
@@ -221,7 +236,8 @@ def update_daily_positions_unrealized_pnl(conn):
             unrealized_list = calculate_daily_simple_unrealized_pnl(positions, settle_prices)
             total_unrealized = sum(u['unrealizedPnL'] for u in unrealized_list)
             
-            # Update daily position
+            # Update daily position with Close PnL unrealized component
+            # Note: This represents the unrealized portion of Close PnL (using close prices)
             update_query = """
                 UPDATE daily_positions 
                 SET unrealized_pnl = ?, timestamp = ?
@@ -609,6 +625,17 @@ def update_current_price(conn, symbol, price, timestamp):
         """, (symbol, price, timestamp_str))
         
         conn.commit()
+        
+        # Publish Redis signal to trigger positions_aggregator refresh
+        try:
+            import redis
+            redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+            redis_client.publish("positions:changed", "price_update")
+            logger.debug(f"Published positions:changed signal after price update for {symbol}")
+        except Exception as redis_err:
+            # Don't fail the price update if Redis publish fails
+            logger.warning(f"Failed to publish Redis signal after price update: {redis_err}")
+        
         return True
         
     except Exception as e:

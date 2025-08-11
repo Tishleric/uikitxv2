@@ -3,23 +3,48 @@ Calculator for Greek calculations on spot risk positions.
 
 This module provides functionality to calculate implied volatility and Greeks
 for bond future options using the bond_future_options API.
+
+TODO: REMOVE HARDCODED ZN FUTURE SELECTION
+This module currently has a hardcoded fix to always use ZN futures for all options.
+This should be replaced with proper symbol parsing and future matching logic.
+See calculate_greeks() method around line 220.
 """
 
 import logging
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 
 # Import the new API
 from lib.trading.bond_future_options import GreekCalculatorAPI
-from lib.monitoring.decorators import monitor
+
+from .greek_config import GreekConfiguration
+from .greek_logger import greek_logger
 
 logger = logging.getLogger(__name__)
 
 # Default values for ZN futures (10-year US Treasury Note futures)
-DEFAULT_DV01 = 63.0  # Typical value for ZN futures
+DEFAULT_DV01 = 63.996  # Base DV01 for ZN (update as needed)
 DEFAULT_CONVEXITY = 0.0042  # Typical convexity for ZN futures
+
+# Weekly-adjustable hedge ratios (ZN is baseline)
+# Note: We derive per-contract DV01 by dividing the base by these ratios.
+HEDGE_RATIOS = {
+    'ZN': 1.0,
+    'US': 0.47,
+    'FV': 1.55,
+    'TU': 3.61,
+}
+
+# DV01 values for different futures contracts (derived, no rounding)
+FUTURES_DV01_MAP = {
+    'ZN': DEFAULT_DV01 / HEDGE_RATIOS['ZN'],
+    'US': DEFAULT_DV01 / HEDGE_RATIOS['US'],
+    'FV': DEFAULT_DV01 / HEDGE_RATIOS['FV'],
+    'TU': DEFAULT_DV01 / HEDGE_RATIOS['TU'],
+}
 
 
 @dataclass
@@ -66,7 +91,8 @@ class SpotRiskGreekCalculator:
     def __init__(self, 
                  dv01: float = DEFAULT_DV01, 
                  convexity: float = DEFAULT_CONVEXITY,
-                 model: str = 'bachelier_v1'):
+                 model: str = 'bachelier_v1',
+                 greek_config: Optional[GreekConfiguration] = None):
         """
         Initialize calculator with future DV01 and convexity.
         
@@ -74,10 +100,14 @@ class SpotRiskGreekCalculator:
             dv01: Dollar Value of 01 basis point for the future (default: 63.0)
             convexity: Convexity of the future (default: 0.0042)
             model: Model version to use (default: 'bachelier_v1')
+            greek_config: Optional Greek configuration for selective calculation
         """
         self.dv01 = dv01
         self.convexity = convexity
         self.model = model
+        
+        # Initialize Greek configuration
+        self.greek_config = greek_config or GreekConfiguration()
         
         # Create API instance
         self.api = GreekCalculatorAPI(default_model=model)
@@ -121,6 +151,59 @@ class SpotRiskGreekCalculator:
         
         return mapping.get(itype_upper, 'UNKNOWN')
     
+    def _get_futures_dv01(self, instrument_key: str) -> float:
+        """
+        Get DV01 value for a futures contract based on its type.
+        
+        This safely handles ActantRisk keys like 'XCME.ZN.SEP25' by extracting
+        the series from the second segment and mapping it to our DV01 keys.
+        Falls back to the first two characters for other formats and to
+        self.dv01 if no mapping is available.
+        
+        Args:
+            instrument_key: The instrument key (e.g., 'XCME.ZN.SEP25', 'ZNH5', 'USU5')
+            
+        Returns:
+            The DV01 value for the futures type, or the calculator default if not found
+        """
+        futures_type = ''
+        try:
+            if instrument_key and isinstance(instrument_key, str):
+                parts = instrument_key.split('.')
+                # ActantRisk futures: 'XCME.<SERIES>.<EXPIRY>'
+                if len(parts) >= 2 and parts[0].upper().endswith('CME'):
+                    futures_type = parts[1][:2].upper()
+                else:
+                    futures_type = instrument_key[:2].upper()
+        except Exception:
+            futures_type = instrument_key[:2].upper() if instrument_key else ''
+
+        # Map Actant series to DV01 map keys
+        # ZN -> ZN, ZF -> FV, ZT -> TU, ZB -> US
+        alias_map = {
+            'ZN': 'ZN',
+            'ZF': 'FV',
+            'ZT': 'TU',
+            'ZB': 'US',
+        }
+        dv01_key = alias_map.get(futures_type, futures_type)
+
+        # Return mapped value or default
+        dv01_value = FUTURES_DV01_MAP.get(dv01_key, self.dv01)
+        
+        # Log for transparency (only on first encounter)
+        if not hasattr(self, '_logged_futures_types'):
+            self._logged_futures_types = set()
+        
+        if dv01_key not in self._logged_futures_types:
+            self._logged_futures_types.add(dv01_key)
+            if dv01_key in FUTURES_DV01_MAP:
+                logger.info(f"Using DV01={dv01_value} for {dv01_key} futures")
+            else:
+                logger.debug(f"No specific DV01 for {dv01_key}, using default {self.dv01}")
+        
+        return dv01_value
+    
     def calculate_greeks(self, 
                          df: pd.DataFrame,
                          future_price_col: str = 'future_price',
@@ -139,7 +222,6 @@ class SpotRiskGreekCalculator:
             - List of GreekResult objects (including errors)
         """
         results = []
-        total_rows = len(df)
         
         # Log DataFrame info for debugging
         logger.info(f"DataFrame shape: {df.shape}")
@@ -166,19 +248,39 @@ class SpotRiskGreekCalculator:
         
         # Fallback to itype column if Instrument Type not found
         if future_price is None and 'itype' in df.columns:
-            logger.info(f"Checking 'itype' column for 'F'...")
+            logger.info("Checking 'itype' column for 'F'...")
             # Check raw values first
             logger.info(f"Raw itype unique values: {df['itype'].unique()}")
             # Handle case sensitivity - convert to uppercase for comparison
             future_rows = df[df['itype'].astype(str).str.upper() == 'F']
             logger.info(f"Found {len(future_rows)} rows with itype='F'")
+            
             if len(future_rows) > 0:
-                logger.info(f"Future row data: {future_rows.iloc[0].to_dict()}")
-                if 'midpoint_price' in future_rows.columns:
-                    future_price = future_rows.iloc[0]['midpoint_price']
-                    logger.info(f"Found future price from future row (itype): {future_price}")
+                # TODO: TEMPORARY HARDCODED FIX - Remove when proper future mapping is implemented
+                # Currently hardcoded to use ZN future price for all options
+                
+                # Try to find ZN future specifically
+                zn_future = None
+                for idx, row in future_rows.iterrows():
+                    key = str(row.get('key', '')).upper()
+                    if '.ZN.' in key:
+                        zn_future = row
+                        logger.info(f"Found ZN future: {key}")
+                        break
+                
+                # Use ZN future if found, otherwise fall back to first future
+                if zn_future is not None:
+                    if 'midpoint_price' in zn_future.index:
+                        future_price = zn_future['midpoint_price']
+                        logger.info(f"Using ZN future price: {future_price}")
+                    else:
+                        logger.warning("midpoint_price not found in ZN future row")
                 else:
-                    logger.warning(f"midpoint_price column not found in future rows. Available columns: {list(future_rows.columns)}")
+                    # Fallback to first future if ZN not found
+                    logger.info("ZN future not found, using first available future")
+                    if 'midpoint_price' in future_rows.columns:
+                        future_price = future_rows.iloc[0]['midpoint_price']
+                        logger.info(f"Using fallback future price: {future_price}")
         
         # If not found, try the future_price column
         if future_price is None and future_price_col in df.columns:
@@ -204,6 +306,10 @@ class SpotRiskGreekCalculator:
             )
             raise ValueError(error_msg)
         
+        # Log the detected future price
+        if greek_logger.isEnabledFor(logging.DEBUG):
+            greek_logger.debug(f"FUTURE_PRICE_DETECTED: {future_price}")
+        
         # Filter options only - check both cases
         if 'Instrument Type' in df.columns:
             option_mask = df['Instrument Type'].isin(['CALL', 'PUT'])
@@ -219,7 +325,9 @@ class SpotRiskGreekCalculator:
         
         if len(options_df) == 0:
             logger.info("No options found in DataFrame")
-            return self._add_empty_greek_columns(df), []
+            # Disabled early return to allow futures-only batches to reach
+            # the hardcoded futures Greeks section below.
+            # return self._add_empty_greek_columns(df), []
         
         # Prepare options data for API
         options_data = []
@@ -247,12 +355,27 @@ class SpotRiskGreekCalculator:
                 '_instrument_key': row.get('instrument_key', row.get('key', row.get('Product', 'Unknown')))
             })
         
-        # Call API for batch processing
-        logger.info(f"Calculating Greeks for {len(options_data)} options")
+        # Call API for batch processing with requested Greeks only
+        requested_greeks = self.greek_config.get_api_requested_greeks()
+        logger.info(
+            f"Calculating Greeks for {len(options_data)} options with "
+            f"{len(requested_greeks)} Greeks: {requested_greeks}"
+        )
+        
+        # Debug log API call details
+        if greek_logger.isEnabledFor(logging.DEBUG) and len(options_data) > 0:
+            sample = options_data[0]
+            greek_logger.debug(
+                f"API_CALL: model={self.model}, F={sample['F']}, K={sample['K']}, "
+                f"T={sample['T']}, mkt_price={sample['market_price']}, type={sample['option_type']}, "
+                f"DV01={self.model_params['future_dv01']*1000}"
+            )
+        
         api_results = self.api.analyze(
             options_data, 
             model=self.model,
-            model_params=self.model_params
+            model_params=self.model_params,
+            requested_greeks=requested_greeks
         )
         
         # Process results and create GreekResult objects
@@ -276,16 +399,44 @@ class SpotRiskGreekCalculator:
                 result.calc_vol = api_result['volatility']
                 result.success = True
                 
-                # Extract all Greeks
+                # Extract Greeks - only set values for enabled Greeks
                 greeks = api_result['greeks']
+                
+                # Process all possible Greeks
                 for greek_name in ['delta_F', 'delta_y', 'gamma_F', 'gamma_y', 
                                   'vega_price', 'vega_y', 'theta_F', 'volga_price',
                                   'vanna_F_price', 'charm_F', 'speed_F', 'speed_y', 'color_F',
                                   'ultima', 'zomma']:
-                    setattr(result, greek_name, greeks.get(greek_name, 0.0))
+                    if self.greek_config.is_enabled(greek_name):
+                        # Set the calculated value for enabled Greeks
+                        setattr(result, greek_name, greeks.get(greek_name, 0.0))
+                    else:
+                        # Set None for disabled Greeks (will become NaN in DataFrame)
+                        setattr(result, greek_name, None)
                 
-                logger.debug(f"Successfully calculated Greeks for {result.instrument_key}: "
-                           f"IV={result.implied_volatility:.4f}, delta_y={result.delta_y:.4f}")
+                # Log success with available values
+                log_msg = f"Successfully calculated Greeks for {result.instrument_key}"
+                if result.implied_volatility is not None:
+                    log_msg += f": IV={result.implied_volatility:.4f}"
+                if result.delta_y is not None:
+                    log_msg += f", delta_y={result.delta_y:.4f}"
+                logger.debug(log_msg)
+                
+                # Debug log detailed Greek results
+                if greek_logger.isEnabledFor(logging.DEBUG):
+                    # Build log message with only available Greeks
+                    log_parts = [f"RESULT: key={result.instrument_key}"]
+                    if result.implied_volatility is not None:
+                        log_parts.append(f"IV={result.implied_volatility:.6f}")
+                    if result.delta_F is not None:
+                        log_parts.append(f"delta_F={result.delta_F:.4f}")
+                    if result.gamma_F is not None:
+                        log_parts.append(f"gamma_F={result.gamma_F:.6f}")
+                    if result.vega_price is not None:
+                        log_parts.append(f"vega_price={result.vega_price:.4f}")
+                    if result.theta_F is not None:
+                        log_parts.append(f"theta_F={result.theta_F:.4f}")
+                    greek_logger.debug(", ".join(log_parts))
             else:
                 # Handle error
                 result.success = False
@@ -375,16 +526,16 @@ class SpotRiskGreekCalculator:
         logger.info("Processing futures rows with hardcoded Greeks")
         
         # Filter futures - check both cases
-        if 'Instrument Type' in df.columns:
-            futures_mask = df['Instrument Type'].str.upper() == 'FUTURE'
-        elif 'instrument type' in df.columns:
-            futures_mask = df['instrument type'].str.upper() == 'FUTURE'
-        elif 'itype' in df.columns:
-            futures_mask = df['itype'].str.upper().isin(['F', 'FUTURE'])
+        if 'Instrument Type' in df_copy.columns:
+            futures_mask = df_copy['Instrument Type'].str.upper() == 'FUTURE'
+        elif 'instrument type' in df_copy.columns:
+            futures_mask = df_copy['instrument type'].str.upper() == 'FUTURE'
+        elif 'itype' in df_copy.columns:
+            futures_mask = df_copy['itype'].str.upper().isin(['F', 'FUTURE'])
         else:
-            futures_mask = pd.Series([False] * len(df))
+            futures_mask = pd.Series([False] * len(df_copy))
         
-        futures_df = df[futures_mask]
+        futures_df = df_copy[futures_mask]
         
         if len(futures_df) > 0:
             logger.info(f"Setting hardcoded Greeks for {len(futures_df)} futures rows")
@@ -395,8 +546,10 @@ class SpotRiskGreekCalculator:
                 df_copy.at[idx, 'delta_F'] = 1.0
                 df_copy.at[idx, 'gamma_F'] = 0.0
                 
-                # Y-space conversions using DV01
-                df_copy.at[idx, 'delta_y'] = 63.0
+                # Y-space conversions using DV01 (now contract-specific)
+                row = df_copy.loc[idx]
+                futures_dv01 = self._get_futures_dv01(row['key'])
+                df_copy.at[idx, 'delta_y'] = futures_dv01
                 df_copy.at[idx, 'gamma_y'] = 0.0042 # This is convexity, not gamma
                 
                 # All other Greeks are 0 for futures
@@ -633,10 +786,18 @@ class SpotRiskGreekCalculator:
                 net_row['price_source'] = 'aggregate'
             
             # Copy other columns with appropriate defaults
+            all_greek_columns = set(['delta_F', 'delta_y', 'gamma_F', 'gamma_y', 
+                                    'vega_price', 'vega_y', 'theta_F', 'volga_price',
+                                    'vanna_F_price', 'charm_F', 'speed_F', 'speed_y', 
+                                    'color_F', 'ultima', 'zomma'])
+            
             for col in df_copy.columns:
                 if col not in net_row:
-                    # Set appropriate default based on column type
-                    if df_copy[col].dtype in ['float64', 'int64']:
+                    # For Greek columns not in the requested list, keep as NaN
+                    if col in all_greek_columns and col not in greek_columns:
+                        net_row[col] = np.nan
+                    # Set appropriate default for other columns
+                    elif df_copy[col].dtype in ['float64', 'int64']:
                         net_row[col] = 0
                     else:
                         net_row[col] = ''

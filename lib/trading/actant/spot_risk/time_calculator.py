@@ -184,7 +184,8 @@ def read_vtexp_from_csv(vtexp_dir: str = "data/input/vtexp") -> Dict[str, float]
         reader = csv.DictReader(f)
         for row in reader:
             symbol = row['symbol']
-            vtexp = float(row['vtexp'])
+            # Convert from days to years (252 trading days per year)
+            vtexp = float(row['vtexp']) / 252
             vtexp_map[symbol] = vtexp
     
     logger.info(f"Loaded {len(vtexp_map)} vtexp values from CSV")

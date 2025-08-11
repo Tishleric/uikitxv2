@@ -49,7 +49,7 @@ FUTURES_SYMBOLS = {
     'TU': 'TUU5 Comdty',  # 2-year
     'FV': 'FVU5 Comdty',  # 5-year
     'TY': 'TYU5 Comdty',  # 10-year
-    'US': 'USU5 Comdty',  # Ultra Bond
+    'US': 'USU5 Comdty',  # 20-Year
     'RX': 'RXU5 Comdty'   # Euro-Bund
 }
 

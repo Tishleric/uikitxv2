@@ -70,9 +70,31 @@ class PositionsAggregator:
                 current_trading_day = get_trading_day(datetime.now()).strftime('%Y-%m-%d')
                 
                 # Query to get all position data we need
-                # This consolidates the queries from _get_trade_data into a single efficient query
+                # Pull directly from trades and realized tables for consistency
                 query = """
-                WITH position_summary AS (
+                WITH all_symbols AS (
+                    -- Get all unique symbols from both open and closed positions
+                    SELECT DISTINCT symbol FROM trades_fifo WHERE quantity > 0
+                    UNION
+                    SELECT DISTINCT symbol FROM realized_fifo
+                    WHERE 
+                        -- Only include symbols with trades today
+                        DATE(timestamp, 
+                             CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                  THEN '+1 day' 
+                                  ELSE '+0 day' 
+                             END) = ?
+                    UNION  
+                    SELECT DISTINCT symbol FROM realized_lifo
+                    WHERE 
+                        -- Only include symbols with trades today
+                        DATE(timestamp, 
+                             CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                  THEN '+1 day' 
+                                  ELSE '+0 day' 
+                             END) = ?
+                ),
+                open_positions AS (
                     -- Get open positions from FIFO
                     SELECT 
                         symbol,
@@ -81,33 +103,59 @@ class PositionsAggregator:
                     WHERE quantity > 0
                     GROUP BY symbol
                 ),
-                daily_summary AS (
-                    -- Get realized P&L and closed positions for current trading day
+                closed_positions_fifo AS (
+                    -- Get closed positions and realized P&L from realized_fifo for current trading day
                     SELECT 
                         symbol,
-                        MAX(CASE WHEN method = 'fifo' THEN realized_pnl END) as fifo_realized_pnl,
-                        MAX(CASE WHEN method = 'lifo' THEN realized_pnl END) as lifo_realized_pnl,
-                        MAX(CASE WHEN method = 'fifo' THEN closed_position END) as closed_position
-                    FROM daily_positions
-                    WHERE date = ?
+                        SUM(ABS(quantity)) as closed_position,
+                        SUM(realizedPnL) as fifo_realized_pnl
+                    FROM realized_fifo
+                    WHERE 
+                        -- Calculate trading day: if hour >= 17 (5pm Chicago time), use next day
+                        DATE(timestamp, 
+                             CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                  THEN '+1 day' 
+                                  ELSE '+0 day' 
+                             END) = ?
+                    GROUP BY symbol
+                ),
+                closed_positions_lifo AS (
+                    -- Get realized P&L from realized_lifo for current trading day
+                    SELECT 
+                        symbol,
+                        SUM(realizedPnL) as lifo_realized_pnl
+                    FROM realized_lifo
+                    WHERE 
+                        -- Calculate trading day: if hour >= 17 (5pm Chicago time), use next day
+                        DATE(timestamp, 
+                             CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                  THEN '+1 day' 
+                                  ELSE '+0 day' 
+                             END) = ?
                     GROUP BY symbol
                 )
                 SELECT 
-                    COALESCE(p.symbol, d.symbol) as symbol,
-                    COALESCE(p.open_position, 0) as open_position,
-                    COALESCE(d.closed_position, 0) as closed_position,
-                    COALESCE(d.fifo_realized_pnl, 0) as fifo_realized_pnl,
-                    COALESCE(d.lifo_realized_pnl, 0) as lifo_realized_pnl
-                FROM position_summary p
-                FULL OUTER JOIN daily_summary d ON p.symbol = d.symbol
+                    s.symbol,
+                    COALESCE(o.open_position, 0) as open_position,
+                    COALESCE(cf.closed_position, 0) as closed_position,
+                    COALESCE(cf.fifo_realized_pnl, 0) as fifo_realized_pnl,
+                    COALESCE(cl.lifo_realized_pnl, 0) as lifo_realized_pnl
+                FROM all_symbols s
+                LEFT JOIN open_positions o ON s.symbol = o.symbol
+                LEFT JOIN closed_positions_fifo cf ON s.symbol = cf.symbol
+                LEFT JOIN closed_positions_lifo cl ON s.symbol = cl.symbol
                 """
                 
                 # Load the base position data
-                self.positions_cache = pd.read_sql_query(query, conn, params=(current_trading_day,))
+                self.positions_cache = pd.read_sql_query(query, conn, params=[current_trading_day, current_trading_day, current_trading_day, current_trading_day])
                 
-                # Add placeholder columns for unrealized P&L and Greeks
+                # Add placeholder columns for unrealized P&L
                 self.positions_cache['fifo_unrealized_pnl'] = 0.0
                 self.positions_cache['lifo_unrealized_pnl'] = 0.0
+                self.positions_cache['fifo_unrealized_pnl_close'] = 0.0
+                self.positions_cache['lifo_unrealized_pnl_close'] = 0.0
+                
+                # Initialize Greek columns but preserve existing values from cache
                 self.positions_cache['delta_y'] = None
                 self.positions_cache['gamma_y'] = None
                 self.positions_cache['speed_y'] = None
@@ -115,6 +163,23 @@ class PositionsAggregator:
                 self.positions_cache['vega'] = None
                 self.positions_cache['has_greeks'] = False
                 self.positions_cache['instrument_type'] = None
+                
+                # Restore Greeks from cache if available
+                if hasattr(self, 'greek_data_cache') and self.greek_data_cache:
+                    for symbol in self.positions_cache['symbol']:
+                        if symbol in self.greek_data_cache:
+                            greek_data = self.greek_data_cache[symbol]
+                            open_position = self.positions_cache.loc[self.positions_cache['symbol'] == symbol, 'open_position'].values[0]
+                            
+                            # Restore position-weighted Greeks
+                            idx = self.positions_cache['symbol'] == symbol
+                            self.positions_cache.loc[idx, 'delta_y'] = self._safe_multiply(greek_data.get('delta_y'), open_position)
+                            self.positions_cache.loc[idx, 'gamma_y'] = self._safe_multiply(greek_data.get('gamma_y'), open_position)
+                            self.positions_cache.loc[idx, 'speed_y'] = self._safe_multiply(greek_data.get('speed_y'), open_position)
+                            self.positions_cache.loc[idx, 'theta'] = self._safe_multiply(greek_data.get('theta_F'), open_position)
+                            self.positions_cache.loc[idx, 'vega'] = self._safe_multiply(greek_data.get('vega_y'), open_position)
+                            self.positions_cache.loc[idx, 'has_greeks'] = True
+                            self.positions_cache.loc[idx, 'instrument_type'] = greek_data.get('instrument_type')
                 
                 # Calculate unrealized P&L for all positions
                 price_dicts = load_pricing_dictionaries(conn)
@@ -125,13 +190,36 @@ class PositionsAggregator:
                         # Group by symbol and calculate total unrealized P&L
                         for symbol in positions_df['symbol'].unique():
                             symbol_positions = positions_df[positions_df['symbol'] == symbol]
+                            
+                            # Calculate LIVE unrealized P&L
                             unrealized_list = calculate_unrealized_pnl(symbol_positions, price_dicts, 'live')
                             total_unrealized = sum(u['unrealizedPnL'] for u in unrealized_list)
+                            
+                            # Calculate CLOSE unrealized P&L
+                            total_unrealized_close = 0.0
+                            # Check if we have today's close price
+                            today = datetime.now().strftime('%Y-%m-%d')
+                            close_query = """
+                            SELECT price, timestamp 
+                            FROM pricing 
+                            WHERE symbol = ? AND price_type = 'close'
+                            """
+                            close_result = conn.execute(close_query, (symbol,)).fetchone()
+                            
+                            if close_result and close_result[1] and close_result[1].startswith(today):
+                                # Create modified price dict with close price as 'now'
+                                close_price_dicts = price_dicts.copy()
+                                close_price_dicts['now'] = price_dicts.get('close', {}).copy()
+                                
+                                # Calculate unrealized with close prices
+                                unrealized_close_list = calculate_unrealized_pnl(symbol_positions, close_price_dicts, 'live')
+                                total_unrealized_close = sum(u['unrealizedPnL'] for u in unrealized_close_list)
                             
                             # Update the cache
                             mask = self.positions_cache['symbol'] == symbol
                             if mask.any():
                                 self.positions_cache.loc[mask, f'{method}_unrealized_pnl'] = total_unrealized
+                                self.positions_cache.loc[mask, f'{method}_unrealized_pnl_close'] = total_unrealized_close
                 
                 load_time = time.time() - start_time
                 logger.info(f"Loaded {len(self.positions_cache)} positions into memory in {load_time:.2f}s")
@@ -163,6 +251,11 @@ class PositionsAggregator:
                     # This channel still sends simple string messages
                     logger.info("Received positions:changed signal. Refreshing cache from database...")
                     self._load_positions_from_db()
+                    
+                    # Queue the updated positions for writing to database
+                    if not self.positions_cache.empty:
+                        logger.debug("Queueing updated positions for database write after price change")
+                        self.db_write_queue.put(self.positions_cache.copy())
                     
                     # Also update daily positions with new prices
                     conn = sqlite3.connect(self.trades_db_path)
@@ -292,9 +385,10 @@ class PositionsAggregator:
                         delta_y, gamma_y, speed_y, theta, vega,
                         fifo_realized_pnl, fifo_unrealized_pnl,
                         lifo_realized_pnl, lifo_unrealized_pnl,
+                        fifo_unrealized_pnl_close, lifo_unrealized_pnl_close,
                         last_updated, last_trade_update, last_greek_update,
                         has_greeks, instrument_type
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     row['symbol'],
                     row['open_position'],
@@ -308,6 +402,8 @@ class PositionsAggregator:
                     row['fifo_unrealized_pnl'],
                     row['lifo_realized_pnl'],
                     row['lifo_unrealized_pnl'],
+                    row.get('fifo_unrealized_pnl_close', 0),
+                    row.get('lifo_unrealized_pnl_close', 0),
                     now,
                     now,  # last_trade_update
                     now if row['has_greeks'] else None,  # last_greek_update
