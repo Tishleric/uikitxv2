@@ -1,0 +1,418 @@
+undo
+redo
+UST 10Yr (~9yr Duration) (sent by ethanchamo@fibonacciresearch.in)
+help
+hwang@frgm.in
+Live market data status:
+Not Connected
+
+Delayed feeds status:
+Enabled
+
+See our troubleshooting page for further info.
+Bid
+Ask
+Price
+Trade
+Description
+Implied Vol
+(Daily BP)
+Bloomberg
+Strike
+Trade
+Amount
+DV01
+Underlying
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+#1st Call/Put#
+0−00.4
+0−00
+1st 10y note 150 out call
+13.75
+TYU5C 113.500 Comdty
+113.50
+0.0000
+112−03.25
+0−00.4
+0−00
+1st 10y note 125 out call
+13.75
+TYU5C 113.250 Comdty
+113.25
+0.0001
+112−03.25
+0−00.4
+0−00.1
+1st 10y note 100 out call
+13.75
+TYU5C 113.000 Comdty
+113.00
+0.0006
+112−03.25
+0−00.4
+0−00.4
+0−00.4
+1st 10y note 75 out call
+13.75
+TYU5C 112.750 Comdty
+112.75
+0.0029
+112−03.25
+0−00.4
+0−00.4
+0−00.4
+1st 10y note 50 out call
+9.35
+TYU5C 112.500 Comdty
+112.50
+0.0040
+112−03.25
+0−00.4
+0−00.4
+0−00.4
+1st 10y note 25 out call
+4.47
+TYU5C 112.250 Comdty
+112.25
+0.0076
+112−03.25
+0−07
+0−08
+0−07.5
+1st 10y note 0 out call
+4.55
+TYU5C 112.000 Comdty
+112.00
+0.0505
+112−03.25
+0−00.4
+0−01
+0−00.7
+1st 10y note 0 out put
+4.03
+TYU5P 112.000 Comdty
+112.00
+−0.0118
+112−03.25
+0−00.4
+0−00.4
+0−00.4
+1st 10y note 25 out put
+8.48
+TYU5P 111.750 Comdty
+111.75
+−0.0044
+112−03.25
+0−00.4
+0−00.4
+0−00.4
+1st 10y note 50 out put
+12.95
+TYU5P 111.500 Comdty
+111.50
+−0.0030
+112−03.25
+0−01
+0−00.4
+0−00.7
+1st 10y note 75 out put
+18.66
+TYU5P 111.250 Comdty
+111.25
+−0.0032
+112−03.25
+0−00.4
+0−00.4
+0−00.4
+1st 10y note 100 out put
+21.20
+TYU5P 111.000 Comdty
+111.00
+−0.0019
+112−03.25
+0−00.4
+0−00.4
+0−00.4
+1st 10y note 125 out put
+25.14
+TYU5P 110.750 Comdty
+110.75
+−0.0017
+112−03.25
+0−00.4
+0−00.2
+1st 10y note 150 out put
+25.14
+TYU5P 110.500 Comdty
+110.50
+−0.0007
+112−03.25
+#2nd Call/Put#
+0−00.4
+0−00
+2nd 10y note 150 out call
+9.01
+VBYQ25C4 113.750 Comdty
+113.75
+0.0002
+112−04.75
+0−00.4
+0−00.1
+2nd 10y note 125 out call
+9.01
+VBYQ25C4 113.500 Comdty
+113.50
+0.0007
+112−04.75
+0−00.4
+0−00.4
+0−00.4
+2nd 10y note 100 out call
+9.01
+VBYQ25C4 113.250 Comdty
+113.25
+0.0020
+112−04.75
+0−00.4
+0−00.4
+0−00.4
+2nd 10y note 75 out call
+7.29
+VBYQ25C4 113.000 Comdty
+113.00
+0.0024
+112−04.75
+0−00.4
+0−01
+0−00.7
+2nd 10y note 50 out call
+6.04
+VBYQ25C4 112.750 Comdty
+112.75
+0.0041
+112−04.75
+0−01
+0−02
+0−01.5
+2nd 10y note 25 out call
+4.97
+VBYQ25C4 112.500 Comdty
+112.50
+0.0090
+112−04.75
+0−04
+0−05
+0−04.5
+2nd 10y note 0 out call
+4.37
+VBYQ25C4 112.250 Comdty
+112.25
+0.0232
+112−04.75
+0−11
+0−12
+0−11.5
+2nd 10y note 0 out put
+4.69
+VBYQ25P4 112.250 Comdty
+112.25
+−0.0402
+112−04.75
+0−03
+0−04
+0−03.5
+2nd 10y note 25 out put
+4.37
+VBYQ25P4 112.000 Comdty
+112.00
+−0.0192
+112−04.75
+0−00.4
+0−01
+0−00.7
+2nd 10y note 50 out put
+4.41
+VBYQ25P4 111.750 Comdty
+111.75
+−0.0053
+112−04.75
+0−00.4
+0−00.4
+0−00.4
+2nd 10y note 75 out put
+5.85
+VBYQ25P4 111.500 Comdty
+111.50
+−0.0028
+112−04.75
+0−00.4
+0−00.4
+0−00.4
+2nd 10y note 100 out put
+7.62
+VBYQ25P4 111.250 Comdty
+111.25
+−0.0022
+112−04.75
+0−00.4
+0−00.4
+0−00.4
+2nd 10y note 125 out put
+9.33
+VBYQ25P4 111.000 Comdty
+111.00
+−0.0019
+112−04.75
+0−00.4
+0−00.4
+0−00.4
+2nd 10y note 150 out put
+11.00
+VBYQ25P4 110.750 Comdty
+110.75
+−0.0016
+112−04.75
+#3rd Call/Put#
+0−00.4
+0−01
+0−00.7
+3rd 10y note 150 out call
+9.46
+TJPQ25C4 113.750 Comdty
+113.75
+0.0021
+112−04.75
+0−00.4
+0−01
+0−00.7
+3rd 10y note 125 out call
+8.23
+TJPQ25C4 113.500 Comdty
+113.50
+0.0024
+112−04.75
+0−00.4
+0−01
+0−00.7
+3rd 10y note 100 out call
+6.97
+TJPQ25C4 113.250 Comdty
+113.25
+0.0027
+112−04.75
+0−00.4
+0−01
+0−00.7
+3rd 10y note 75 out call
+5.67
+TJPQ25C4 113.000 Comdty
+113.00
+0.0032
+112−04.75
+0−01
+0−02
+0−01.5
+3rd 10y note 50 out call
+5.17
+TJPQ25C4 112.750 Comdty
+112.75
+0.0066
+112−04.75
+0−02
+0−03
+0−02.5
+3rd 10y note 25 out call
+4.26
+TJPQ25C4 112.500 Comdty
+112.50
+0.0118
+112−04.75
+0−06
+0−07
+0−06.5
+3rd 10y note 0 out call
+4.03
+TJPQ25C4 112.250 Comdty
+112.25
+0.0251
+112−04.75
+0−13
+0−15
+0−14
+3rd 10y note 0 out put
+4.47
+TJPQ25P4 112.250 Comdty
+112.25
+−0.0381
+112−04.75
+0−05
+0−06
+0−05.5
+3rd 10y note 25 out put
+4.07
+TJPQ25P4 112.000 Comdty
+112.00
+−0.0220
+112−04.75
+0−01
+0−02
+0−01.5
+3rd 10y note 50 out put
+3.86
+TJPQ25P4 111.750 Comdty
+111.75
+−0.0083
+112−04.75
+0−00.4
+0−01
+0−00.7
+3rd 10y note 75 out put
+4.57
+TJPQ25P4 111.500 Comdty
+111.50
+−0.0038
+112−04.75
+;

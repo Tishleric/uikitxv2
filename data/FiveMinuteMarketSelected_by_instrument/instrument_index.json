@@ -1,0 +1,1328 @@
+[
+  {
+    "expiry": "19AUG25",
+    "strike": "110.0",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_110_0_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "110.25",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_110_25_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "110.5",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_110_5_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "110.75",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_110_75_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "111.0",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_111_0_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "111.25",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_111_25_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "111.5",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_111_5_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "111.75",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_111_75_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "112.0",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_112_0_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "112.25",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_112_25_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "112.5",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_112_5_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "112.75",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_112_75_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "113.0",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_113_0_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "113.25",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_113_25_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "113.5",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_113_5_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "113.75",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_113_75_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "114.0",
+    "itype": "C",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_114_0_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "110.0",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_110_0_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "110.25",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_110_25_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "110.5",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_110_5_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "110.75",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_110_75_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "111.0",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_111_0_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "111.25",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_111_25_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "111.5",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_111_5_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "111.75",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_111_75_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "112.0",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_112_0_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "112.25",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_112_25_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "112.5",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_112_5_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "112.75",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_112_75_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "113.0",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_113_0_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "113.25",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_113_25_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "113.5",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_113_5_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "110.0",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_110_0_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "110.25",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_110_25_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "110.5",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_110_5_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "110.75",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_110_75_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "111.0",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_111_0_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "111.25",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_111_25_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "111.5",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_111_5_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "111.75",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_111_75_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "112.0",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_112_0_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "112.25",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_112_25_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "112.5",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_112_5_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "112.75",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_112_75_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "113.0",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_113_0_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "113.25",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_113_25_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "113.5",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_113_5_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "113.75",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_113_75_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "114.0",
+    "itype": "C",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_114_0_C.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "113.75",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_113_75_P.csv"
+  },
+  {
+    "expiry": "19AUG25",
+    "strike": "114.0",
+    "itype": "P",
+    "rows": 272,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-19 16:59:27",
+    "source_days": [
+      "2025-08-19"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\19AUG25\\19AUG25_114_0_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "110.0",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_110_0_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "110.25",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_110_25_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "110.5",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_110_5_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "110.0",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_110_0_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "110.25",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_110_25_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "110.5",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_110_5_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "110.75",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_110_75_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "111.0",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_111_0_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "111.25",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_111_25_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "111.5",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_111_5_C.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "110.75",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_110_75_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "111.0",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_111_0_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "111.25",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_111_25_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "111.5",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_111_5_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "111.75",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_111_75_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "112.0",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_112_0_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "112.25",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_112_25_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "112.5",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_112_5_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "112.75",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_112_75_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "113.0",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_113_0_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "113.25",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_113_25_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "113.5",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_113_5_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "113.75",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_113_75_P.csv"
+  },
+  {
+    "expiry": "20AUG25",
+    "strike": "114.0",
+    "itype": "P",
+    "rows": 548,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-20 16:59:26",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\20AUG25\\20AUG25_114_0_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "111.75",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_111_75_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "112.0",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_112_0_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "112.25",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_112_25_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "112.5",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_112_5_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "112.75",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_112_75_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "113.0",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_113_0_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "113.25",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_113_25_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "113.5",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_113_5_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "113.75",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_113_75_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "114.0",
+    "itype": "C",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_114_0_C.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "110.0",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_110_0_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "110.25",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_110_25_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "110.5",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_110_5_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "110.75",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_110_75_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "111.0",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_111_0_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "111.25",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_111_25_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "111.5",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_111_5_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "111.75",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_111_75_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "112.0",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_112_0_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "112.25",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_112_25_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "112.5",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_112_5_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "112.75",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_112_75_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "113.0",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_113_0_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "113.25",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_113_25_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "113.5",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_113_5_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "113.75",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_113_75_P.csv"
+  },
+  {
+    "expiry": "21AUG25",
+    "strike": "114.0",
+    "itype": "P",
+    "rows": 817,
+    "first_ts": "2025-08-18 18:04:30",
+    "last_ts": "2025-08-21 16:59:36",
+    "source_days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21"
+    ],
+    "path": "data\\FiveMinuteMarketSelected_by_instrument\\21AUG25\\21AUG25_114_0_P.csv"
+  }
+]

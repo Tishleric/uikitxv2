@@ -2,7 +2,8 @@ import numpy as np
 from scipy.stats import norm
 import pandas as pd
 from .pricing_engine import BondFutureOption
-
+from typing import Callable, Tuple
+'''
 def solve_implied_volatility(option_model, F, K, T, market_price, option_type='put', 
                            initial_guess=100.0, tolerance=1e-9, max_iterations=100):
     """
@@ -93,6 +94,33 @@ def solve_implied_volatility(option_model, F, K, T, market_price, option_type='p
                 print(f"  Iter {i}: vol={vol:.6f}, error={err:.9f}")
     
     return price_volatility, option_price
+'''
+
+def solve_implied_volatility(option_model, F, K, T, market_price, option_type='put', 
+                           initial_guess=100.0, tolerance=1e-9, max_iterations=100):
+
+    def bisection(f: Callable[[float], float], a: float, b: float,
+              xtol: float=1e-16, ftol: float=1e-12, maxit: int=400) -> Tuple[float,int]:
+        fa, fb = f(a), f(b)
+        if fa == 0: return a, 1
+        if fb == 0: return b, 2
+        if fa*fb > 0: raise ValueError("Need a sign-change bracket.")
+        it = 0
+        while it < maxit:
+            it += 1
+            c = 0.5*(a+b); fc = f(c)
+            if abs(fc) <= ftol or abs(b-a) <= xtol*(1+abs(c)): return c, it
+            if fa*fc < 0: b, fb = c, fc
+            else: a, fa = c, fc
+        return 0.5*(a+b), it
+
+    def f_sigma(sig): return option_model.bachelier_future_option_price(F, K, T, sig, option_type) - market_price
+    lo, hi = 0.0, 1e-4
+    while f_sigma(hi) < 0: hi *= 2.0
+    root_bis, it_bis = bisection(f_sigma, lo, hi, xtol=1e-16, ftol=1e-16)
+
+    error = option_model.bachelier_future_option_price(F, K, T, root_bis, option_type) - market_price
+    return root_bis, error
 
 def calculate_all_greeks(option_model, F, K, T, price_volatility, option_type='put'):
     """
@@ -266,4 +294,12 @@ def validate_refactoring():
 
 if __name__ == "__main__":
     # Run validation
-    validate_refactoring() 
+    option_model = BondFutureOption(0.063, 0.002404, 0.05)
+    F = 110+0.75
+    K = 110
+    T = 4.7/252.
+    market_price = 0.75
+    vol = solve_implied_volatility(option_model, F, K, T, market_price, option_type='call')[0] 
+    print("implied volatility:", vol)
+    print("theoretical price:", option_model.bachelier_future_option_price(F, K, T, vol, option_type='call'))
+    print("market price:", market_price)

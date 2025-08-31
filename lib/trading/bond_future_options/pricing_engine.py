@@ -121,31 +121,24 @@ class BondFutureOption:
         """Price bond future option using Bachelier model with price volatility input"""
 
         if T <= 0:
-
             return max(F - K, 0) if option_type == 'call' else max(K - F, 0)
 
-       
-
+       # Add check for zero volatility
+        if price_volatility <= 0:
+            # When volatility is zero, option price is just intrinsic value
+            return max(F - K, 0) if option_type == 'call' else max(K - F, 0)
+        
         # Use price volatility directly (futures trade in price terms)
-
         future_price_volatility = price_volatility
-
-       
-
+   
         # Standard Bachelier pricing
-
         sigma_sqrt_T = future_price_volatility * np.sqrt(T)
-
         d = (F - K) / sigma_sqrt_T
 
         # print(d)  # Debug print commented out
-
         if option_type == 'call':
-
             price = (F - K) * norm.cdf(d) + sigma_sqrt_T * norm.pdf(d)
-
         else:  # put
-
             price = (K - F) * norm.cdf(-d) + sigma_sqrt_T * norm.pdf(d)
 
         return price

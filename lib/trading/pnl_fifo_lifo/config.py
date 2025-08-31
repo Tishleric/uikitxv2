@@ -21,8 +21,34 @@ METHODS = ['fifo', 'lifo']
 # P&L multiplier for proper scaling
 PNL_MULTIPLIER = 1000
 
+# Per-symbol override for PnL multiplier
+SYMBOL_PNL_MULTIPLIER = {
+    'TUU5 Comdty': 2000,
+}
+
+def get_pnl_multiplier(symbol: str) -> int:
+    """Return PnL multiplier for a symbol, falling back to default.
+
+    Root-based rule: Any symbol whose Bloomberg root starts with 'TU' uses 2000.
+    This covers all 2-year futures month codes (e.g., TUU5, TUZ5, etc.).
+    """
+    try:
+        symbol_root = (symbol or "").split()[0].upper()
+    except Exception:
+        symbol_root = ""
+
+    if symbol_root.startswith('TU'):
+        return 2000
+
+    return SYMBOL_PNL_MULTIPLIER.get(symbol, PNL_MULTIPLIER)
+
 # Default symbol if none found in trades
 DEFAULT_SYMBOL = 'XCMEFFDPSX20250919U0ZN' 
+
+# Feature flags
+# Enable Pmax/SOD adjustment for realized PnL aggregation into positions table.
+# When False, realized PnL uses raw sums from realized_{fifo|lifo} tables (original behavior).
+REALIZED_PMAX_ENABLED = True
 
 # File watcher directories
 SPOT_RISK_INPUT_DIR = 'data/input/actant_spot_risk'

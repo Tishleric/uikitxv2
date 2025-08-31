@@ -1,0 +1,29 @@
+# Five-Minute Market Snapshot Configuration
+
+input_dir: "C:\\Users\\ceterisparibus\\Documents\\Next\\uikitxv2\\data\\input\\actant_spot_risk"
+output_root: "C:\\Users\\ceterisparibus\\Documents\\ProductionSpace\\Hanyu\\FiveMinuteMarket"
+
+# Service cadence
+interval_minutes: 5
+timezone: "America/Chicago"
+
+# VTEXP source (directory with vtexp_YYYYMMDD_HHMMSS.csv)
+vtexp_dir: "data/input/vtexp"
+
+# Greeks selection (names align with GreekConfiguration)
+enabled_greeks:
+  - delta_F
+  - delta_y
+  - gamma_F
+  - gamma_y
+  - speed_F
+  - theta_F
+  - vega_price
+  - vega_y
+
+# Staleness controls
+stale_max_minutes: 10
+
+# File naming (placed under trading-day subfolder)
+filename_pattern: "five_min_market_%Y%m%d_%H%M.csv"
+

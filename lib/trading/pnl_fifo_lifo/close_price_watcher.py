@@ -228,13 +228,13 @@ class ClosePriceFileHandler(FileSystemEventHandler):
         return None, None
     
     def _process_futures_file(self, filepath: Path) -> Dict[str, float]:
-        """Parse futures CSV with new format
-        
+        """Parse futures CSV where SYMBOL is month-coded (e.g., 'TYU5', 'TYZ5').
+
         Expected columns:
-        - SYMBOL: Base symbol (e.g., 'TU', 'FV', 'TY')
+        - SYMBOL: Month-coded symbol (e.g., 'TUU5', 'FVZ5', 'TYU5', 'USZ5')
         - PX_SETTLE_DEC: Settle price in decimal format
         - PX_300_DEC: Flash price (3pm close) in decimal format
-        - Settle Price = Today: Status indicator ('Y' for settle, else flash)
+        - Settle Price = Today: Status indicator ('Y' for settle, 'N' for flash, or empty)
         """
         prices = {}
         
@@ -252,18 +252,15 @@ class ClosePriceFileHandler(FileSystemEventHandler):
             for idx in range(len(df)):
                 row = df.iloc[idx]
                 
-                # Get symbol from SYMBOL column
-                symbol_base = str(row['SYMBOL']).strip().upper()
-                
+                # Get month-coded symbol from SYMBOL column (e.g., TYU5)
+                symbol_code = str(row['SYMBOL']).strip().upper()
+
                 # Skip empty or invalid symbols
-                if not symbol_base or symbol_base == 'NAN':
+                if not symbol_code or symbol_code == 'NAN':
                     continue
                     
-                if symbol_base not in FUTURES_SYMBOLS:
-                    logger.warning(f"Unknown futures symbol: {symbol_base}")
-                    continue
-                
-                bloomberg_symbol = FUTURES_SYMBOLS[symbol_base]
+                # Construct Bloomberg symbol by appending ' Comdty'
+                bloomberg_symbol = f"{symbol_code} Comdty"
                 
                 # Check status to determine which price to use
                 status = str(row['Settle Price = Today']).strip().upper()

@@ -1,0 +1,15 @@
+2025/08/22-16:41:49.710 1cc88 Reusing MANIFEST Z:\uikitxv2\pm_standalone\.edge_profile\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2025/08/22-16:41:49.713 1cc88 Recovering log #42
+2025/08/22-16:41:49.716 1cc88 Reusing old log Z:\uikitxv2\pm_standalone\.edge_profile\Default\EdgeCoupons/coupons_data.db/000042.log 
+2025/08/22-16:41:49.983 1ce48 Level-0 table #46: started
+2025/08/22-16:41:50.002 1ce48 Level-0 table #46: 672204 bytes OK
+2025/08/22-16:41:50.006 1ce48 Delete type=0 #42
+2025/08/22-16:41:50.009 1ce48 Compacting 4@0 + 1@1 files
+2025/08/22-16:41:50.073 1ce48 Generated table #47@0: 3 keys, 672204 bytes
+2025/08/22-16:41:50.074 1ce48 Compacted 4@0 + 1@1 files => 672204 bytes
+2025/08/22-16:41:50.075 1ce48 compacted to: files[ 0 1 1 0 0 0 0 ]
+2025/08/22-16:41:50.077 1ce48 Delete type=2 #34
+2025/08/22-16:41:50.078 1ce48 Delete type=2 #37
+2025/08/22-16:41:50.078 1ce48 Delete type=2 #40
+2025/08/22-16:41:50.079 1ce48 Delete type=2 #43
+2025/08/22-16:41:50.079 1ce48 Delete type=2 #46

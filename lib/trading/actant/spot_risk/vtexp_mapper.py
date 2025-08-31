@@ -9,6 +9,9 @@ import re
 import logging
 from typing import Optional, Dict
 
+from lib.trading.market_prices.rosetta_stone import RosettaStone
+from .vtexp_prefix_resolver import extract_spot_prefix, resolve_time_symbol_from_prefix
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,8 +73,29 @@ class VtexpSymbolMapper:
         # Now map spot risk symbols to vtexp values
         mapping = {}
         unmapped_expiries = set()
+
+        # Optional: attempt exact symbol mapping via Rosetta from prefix -> time-format
+        rosetta: Optional[RosettaStone] = None
+        try:
+            rosetta = RosettaStone()
+        except Exception:
+            rosetta = None
         
         for spot_symbol in spot_risk_symbols:
+            # 1) Exact time-format symbol via Rosetta (prefix-based)
+            if rosetta is not None:
+                try:
+                    prefix = extract_spot_prefix(spot_symbol)
+                    if prefix:
+                        time_symbol = resolve_time_symbol_from_prefix(prefix, rosetta)
+                        if time_symbol and time_symbol in vtexp_dict:
+                            mapping[spot_symbol] = vtexp_dict[time_symbol]
+                            continue
+                except Exception:
+                    # Fail-safe to expiry mapping
+                    pass
+
+            # 2) Fallback to expiry-based mapping (existing behavior)
             expiry = self.extract_expiry_from_spot_risk(spot_symbol)
             if expiry and expiry in expiry_to_vtexp:
                 mapping[spot_symbol] = expiry_to_vtexp[expiry]

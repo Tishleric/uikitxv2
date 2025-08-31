@@ -10,6 +10,17 @@
 - ✅ **Created Price Updater diagnostic suite** - Three diagnostic tools to identify 14-second latency bottleneck
 - ✅ **Identified linear latency accumulation** - Price updater processing messages sequentially, cannot keep up
 
+### Archiver Service (August 2025)
+- ✅ Added `core/archiver_protocol.py` defining the minimal `ArchiverService` protocol (`run_once`, `run_forever`).
+- ✅ Implemented `scripts/run_actant_spot_risk_archiver.py` perpetual service to mirror/move Spot Risk input data to `Documents\HistoricalMarketData`:
+  - Atomic day-folder renames for all folders older than today.
+  - Hourly sweep of today’s folder for cold (≥60 min) and stable files.
+  - Append-only CSV ledger and rotating logs under `%PROGRAMDATA%\ActantArchive`.
+  - Single-instance lock, rate limiting, free-space guard.
+- ✅ Added `configs/actant_spot_risk_archiver.yaml` (defaults reflecting prod paths).
+- ✅ Wrote `docs/archiver_service_windows_setup.md` with NSSM install/run steps.
+- ✅ Updated `memory-bank/code-index.md` and `io-schema.md`.
+
 ### Live PnL Fix Details (2025-08-04)
 - **Problem**: After historical rebuild, Live PnL column showed only realized P&L (unrealized = 0)
 - **Root Cause**: PositionsAggregator only refreshed on trade events via Redis "positions:changed" signal

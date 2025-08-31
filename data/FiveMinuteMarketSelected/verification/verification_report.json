@@ -1,0 +1,4351 @@
+{
+  "days": {
+    "2025-08-19": {
+      "required": [
+        "2025-08-19",
+        "2025-08-20",
+        "2025-08-21"
+      ],
+      "all_ok": true,
+      "files": [
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1704.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1709.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1714.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1719.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1724.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1729.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1734.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1739.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1744.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1749.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1754.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1759.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1804.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1809.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1814.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1819.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1824.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1829.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1834.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1839.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1844.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1849.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1854.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1859.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1904.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1909.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1914.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1919.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1924.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1929.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1934.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1939.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1944.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1949.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1954.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_1959.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250818_2359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0404.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0409.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0414.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0419.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0424.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0429.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0434.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0439.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0444.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0449.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0454.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0459.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0504.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0509.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0514.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0519.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0524.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0529.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0534.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0539.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0544.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0549.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0554.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0559.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0604.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0609.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0614.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0619.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0624.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0629.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0634.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0639.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0644.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0649.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0654.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0659.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0704.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0709.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0714.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0719.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0724.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0729.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0734.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0739.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0744.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0749.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0754.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0759.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0804.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0809.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0814.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0819.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0824.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0829.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0834.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0839.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0844.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0849.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0854.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0859.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0904.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0909.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0914.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0919.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0924.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0929.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0934.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0939.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0944.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0949.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0954.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_0959.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1404.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1409.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1414.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1419.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1424.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1429.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1434.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1439.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1444.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1449.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1454.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1459.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1504.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1509.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1514.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1519.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1524.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1529.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1534.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1539.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1544.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1549.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1554.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1559.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1604.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1609.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1614.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1619.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1624.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1629.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1634.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1639.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1644.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1649.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1654.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-19\\five_min_market_20250819_1659.csv",
+          "ok": true,
+          "missing_required": []
+        }
+      ]
+    },
+    "2025-08-20": {
+      "required": [
+        "2025-08-20",
+        "2025-08-21"
+      ],
+      "all_ok": true,
+      "files": [
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1704.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1709.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1714.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1719.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1724.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1729.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1734.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1739.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1744.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1749.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1754.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1759.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1804.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1809.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1814.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1819.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1824.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1829.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1834.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1839.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1844.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1849.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1854.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1859.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1904.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1909.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1914.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1919.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1924.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1929.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1934.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1939.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1944.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1949.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1954.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_1959.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250819_2359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0404.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0409.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0414.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0419.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0424.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0429.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0434.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0439.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0444.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0449.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0454.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0459.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0504.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0509.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0514.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0519.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0524.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0529.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0534.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0539.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0544.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0549.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0554.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0559.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0604.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0609.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0614.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0619.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0624.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0629.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0634.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0639.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0644.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0649.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0654.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0659.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0704.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0709.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0714.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0719.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0724.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0729.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0734.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0739.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0744.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0749.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0754.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0759.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0804.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0809.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0814.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0819.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0824.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0829.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0834.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0839.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0844.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0849.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0854.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0859.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0904.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0909.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0914.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0919.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0924.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0929.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0934.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0939.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0944.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0949.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0954.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_0959.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1404.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1409.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1414.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1419.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1424.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1429.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1434.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1439.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1444.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1449.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1454.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1459.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1504.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1509.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1514.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1519.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1524.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1529.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1534.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1539.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1544.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1549.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1554.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1559.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1604.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1609.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1614.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1619.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1624.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1629.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1634.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1639.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1644.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1649.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1654.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-20\\five_min_market_20250820_1659.csv",
+          "ok": true,
+          "missing_required": []
+        }
+      ]
+    },
+    "2025-08-21": {
+      "required": [
+        "2025-08-21"
+      ],
+      "all_ok": true,
+      "files": [
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1704.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1709.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1714.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1719.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1724.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1729.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1734.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1739.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1744.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1749.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1754.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1759.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1804.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1809.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1814.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1819.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1824.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1829.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1834.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1839.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1844.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1849.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1854.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1859.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1904.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1909.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1914.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1919.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1924.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1929.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1934.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1939.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1944.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1949.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1954.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_1959.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250820_2359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0404.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0409.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0414.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0419.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0424.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0429.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0434.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0439.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0444.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0449.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0454.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0459.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0504.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0509.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0514.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0519.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0524.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0529.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0534.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0539.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0544.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0549.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0554.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0559.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0604.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0609.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0614.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0619.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0624.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0629.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0634.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0639.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0644.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0649.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0654.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0659.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0704.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0709.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0714.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0719.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0724.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0729.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0734.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0739.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0744.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0749.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0754.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0759.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0804.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0809.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0814.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0819.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0824.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0829.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0834.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0839.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0844.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0849.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0854.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0859.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0904.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0909.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0914.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0919.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0924.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0929.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0934.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0939.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0944.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0949.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0954.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_0959.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1004.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1009.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1014.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1019.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1024.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1029.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1034.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1039.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1044.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1049.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1054.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1059.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1104.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1109.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1114.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1119.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1124.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1129.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1134.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1139.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1144.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1149.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1154.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1159.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1204.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1209.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1214.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1219.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1224.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1229.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1234.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1239.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1244.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1249.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1254.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1259.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1304.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1309.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1314.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1319.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1324.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1329.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1334.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1339.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1344.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1349.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1354.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1359.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1404.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1409.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1414.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1419.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1424.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1429.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1434.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1439.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1444.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1449.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1454.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1459.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1504.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1509.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1514.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1519.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1524.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1529.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1534.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1539.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1544.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1549.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1554.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1559.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1604.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1609.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1614.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1619.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1624.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1629.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1634.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1639.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1644.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1649.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1654.csv",
+          "ok": true,
+          "missing_required": []
+        },
+        {
+          "file": "data\\FiveMinuteMarketSelected\\2025-08-21\\five_min_market_20250821_1659.csv",
+          "ok": true,
+          "missing_required": []
+        }
+      ]
+    }
+  }
+}

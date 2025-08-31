@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, List, Tuple
 import pandas as pd
+import pytz
 import redis
 import json
 import time
@@ -18,7 +19,7 @@ import queue
 import pyarrow as pa  # Import pyarrow for Arrow deserialization
 import pickle  # Import pickle for envelope deserialization
 
-from .config import DEFAULT_SYMBOL
+from .config import DEFAULT_SYMBOL, PNL_MULTIPLIER, REALIZED_PMAX_ENABLED
 from .pnl_engine import calculate_unrealized_pnl
 from .data_manager import view_unrealized_positions, load_pricing_dictionaries, get_trading_day
 from lib.trading.market_prices.rosetta_stone import RosettaStone
@@ -66,88 +67,196 @@ class PositionsAggregator:
             conn = sqlite3.connect(self.trades_db_path)
             
             try:
-                # Get current trading day
-                current_trading_day = get_trading_day(datetime.now()).strftime('%Y-%m-%d')
+                # Get current trading day using Chicago-local time to avoid host timezone drift
+                chicago_tz = pytz.timezone('America/Chicago')
+                now_chicago = datetime.now(chicago_tz)
+                current_trading_day = get_trading_day(now_chicago).strftime('%Y-%m-%d')
                 
                 # Query to get all position data we need
                 # Pull directly from trades and realized tables for consistency
-                query = """
-                WITH all_symbols AS (
-                    -- Get all unique symbols from both open and closed positions
-                    SELECT DISTINCT symbol FROM trades_fifo WHERE quantity > 0
-                    UNION
-                    SELECT DISTINCT symbol FROM realized_fifo
-                    WHERE 
-                        -- Only include symbols with trades today
-                        DATE(timestamp, 
-                             CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
-                                  THEN '+1 day' 
-                                  ELSE '+0 day' 
-                             END) = ?
-                    UNION  
-                    SELECT DISTINCT symbol FROM realized_lifo
-                    WHERE 
-                        -- Only include symbols with trades today
-                        DATE(timestamp, 
-                             CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
-                                  THEN '+1 day' 
-                                  ELSE '+0 day' 
-                             END) = ?
-                ),
-                open_positions AS (
-                    -- Get open positions from FIFO
+                if REALIZED_PMAX_ENABLED:
+                    # Apply conditional SOD/Pmax adjustment to realized P&L at aggregation time
+                    query = f"""
+                    WITH all_symbols AS (
+                        -- Get all unique symbols from both open and closed positions
+                        SELECT DISTINCT symbol FROM trades_fifo WHERE quantity > 0
+                        UNION
+                        SELECT DISTINCT symbol FROM realized_fifo
+                        WHERE 
+                            -- Only include symbols with trades today
+                            DATE(timestamp, 
+                                 CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                      THEN '+1 day' 
+                                      ELSE '+0 day' 
+                                 END) = ?
+                        UNION  
+                        SELECT DISTINCT symbol FROM realized_lifo
+                        WHERE 
+                            -- Only include symbols with trades today
+                            DATE(timestamp, 
+                                 CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                      THEN '+1 day' 
+                                      ELSE '+0 day' 
+                                 END) = ?
+                    ),
+                    open_positions AS (
+                        -- Get open positions from FIFO
+                        SELECT 
+                            symbol,
+                            SUM(CASE WHEN buySell = 'B' THEN quantity ELSE -quantity END) as open_position
+                        FROM trades_fifo
+                        WHERE quantity > 0
+                        GROUP BY symbol
+                    ),
+                    closed_positions_fifo AS (
+                        -- Pmax-adjusted realized for current trading day (FIFO)
+                        -- Derive entry trading day from sequenceIdBeingOffset, and entry side from signs.
+                        SELECT 
+                            rf.symbol as symbol,
+                            SUM(ABS(rf.quantity)) as closed_position,
+                            SUM(
+                                CASE 
+                                    WHEN DATE(substr(rf.sequenceIdBeingOffset,1,4) || '-' || substr(rf.sequenceIdBeingOffset,5,2) || '-' || substr(rf.sequenceIdBeingOffset,7,2)) <> ?
+                                         AND ABS(rf.exitPrice - rf.entryPrice) >= 1e-12
+                                    THEN CASE 
+                                             WHEN ((rf.exitPrice - rf.entryPrice) * rf.realizedPnL) > 0
+                                             THEN (rf.exitPrice - COALESCE(sod.price, rf.entryPrice)) * rf.quantity * (CASE WHEN substr(rf.symbol,1,2) = 'TU' THEN 2000 ELSE {PNL_MULTIPLIER} END)
+                                             ELSE (COALESCE(sod.price, rf.entryPrice) - rf.exitPrice) * rf.quantity * (CASE WHEN substr(rf.symbol,1,2) = 'TU' THEN 2000 ELSE {PNL_MULTIPLIER} END)
+                                         END
+                                    ELSE rf.realizedPnL
+                                END
+                            ) as fifo_realized_pnl
+                        FROM realized_fifo rf
+                        LEFT JOIN pricing sod ON sod.symbol = rf.symbol AND sod.price_type = 'sodTod'
+                        WHERE 
+                            -- Only realized rows for today's trading day
+                            DATE(rf.timestamp, CASE WHEN CAST(strftime('%H', rf.timestamp) AS INTEGER) >= 17 THEN '+1 day' ELSE '+0 day' END) = ?
+                        GROUP BY rf.symbol
+                    ),
+                    closed_positions_lifo AS (
+                        -- Pmax-adjusted realized for current trading day (LIFO)
+                        SELECT 
+                            rl.symbol as symbol,
+                            SUM(
+                                CASE 
+                                    WHEN DATE(substr(rl.sequenceIdBeingOffset,1,4) || '-' || substr(rl.sequenceIdBeingOffset,5,2) || '-' || substr(rl.sequenceIdBeingOffset,7,2)) <> ?
+                                         AND ABS(rl.exitPrice - rl.entryPrice) >= 1e-12
+                                    THEN CASE 
+                                             WHEN ((rl.exitPrice - rl.entryPrice) * rl.realizedPnL) > 0
+                                             THEN (rl.exitPrice - COALESCE(sodl.price, rl.entryPrice)) * rl.quantity * (CASE WHEN substr(rl.symbol,1,2) = 'TU' THEN 2000 ELSE {PNL_MULTIPLIER} END)
+                                             ELSE (COALESCE(sodl.price, rl.entryPrice) - rl.exitPrice) * rl.quantity * (CASE WHEN substr(rl.symbol,1,2) = 'TU' THEN 2000 ELSE {PNL_MULTIPLIER} END)
+                                         END
+                                    ELSE rl.realizedPnL
+                                END
+                            ) as lifo_realized_pnl
+                        FROM realized_lifo rl
+                        LEFT JOIN pricing sodl ON sodl.symbol = rl.symbol AND sodl.price_type = 'sodTod'
+                        WHERE 
+                            DATE(rl.timestamp, CASE WHEN CAST(strftime('%H', rl.timestamp) AS INTEGER) >= 17 THEN '+1 day' ELSE '+0 day' END) = ?
+                        GROUP BY rl.symbol
+                    )
                     SELECT 
-                        symbol,
-                        SUM(CASE WHEN buySell = 'B' THEN quantity ELSE -quantity END) as open_position
-                    FROM trades_fifo
-                    WHERE quantity > 0
-                    GROUP BY symbol
-                ),
-                closed_positions_fifo AS (
-                    -- Get closed positions and realized P&L from realized_fifo for current trading day
+                        s.symbol,
+                        COALESCE(o.open_position, 0) as open_position,
+                        COALESCE(cf.closed_position, 0) as closed_position,
+                        COALESCE(cf.fifo_realized_pnl, 0) as fifo_realized_pnl,
+                        COALESCE(cl.lifo_realized_pnl, 0) as lifo_realized_pnl
+                    FROM all_symbols s
+                    LEFT JOIN open_positions o ON s.symbol = o.symbol
+                    LEFT JOIN closed_positions_fifo cf ON s.symbol = cf.symbol
+                    LEFT JOIN closed_positions_lifo cl ON s.symbol = cl.symbol
+                    """
+                else:
+                    # Original behavior: sum raw realized PnL for today's trading day
+                    query = """
+                    WITH all_symbols AS (
+                        -- Get all unique symbols from both open and closed positions
+                        SELECT DISTINCT symbol FROM trades_fifo WHERE quantity > 0
+                        UNION
+                        SELECT DISTINCT symbol FROM realized_fifo
+                        WHERE 
+                            -- Only include symbols with trades today
+                            DATE(timestamp, 
+                                 CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                      THEN '+1 day' 
+                                      ELSE '+0 day' 
+                                 END) = ?
+                        UNION  
+                        SELECT DISTINCT symbol FROM realized_lifo
+                        WHERE 
+                            -- Only include symbols with trades today
+                            DATE(timestamp, 
+                                 CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                      THEN '+1 day' 
+                                      ELSE '+0 day' 
+                                 END) = ?
+                    ),
+                    open_positions AS (
+                        -- Get open positions from FIFO
+                        SELECT 
+                            symbol,
+                            SUM(CASE WHEN buySell = 'B' THEN quantity ELSE -quantity END) as open_position
+                        FROM trades_fifo
+                        WHERE quantity > 0
+                        GROUP BY symbol
+                    ),
+                    closed_positions_fifo AS (
+                        -- Get closed positions and realized P&L from realized_fifo for current trading day
+                        SELECT 
+                            symbol,
+                            SUM(ABS(quantity)) as closed_position,
+                            SUM(realizedPnL) as fifo_realized_pnl
+                        FROM realized_fifo
+                        WHERE 
+                            -- Calculate trading day: if hour >= 17 (5pm Chicago time), use next day
+                            DATE(timestamp, 
+                                 CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                      THEN '+1 day' 
+                                      ELSE '+0 day' 
+                                 END) = ?
+                        GROUP BY symbol
+                    ),
+                    closed_positions_lifo AS (
+                        -- Get realized P&L from realized_lifo for current trading day
+                        SELECT 
+                            symbol,
+                            SUM(realizedPnL) as lifo_realized_pnl
+                        FROM realized_lifo
+                        WHERE 
+                            -- Calculate trading day: if hour >= 17 (5pm Chicago time), use next day
+                            DATE(timestamp, 
+                                 CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
+                                      THEN '+1 day' 
+                                      ELSE '+0 day' 
+                                 END) = ?
+                        GROUP BY symbol
+                    )
                     SELECT 
-                        symbol,
-                        SUM(ABS(quantity)) as closed_position,
-                        SUM(realizedPnL) as fifo_realized_pnl
-                    FROM realized_fifo
-                    WHERE 
-                        -- Calculate trading day: if hour >= 17 (5pm Chicago time), use next day
-                        DATE(timestamp, 
-                             CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
-                                  THEN '+1 day' 
-                                  ELSE '+0 day' 
-                             END) = ?
-                    GROUP BY symbol
-                ),
-                closed_positions_lifo AS (
-                    -- Get realized P&L from realized_lifo for current trading day
-                    SELECT 
-                        symbol,
-                        SUM(realizedPnL) as lifo_realized_pnl
-                    FROM realized_lifo
-                    WHERE 
-                        -- Calculate trading day: if hour >= 17 (5pm Chicago time), use next day
-                        DATE(timestamp, 
-                             CASE WHEN CAST(strftime('%H', timestamp) AS INTEGER) >= 17 
-                                  THEN '+1 day' 
-                                  ELSE '+0 day' 
-                             END) = ?
-                    GROUP BY symbol
-                )
-                SELECT 
-                    s.symbol,
-                    COALESCE(o.open_position, 0) as open_position,
-                    COALESCE(cf.closed_position, 0) as closed_position,
-                    COALESCE(cf.fifo_realized_pnl, 0) as fifo_realized_pnl,
-                    COALESCE(cl.lifo_realized_pnl, 0) as lifo_realized_pnl
-                FROM all_symbols s
-                LEFT JOIN open_positions o ON s.symbol = o.symbol
-                LEFT JOIN closed_positions_fifo cf ON s.symbol = cf.symbol
-                LEFT JOIN closed_positions_lifo cl ON s.symbol = cl.symbol
-                """
+                        s.symbol,
+                        COALESCE(o.open_position, 0) as open_position,
+                        COALESCE(cf.closed_position, 0) as closed_position,
+                        COALESCE(cf.fifo_realized_pnl, 0) as fifo_realized_pnl,
+                        COALESCE(cl.lifo_realized_pnl, 0) as lifo_realized_pnl
+                    FROM all_symbols s
+                    LEFT JOIN open_positions o ON s.symbol = o.symbol
+                    LEFT JOIN closed_positions_fifo cf ON s.symbol = cf.symbol
+                    LEFT JOIN closed_positions_lifo cl ON s.symbol = cl.symbol
+                    """
                 
                 # Load the base position data
-                self.positions_cache = pd.read_sql_query(query, conn, params=[current_trading_day, current_trading_day, current_trading_day, current_trading_day])
+                if REALIZED_PMAX_ENABLED:
+                    # Params mapping: all_symbols (fifo today), all_symbols (lifo today),
+                    # closed_positions_fifo (entry day compare), closed_positions_fifo (today),
+                    # closed_positions_lifo (entry day compare), closed_positions_lifo (today)
+                    self.positions_cache = pd.read_sql_query(
+                        query, conn,
+                        params=[current_trading_day, current_trading_day, current_trading_day, current_trading_day, current_trading_day, current_trading_day]
+                    )
+                else:
+                    self.positions_cache = pd.read_sql_query(
+                        query, conn,
+                        params=[current_trading_day, current_trading_day, current_trading_day, current_trading_day]
+                    )
                 
                 # Add placeholder columns for unrealized P&L
                 self.positions_cache['fifo_unrealized_pnl'] = 0.0

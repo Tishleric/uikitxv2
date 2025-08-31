@@ -25,6 +25,7 @@ class SymbolFormat(Enum):
     ACTANT_TRADES = "actanttrades"  # regex-based trade format
     ACTANT_TIME = "actanttime"  # vtexp format
     BROKER = "broker"  # Broker format from trades
+    PRICING_MONKEY = "pricingmonkey"  # Pricing Monkey trade description base
 
 
 class SymbolClass(Enum):
@@ -121,6 +122,19 @@ class RosettaStone:
                 self.lookups[f"actantrisk_{actantrisk_base}_to_bloomberg_P"] = bb_put
                 self.lookups[f"bloomberg_{bb_put}_to_cme"] = cme_base
                 self.lookups[f"bloomberg_{bb_put}_to_actantrisk"] = actantrisk_base
+
+            # Pricing Monkey base mapping (if present)
+            pm_base = None
+            if 'PricingMonkey' in row and not pd.isna(row['PricingMonkey']):
+                pm_base = str(row['PricingMonkey']).strip()
+                if pm_base:
+                    # Bloomberg ↔ PricingMonkey
+                    if not pd.isna(row.get('Bloomberg_Call')):
+                        self.lookups[f"bloomberg_{str(row['Bloomberg_Call'])}_to_pricingmonkey"] = pm_base
+                        self.lookups[f"pricingmonkey_{pm_base}_to_bloomberg_C"] = str(row['Bloomberg_Call'])
+                    if not pd.isna(row.get('Bloomberg_Put')):
+                        self.lookups[f"bloomberg_{str(row['Bloomberg_Put'])}_to_pricingmonkey"] = pm_base
+                        self.lookups[f"pricingmonkey_{pm_base}_to_bloomberg_P"] = str(row['Bloomberg_Put'])
                 
             # Direct CME <-> ActantRisk mappings
             self.lookups[f"cme_{cme_base}_to_actantrisk"] = actantrisk_base
@@ -372,6 +386,21 @@ class RosettaStone:
                 option_type = 'F'
                 strike = "0"
                 base = symbol
+        
+        elif format_type == SymbolFormat.PRICING_MONKEY:
+            # Accept base-only or full: "sep25 wk1 thu ty [strike] [call|put]"
+            raw = symbol.lower()
+            parts = raw.split()
+            # base is 4 tokens: monyy, wkN, dow, ty
+            if len(parts) < 4:
+                raise ValueError(f"Invalid PricingMonkey format: {symbol}")
+            base = " ".join(parts[:4])
+            strike = parts[4] if len(parts) >= 5 else "0"
+            side = parts[5] if len(parts) >= 6 else None
+            if side is None:
+                option_type = 'C'
+            else:
+                option_type = 'C' if side.startswith('c') else 'P'
                 
         else:
             raise ValueError(f"Unknown format: {format_type}")
@@ -432,6 +461,9 @@ class RosettaStone:
             # For non-Bloomberg formats, we need to specify option type when going to Bloomberg
             if to_fmt == SymbolFormat.BLOOMBERG:
                 lookup_key = f"{from_format}_{parsed.base}_to_bloomberg_{parsed.option_type}"
+            elif to_fmt == SymbolFormat.PRICING_MONKEY:
+                # Non-Bloomberg to PM: try direct base mapping
+                lookup_key = f"{from_format}_{parsed.base}_to_pricingmonkey"
             else:
                 lookup_key = f"{from_format}_{parsed.base}_to_{to_format}"
                 
@@ -440,20 +472,37 @@ class RosettaStone:
             print(f"No mapping found for {lookup_key}")
             return None
             
-        # Format strike for target system
-        try:
-            strike_formatted = StrikeConverter.format_strike(parsed.strike, to_format)
-        except ValueError as e:
-            print(f"Failed to format strike {parsed.strike}: {e}")
-            return None
+        # Handle strike presence requirements and target-specific formatting
+        if to_fmt == SymbolFormat.PRICING_MONKEY:
+            # PricingMonkey expects two decimals if strike present
+            if parsed.strike and parsed.strike != "0":
+                try:
+                    if isinstance(parsed.strike, str) and ':' in parsed.strike:
+                        decimal = StrikeConverter.xcme_to_decimal(parsed.strike)
+                    else:
+                        decimal = float(parsed.strike)
+                    strike_formatted = f"{decimal:.2f}"
+                except Exception:
+                    strike_formatted = str(parsed.strike)
+            else:
+                strike_formatted = parsed.strike or ""
+        else:
+            # For Bloomberg and other outputs: if option without strike, fail gracefully
+            if parsed.option_type != 'F' and (parsed.strike is None or parsed.strike == ""):
+                return None
+            try:
+                strike_formatted = StrikeConverter.format_strike(parsed.strike, to_format)
+            except ValueError as e:
+                print(f"Failed to format strike {parsed.strike}: {e}")
+                return None
             
         # Reconstruct symbol
         return self._reconstruct_symbol(
-            target_base, 
-            strike_formatted, 
+            target_base,
+            strike_formatted,
             parsed.option_type,
             to_fmt,
-            parsed.symbol_class
+            parsed.symbol_class,
         )
         
     def _reconstruct_symbol(self, base: str, strike: str, option_type: str,
@@ -466,6 +515,13 @@ class RosettaStone:
         if format_type == SymbolFormat.BLOOMBERG:
             # Bloomberg always uses same format
             return f"{base} {strike} Comdty"
+        
+        elif format_type == SymbolFormat.PRICING_MONKEY:
+            side = "call" if option_type.upper() == 'C' else "put"
+            # If strike is missing or zero, return base-only
+            if not strike or strike == "0":
+                return base
+            return f"{base} {strike} {side}"
             
         elif format_type == SymbolFormat.CME:
             # CME format varies slightly by type but generally: BASE C/P+STRIKE

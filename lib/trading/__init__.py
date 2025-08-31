@@ -1,12 +1,24 @@
-"""Trading utilities and components for UIKitXv2"""
+"""Trading utilities and components for UIKitXv2.
 
-# Bond Future Options pricing and analysis
-from . import bond_future_options
+Avoid importing heavy subpackages at module import time to prevent circular
+imports and environment-specific dependency issues. Access subpackages via
+attribute (lazy import) or import explicit submodules, e.g.::
 
-# P&L Calculator for FIFO-based profit and loss tracking
-# pnl_calculator removed - Phase 3 clean slate
+    from trading.bond_future_options import pricing_engine
+
+"""
+
+from __future__ import annotations
+
+import importlib
+from typing import Any
 
 __all__ = [
-    'bond_future_options',
-    'pnl_calculator',
-] 
+	"bond_future_options",
+]
+
+
+def __getattr__(name: str) -> Any:
+	if name == "bond_future_options":
+		return importlib.import_module(__name__ + ".bond_future_options")
+	raise AttributeError(name)

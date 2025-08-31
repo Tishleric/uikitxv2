@@ -265,3 +265,33 @@ class TestRosettaStone:
         for xcme, expected_bloomberg in test_cases:
             result = translator.translate(xcme, "xcme", "bloomberg")
             assert result == expected_bloomberg, f"Failed for {xcme}" 
+
+
+class TestRosettaStoneDecemberFutures:
+    """Validate December futures mappings (ZN/TY, ZT/TU, ZF/FV, ZB/US)."""
+
+    @pytest.fixture
+    def translator(self):
+        return RosettaStone()
+
+    @pytest.mark.parametrize(
+        "actantrisk, actanttrades, bloomberg",
+        [
+            ("XCME.ZN.DEC25", "XCMEFFDPSX20251219Z0ZN", "TYZ5 Comdty"),
+            ("XCME.ZT.DEC25", "XCMEFFDPSX20251230Z0ZT", "TUZ5 Comdty"),
+            ("XCME.ZF.DEC25", "XCMEFFDPSX20251230Z0ZF", "FVZ5 Comdty"),
+            ("XCME.ZB.DEC25", "XCMEFFDPSX20251219Z0ZB", "USZ5 Comdty"),
+        ],
+    )
+    def test_december_futures_translations(self, translator, actantrisk, actanttrades, bloomberg):
+        # ActantRisk -> Bloomberg
+        assert translator.translate(actantrisk, "actantrisk", "bloomberg") == bloomberg
+
+        # ActantTrades -> Bloomberg
+        assert translator.translate(actanttrades, "actanttrades", "bloomberg") == bloomberg
+
+        # Bloomberg -> ActantRisk
+        assert translator.translate(bloomberg, "bloomberg", "actantrisk") == actantrisk
+
+        # Bloomberg -> ActantTrades
+        assert translator.translate(bloomberg, "bloomberg", "actanttrades") == actanttrades

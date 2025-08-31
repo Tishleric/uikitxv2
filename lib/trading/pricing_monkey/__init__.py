@@ -1,40 +1,33 @@
 """
 Pricing Monkey integration for automated trading data collection.
 
-This package provides browser automation tools for retrieving and processing
-trading data from the Pricing Monkey web interface.
+This package exposes multiple submodules (automation, retrieval, processors,
+and runners). To avoid heavy imports and environment-specific dependencies
+when the package is imported for a single utility (e.g. a runner), we keep
+the top-level ``__init__`` lightweight and avoid eager imports.
+
+Import concrete APIs directly from their submodules, for example:
+
+    from trading.pricing_monkey.playwright_basic_runner import PMBasicRunner
+    from trading.pricing_monkey.retrieval import get_simple_data
+
 """
 
-# Automation exports
-from .automation import run_pm_automation
+from __future__ import annotations
 
-# Retrieval exports
-from .retrieval import (
-    get_extended_pm_data,
-    PMRetrievalError,
-    get_simple_data,
-    PMSimpleRetrievalError
-)
-
-# Processing exports
-from .processors import (
-    process_pm_for_separate_table,
-    validate_pm_data,
-    get_market_movement_data_df,
-    SCENARIOS
-)
+import importlib
+from typing import Any
 
 __all__ = [
-    # Automation
-    'run_pm_automation',
-    # Retrieval
-    'get_extended_pm_data',
-    'PMRetrievalError', 
-    'get_simple_data',
-    'PMSimpleRetrievalError',
-    # Processing
-    'process_pm_for_separate_table',
-    'validate_pm_data',
-    'get_market_movement_data_df',
-    'SCENARIOS'
-] 
+	"automation",
+	"retrieval",
+	"processors",
+	"playwright_basic_runner",
+]
+
+
+def __getattr__(name: str) -> Any:
+	# Lazy access to common subpackages if referenced as attributes
+	if name in {"automation", "retrieval", "processors", "playwright_basic_runner"}:
+		return importlib.import_module(__name__ + "." + name)
+	raise AttributeError(name)

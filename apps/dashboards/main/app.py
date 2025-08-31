@@ -71,6 +71,11 @@ try:
     # Import trading utilities
     from lib.trading.common import format_shock_value_for_display
     from lib.trading.common.price_parser import parse_treasury_price, decimal_to_tt_bond_format
+    # Optional import: symbol-aware formatter (present in newer libs). Fall back gracefully if absent.
+    try:
+        from lib.trading.common.price_parser import decimal_to_tt_bond_format_by_symbol
+    except Exception:
+        decimal_to_tt_bond_format_by_symbol = None  # type: ignore
     from lib.trading.pnl_fifo_lifo.data_manager import get_trading_day
     # Import Actant modules from new location
     from lib.trading.actant.eod import ActantDataService, get_most_recent_json_file, get_json_file_metadata
@@ -2864,8 +2869,8 @@ def create_frg_monitor_content():
     )
     
     # --- Simple auto-refresh components ---
-    # This interval triggers database queries every 2 seconds
-    refresh_interval = dcc.Interval(id='frg-refresh-interval', interval=2000, n_intervals=0)
+    # Poll FRG data at 300 ms for lower-latency UI updates
+    refresh_interval = dcc.Interval(id='frg-refresh-interval', interval=300, n_intervals=0)
     
     # This store holds the previous data hash to detect changes
     data_hash_store = dcc.Store(id='frg-data-hash-store', data={'hash': None})
@@ -3417,7 +3422,7 @@ logger.info("UI layout defined with sidebar navigation.")
     State("frg-data-hash-store", "data"),
     prevent_initial_call=False
 )
-@monitor()
+@monitor(sample_rate=0.5)
 def update_positions_table(n_intervals, hash_store):
     """Update positions table from trades.db only when triggered by a new signal."""
     import sqlite3
@@ -3426,6 +3431,8 @@ def update_positions_table(n_intervals, hash_store):
     import pytz
 
     import hashlib
+    # Localized import to minimize global surface
+    from decimal import Decimal, ROUND_HALF_UP
     
     try:
         # Database path (root folder)
@@ -3439,8 +3446,8 @@ def update_positions_table(n_intervals, hash_store):
         now_cdt = datetime.now(chicago_tz)
         today_str = now_cdt.strftime('%Y-%m-%d')
         
-        # Get trading day (respects 5pm cutoff)
-        trading_day = get_trading_day(datetime.now()).strftime('%Y-%m-%d')
+        # Get trading day (respects 5pm cutoff) using Chicago-local time to avoid host tz drift
+        trading_day = get_trading_day(now_cdt).strftime('%Y-%m-%d')
 
         # Dynamically determine UTC offset for SQLite
         utc_offset = now_cdt.utcoffset()
@@ -3476,24 +3483,120 @@ def update_positions_table(n_intervals, hash_store):
             CASE 
                 WHEN pr_close.timestamp LIKE '{trading_day}' || '%' 
                 THEN pr_close.price
-                ELSE NULL 
+                ELSE 0 
             END as close_px,
             -- Close PnL: show only if close price is from today
             CASE 
                 WHEN pr_close.timestamp LIKE '{trading_day}' || '%' 
                 THEN (p.fifo_realized_pnl + p.fifo_unrealized_pnl_close)
-                ELSE NULL 
+                ELSE 0 
             END as pnl_close
         FROM positions p
         LEFT JOIN pricing pr_now ON p.symbol = pr_now.symbol AND pr_now.price_type = 'now'
         LEFT JOIN pricing pr_close ON p.symbol = pr_close.symbol AND pr_close.price_type = 'close'
-        WHERE p.open_position != 0 OR p.closed_position != 0
+        WHERE 
+            p.open_position != 0
+            OR (
+                p.closed_position != 0 AND (
+                    EXISTS (
+                        SELECT 1 FROM realized_fifo rf
+                        WHERE rf.symbol = p.symbol
+                          AND DATE(rf.timestamp,
+                                   CASE WHEN CAST(strftime('%H', rf.timestamp) AS INTEGER) >= 17 
+                                        THEN '+1 day' ELSE '+0 day' END) = '{trading_day}'
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM realized_lifo rl
+                        WHERE rl.symbol = p.symbol
+                          AND DATE(rl.timestamp,
+                                   CASE WHEN CAST(strftime('%H', rl.timestamp) AS INTEGER) >= 17 
+                                        THEN '+1 day' ELSE '+0 day' END) = '{trading_day}'
+                    )
+                )
+            )
         ORDER BY p.symbol
         """
         
+        # Diagnostics: log how many rows are excluded by the trading-day filter
         df = pd.read_sql_query(query, conn)
         conn.close()
         
+        # --- Compute tick-display columns (LivePXTX / ClosePXTX) ---
+        # Helper: classify instrument type with safe fallback
+        fallback_futures = {
+            'TYU5 Comdty', 'USU5 Comdty', 'FVU5 Comdty', 'TUU5 Comdty',
+            'TYZ5 Comdty', 'USZ5 Comdty', 'FVZ5 Comdty', 'TUZ5 Comdty'
+        }
+
+        def _classify_instrument(row) -> str:
+            # Hard override: treat known Bloomberg futures as FUTURE regardless of upstream type
+            symbol = (row.get('symbol') or '').strip()
+            if symbol in fallback_futures:
+                return 'FUTURE'
+
+            itype = str(row.get('instrument_type') or '').upper().strip()
+            if itype in {'F', 'FUTURE'}:
+                return 'FUTURE'
+            if itype in {'C', 'P', 'CALL', 'PUT', 'OPTION'}:
+                return 'OPTION'
+            # Default per requirement: treat as option if unknown
+            return 'OPTION'
+
+        # Helper: format decimal price to WHOLE'NNN per base (32 for futures, 64 for options)
+        def _format_ticks_str(decimal_price, base: int):
+            try:
+                if decimal_price is None:
+                    return None
+                if isinstance(decimal_price, float) and pd.isna(decimal_price):
+                    return None
+                dec = Decimal(str(decimal_price))
+                whole = int(dec)  # floor for positive numbers
+                frac = dec - Decimal(whole)
+                # quantize to half-tick units to avoid float jitter
+                half_units = (frac * Decimal(base) * Decimal(2)).to_integral_value(rounding=ROUND_HALF_UP)
+                limit = base * 2
+                if half_units >= limit:
+                    # Red flag scenario; clamp and log at debug level to avoid rollover
+                    logger.debug(f"Tick half-units exceeded limit for price {decimal_price}: {half_units} >= {limit}. Clamping.")
+                    half_units = Decimal(limit - 1)
+                nnn = int(half_units) * 5  # map half-units to NNN (e.g., 17.5 -> 175)
+                return f"{whole}'{nnn:03d}"
+            except Exception as _e:
+                logger.debug(f"Failed to format ticks for price {decimal_price}: {_e}")
+                return None
+
+        if not df.empty:
+            def _format_future_symbol_aware(px, sym, inst):
+                try:
+                    if px is None or (isinstance(px, float) and pd.isna(px)):
+                        return None
+                    if inst == 'FUTURE':
+                        if decimal_to_tt_bond_format_by_symbol:
+                            return decimal_to_tt_bond_format_by_symbol(px, sym)
+                        # Fallback to existing behavior (base 32) to avoid regressions
+                        return _format_ticks_str(px, 32)
+                    return None
+                except Exception:
+                    return None
+
+            df['live_px_tx'] = df.apply(
+                lambda r: (
+                    _format_future_symbol_aware(r.get('live_px'), r.get('symbol'), _classify_instrument(r))
+                    if _classify_instrument(r) == 'FUTURE'
+                    else _format_ticks_str(r.get('live_px'), 64)
+                ), axis=1
+            )
+            df['close_px_tx'] = df.apply(
+                lambda r: (
+                    _format_future_symbol_aware(r.get('close_px'), r.get('symbol'), _classify_instrument(r))
+                    if _classify_instrument(r) == 'FUTURE'
+                    else _format_ticks_str(r.get('close_px'), 64)
+                ), axis=1
+            )
+        else:
+            df['live_px_tx'] = None
+            df['close_px_tx'] = None
+
         # Format columns
         columns = [
             {"name": "Symbol", "id": "symbol"},
@@ -3513,7 +3616,9 @@ def update_positions_table(n_intervals, hash_store):
             {"name": "Gamma LIFO", "id": "gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "LIFOC", "id": "lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "LivePX", "id": "live_px", "type": "numeric", "format": {"specifier": ",.6f"}},
-            {"name": "ClosePX", "id": "close_px", "type": "numeric", "format": {"specifier": ",.6f"}}
+            {"name": "LivePXTX", "id": "live_px_tx", "type": "text"},
+            {"name": "ClosePX", "id": "close_px", "type": "numeric", "format": {"specifier": ",.6f"}},
+            {"name": "ClosePXTX", "id": "close_px_tx", "type": "text"}
         ]
         
         # Convert dataframe to records
@@ -3574,7 +3679,7 @@ def update_positions_table(n_intervals, hash_store):
     Input("frg-refresh-interval", "n_intervals"),
     prevent_initial_call=False  # Allow initial call to populate on startup
 )
-@monitor()
+@monitor(sample_rate=0.5)
 def update_daily_positions_table(trigger_data):
     """Update daily positions table from trades.db only when triggered by a new signal."""
     import sqlite3

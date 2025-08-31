@@ -257,3 +257,99 @@ def convert_percentage_to_decimal(value: Union[str, float]) -> float:
         return float(value) / 100.0
     else:
         raise ValueError(f"Cannot convert {type(value)} to percentage decimal") 
+
+
+# --- Symbol-aware TT bond formatting helpers ---
+def get_treasury_tick_resolution(symbol: Optional[str]) -> int:
+    """
+    Determine sub-32nd tick resolution based on futures symbol.
+
+    Returns one of {2, 4, 8} meaning halves, quarters, or eighths of 1/32.
+
+    Mapping (handles both CME and Bloomberg roots):
+    - 2 (halves): ZN/TY, ZB/US
+    - 4 (quarters): ZT/TU
+    - 8 (eighths): ZF/FV
+    """
+    if not symbol:
+        return 2
+
+    s = str(symbol).upper().strip()
+    # Normalize: take first token before space (e.g., "TUU5 Comdty" -> "TUU5")
+    s = s.split()[0]
+
+    # Known roots
+    halves_roots = ("ZN", "TY", "ZB", "US")
+    quarters_roots = ("ZT", "TU")
+    eighths_roots = ("ZF", "FV")
+
+    # Check by prefix match against known roots
+    for root in halves_roots:
+        if s.startswith(root):
+            return 2
+    for root in quarters_roots:
+        if s.startswith(root):
+            return 4
+    for root in eighths_roots:
+        if s.startswith(root):
+            return 8
+
+    # Default to halves when unknown
+    return 2
+
+
+def decimal_to_tt_bond_format_with_resolution(decimal_price: float, resolution: int) -> str:
+    """
+    Convert decimal price to TT bond style string with custom sub-32nd resolution.
+
+    - resolution=2  => halves (like existing "110'065")
+    - resolution=4  => quarters (suffix in {00,25,50,75})
+    - resolution=8  => eighths  (suffix in {00,12,25,37,50,62,75,87})
+    """
+    if not isinstance(decimal_price, (int, float)):
+        raise TypeError("Input price must be a number.")
+
+    whole_part = int(decimal_price)
+    fractional_value = decimal_price - whole_part
+
+    # Total 32nds as float
+    thirty_seconds_total = fractional_value * 32.0
+    # Subdivisions within a 32nd based on resolution (rounded to nearest subdivision)
+    subdivisions_total = round(thirty_seconds_total * resolution)
+
+    # Compute whole 32nds and remainder subdivision
+    full_32nds = int(subdivisions_total // resolution)
+    remainder = int(subdivisions_total % resolution)
+
+    # Handle rollover (e.g., 32 32nds -> increment whole point)
+    if full_32nds >= 32:
+        whole_part += 1
+        full_32nds -= 32
+        remainder = 0
+
+    if resolution == 2:
+        # halves -> last digit 0 or 5
+        last_digit = '5' if remainder == 1 else '0'
+        return f"{whole_part}'{full_32nds:02d}{last_digit}"
+
+    if resolution == 4:
+        # quarters -> two-digit suffix from set
+        quarter_suffix = ("00", "25", "50", "75")[remainder]
+        return f"{whole_part}'{full_32nds:02d}{quarter_suffix}"
+
+    if resolution == 8:
+        # eighths -> two-digit suffix approximating .125, .375, .625, .875
+        eighth_suffix = ("00", "12", "25", "37", "50", "62", "75", "87")[remainder]
+        return f"{whole_part}'{full_32nds:02d}{eighth_suffix}"
+
+    # Fallback to halves behavior if unexpected resolution
+    last_digit = '5' if (remainder % 2) == 1 else '0'
+    return f"{whole_part}'{full_32nds:02d}{last_digit}"
+
+
+def decimal_to_tt_bond_format_by_symbol(decimal_price: float, symbol: Optional[str]) -> str:
+    """
+    Convert decimal price to TT bond string choosing resolution by symbol root.
+    """
+    resolution = get_treasury_tick_resolution(symbol)
+    return decimal_to_tt_bond_format_with_resolution(decimal_price, resolution)

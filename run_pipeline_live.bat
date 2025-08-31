@@ -42,6 +42,12 @@ echo    - Updates the master 'positions' table in trades.db.
 start "Positions Aggregator" cmd /k "python run_positions_aggregator_service.py"
 
 echo.
+echo  > Starting SOD Roll Service (Consumer 3)
+echo    - Rolls latest close -> sodTod at ~5:00 PM Chicago time.
+echo    - Publishes 'positions:changed' to refresh positions view.
+start "SOD Roll Service" cmd /k "python scripts\run_sod_roll_service.py"
+
+echo.
 echo All consumer services started. Waiting 5 seconds for them to initialize...
 timeout /t 5 >nul
 echo.
@@ -77,6 +83,12 @@ echo    - Monitors for new spot risk CSV chunks.
 echo    - Dispatches calculation jobs to a parallel worker pool.
 echo    - Publishes results (prices and Greeks) to Redis using Apache Arrow.
 start "Spot Risk Watcher" cmd /k "python run_spot_risk_watcher.py --debug"
+echo.
+
+echo Starting Actant Spot Risk Archiver (Independent Service)
+echo    - Mirrors/moves files to HistoricalMarketData hourly to keep source light.
+echo    - See docs\archiver_service_windows_setup.md for service install details.
+start "Spot Risk Archiver" cmd /k "python scripts\run_actant_spot_risk_archiver.py --config configs\actant_spot_risk_archiver.yaml"
 echo.
 
 echo =================================================

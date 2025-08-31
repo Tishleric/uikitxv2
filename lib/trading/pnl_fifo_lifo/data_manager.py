@@ -12,7 +12,7 @@ import os
 import re
 from glob import glob
 import logging
-from .config import DEFAULT_SYMBOL, ALL_TABLES, METHODS, PNL_MULTIPLIER
+from .config import DEFAULT_SYMBOL, ALL_TABLES, METHODS, PNL_MULTIPLIER, get_pnl_multiplier
 
 logger = logging.getLogger(__name__)
 
@@ -676,9 +676,10 @@ def perform_eod_settlement(conn, settlement_date, close_prices):
             total_unrealized_pnl = 0
             
             if not positions.empty:
+                m = get_pnl_multiplier(symbol)
                 for _, pos in positions.iterrows():
-                    # Simple P&L: (settle - cost_basis) * qty * 1000
-                    pnl = (settle_price - pos['price']) * pos['quantity'] * PNL_MULTIPLIER
+                    # Simple P&L: (settle - cost_basis) * qty
+                    pnl = (settle_price - pos['price']) * pos['quantity'] * m
                     if pos['buySell'] == 'S':  # Short positions have inverted P&L
                         pnl = -pnl
                     total_unrealized_pnl += pnl

@@ -1,0 +1,16 @@
+# Actant Spot Risk Archiver Configuration
+
+source_root: "C:\\Users\\ceterisparibus\\Documents\\Next\\uikitxv2\\data\\input\\actant_spot_risk"
+archive_root: "C:\\Users\\ceterisparibus\\Documents\\HistoricalMarketData"
+
+# Service cadence
+scan_interval_minutes: 60
+min_age_minutes: 60
+
+# Safety controls
+max_moves_per_cycle: 100000
+exclude_globs:
+  - "*.tmp"
+  - "*.partial"
+  - "~$*"
+

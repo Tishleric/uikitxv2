@@ -1,0 +1,94 @@
+{
+   "checksum": "065b2dde8d38484802235864b0a9a5c8",
+   "roots": {
+      "bookmark_bar": {
+         "children": [ {
+            "date_added": "13400868969731534",
+            "date_last_used": "0",
+            "guid": "5d585ac1-0106-4cf7-b8e2-877073108d89",
+            "id": "10",
+            "name": "HP Offers",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "https://js.redirect.hp.com/jumpstation?bd=HPDeal&c=251&locale=ABA&pf=1325&tp=edge",
+            "visit_count": 0
+         }, {
+            "date_added": "13400868969731452",
+            "date_last_used": "0",
+            "guid": "67d61de5-46c8-4250-8f95-d3ff81070909",
+            "id": "9",
+            "name": "McAfee Security",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "https://js.redirect.hp.com/jumpstation?bd=McAfee&c=251&locale=ABA&pf=1325&tp=edge",
+            "visit_count": 0
+         }, {
+            "date_added": "13400868969731373",
+            "date_last_used": "0",
+            "guid": "7a6dd8f0-9377-4c05-a69c-3eba8249e267",
+            "id": "8",
+            "name": "Priceline",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "https://js.redirect.hp.com/jumpstation?bd=priceline&c=251&locale=ABA&pf=1325&tp=edge",
+            "visit_count": 0
+         }, {
+            "date_added": "13400868969731281",
+            "date_last_used": "0",
+            "guid": "d277b8ea-5343-41e4-b328-4c7b1218447b",
+            "id": "7",
+            "name": "Dropbox Offer",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "https://js.redirect.hp.com/jumpstation?bd=dropbox&c=251&locale=ABA&pf=1325&tp=edge",
+            "visit_count": 0
+         }, {
+            "date_added": "13400868969730949",
+            "date_last_used": "0",
+            "guid": "e5497e95-f0d9-4e54-9d51-255f60384c32",
+            "id": "6",
+            "name": "Adobe offers",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "https://js.redirect.hp.com/jumpstation?bd=Adobe&c=251&locale=ABA&pf=1325&tp=edge&RedeemCode=bUDqIHu9fRdQe3ynN2gyXHZgWqRn%2fWPys8J0n2NRzZscDROlqUJeNSoRIWl%2f7A%2boAz9hinE8X%2bMcCOn3B9XznFgvDirzq%2f%2fvpla6VgOq0cXPyJ6de4AH%2b8Zt6e39Q5wdTK3ZCxgTktGrU7p%2fDYrVJ2MkbDelZHRsKLB65UJzZJA%3d",
+            "visit_count": 0
+         } ],
+         "date_added": "13400868969529484",
+         "date_last_used": "0",
+         "date_modified": "13400868969731534",
+         "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
+         "id": "1",
+         "name": "Favorites bar",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "other": {
+         "children": [  ],
+         "date_added": "13400868969529484",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
+         "id": "2",
+         "name": "Other favorites",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "synced": {
+         "children": [  ],
+         "date_added": "13400868969529484",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
+         "id": "3",
+         "name": "Mobile favorites",
+         "source": "unknown",
+         "type": "folder"
+      }
+   },
+   "version": 1
+}

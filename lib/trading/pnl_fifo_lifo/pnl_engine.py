@@ -7,7 +7,7 @@ This module preserves the exact calculation logic from the original implementati
 
 from datetime import datetime, timedelta
 import pytz
-from .config import VERBOSE, PNL_MULTIPLIER
+from .config import VERBOSE, PNL_MULTIPLIER, get_pnl_multiplier
 
 def process_new_trade(conn, new_trade, method='fifo', trade_timestamp=None):
     """Process a new trade and offset against existing positions"""
@@ -36,14 +36,15 @@ def process_new_trade(conn, new_trade, method='fifo', trade_timestamp=None):
         offset_qty = min(remaining_qty, pos_qty)
         
         # Calculate realized P&L (multiply by 1000 for proper scaling)
+        m = get_pnl_multiplier(new_trade['symbol'])
         if opposite_side == 'S':  # We're buying, offsetting a short
             # Short position: entry at higher price (pos_price), exit at lower price (new_trade['price'])
-            realized_pnl = (pos_price - new_trade['price']) * offset_qty * PNL_MULTIPLIER
+            realized_pnl = (pos_price - new_trade['price']) * offset_qty * m
             entry_price = pos_price
             exit_price = new_trade['price']
         else:  # We're selling, offsetting a long
             # Long position: entry at lower price (pos_price), exit at higher price (new_trade['price'])
-            realized_pnl = (new_trade['price'] - pos_price) * offset_qty * PNL_MULTIPLIER
+            realized_pnl = (new_trade['price'] - pos_price) * offset_qty * m
             entry_price = pos_price
             exit_price = new_trade['price']
         
@@ -173,27 +174,28 @@ def calculate_unrealized_pnl(positions_df, price_dicts, method='live'):
         
         # Get effective entry price (Pmax logic)
         entry_price = get_effective_entry_price(actual_price, sod_tod, trade_time)
+        m = get_pnl_multiplier(symbol)
         
         # Calculate based on method
         if method == 'live':
             if time_period == 'pre_2pm':
                 # Before 2pm: use sodTod as intermediate
-                pnl = ((sod_tod - entry_price) * qty + (now_price - sod_tod) * qty) * PNL_MULTIPLIER
+                pnl = ((sod_tod - entry_price) * qty + (now_price - sod_tod) * qty) * m
                 intermediate = sod_tod
             else:  # 2pm_to_4pm or post_4pm
                 # After 2pm: use sodTom as intermediate
-                pnl = ((sod_tom - entry_price) * qty + (now_price - sod_tom) * qty) * PNL_MULTIPLIER
+                pnl = ((sod_tom - entry_price) * qty + (now_price - sod_tom) * qty) * m
                 intermediate = sod_tom
                 
         elif method == '2pm_close':
             # 2pm snapshot: use sodTom as intermediate, close as exit
-            pnl = ((sod_tom - entry_price) * qty + (close_price - sod_tom) * qty) * PNL_MULTIPLIER
+            pnl = ((sod_tom - entry_price) * qty + (close_price - sod_tom) * qty) * m
             intermediate = sod_tom
             now_price = close_price
             
         elif method == '4pm_close':
             # 4pm EOD: use sodTod as intermediate, close as exit
-            pnl = ((sod_tod - entry_price) * qty + (close_price - sod_tod) * qty) * PNL_MULTIPLIER
+            pnl = ((sod_tod - entry_price) * qty + (close_price - sod_tod) * qty) * m
             intermediate = sod_tod
             now_price = close_price
         
@@ -242,7 +244,8 @@ def calculate_daily_simple_unrealized_pnl(positions_df, settle_prices):
         settle_price = settle_prices.get(symbol, entry_price)
         
         # Simple calculation: (settle - entry) × qty × 1000
-        pnl = (settle_price - entry_price) * qty * PNL_MULTIPLIER
+        m = get_pnl_multiplier(symbol)
+        pnl = (settle_price - entry_price) * qty * m
         
         # Invert for short positions
         if pos['buySell'] == 'S':
@@ -292,7 +295,8 @@ def calculate_historical_unrealized_pnl(positions_df, price_dicts, valuation_dt)
             entry_price = actual_price
         
         # 4pm EOD calculation
-        pnl = ((sod_tod - entry_price) * qty + (close_price - sod_tod) * qty) * PNL_MULTIPLIER
+        m = get_pnl_multiplier(symbol)
+        pnl = ((sod_tod - entry_price) * qty + (close_price - sod_tod) * qty) * m
         
         # Adjust for short positions
         if pos['buySell'] == 'S':

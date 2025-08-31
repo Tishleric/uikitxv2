@@ -16,40 +16,73 @@ def bachelier_price(F, K, sigma, tau):
 # Analytical Greeks
 def analytical_greeks(F, K, sigma, tau):
     try:
-        d = (F - K) / (sigma * np.sqrt(tau))
-        phi = norm.pdf(d)
-        Phi = norm.cdf(d)
-        sqrtT = np.sqrt(tau)
-        
-        # First-order Greeks
-        delta = Phi
-        gamma = phi / (sigma * sqrtT)
-        theta = -phi * sigma / (2 * sqrtT)
-        vega = sqrtT * phi
-        rho = 0
-        
-        # Second-order Greeks
-        vanna = -phi * d / sigma
-        charm = -phi * d / (2 * tau)
-        vomma = phi * d * d * sqrtT / sigma  # Also called volga
-        veta = -phi * (1 + d * d) / (2 * sqrtT)
-        
-        # Third-order Greeks (moved here from separate function for consistency)
-        speed = -phi * d * (d * d - 1) / (sigma**2 * tau)
-        zomma = phi * d * (d * d - 3) / (sigma * tau)
-        color = phi * (d**3 - 3 * d) / (2 * tau * sigma * sqrtT)
-        ultima = phi * d * (d**4 - 10 * d * d + 15) / (sigma**3 * tau * sqrtT)
-        
-        # Note: vomma is another name for volga
-        return dict(
-            delta=delta, gamma=gamma, theta=theta, vega=vega, rho=rho,
-            vanna=vanna, charm=charm, vomma=vomma, volga=vomma, veta=veta,
-            speed=speed, zomma=zomma, color=color, ultima=ultima
-        )
+        if sigma==0:
+            moneyness = (F - K) 
+            if moneyness > 0:
+                phi = 0
+                Phi = 1
+            elif moneyness < 0:
+                phi = 0
+                Phi = 0
+
+            delta = Phi
+            gamma = 0
+            theta = 0
+            vega = 0
+            rho = 0
+            vanna = 0
+            charm = 0
+            vomma = 0
+            veta = 0
+            speed = 0
+            zomma = 0
+            color = 0
+            ultima = 0
+            return dict(
+                delta=delta, gamma=gamma, theta=theta, vega=vega, rho=rho,
+                vanna=vanna, charm=charm, vomma=vomma, volga=vomma, veta=veta,
+                speed=speed, zomma=zomma, color=color, ultima=ultima
+            )
+        else:
+            d = (F - K) / (sigma * np.sqrt(tau))
+            phi = norm.pdf(d)
+            Phi = norm.cdf(d)
+            sqrtT = np.sqrt(tau)
+            
+            # First-order Greeks
+            delta = Phi
+            gamma = phi / (sigma * sqrtT)
+            theta = phi * sigma / (2 * sqrtT)  # - sign Changed By Yaman
+            vega = sqrtT * phi
+            rho = 0
+            
+            # Second-order Greeks
+            vanna = -phi * d / sigma
+            charm = -phi * d / (2 * tau)
+            vomma = phi * d * d * sqrtT / sigma  # Also called volga
+            #veta = -phi * (1 + d * d) / (2 * sqrtT)  # Yaman: There should be no negative sign.
+            veta = phi * (1 + d * d) / (2 * sqrtT)
+            theta_dot = phi*sigma*(d*d -1)/(4*tau*sqrtT)
+            #Third-order Greeks (moved here from separate function for consistency)
+            #Speed = -phi * d * (d * d - 1) / (sigma**2 * tau) # Yaman: This is not correct
+            speed = -phi * d / (sigma**2 * tau)
+
+            # Yaman: Haven't checked these ones.
+            zomma = phi * d * (d * d - 3) / (sigma * tau)
+            color = phi * (d**3 - 3 * d) / (2 * tau * sigma * sqrtT)
+            ultima = phi * d * (d**4 - 10 * d * d + 15) / (sigma**3 * tau * sqrtT)
+            
+            # Note: vomma is another name for volga
+            return dict(
+                delta=delta, gamma=gamma, theta=theta, vega=vega, rho=rho,
+                vanna=vanna, charm=charm, vomma=vomma, volga=vomma, veta=veta,
+                speed=speed, zomma=zomma, color=color, ultima=ultima, theta_dot=theta_dot
+            )
     except:
         return dict.fromkeys(["delta", "gamma", "theta", "vega", "rho", 
                              "vanna", "charm", "vomma", "volga", "veta",
-                             "speed", "zomma", "color", "ultima"], 0)
+                             "speed", "zomma", "color", "ultima", "theta_dot"], 0)
+
 
 # Numerical Greeks
 def numerical_greeks(F, K, sigma, tau, eps=1e-4):

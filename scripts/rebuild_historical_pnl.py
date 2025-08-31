@@ -119,6 +119,85 @@ def main(preserve_processed_files=False):
             '2MQ5C 112.25 Comdty': 0,
             '2MQ5C 112.75 Comdty': 0
         },
+        datetime(2025, 8, 11).date(): {
+            symbol_futures: 111.890625,  
+            'USU5 Comdty': 115.15625,       
+        },
+        datetime(2025, 8, 12).date(): {
+            symbol_futures: 111.8125,  
+            'USU5 Comdty': 114.65625,       
+        },
+        datetime(2025, 8, 13).date(): {
+            symbol_futures: 112.171875,  
+            'USU5 Comdty': 115.5,       
+        },
+        datetime(2025, 8, 14).date(): {
+            symbol_futures: 111.796875,  
+            'USU5 Comdty': 114.65625,
+            'FVU5 Comdty': 108.7734375,
+            'TUU5 Comdty': 103.8671875,
+        },
+        datetime(2025, 8, 15).date(): {
+            symbol_futures: 111.59375,  
+            'USU5 Comdty': 114,
+            'FVU5 Comdty': 108.6796875,
+            'TUU5 Comdty': 103.8203125,
+        },
+        datetime(2025, 8, 18).date(): {
+            symbol_futures: 111.515625,  
+            'USU5 Comdty': 113.78125,
+            'FVU5 Comdty': 108.625,
+            'TUU5 Comdty': 103.7890625,
+        },
+        datetime(2025, 8, 19).date(): {
+            symbol_futures: 111.765625,  
+            'USU5 Comdty': 114.34375,
+            'FVU5 Comdty': 108.75,
+            'TUU5 Comdty': 103.8203125,
+        },
+        datetime(2025, 8, 20).date(): {
+            symbol_futures: 111.859375,  
+            'USU5 Comdty': 114.40625,
+            'FVU5 Comdty': 108.8125,
+            'TUU5 Comdty': 103.839843375,
+        },
+        datetime(2025, 8, 21).date(): {
+            symbol_futures: 111.53125,
+        },
+        datetime(2025, 8, 22).date(): {
+            symbol_futures: 112.140625,  
+            'USU5 Comdty': 114.84375,
+            'FVU5 Comdty': 109.046875,
+            'TUU5 Comdty': 103.94140625,
+        },
+        datetime(2025, 8, 25).date(): {
+            symbol_futures: 111.96875,  
+            'USU5 Comdty': 114.71875,
+            'FVU5 Comdty': 108.90625,
+            'TUU5 Comdty': 103.85546875,
+        },
+        datetime(2025, 8, 26).date(): {
+            symbol_futures: 112.203125,  
+            'USU5 Comdty': 114.59375,
+            'FVU5 Comdty': 109.125,
+        },
+        datetime(2025, 8, 27).date(): {
+            symbol_futures: 112.40625,  
+            'USU5 Comdty': 114.625,
+            'TYZ5 Comdty': 112.4375,
+            'USZ5 Comdty': 114.25,
+        },
+        datetime(2025, 8, 28).date(): {  
+            'USZ5 Comdty': 114.8125,
+            'TYZ5 Comdty': 112.59375,
+            'FVZ5 Comdty': 109.4765625,
+        },
+        datetime(2025, 8, 29).date(): {  
+            'USZ5 Comdty': 114.25,
+            'TYZ5 Comdty': 112.5,
+            'FVZ5 Comdty': 109.46875,
+            'TUZ5 Comdty': 104.26953125,
+        },
     }
 
     # Wipe and recreate all database tables
@@ -246,8 +325,8 @@ def main(preserve_processed_files=False):
                         
                         if not positions.empty:
                             for _, pos in positions.iterrows():
-                                # Simple P&L: (settle - cost_basis) * qty * 1000
-                                pnl = (settle_price - pos['price']) * pos['quantity'] * 1000
+                                # Simple P&L: (settle - cost_basis) * qty
+                                pnl = (settle_price - pos['price']) * pos['quantity'] * config.get_pnl_multiplier(symbol)
                                 if pos['buySell'] == 'S':  # Short positions have inverted P&L
                                     pnl = -pnl
                                 total_unrealized_pnl += pnl
@@ -344,8 +423,8 @@ def main(preserve_processed_files=False):
                 if not positions.empty:
                     print(f"      DEBUG {method}: Found {len(positions)} open positions for {symbol}")
                     for _, pos in positions.iterrows():
-                        # Simple P&L: (settle - cost_basis) * qty * 1000
-                        pnl = (settle_price - pos['price']) * pos['quantity'] * 1000
+                        # Simple P&L: (settle - cost_basis) * qty
+                        pnl = (settle_price - pos['price']) * pos['quantity'] * config.get_pnl_multiplier(symbol)
                         if pos['buySell'] == 'S':  # Short positions have inverted P&L
                             pnl = -pnl
                         total_unrealized_pnl += pnl

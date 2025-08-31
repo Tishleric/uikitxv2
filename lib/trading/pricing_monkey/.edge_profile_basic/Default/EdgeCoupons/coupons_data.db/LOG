@@ -1,0 +1,5 @@
+2025/08/29-14:18:54.688 2613c Reusing MANIFEST \\100.83.215.91\productionspace\uikitxv2\lib\trading\pricing_monkey\.edge_profile_basic\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2025/08/29-14:18:54.692 2613c Recovering log #149
+2025/08/29-14:18:54.710 2613c Reusing old log \\100.83.215.91\productionspace\uikitxv2\lib\trading\pricing_monkey\.edge_profile_basic\Default\EdgeCoupons/coupons_data.db/000149.log 
+2025/08/29-14:18:54.767 20df8 Level-0 table #153: started
+2025/08/29-14:18:54.786 20df8 Level-0 table #153: 672216 bytes OK

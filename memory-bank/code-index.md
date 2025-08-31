@@ -4,6 +4,22 @@ Structured registry of all code files in the uikitxv2 project.
 Last updated: January 2025
 
 ## Scripts
+### tools/validate_plex_errors.py
+Summarizes Plex accuracy validation CSVs. Walks `lib/trading/bond_future_options/data_validation/accuracy_validation/` for folders ending with `Plex`, selects files ending with `_Plex.csv`, and reports total data rows (excluding headers), rows with `|error_2nd_order| > 5`, percentage per folder, and grand totals. Skips malformed `error_2nd_order` values and reports skipped count. Run with `python tools/validate_plex_errors.py`.
+### scripts/data_tools/aggregate_yamansmess_outliers.py
+Aggregates all CSVs in `lib/trading/bond_future_options/data_validation/yamansmess/` matching `*outliers.csv` into `yamansmess_outliers_aggregated.csv`. Writes header once (deduplicates column headers only), validates identical headers across inputs, preserves input column order, and appends all rows. Adds no extra columns.
+### scripts/filter_review_csvs.py
+Utility to prune review CSVs by keeping all rows with error == inf, the top 5 rows (error <= 5) by absolute moneyness, and the top 5 rows by greatest finite error. Preserves header and original row order for selected rows; overwrites files in place. Accepts file paths or auto-discovers review CSVs.
+
+### gamma_ladder_standalone/gamma_ladder.py
+Direct conversion of the teammate's Jupyter notebook `gamma shop ladder.ipynb` into a Python script. Preserves original logic and paths. Generates a price ladder around current ZN price from TT live CSV, loads latest PricingMonkey CSV for today, selects closest options by target delta per ladder step, and writes a styled HTML table to `Y:\\Gamma Screener\\option_ladder.html`.
+
+### gamma_ladder_standalone/run_gamma_ladder.bat
+Windows launcher to run `gamma_ladder.py` by double-click. Looks for Python in PATH and runs `python -X utf8 gamma_ladder.py` from the script directory. Keeps the console open while running.
+
+
+### scripts/templates/data_quality_watcher_template.py
+Standalone, copyable watcher skeleton for data quality monitoring. Mirrors our watcher mechanics (watchdog Observer + FileSystemEventHandler, start/stop lifecycle, graceful shutdown, Windows-safe keepalive loop). No monitoring decorator or external integrations; teammate sets `--watch-dir`, `--pattern`, and fills TODOs in correctness/frequency/completeness checks.
 
 ### scripts/migration/001_add_tyu5_tables.py
 Database migration script that adds TYU5 P&L system tables. Creates lot_positions, position_greeks, risk_scenarios, match_history, and pnl_attribution tables. Extends positions table with short_quantity and match_history columns. Implements reversible migration with up() and down() methods, tracks status in schema_migrations table.
@@ -12,7 +28,16 @@ Database migration script that adds TYU5 P&L system tables. Creates lot_position
 Verification script that checks if TYU5 schema migration was applied correctly. Validates all new tables exist, indexes are created, positions table has new columns, and WAL mode is enabled. Provides detailed output showing table structures and migration status.
 
 ### scripts/run_all_watchers.py
+### scripts/run_sod_roll_service.py
+Perpetual service that, around 5:00 PM Chicago time, copies the latest trading day’s `close` prices into `pricing.sodTod` with a `YYYY-MM-DD 06:00:00` timestamp, mirroring the trusted behavior in `scripts/rebuild_historical_pnl.py`. Idempotent and publishes a Redis `positions:changed` signal so the positions aggregator refreshes.
+
 Unified watcher service that starts all three file watchers in separate threads. Manages MarketPriceFileMonitor (2pm/4pm price files), SpotRiskWatcher (spot risk + current prices), and PNLPipelineWatcher (TYU5 calculations). Provides unified logging, graceful shutdown, and thread monitoring. Central entry point for all file monitoring.
+
+### scripts/diagnostics/verify_sod_roll.py
+Read-only verifier for SOD roll state against a SQLite DB. Prints cwd, resolved DB path, PRAGMA database_list, latest close date, counts of `close` vs `sodTod` on that date, distinct `sodTod` times, and latest `sodTod` date. Exit codes: 0 pass, 2 mismatch, 3 schema/env issue.
+
+### scripts/diagnostics/manual_sod_roll_now.py
+Safe manual SOD roll utility. Prefers `sodTom → sodTod` on latest sodTom date (preserves timestamps) and clears `sodTom`; falls back to `close → sodTod` at 06:00 when `sodTom` is absent. Supports dry-run and `--execute`.
 
 ### scripts/run_pnl_watcher.py
 Runner script for PNLPipelineWatcher service. Monitors trade ledger CSV files and market prices database for changes, triggers full TYU5 P&L calculation pipeline. Processes all trade ledgers (not just most recent), filters zero-price and midnight trades. Updates tyu5_* tables in pnl_tracker.db.
@@ -24,10 +49,60 @@ Runner script for MarketPriceFileMonitor. Monitors futures and options price dir
 Repository scanner that walks the entire tree (excluding `.git`, `__pycache__`, `.pytest_cache`) and emits a JSONL manifest with path, size, mtime, extension, binary flag, and SHA-1. Output written to `memory-bank/index/manifest.jsonl`. Serves as the foundation for comprehensive indexing and coverage checks.
 
 ### scripts/indexer/extract_python_ast.py
+### scripts/add_pricingmonkey_column.py
+Adds a `PricingMonkey` column to `data/reference/symbol_translation/ExpirationCalendar_CLEANED.csv` for option rows (skips futures). The value is a base key without strike/side: "<mon><yy> wkN <dow> ty" (e.g., "sep25 wk1 thu ty"). Week index N is the 1-based occurrence of the weekday in that month, derived from the `Option Expiration Date (CT)` column.
 AST extractor for all Python files. Captures module docstrings, imports, top-level functions (names and args), and classes (bases and methods). Outputs JSONL to `memory-bank/index/python_ast.jsonl`. Used to synthesize summaries, import graphs, and API surfaces.
 
 ### scripts/translate_bbg_to_actantrisk.py
 Utility script that reads a list of Bloomberg symbols (one per line, default `bbgsymbolstotranslate.md`), translates each to ActantRisk using `RosettaStone.translate(symbol, 'bloomberg', 'actantrisk')`, and writes results to CSV at `data/output/symbol_translations/bbg_to_actantrisk.csv`. Allows overriding input/output paths via `--input` and `--output`.
+
+### scripts/run_actant_spot_risk_archiver.py
+Perpetual archiver for Spot Risk input data. Mirrors and moves files from `C:\\Users\\ceterisparibus\\Documents\\Next\\uikitxv2\\data\\input\\actant_spot_risk` to `C:\\Users\\ceterisparibus\\Documents\\HistoricalMarketData`, preserving structure. Uses atomic day-folder renames for folders older than today, and hourly sweeps of today’s folder for stable files (≥60 min). Writes append-only CSV ledger and logs under `%PROGRAMDATA%\\ActantArchive`.
+
+### scripts/run_five_minute_market_snapshot.py
+Perpetual snapshot service that reads the latest complete 16-chunk Actant Spot Risk batch, computes Greeks for all rows (futures and options), and writes a CSV every five minutes to `C:\\Users\\ceterisparibus\\Documents\\ProductionSpace\\Hanyu\\FiveMinuteMarket\\<trading-day>\\`. Trading day rolls at 5:00 PM Chicago. Uses existing parser and calculator modules; independent from existing watchers.
+
+### configs/five_minute_market.yaml
+### scripts/fivemin_market_search.py
+Comprehensive scanner for `FiveMinuteMarket` snapshots. Parses CT timestamps from filenames, maps each file to a trading day (session 5pm–4pm CT), computes per-day 5‑minute coverage with gap statistics, reads expiries from CSVs, and evaluates all rolling 5‑business‑day windows for expiry progression. Outputs JSON reports (`coverage_by_day.json`, `candidates.json`) and a manifest-ready mapping of bins to files. Accepts CLI args with sensible defaults.
+
+Configuration file for the Five-Minute Market Snapshot service. Keys include `input_dir`, `output_root`, `interval_minutes`, `timezone`, `vtexp_dir`, `enabled_greeks`, `stale_max_minutes`, and `filename_pattern`.
+
+### pm_standalone/pm_runner.py
+Standalone Pricing Monkey automation script. Opens Chrome to `https://pricingmonkey.com/b/ed392083-bb6d-4d8e-a664-206cb82b041c`, performs keyboard navigation (TAB×7, DOWN, Ctrl+Shift+Down, Ctrl+Shift+Right), copies the grid to clipboard, parses into a pandas DataFrame, and saves a CSV named `pmonkey_MMDDYYYY_HH-MM-SS.csv` under `Z:\Hanyu\FiveMinuteMonkey\MM-DD-YYYY\`. Writes a per-run log `pm_run_YYYYMMDD_HH-MM-SS.log` to the working directory.
+
+### pm_standalone/run_pm_standalone.bat
+Windows batch launcher for the standalone PM script. Ensures pip and installs required dependencies (`pywinauto`, `pyperclip`, `pandas`) if missing, then runs `pm_runner` every 5 minutes in a perpetual loop. Logs are written by the Python script in the batch's working directory.
+
+### pm_standalone/install_pm_requirements.bat
+One-time dependency installer. Detects your Python (Anaconda/Miniconda or system), ensures pip, and installs `pywinauto`, `pyperclip`, and `pandas`. Use this first on a new machine; the run script assumes dependencies are present.
+
+### pm_standalone/run_pm_playwright_diagnostics.bat
+Runs a full Playwright viability diagnostic: installs Playwright and Edge support if missing, launches Edge with a dedicated profile, navigates to PM, saves screenshots, attempts DOM text extraction, performs page-scoped (non-OS) keyboard selection and clipboard capture, and writes diagnostic CSV/logs under `pm_standalone/logs/`.
+
+### pm_standalone/pm_playwright_probe.py
+Python probe used by the diagnostics batch. Implements the diagnostic steps: Edge launch with persistent profile, PM navigation, screenshots, DOM text dump, page-scoped selection/clipboard capture, and CSV parsing with explicit headers.
+
+### pm_standalone/pm_runner_playwright.py
+Persistent Playwright-based runner that launches Edge once with a dedicated profile, prompts for first-run login, polls for data readiness, performs in-tab selection/copy each cycle, parses to CSV with headers, and sleeps (30s dev). Keeps the Edge window open between cycles to preserve login.
+
+### pm_standalone/run_pm_playwright_runner.bat
+Minimal launcher for the Playwright runner. Runs `python -X utf8 pm_runner_playwright.py` from the folder and leaves the console open on exit.
+
+### pm_standalone/pm_runner_playwright_1hz.py
+High-frequency (1 Hz) stress-test runner. Launches Edge with anti-throttling flags, reuses in-tab key selection, polls readiness, saves CSVs to `pm_standalone/test_output/<date>/`, and logs per-cycle stats to `logs/`.
+
+### pm_standalone/run_pm_playwright_runner_1hz.bat
+Launcher for the 1 Hz stress runner.
+
+### lib/trading/pricing_monkey/playwright_basic_runner.py
+Playwright Edge one-shot collector for Pricing Monkey. Opens board `cbe072b5-…513d`, sends key sequence (TAB×7, DOWN×3, Ctrl+Shift+Down, Ctrl+Shift+Right), waits for all "Loading..." cells to clear, copies selection via page-scoped clipboard, parses into a pandas DataFrame, and prints shape/head. Uses a dedicated `.edge_profile_basic` and does not persist a loop.
+
+### apps/dashboards/pm_basic/app.py
+Minimal Dash app named `pm_scenario`. Uses wrapped components (`Container`, `Button`, `DataTable`). Clicking "Run Pricing Monkey" invokes `PMBasicRunner.collect_once()` and displays the full resulting DataFrame in a themed DataTable, with a status line showing row/column counts. Assets sourced from project `assets/`.
+
+### apps/dashboards/yamansmess_outliers/app.py
+Dash app that reads `yamansmess_outliers_aggregated.csv` and renders six scatter plots with |error| on Y: `del_f`, `del_c`, `del_t`, `del_iv`, `vtexp`, and `moneyness` on X. Loads CSV at startup, coerces numeric types, and displays graphs in a two-per-row layout. Run with `python apps/dashboards/yamansmess_outliers/app.py`.
 
 ## Tests
 
@@ -49,9 +124,15 @@ Focused database performance testing tool. Tests single update timing, batch vs 
 ## Documentation
 
 ### docs/tyu5_migration_deep_analysis.md
+### docs/bond_future_options_analytics_guide.md
+Orientation guide for the bond future options analytics package. Summarizes each file’s role (API, facade, factory, model, core engine, analytical formulas), explains how the `ModelFactory` selects models, and provides a math-first review path to verify Greek accuracy. Aimed at math-proficient readers new to the code.
+
 Comprehensive deep system analysis comparing TYU5 P&L system with TradePreprocessor pipeline. Covers architecture comparison, data models, calculation methodologies, and proposes 4-phase hybrid integration strategy. Key findings: TYU5 has advanced FIFO with short support and Bachelier option pricing, while TradePreprocessor offers production reliability and SQLite integration. Recommends preserving both systems' strengths through incremental migration.
 
 ## Core Infrastructure
+
+### core/
+- `archiver_protocol.py`: Protocol specifying the minimal interface for long-running archiver services (`run_once` and `run_forever`). Enables consistent orchestration and testing across different archiver implementations.
 
 ### lib/trading/
 - `symbol_translator.py`: Actant to Bloomberg symbol translation for futures and options
@@ -116,6 +197,12 @@ Unit tests for SymbolMapper class. Tests all symbol format conversions including
 ## Dashboard Applications
 
 ### apps/dashboards/pnl_v2/
+### apps/dashboards/aggregated_explorer/
+- `app.py`: Small internal Dash app to explore aggregated option CSVs. Lets user pick weekday (Mon–Thu codes plus Friday `OZN_SEP25`), side (C/P), start and end timestamps (deduped from target CSV), and displays two tables for the selected rows.
+- `service.py`: Filesystem-backed data service implementing `AggregatedDataService` for listing days/sides, reading unique timestamps, and fetching rows by exact timestamp. Handles Friday exception naming `aggregated_OZN_SEP25_[C|P].csv`.
+
+### core/
+- `aggregated_data_protocol.py`: ABC specifying `AggregatedDataService` interface for day/side listing, timestamp enumeration, and row retrieval by timestamp. Used by the Aggregated Explorer app.
 New P&L tracking dashboard with real-time updates. Components:
 - app.py: Main layout with 4 tabs (Open Positions, Trade Ledger, Daily P&L, P&L Chart)
 - views.py: Individual tab components and data tables
@@ -132,6 +219,7 @@ New P&L tracking dashboard with real-time updates. Components:
 - **test_unified_service_enhanced.py** - Comprehensive test suite for enhanced UnifiedPnLService. Tests TYU5 feature integration including lot tracking, Greeks, risk scenarios, and fallback behavior. Includes direct API tests.
 
 ### tests/trading/pnl_fifo_lifo/
+- **test_sod_roll.py** - Unit tests for the SOD roll utility. Verifies that latest `close` prices are copied to `sodTod` with the expected timestamp and that the operation is idempotent on repeated runs.
 - **test_trade_insertions.py** - Comprehensive unit tests for trade database insertions in FIFO/LIFO system. Tests correct insertion into trades_fifo, trades_lifo, realized_fifo, and realized_lifo tables. Verifies no duplicate entries, proper FIFO vs LIFO ordering, partial/full offsets, P&L calculations, and transaction atomicity. Includes test for positions aggregator query using master symbol list approach.
 - **test_end_to_end_flow.py** - End-to-end integration test simulating complete flow from trade entry to dashboard display. Tests trade processing, positions aggregation, and dashboard queries. Verifies open/closed positions calculation directly from trades and realized tables.
 
@@ -199,6 +287,12 @@ Windows batch file for unified watcher service. Checks for Anaconda Python insta
 
 ### run_spot_risk_watcher.bat
 Windows batch file for Spot Risk Watcher service. Validates Anaconda Python path, ensures watchdog is installed, and runs the spot risk file monitoring service. Monitors data/input/actant_spot_risk/ for new files. 
+
+### run_verify_sod_roll.bat
+Runs the SOD roll verification script against `trades.db` and paginates the output.
+
+### run_manual_sod_roll_now.bat
+Interactive helper to perform a safe manual SOD roll: runs a dry run first; on confirmation, creates a timestamped backup of `trades.db` and executes the roll.
 
 ## TYU5 P&L Components
 

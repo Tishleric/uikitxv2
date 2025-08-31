@@ -1,0 +1,296 @@
+[
+  {
+    "days": [
+      "2025-08-18",
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21",
+      "2025-08-22"
+    ],
+    "sum_present": 1021,
+    "avg_coverage": 0.739855072463768,
+    "max_largest_gap_min": 1230,
+    "per_day": [
+      {
+        "trading_day": "2025-08-18",
+        "coverage": 0.10869565217391304,
+        "present_count": 30,
+        "expected_count": 276,
+        "largest_gap_min": 1230
+      },
+      {
+        "trading_day": "2025-08-19",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-20",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-21",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-22",
+        "coverage": 0.5905797101449275,
+        "present_count": 163,
+        "expected_count": 276,
+        "largest_gap_min": 565
+      }
+    ]
+  },
+  {
+    "days": [
+      "2025-08-19",
+      "2025-08-20",
+      "2025-08-21",
+      "2025-08-22",
+      "2025-08-25"
+    ],
+    "sum_present": 1009,
+    "avg_coverage": 0.731159420289855,
+    "max_largest_gap_min": 1290,
+    "per_day": [
+      {
+        "trading_day": "2025-08-19",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-20",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-21",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-22",
+        "coverage": 0.5905797101449275,
+        "present_count": 163,
+        "expected_count": 276,
+        "largest_gap_min": 565
+      },
+      {
+        "trading_day": "2025-08-25",
+        "coverage": 0.06521739130434782,
+        "present_count": 18,
+        "expected_count": 276,
+        "largest_gap_min": 1290
+      }
+    ]
+  },
+  {
+    "days": [
+      "2025-08-20",
+      "2025-08-21",
+      "2025-08-22",
+      "2025-08-25",
+      "2025-08-26"
+    ],
+    "sum_present": 1009,
+    "avg_coverage": 0.731159420289855,
+    "max_largest_gap_min": 1290,
+    "per_day": [
+      {
+        "trading_day": "2025-08-20",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-21",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-22",
+        "coverage": 0.5905797101449275,
+        "present_count": 163,
+        "expected_count": 276,
+        "largest_gap_min": 565
+      },
+      {
+        "trading_day": "2025-08-25",
+        "coverage": 0.06521739130434782,
+        "present_count": 18,
+        "expected_count": 276,
+        "largest_gap_min": 1290
+      },
+      {
+        "trading_day": "2025-08-26",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      }
+    ]
+  },
+  {
+    "days": [
+      "2025-08-21",
+      "2025-08-22",
+      "2025-08-25",
+      "2025-08-26",
+      "2025-08-27"
+    ],
+    "sum_present": 1009,
+    "avg_coverage": 0.731159420289855,
+    "max_largest_gap_min": 1290,
+    "per_day": [
+      {
+        "trading_day": "2025-08-21",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-22",
+        "coverage": 0.5905797101449275,
+        "present_count": 163,
+        "expected_count": 276,
+        "largest_gap_min": 565
+      },
+      {
+        "trading_day": "2025-08-25",
+        "coverage": 0.06521739130434782,
+        "present_count": 18,
+        "expected_count": 276,
+        "largest_gap_min": 1290
+      },
+      {
+        "trading_day": "2025-08-26",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-27",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      }
+    ]
+  },
+  {
+    "days": [
+      "2025-08-22",
+      "2025-08-25",
+      "2025-08-26",
+      "2025-08-27",
+      "2025-08-28"
+    ],
+    "sum_present": 1009,
+    "avg_coverage": 0.731159420289855,
+    "max_largest_gap_min": 1290,
+    "per_day": [
+      {
+        "trading_day": "2025-08-22",
+        "coverage": 0.5905797101449275,
+        "present_count": 163,
+        "expected_count": 276,
+        "largest_gap_min": 565
+      },
+      {
+        "trading_day": "2025-08-25",
+        "coverage": 0.06521739130434782,
+        "present_count": 18,
+        "expected_count": 276,
+        "largest_gap_min": 1290
+      },
+      {
+        "trading_day": "2025-08-26",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-27",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-28",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      }
+    ]
+  },
+  {
+    "days": [
+      "2025-08-25",
+      "2025-08-26",
+      "2025-08-27",
+      "2025-08-28",
+      "2025-08-29"
+    ],
+    "sum_present": 862,
+    "avg_coverage": 0.6246376811594203,
+    "max_largest_gap_min": 1300,
+    "per_day": [
+      {
+        "trading_day": "2025-08-25",
+        "coverage": 0.06521739130434782,
+        "present_count": 18,
+        "expected_count": 276,
+        "largest_gap_min": 1290
+      },
+      {
+        "trading_day": "2025-08-26",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-27",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-28",
+        "coverage": 1.0,
+        "present_count": 276,
+        "expected_count": 276,
+        "largest_gap_min": 0
+      },
+      {
+        "trading_day": "2025-08-29",
+        "coverage": 0.057971014492753624,
+        "present_count": 16,
+        "expected_count": 276,
+        "largest_gap_min": 1300
+      }
+    ]
+  }
+]

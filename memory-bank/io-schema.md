@@ -9,6 +9,12 @@
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
 |------|------|------|------------------------|---------------|
+| AGGREGATED_CSV_DIR | Constant | str | Absolute path to aggregated CSV folder | apps/dashboards/aggregated_explorer/service.py resolves to `lib/trading/bond_future_options/generatedcsvs/aggregated` |
+| AggregatedDataService.list_available_days | Function | Returns: list[str] | Day codes present | ["18AUG25", "19AUG25", "20AUG25", "21AUG25", "OZN_SEP25"] |
+| AggregatedDataService.list_available_sides | Function | Returns: list[str] | ["C","P"] subset | ["C","P"] |
+| AggregatedDataService.get_csv_path | Function | Returns: str | Existing file path | aggregated_18AUG25_C.csv |
+| AggregatedDataService.list_unique_timestamps | Function | Returns: list[str] | Sorted unique timestamps | ["2025-08-18 14:34:26", "2025-08-18 14:39:27", ...] |
+| AggregatedDataService.get_rows_for_timestamp | Function | Returns: pd.DataFrame | Exact timestamp match | df = service.get_rows_for_timestamp(path, ts) |
 | Button.className | Input | str | Any string | Button(id="btn", className="my-button") |
 | Button.id | Input | str | Unique string | Button(id="submit-button") |
 | Button.label | Input | str | Any string | Button(id="btn", label="Submit") |
@@ -260,6 +266,43 @@ Format: `XXX'YYZZ` where:
 | `my_working_orders_response.json` | Input File (Mock) | JSON | TT API-like order list (see file) | Mock data for `ladderTest/scenario_ladder_v1.py` |
 | `order_enumerations.json` | Input File / Data | JSON | TT API enum mappings (see file) | Reference for TT order field decoding |
 
+## Archiver Service
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| ActantArchiveLogDir | Constant | str | Absolute Windows path | `%PROGRAMDATA%\\ActantArchive\\logs` |
+| ActantArchiveLedgerDir | Constant | str | Absolute Windows path | `%PROGRAMDATA%\\ActantArchive\\ledger` |
+| ActantArchiveStateDir | Constant | str | Absolute Windows path | `%PROGRAMDATA%\\ActantArchive\\state` |
+| actant_spot_risk_archiver.config | Input | YAML | Keys: `source_root`, `archive_root`, `scan_interval_minutes`, `min_age_minutes`, `max_moves_per_cycle`, `exclude_globs`, `free_space_min_percent` | `configs/actant_spot_risk_archiver.yaml` |
+| run_actant_spot_risk_archiver.py | Internal | script | Long-running process; no return; outputs are logs and CSV ledger | `python scripts/run_actant_spot_risk_archiver.py --config configs/actant_spot_risk_archiver.yaml` |
+
+## Five-Minute Market Snapshot
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| five_minute_market.config | Input | YAML | Keys: `input_dir`, `output_root`, `interval_minutes`, `timezone`, `vtexp_dir`, `enabled_greeks`, `stale_max_minutes`, `filename_pattern` | `configs/five_minute_market.yaml` |
+| run_five_minute_market_snapshot.py | Internal | script | Long-running process; writes CSV snapshots every 5 minutes into trading-day subfolders (roll at 17:00 CT) | `python scripts/run_five_minute_market_snapshot.py --config configs/five_minute_market.yaml` |
+| snapshot.timestamp | Output | str | Chicago local time `YYYY-MM-DD HH:MM:SS` | "2025-08-18 12:35:00" |
+| snapshot.underlying_future_price | Output | float | >= 0 | 111.578125 |
+| snapshot.expiry | Output | str \| None | Parsed expiry token | "20AUG25" |
+| snapshot.vtexp | Output | float \| None | Time to expiry in years (value used in calc) | 0.01587 |
+| snapshot.strike | Output | float \| None | >= 0 | 111.25 |
+| snapshot.itype | Output | str | "F", "C", "P" | "C" |
+| snapshot.bid | Output | float \| None | >= 0 | 0.34375 |
+| snapshot.ask | Output | float \| None | >= 0 | 0.375 |
+| snapshot.adjtheor | Output | float \| None | >= 0 | 0.35538 |
+| snapshot.implied_vol | Output | float \| None | >= 0 | 78.4521 |
+| snapshot.delta_F | Output | float \| None | any | 0.42 |
+| snapshot.delta_y | Output | float \| None | any | 63.5 |
+| snapshot.gamma_F | Output | float \| None | any | 0.0015 |
+| snapshot.gamma_y | Output | float \| None | any | 0.0042 |
+| snapshot.speed_F | Output | float \| None | any | 0.00008 |
+| snapshot.speed_y | Output | float \| None | any | 0.00002 |
+| snapshot.theta_F | Output | float \| None | any | -0.0125 |
+| snapshot.vega_price | Output | float \| None | any | 0.065 |
+| snapshot.vega_y | Output | float \| None | any | 0.058 |
+| snapshot.key | Output | str | Original instrument key | "XCME.WY3.20AUG25.111:25.C" |
+
 ## Ladder Test Application Constants
 
 | Name | Kind | Type | Allowed values / range | Description |
@@ -283,6 +326,14 @@ Format: `XXX'YYZZ` where:
 | `get_extended_pm_data` | Function | Returns: pd.DataFrame | N/A | `from trading.pricing_monkey import get_extended_pm_data; df = get_extended_pm_data()` returns 9-column extended dataset |
 | `PMRetrievalError` | Exception | Custom exception class | N/A | `from trading.pricing_monkey import PMRetrievalError; raise PMRetrievalError("Failed to retrieve data")` |
 | `PMSimpleRetrievalError` | Exception | Custom exception class | N/A | `from trading.pricing_monkey import PMSimpleRetrievalError; raise PMSimpleRetrievalError("Simple retrieval failed")` |
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| PMBasicRunner.collect_once | Function | Returns: `pd.DataFrame` | Single-run Playwright Edge collection | `from trading.pricing_monkey.playwright_basic_runner import PMBasicRunner; df = PMBasicRunner().collect_once()` |
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| pm_scenario Dash app | App | Dash | Run locally | `python apps/dashboards/pm_basic/app.py` → click "Run Pricing Monkey" to populate table |
 
 ### Option Asset Code Logic
 

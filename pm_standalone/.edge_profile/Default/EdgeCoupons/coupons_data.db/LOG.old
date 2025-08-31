@@ -1,0 +1,6 @@
+2025/08/22-16:26:12.472 14c4c Reusing MANIFEST Z:\uikitxv2\pm_standalone\.edge_profile\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2025/08/22-16:26:12.476 14c4c Recovering log #39
+2025/08/22-16:26:12.479 14c4c Reusing old log Z:\uikitxv2\pm_standalone\.edge_profile\Default\EdgeCoupons/coupons_data.db/000039.log 
+2025/08/22-16:26:12.718 901c Level-0 table #43: started
+2025/08/22-16:26:12.753 901c Level-0 table #43: 672204 bytes OK
+2025/08/22-16:26:12.757 901c Delete type=0 #39
