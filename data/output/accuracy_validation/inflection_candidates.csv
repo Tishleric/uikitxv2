@@ -1,0 +1,7 @@
+category,threshold_for_95pct
+All,1e-05
+OTM_only,5e-06
+vtexp_<0.002,
+vtexp_0.002-0.01,
+vtexp_0.01-0.05,0.0
+vtexp_>=0.05,
