@@ -15,6 +15,10 @@ def _collect_plex_csvs(root_dir: str) -> List[str]:
                 continue
             if "outliers" in fname:
                 continue
+            # Restrict to Calls only: filenames contain "_C_" before suffix
+            # Skip any Put files ("_P_") that may have been added recently
+            if "_P_" in fname and "_C_" not in fname:
+                continue
             files.append(os.path.join(dirpath, fname))
     files.sort()
     return files
@@ -126,8 +130,20 @@ def analyze_accuracy_data(input_dir: str, output_dir: str, thresholds: List[floa
             df_clean["moneyness"], bins=mon_edges, labels=mon_labels, include_lowest=True
         )
 
-    vte_edges = [0, 0.002, 0.01, 0.05, 1.0]
-    vte_labels = ["<0.002", "0.002-0.01", "0.01-0.05", ">=0.05"]
+    # Finer-grained time-to-expiry bins with extra resolution near 0 (business years)
+    # 0, 0.00025 (~1.5h), 0.0005 (~3h), 0.001 (~6h), 0.002 (~12h), 0.005 (~3d), 0.01 (~5d), 0.02 (~10d), 0.05 (~1m), 1.0
+    vte_edges = [0, 0.00025, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 1.0]
+    vte_labels = [
+        "<0.00025",
+        "0.00025-0.0005",
+        "0.0005-0.001",
+        "0.001-0.002",
+        "0.002-0.005",
+        "0.005-0.01",
+        "0.01-0.02",
+        "0.02-0.05",
+        ">=0.05",
+    ]
     if "vtexp" in df_clean.columns:
         df_clean["vtexp_bin"] = pd.cut(df_clean["vtexp"], bins=vte_edges, labels=vte_labels, right=False)
 
@@ -235,6 +251,200 @@ def analyze_accuracy_data(input_dir: str, output_dir: str, thresholds: List[floa
     df_sweep = pd.DataFrame(sweep_records)
     df_sweep.to_csv(os.path.join(output_dir, "threshold_sweep.csv"), index=False)
 
+    # vtexp threshold sweep (dense near 0 business years)
+    vt_grid = np.linspace(0.0, 0.005, num=51).tolist()
+    vt_records: List[Dict[str, object]] = []
+    for vt in vt_grid:
+        mask_hi = df_clean["vtexp"] >= vt
+        cnt_hi = int(mask_hi.sum())
+        succ_hi = int((df_clean["success_abs"] & mask_hi).sum())
+        rate_hi = succ_hi / cnt_hi if cnt_hi else math.nan
+
+        mask_hi_otm = mask_hi & (df_clean["moneyness"] < 0)
+        cnt_hi_otm = int(mask_hi_otm.sum())
+        succ_hi_otm = int((df_clean["success_abs"] & mask_hi_otm).sum())
+        rate_hi_otm = succ_hi_otm / cnt_hi_otm if cnt_hi_otm else math.nan
+
+        if not math.isnan(rate_hi):
+            p = rate_hi
+            n = cnt_hi
+            se = math.sqrt(p * (1 - p) / n) if n and (0 < p < 1) else 0.0
+            lo = max(0.0, p - 1.96 * se)
+            hi = min(1.0, p + 1.96 * se)
+        else:
+            lo = math.nan
+            hi = math.nan
+
+        vt_records.append(
+            {
+                "vtexp_threshold": vt,
+                "count_hi": cnt_hi,
+                "count_hi_otm": cnt_hi_otm,
+                "success_hi": rate_hi,
+                "success_hi_otm": rate_hi_otm,
+                "success_hi_ci_lower": lo,
+                "success_hi_ci_upper": hi,
+            }
+        )
+    df_vt = pd.DataFrame(vt_records)
+    df_vt.to_csv(os.path.join(output_dir, "vtexp_threshold_sweep.csv"), index=False)
+
+    # moneyness threshold sweep (calls-only OTM = moneyness < 0). Keep moneyness ≥ threshold
+    mny_grid = np.linspace(-0.25, 0.0, num=101).tolist()
+    mny_records: List[Dict[str, object]] = []
+    if "moneyness" in df_clean.columns:
+        for mt in mny_grid:
+            m_hi = df_clean["moneyness"] >= mt
+            cnt = int(m_hi.sum())
+            succ = int((df_clean["success_abs"] & m_hi).sum())
+            rate = succ / cnt if cnt else math.nan
+
+            m_hi_otm = m_hi & (df_clean["moneyness"] < 0)
+            cnt_otm = int(m_hi_otm.sum())
+            succ_otm = int((df_clean["success_abs"] & m_hi_otm).sum())
+            rate_otm = succ_otm / cnt_otm if cnt_otm else math.nan
+
+            if not math.isnan(rate):
+                p = rate
+                n = cnt
+                se = math.sqrt(p * (1 - p) / n) if n and (0 < p < 1) else 0.0
+                lo = max(0.0, p - 1.96 * se)
+                hi = min(1.0, p + 1.96 * se)
+            else:
+                lo = math.nan
+                hi = math.nan
+            mny_records.append(
+                {
+                    "moneyness_threshold": mt,
+                    "count_hi": cnt,
+                    "count_hi_otm": cnt_otm,
+                    "success_hi": rate,
+                    "success_hi_otm": rate_otm,
+                    "success_hi_ci_lower": lo,
+                    "success_hi_ci_upper": hi,
+                }
+            )
+    df_mny = pd.DataFrame(mny_records)
+    if not df_mny.empty:
+        df_mny.to_csv(os.path.join(output_dir, "moneyness_threshold_sweep.csv"), index=False)
+
+    # Filtered view: vtexp ≥ 2 hours and |moneyness| ≤ 1.5
+    two_hours_years = 2.0 / (24.0 * 252.0)
+    df_filtered = df_clean.copy()
+    if "vtexp" in df_filtered.columns:
+        df_filtered = df_filtered[df_filtered["vtexp"] >= two_hours_years]
+    if "moneyness" in df_filtered.columns:
+        df_filtered = df_filtered[df_filtered["moneyness"].abs() <= 1.5]
+
+    # AdjTheor sweep (filtered)
+    flt_records: List[Dict[str, object]] = []
+    for tau in thresholds:
+        hi_mask = df_filtered["adjtheor"] >= tau
+        lo_mask = ~hi_mask
+        count_total = len(df_filtered)
+        count_hi = int(hi_mask.sum())
+        count_lo = int(lo_mask.sum())
+        success_hi_count = int((df_filtered["success_abs"] & hi_mask).sum())
+        success_lo_count = int((df_filtered["success_abs"] & lo_mask).sum())
+        success_overall = (success_hi_count + success_lo_count) / count_total if count_total else math.nan
+        success_hi_rate = success_hi_count / count_hi if count_hi else math.nan
+        success_lo_rate = success_lo_count / count_lo if count_lo else math.nan
+        hi_otm_mask = hi_mask & (df_filtered["moneyness"] < 0)
+        count_hi_otm = int(hi_otm_mask.sum())
+        success_hi_otm_count = int((df_filtered["success_abs"] & hi_otm_mask).sum())
+        success_hi_otm_rate = success_hi_otm_count / count_hi_otm if count_hi_otm else math.nan
+        if not math.isnan(success_hi_rate):
+            p = success_hi_rate
+            n = count_hi
+            se = math.sqrt(p * (1 - p) / n) if n and (0 < p < 1) else 0.0
+            ci_lower = max(0.0, p - 1.96 * se)
+            ci_upper = min(1.0, p + 1.96 * se)
+        else:
+            ci_lower = math.nan
+            ci_upper = math.nan
+        flt_records.append(
+            {
+                "threshold": tau,
+                "count_total": count_total,
+                "count_hi": count_hi,
+                "count_lo": count_lo,
+                "success_overall": success_overall,
+                "success_hi": success_hi_rate,
+                "success_hi_otm": success_hi_otm_rate,
+                "count_hi_otm": count_hi_otm,
+                "success_lo": success_lo_rate,
+                "success_hi_ci_lower": ci_lower,
+                "success_hi_ci_upper": ci_upper,
+            }
+        )
+    pd.DataFrame(flt_records).to_csv(os.path.join(output_dir, "threshold_sweep_flt.csv"), index=False)
+
+    # vtexp sweep (filtered)
+    vt_flt_records: List[Dict[str, object]] = []
+    for vt in vt_grid:
+        mask_hi = df_filtered["vtexp"] >= vt
+        cnt_hi = int(mask_hi.sum())
+        succ_hi = int((df_filtered["success_abs"] & mask_hi).sum())
+        rate_hi = succ_hi / cnt_hi if cnt_hi else math.nan
+        mask_hi_otm = mask_hi & (df_filtered["moneyness"] < 0)
+        cnt_hi_otm = int(mask_hi_otm.sum())
+        succ_hi_otm = int((df_filtered["success_abs"] & mask_hi_otm).sum())
+        rate_hi_otm = succ_hi_otm / cnt_hi_otm if cnt_hi_otm else math.nan
+        if not math.isnan(rate_hi):
+            p = rate_hi
+            n = cnt_hi
+            se = math.sqrt(p * (1 - p) / n) if n and (0 < p < 1) else 0.0
+            lo = max(0.0, p - 1.96 * se)
+            hi = min(1.0, p + 1.96 * se)
+        else:
+            lo = math.nan
+            hi = math.nan
+        vt_flt_records.append(
+            {
+                "vtexp_threshold": vt,
+                "count_hi": cnt_hi,
+                "count_hi_otm": cnt_hi_otm,
+                "success_hi": rate_hi,
+                "success_hi_otm": rate_hi_otm,
+                "success_hi_ci_lower": lo,
+                "success_hi_ci_upper": hi,
+            }
+        )
+    pd.DataFrame(vt_flt_records).to_csv(os.path.join(output_dir, "vtexp_threshold_sweep_flt.csv"), index=False)
+
+    # moneyness sweep (filtered)
+    mny_flt_records: List[Dict[str, object]] = []
+    for mt in mny_grid:
+        m_hi = df_filtered["moneyness"] >= mt
+        cnt = int(m_hi.sum())
+        succ = int((df_filtered["success_abs"] & m_hi).sum())
+        rate = succ / cnt if cnt else math.nan
+        m_hi_otm = m_hi & (df_filtered["moneyness"] < 0)
+        cnt_otm = int(m_hi_otm.sum())
+        succ_otm = int((df_filtered["success_abs"] & m_hi_otm).sum())
+        rate_otm = succ_otm / cnt_otm if cnt_otm else math.nan
+        if not math.isnan(rate):
+            p = rate
+            n = cnt
+            se = math.sqrt(p * (1 - p) / n) if n and (0 < p < 1) else 0.0
+            lo = max(0.0, p - 1.96 * se)
+            hi = min(1.0, p + 1.96 * se)
+        else:
+            lo = math.nan
+            hi = math.nan
+        mny_flt_records.append(
+            {
+                "moneyness_threshold": mt,
+                "count_hi": cnt,
+                "count_hi_otm": cnt_otm,
+                "success_hi": rate,
+                "success_hi_otm": rate_otm,
+                "success_hi_ci_lower": lo,
+                "success_hi_ci_upper": hi,
+            }
+        )
+    pd.DataFrame(mny_flt_records).to_csv(os.path.join(output_dir, "moneyness_threshold_sweep_flt.csv"), index=False)
+
     # Recommended tau*: smallest tau with ≥95% success in high region
     recommended_tau = None
     for tau in thresholds:
@@ -267,6 +477,35 @@ def analyze_accuracy_data(input_dir: str, output_dir: str, thresholds: List[floa
     agg["success_rate"] = agg["success_count"] / agg["total_count"]
     agg.to_csv(os.path.join(output_dir, "summary_success_by_bins.csv"), index=False)
 
+    # Filtered summary (vtexp ≥ 2 hours and |moneyness| ≤ 1.5), matching heatmap structure
+    two_hours_years = 2.0 / (24.0 * 252.0)
+    df_filtered_summary = df_clean.copy()
+    if "vtexp" in df_filtered_summary.columns:
+        df_filtered_summary = df_filtered_summary[df_filtered_summary["vtexp"] >= two_hours_years]
+    if "moneyness" in df_filtered_summary.columns:
+        df_filtered_summary = df_filtered_summary[df_filtered_summary["moneyness"].abs() <= 1.5]
+    df_filtered_summary["success_flag"] = df_filtered_summary["error_2nd_order"].abs() <= 5
+    if "moneyness" in df_filtered_summary.columns:
+        df_filtered_summary["moneyness_bin"] = pd.cut(
+            df_filtered_summary["moneyness"], bins=mon_edges, labels=mon_labels, include_lowest=True
+        )
+    if "vtexp" in df_filtered_summary.columns:
+        df_filtered_summary["vtexp_bin"] = pd.cut(
+            df_filtered_summary["vtexp"], bins=vte_edges, labels=vte_labels, right=False
+        )
+    if "adjtheor" in df_filtered_summary.columns:
+        df_filtered_summary["adj_bin"] = pd.cut(
+            df_filtered_summary["adjtheor"], bins=adj_edges, labels=adj_labels, include_lowest=True
+        )
+    agg_flt = (
+        df_filtered_summary.groupby(["moneyness_bin", "vtexp_bin", "adj_bin"], dropna=False, observed=False)["success_flag"]
+        .agg(["sum", "count"])  # type: ignore
+        .reset_index()
+    )
+    agg_flt.rename(columns={"sum": "success_count", "count": "total_count"}, inplace=True)
+    agg_flt["success_rate"] = agg_flt["success_count"] / agg_flt["total_count"]
+    agg_flt.to_csv(os.path.join(output_dir, "summary_success_by_bins_flt.csv"), index=False)
+
     # DOTM epsilon analysis
     dotm_mask_125 = df_clean["moneyness"] <= -0.125
     dotm_mask_0625 = df_clean["moneyness"] <= -0.0625
@@ -296,6 +535,40 @@ def analyze_accuracy_data(input_dir: str, output_dir: str, thresholds: List[floa
         valid = df_sweep[(df_sweep[col] >= 0.95) & (~df_sweep[col].isna())]
         thr_val = float(valid["threshold"].iloc[0]) if not valid.empty else math.nan
         inflection_list.append({"category": f"vtexp_{label}", "threshold_for_95pct": thr_val})
+    # Add overall vtexp and moneyness inflections (All / OTM-only)
+    vt_rec_all = None
+    if not df_vt.empty:
+        for vt in vt_grid:
+            row = df_vt[df_vt["vtexp_threshold"] == vt]
+            if not row.empty and not math.isnan(float(row["success_hi"].iloc[0])) and float(row["success_hi"].iloc[0]) >= 0.95:
+                vt_rec_all = vt
+                break
+    vt_rec_otm = None
+    if not df_vt.empty and "success_hi_otm" in df_vt.columns:
+        for vt in vt_grid:
+            row = df_vt[df_vt["vtexp_threshold"] == vt]
+            if not row.empty and not math.isnan(float(row["success_hi_otm"].iloc[0])) and float(row["success_hi_otm"].iloc[0]) >= 0.95:
+                vt_rec_otm = vt
+                break
+    inflection_list.append({"category": "vtexp_All", "threshold_for_95pct": vt_rec_all})
+    inflection_list.append({"category": "vtexp_OTM_only", "threshold_for_95pct": vt_rec_otm})
+
+    mny_rec_all = None
+    if not df_mny.empty:
+        for mt in mny_grid:
+            row = df_mny[df_mny["moneyness_threshold"] == mt]
+            if not row.empty and not math.isnan(float(row["success_hi"].iloc[0])) and float(row["success_hi"].iloc[0]) >= 0.95:
+                mny_rec_all = mt
+                break
+    mny_rec_otm = None
+    if not df_mny.empty and "success_hi_otm" in df_mny.columns:
+        for mt in mny_grid:
+            row = df_mny[df_mny["moneyness_threshold"] == mt]
+            if not row.empty and not math.isnan(float(row["success_hi_otm"].iloc[0])) and float(row["success_hi_otm"].iloc[0]) >= 0.95:
+                mny_rec_otm = mt
+                break
+    inflection_list.append({"category": "moneyness_All", "threshold_for_95pct": mny_rec_all})
+    inflection_list.append({"category": "moneyness_OTM_only", "threshold_for_95pct": mny_rec_otm})
     pd.DataFrame(inflection_list).to_csv(os.path.join(output_dir, "inflection_candidates.csv"), index=False)
 
     return {

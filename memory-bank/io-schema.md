@@ -9,6 +9,25 @@
 
 | Name | Kind | Type | Allowed values / range | Example Usage |
 |------|------|------|------------------------|---------------|
+| SETTLEMENT_WATCH_MODE | EnvVar | str | 'once' or 'forever' (default 'forever') | Controls watcher lifecycle |
+| SETTLEMENT_WATCH_DB | EnvVar | str | Path to SQLite DB | trades_test.db |
+| SETTLEMENT_WATCH_LEDGER_DIR | EnvVar | str | Path to output ledgers | data/test/trades_e2e |
+| SETTLEMENT_WATCH_OUT_DIR | EnvVar | str | Path to verification CSVs | reports |
+| SETTLEMENT_WATCH_DATE | EnvVar | str | YYYY-MM-DD (optional override) | 2025-09-09 |
+| SETTLEMENT_WATCH_ACTIVE_NOW | EnvVar | '1' or '0' | Force active polling immediately | 1 |
+| SETTLEMENT_WATCH_FAST_INTERVAL | EnvVar | int seconds | Polling interval in active window | 2 |
+| SETTLEMENT_WATCH_IDLE_START | EnvVar | HHMM or HH:MM | Idle start (default 1355 CT) | 1355 |
+| SETTLEMENT_WATCH_ACTIVE_CUTOFF | EnvVar | HHMM or HH:MM | Active cutoff (default 1530 CT) | 1530 |
+| SETTLEMENT_WATCH_DRY_RUN | EnvVar | '1' or '0' | If '1', plan only (no writes, not marked processed) | 1 |
+| PM_SYNC_AUTO_START_ON_BOOT | EnvVar / Config | bool | True/False (default True in dev) | Auto-start background PM sync service on dashboard boot |
+| PM_SYNC_AUTO_START_WRITER_SESSION | EnvVar / Config | bool | True/False (default True in dev) | Auto-create Playwright runner at boot (deferred context launch) |
+| PM_SYNC_AUTO_START_READER_ON_BOOT | EnvVar / Config | bool | True/False (default True in dev) | Start runner reader loop on boot (loop creates context/page) |
+| PM_SYNC_ALLOW_WRITES_WHEN_TAB_INACTIVE | EnvVar / Config | bool | True/False (default True) | Allow background writes even when FRGMonkey tab is hidden |
+| PM_SYNC_INCLUDE_FUTURES | EnvVar / Config | bool | True/False (default False) | Include futures in top positions selection |
+| PM_SYNC_POSITIONS_CHANNEL | EnvVar / Config | str | Redis channel name (default "positions:changed") | Channel that carries "refresh" payloads for trade-ledger changes |
+| PM_SYNC_REDIS_HOST | EnvVar / Config | str | Hostname/IP (default 127.0.0.1; falls back to REDIS_HOST) | Redis host for PM sync subscriber |
+| PM_SYNC_REDIS_PORT | EnvVar / Config | int | Port (default 6379; falls back to REDIS_PORT) | Redis port for PM sync subscriber |
+| PM_SYNC_REDIS_DB | EnvVar / Config | int | DB index (default 0; falls back to REDIS_DB) | Redis DB for PM sync subscriber |
 | AGGREGATED_CSV_DIR | Constant | str | Absolute path to aggregated CSV folder | apps/dashboards/aggregated_explorer/service.py resolves to `lib/trading/bond_future_options/generatedcsvs/aggregated` |
 | AggregatedDataService.list_available_days | Function | Returns: list[str] | Day codes present | ["18AUG25", "19AUG25", "20AUG25", "21AUG25", "OZN_SEP25"] |
 | AggregatedDataService.list_available_sides | Function | Returns: list[str] | ["C","P"] subset | ["C","P"] |
@@ -162,6 +181,149 @@
 | default_theme | Constant | Theme | Instance of Theme | from components.themes import default_theme |
 
 ## Logging Database Schema
+## BigBrother Environment
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| BB_REDIS_URL | EnvVar | str | redis URL | redis://127.0.0.1:6379/0 |
+| BB_HEARTBEAT_INTERVAL | EnvVar | int | > 0 seconds | 10 |
+| BB_DB_PATH | EnvVar | str | path to SQLite DB | logs/bigbrother.db |
+| BB_{SERVICE}_TTL | EnvVar | int | seconds | BB_SPOT_RISK_WATCHER_TTL=45 |
+| BB_{SERVICE}_LAG_S | EnvVar | int | seconds | BB_SPOT_RISK_WATCHER_LAG_S=120 |
+| BB_{SERVICE}_COMP_PCT | EnvVar | float | 0..1 | BB_CLOSE_PRICE_WATCHER_COMP_PCT=1.0 |
+
+### BigBrother Collector (dev/prod) additions
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| BB_DB_PROFILE | EnvVar | str | 'dev' or 'prod' | Resolves DB path profile |
+| BB_ALERT_DEDUP_S | EnvVar | int | >= 0 seconds | 5 |
+| BB_NOTIFY_RESOLVED | EnvVar | int/bool | 0 or 1 | 1 |
+| BB_REMIND_CRIT_MINUTES | EnvVar | int | >= 1 | 5 |
+| BB_EXPECTED_WORKERS_DEFAULT | EnvVar | int | >= 0 | 0 |
+| BB_{SERVICE}_EXPECTED_WORKERS | EnvVar | int | >= 0 | BB_SPOTRISKWATCHER_EXPECTED_WORKERS=16 |
+| BB_TRADELEDGERWATCHER_EXPECTED_WORKERS | EnvVar | int | >= 0 | 0 |
+| BB_PUBLISH_WARN_S | EnvVar | int | >= 0 | 2 |
+| BB_PUBLISH_CRIT_S | EnvVar | int | >= 0 | 4 |
+| BB_INGEST_WARN_S | EnvVar | int | >= 0 | 5 |
+| BB_INGEST_CRIT_S | EnvVar | int | >= 0 | 60 |
+| BB_REDIS_DEV_URL | EnvVar | str | redis URL | redis://100.70.134.28:6379/0 |
+| BB_REDIS_PROD_URL | EnvVar | str | redis URL | redis://100.83.215.91:6379/0 |
+| BB_REDIS_TARGET | EnvVar | str | 'dev' or 'prod' | dev |
+
+### BigBrother Direct Publish & Persistence (new)
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| BB_DIRECT_PUBLISH | EnvVar | int/bool | 0 or 1 (default 1) | Enable decorator→Redis direct publishing |
+| BB_COLLECTOR_PERSIST_EVENTS | EnvVar | int/bool | 0 or 1 (default 0) | If 0, do not persist raw events/metrics |
+| BB_P95_WARN_MS | EnvVar | float | > 0 (default 250) | p95 latency threshold for WARN derivation |
+| BB_P95_WINDOW | EnvVar | int | > 0 (default 50) | Rolling window size for p95 calculation |
+| BB_EMIT_MIN_SEVERITY | EnvVar | str | info|warn|critical (default info) | Minimum severity to emit from Emitter |
+| BB_ENV | EnvVar | str | environment label (dev, prod, sim, etc.) | dev |
+| BB_INSTANCE_ID | EnvVar | str | hostname/instance identifier | trader-ws-01 |
+| BB_TRUNCATE_BYTES | EnvVar | int | > 0 (default 4096) | Max UTF‑8 length for message/context truncation |
+
+### BigBrother Bridge (legacy/dev-only)
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| BB_BRIDGE_DB | EnvVar | str | path to observatory.db | logs/observatory.db |
+| BB_BRIDGE_OFFSET_PATH | EnvVar | str | path to JSON offset file | logs/bb_bridge.offset.json |
+| BB_BRIDGE_POLL_MS | EnvVar | int | >= 50 | 250 |
+| BB_BRIDGE_LATENCY_P95_MS | EnvVar | float | > 0 | 250.0 |
+
+### Trade Feed Sidecar additions
+
+### Trade Ledger Watcher additions
+
+### Close Price Watcher additions
+
+### Price Updater Service additions
+
+### Settlement Watcher additions
+
+### Positions Aggregator additions
+
+### Spot Risk Archiver additions
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| free_disk_gb | Metric | float | ≥ 0 | Disk free space on archive drive |
+| moved_file_count | Metric | float | ≥ 0 | Files moved in cycle |
+| inbox_file_count | Metric | float | ≥ 0 | Files seen in today’s folder |
+| max_move_cap_hit | Metric | float | 0 or 1 | 1 when moved == max_moves_per_cycle |
+| DISK_SPACE_LOW | Alert Code | WARN | Low disk space at archive root |  |
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| cache_row_count | Metric | float | ≥ 0 | Positions cache size |
+| load_duration_s | Metric | float | ≥ 0 | Cache load duration |
+| ingestion_lag_seconds | Metric | float | ≥ 0 | From Greek batch payload |
+| greek_batch_symbol_count | Metric | float | ≥ 0 | Unique symbols in batch |
+| positions_greek_coverage_pct | Metric | float | 0..1 | Coverage of open positions by batch |
+| db_write_ms | Metric | float | ≥ 0 | DB write duration (ms) |
+| positions_written_count | Metric | float | ≥ 0 | Rows written by writer |
+| POSITIONS_CACHE_EMPTY | Alert Code | WARN/INFO | Empty after load; INFO when populated |  |
+| POSITIONS_WRITE_ERROR | Alert Code | CRITICAL | Exception in writer thread |  |
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| close_symbols_count | Metric | float | ≥ 0 | Number of symbols with close today |
+| open_options_count | Metric | float | ≥ 0 | Number of open option positions |
+| planned_entries_total | Metric | float | ≥ 0 | Count of planned entries |
+| planned_flatten_count | Metric | float | ≥ 0 | Planned option flattens |
+| planned_assignment_count | Metric | float | ≥ 0 | Planned futures assignments |
+| settlement_new_count | Metric | float | ≥ 0 | Trades written |
+| settlement_skipped_dup | Metric | float | ≥ 0 | Duplicate trades skipped |
+| SETTLEMENT_TRIGGERED | Alert Code | INFO | Settlement ran | context: sample of transactions |
+| SETTLEMENT_NOT_TRIGGERED_BY_CUTOFF | Alert Code | CRITICAL | No trigger by cutoff | date, cutoff |
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| ingestion_lag_seconds | Metric | float | ≥ 0 | now - payload.publish_timestamp |
+| last_batch_size | Metric | float | ≥ 0 | number of prices written in last batch |
+| dedup_removed_count | Metric | float | ≥ 0 | number of duplicate updates skipped |
+| PRICE_OUT_OF_RANGE | Alert Code | CRITICAL | price < 0 or > 1000 | context: symbol, price |
+| CROSSED_MARKET | Alert Code | WARN | bid > ask | context: symbol, bid, ask |
+| UNKNOWN_SYMBOL | Alert Code | CRITICAL | RosettaStone translate failed | context: key |
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| CLOSE_FILE_PARSED | Alert Code | INFO | per file parsed | labels: type, date, hour, rows |
+| CLOSE_FILE_PARSE_ERROR | Alert Code | CRITICAL | parse exception | context: file, type |
+| OPTIONS_SETTLE_DELAY | Alert Code | WARN/INFO | WARN if no Y within 30 min; INFO on resolved | date |
+| CLOSES_FLASH_MODE | Alert Code | WARN/INFO | flash_only or mixed → WARN; settle_only → INFO | date, y_rows, n_rows |
+| CLOSES_NOT_ARRIVED_BY_230 | Alert Code | CRITICAL/INFO | none by 14:30 CT; INFO on first arrival | date |
+| settle_rows | Metric | float | >= 0 | count of rows with settle=Y |
+| flash_rows | Metric | float | >= 0 | count of rows with settle=N |
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| UNKNOWN_SYMBOL | Alert Code | CRITICAL/INFO | CRITICAL on miss; INFO on resolved | RosettaStone translate() returned None |
+| TRADE_LEDGER_REWRITE | Alert Code | CRITICAL/INFO | Size shrink overwrite → CRITICAL; INFO when append-only again | File size decreased vs prior |
+| MALFORMED_ROW_EOL | Alert Code | CRITICAL/INFO | No trailing newline → CRITICAL; INFO when fixed | File not newline-terminated |
+| trades_appended_count | Metric | float | >= 0 | Number of trades appended in a batch |
+
+| Name | Kind | Type | Allowed values / range | Example Usage |
+|------|------|------|------------------------|---------------|
+| BB_SERVICE_NAME | EnvVar | str | Service name | TradeFeedRemote |
+| BB_SIDE_CHECK_INTERVAL_S | EnvVar | int | > 0 seconds | 2 |
+| BB_SIDE_REMIND_CRIT_MINUTES | EnvVar | int | >= 1 | 5 |
+| BB_SIDE_VERBOSE | EnvVar | int/bool | 0 or 1 | 1 |
+| BB_SIDE_SELFTEST | EnvVar | int/bool | 0 or 1 | 1 |
+| BB_SIDE_DEBUG | EnvVar | int/bool | 0 or 1 | 1 |
+| BB_SIDE_USERNAME_FILTER | EnvVar | str | username substring | actantadmin |
+| BB_SIDE_USERNAME_MODE | EnvVar | str | 'equals'/'startswith'/'endswith' | endswith |
+| BB_SIDE_ACTANT_EXE_PATH | EnvVar | str | Absolute path to AQTOR.exe | C:\\Program Files\\Actant\\Actant\\AQTOR.exe |
+| BB_SIDE_ACTANT_EXPECTED_COUNT | EnvVar | int | >= 0 | 2 |
+| BB_SIDE_ACTANT_PATH_CONTAINS | EnvVar | str | Optional substring filter | Actant\\AQTOR.exe |
+| BB_SIDE_ACTANT_PROBES | EnvVar | str | ';'-separated names to match | actant;AQTOR |
+| BB_SIDE_GETTRADES_PROBES | EnvVar | str | ';'-separated strings to match | GetTradesContinuous.py;run_get_trades_continuous;Z:/PushinT |
+| BB_SIDE_TAILSCALE_SERVICE | EnvVar | str | Windows service name | Tailscale |
+| BB_SIDE_TAILSCALE_PROBES | EnvVar | str | ';'-separated names to match | Tailscale |
+
+
 
 ### `flowTrace` Table
 
@@ -591,6 +753,7 @@ The pipeline automatically selects the most recent vtexp CSV file based on filen
 | positions.speed_y | Internal | REAL | Position-weighted speed in Y-space (speed_y * open_position) | 0.032 |
 | positions.theta | Internal | REAL | Position-weighted theta (theta_F * open_position) | -15.75 |
 | positions.vega | Internal | REAL | Position-weighted vega (vega_y * open_position) | 8.25 |
+| positions.implied_vol | Internal | REAL | Raw implied vol (options only; futures 0/NULL). UI shows rounded implied_vol as "IV" | 78.0 |
 | positions.fifo_realized_pnl | Internal | REAL | Realized P&L using FIFO method | 1250.50 |
 | positions.fifo_unrealized_pnl | Internal | REAL | Unrealized P&L using FIFO method | -325.75 |
 | positions.lifo_realized_pnl | Internal | REAL | Realized P&L using LIFO method | 1180.25 |

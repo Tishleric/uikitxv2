@@ -3,20 +3,23 @@ Configuration file for Trading Technologies API tokens and settings.
 """
 
 # API credentials
-TT_API_KEY = "0549df41-77a8-6799-1a7d-b2f4656a7fd4"  # UAT Key
-TT_API_SECRET = "12d0bbbb-9f1b-caff-e9d3-19212d8426c2"  # UAT Secret
+TT_LIVE_API_KEY = "c57b0353-72de-95c4-feba-743ede8c6750"  # UAT Key
+TT_LIVE_API_SECRET = "cdd2d2f0-997e-67cc-654d-689b933fa439"  # UAT Secret
+
+TT_API_KEY = "c57b0353-72de-95c4-feba-743ede8c6750"  # UAT Key
+TT_API_SECRET = "cdd2d2f0-997e-67cc-654d-689b933fa439"  # UAT Secret
 
 # SIM Environment credentials
-TT_SIM_API_KEY = "2b429b91-8d96-8aed-4338-3d3d5b73887a"
-TT_SIM_API_SECRET = "8d9f572e-292e-c7a0-c39d-383fbfb56b8b"
+TT_SIM_API_KEY = ""
+TT_SIM_API_SECRET = ""
 
 # Application identifiers
-APP_NAME = "UIKitXTT"  # Used in request IDs
-COMPANY_NAME = "Fibonacci Research"  # Used in request IDs
+APP_NAME = "DAS"  # Used in request IDs
+COMPANY_NAME = "Sumo Capital LLC"  # Used in request IDs
 
 # Environment settings
 # Use 'UAT' for testing/development, 'LIVE' for production, 'SIM' for simulation
-ENVIRONMENT = "SIM"
+ENVIRONMENT = "LIVE"
 
 # Token settings
 TOKEN_FILE = "tt_token.json"  # Base filename; path and suffix (_uat, _sim) are resolved in token_manager.py

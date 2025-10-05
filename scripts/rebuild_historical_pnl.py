@@ -12,6 +12,7 @@ from datetime import datetime
 import sys
 import os
 import glob
+import pytz
 
 # Add project root to path to allow for absolute imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -198,6 +199,142 @@ def main(preserve_processed_files=False):
             'FVZ5 Comdty': 109.46875,
             'TUZ5 Comdty': 104.26953125,
         },
+        datetime(2025, 9, 1).date(): {  
+            'USZ5 Comdty': 114.25,
+            'TYZ5 Comdty': 112.5,
+            'FVZ5 Comdty': 109.46875,
+            'TUZ5 Comdty': 104.26953125,
+        },
+        datetime(2025, 9, 2).date(): {  
+            'TYZ5 Comdty': 112.140625
+        },
+        datetime(2025, 9, 3).date(): {  
+            'TYZ5 Comdty': 112.609375
+        },
+        datetime(2025, 9, 4).date(): {  
+            'TYZ5 Comdty': 112.84375,
+            'TJPU25C2 113.25 Comdty': 0.1875
+        },
+        datetime(2025, 9, 5).date(): {  
+            'TYZ5 Comdty': 113.390625,
+            'USZ5 Comdty': 116.4375,
+            'TJPU25C2 113.75 Comdty': 0.078125
+        },
+        datetime(2025, 9, 8).date(): {  
+            'TYZ5 Comdty': 113.546875,
+            'USZ5 Comdty': 117.4375,
+            'FVZ5 Comdty': 109.984375,
+            'TJPU25C2 113.75 Comdty': 0.078125
+        },
+        datetime(2025, 9, 9).date(): {  
+            'TYZ5 Comdty': 113.34375,
+            'USZ5 Comdty': 117.125,
+            'FVZ5 Comdty': 109.828125,
+            'TJPU25C2 113.75 Comdty': 0.0
+        },
+        datetime(2025, 9, 10).date(): {  
+            'TYZ5 Comdty': 113.578125,
+            'USZ5 Comdty': 117.6875,
+            'FVZ5 Comdty': 109.90625
+        },
+        datetime(2025, 9, 11).date(): {  
+            'TYZ5 Comdty': 113.65625,
+            'USZ5 Comdty': 117.96875
+        },
+        datetime(2025, 9, 12).date(): {  
+            'TYZ5 Comdty': 113.28125,
+            'USZ5 Comdty': 117.40625,
+            'FVZ5 Comdty': 109.6953125,
+            'TYWU25P3 112.75 Comdty': 0.046875,
+            'TYWU25P3 113 Comdty': 0.109375
+        },
+        datetime(2025, 9, 15).date(): {  
+            'TYZ5 Comdty': 113.46875,
+            'USZ5 Comdty': 117.84375,
+            'FVZ5 Comdty': 109.8046875,
+            'TYWU25P3 112.75 Comdty': 0.03125,
+            'TYWU25P3 113 Comdty': 0.0625
+        },
+        datetime(2025, 9, 16).date(): {  
+            'TYZ5 Comdty': 113.546875,
+            'USZ5 Comdty': 117.96875,
+            'TYWU25P3 112.75 Comdty': 0.001,
+        },
+        datetime(2025, 9, 17).date(): {  
+            'TYZ5 Comdty': 113.125,
+            'USZ5 Comdty': 117.46875,
+            'TYWU25P3 112.75 Comdty': 0.00,
+        },
+        datetime(2025, 9, 18).date(): {  
+            'TYZ5 Comdty': 112.984375,
+            'USZ5 Comdty': 116.84375,
+            'FVZ5 Comdty': 109.53125,
+            'VBYU25P4 112.5 Comdty': 0.015625,
+        },
+        datetime(2025, 9, 19).date(): {  
+            'TYZ5 Comdty': 112.75,
+            'USZ5 Comdty': 116.34375,
+            'FVZ5 Comdty': 109.40625,
+            'VBYU25P4 112.5 Comdty': 0.03125,
+        },
+        datetime(2025, 9, 22).date(): {  
+            'TYZ5 Comdty': 112.703125,
+            'USZ5 Comdty': 116.25,
+            'FVZ5 Comdty': 109.3828125,
+            'VBYU25P4 112.5 Comdty': 0.0,
+        },
+        datetime(2025, 9, 23).date(): {  
+            'TYZ5 Comdty': 112.875,
+            'USZ5 Comdty': 116.59375,
+            'FVZ5 Comdty': 109.4609375,
+        },
+        datetime(2025, 9, 24).date(): {  
+            'TYZ5 Comdty': 112.640625,
+            'USZ5 Comdty': 116.3125,
+            'FVZ5 Comdty': 109.3125,
+        },
+        datetime(2025, 9, 25).date(): {  
+            'TYZ5 Comdty': 112.328125,
+            'USZ5 Comdty': 116.21875,
+            'FVZ5 Comdty': 109.0390625,
+            'TJPU25P5 111.75 Comdty': 0.03125,
+            'TJPU25P5 112 Comdty': 0.078125,
+        },
+        datetime(2025, 9, 26).date(): {  
+            'TYZ5 Comdty': 112.265625,
+            'USZ5 Comdty': 116.03125,
+            'FVZ5 Comdty': 109.046875,
+            'TJPU25P5 111.75 Comdty': 0.03125,
+            'TJPU25P5 112 Comdty': 0.078125,
+        },
+        datetime(2025, 9, 29).date(): {  
+            'TYZ5 Comdty': 112.515625,
+            'USZ5 Comdty': 116.84375,
+            'TYWV25P1 112.25 Comdty': 0.078125,
+        },
+        datetime(2025, 9, 30).date(): {  
+            'TYZ5 Comdty': 112.5,
+            'FVZ5 Comdty': 109.1953125,
+            '1MV5P 112 Comdty': 0.0625,
+            '1MV5P 112.25 Comdty': 0.125,
+            'TJWV25P1 112.25 Comdty': 0.0625,
+            'TJWV25P1 112.5 Comdty': 0.15625,
+        },
+        datetime(2025, 10, 1).date(): {  
+            'TYZ5 Comdty': 112.84375,
+            'FVZ5 Comdty': 109.4375,
+            'USZ5 Comdty': 116.96875,
+            '1MV5P 112 Comdty': 0.001,
+            'TJWV25P1 112.25 Comdty': 0.001,
+        },
+        datetime(2025, 10, 2).date(): {  
+            'TYZ5 Comdty': 112.921875,
+            'FVZ5 Comdty': 109.4453125,
+            'USZ5 Comdty': 117.28125,
+            '1MV5P 112 Comdty': 0.001,
+            'TJPV25C1 113.25 Comdty': 0.078125,
+            'TYWV25C2 113.25 Comdty': 0.09375,
+        }
     }
 
     # Wipe and recreate all database tables
@@ -508,6 +645,19 @@ def main(preserve_processed_files=False):
 
     # --- Phase 5: Final Aggregation ---
     print("\n[Phase 5/6] Aggregating final positions...")
+    # Between 4:00–4:59pm Chicago, force aggregator to treat trading day as if it's post-5pm Chicago
+    # so that running at 5:01pm ET yields the same outcome as 6:01pm ET.
+    import lib.trading.pnl_fifo_lifo.positions_aggregator as agg_mod
+    chicago_tz = pytz.timezone('America/Chicago')
+    now_chi = datetime.now(chicago_tz)
+    if now_chi.hour == 16 and now_chi.minute >= 1:
+        simulated = now_chi.replace(hour=17, minute=1, second=0, microsecond=0)
+        forced_day = get_trading_day(simulated)
+
+        def _forced_get_trading_day(_):
+            return forced_day
+
+        agg_mod.get_trading_day = _forced_get_trading_day
     aggregator = PositionsAggregator(trades_db_path=config.DB_NAME)
     aggregator._load_positions_from_db()
     # Pass the loaded positions cache to the write method

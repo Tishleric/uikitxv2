@@ -6,22 +6,23 @@ channel on Redis and updates the `pricing` table in `trades.db`.
 """
 
 import logging
-import pandas as pd
-import json
-import redis
-import time
-from pathlib import Path
-import sys
-from datetime import datetime
-import pyarrow as pa  # Import pyarrow for Arrow deserialization
 import pickle  # Import pickle for envelope deserialization
+import sqlite3  # Import sqlite3 for the connection
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
+import pyarrow as pa  # Import pyarrow for Arrow deserialization
+import redis
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from lib.monitoring.decorators import monitor
+from lib.big_brother.emitter.redis_emitter import RedisBBEmitter
 from lib.trading.market_prices.rosetta_stone import RosettaStone
-import sqlite3 # Import sqlite3 for the connection
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,8 @@ class PriceUpdaterService:
         self.trades_db_path = trades_db_path
         self.symbol_translator = RosettaStone()
         logger.info("Initialized PriceUpdaterService.")
+        # BigBrother Emitter (direct publish)
+        self._bb = RedisBBEmitter()
 
     @monitor()
     def run(self):
@@ -44,6 +47,11 @@ class PriceUpdaterService:
         Runs as a persistent service, listening to the Redis channel.
         """
         logger.info(f"Starting Price Updater service, subscribing to Redis channel '{self.redis_channel}'...")
+        # Lifecycle READY
+        try:
+            self._bb.emit_lifecycle("PriceUpdaterService", "READY")
+        except Exception:
+            pass
         
         pubsub = self.redis_client.pubsub()
         pubsub.subscribe(self.redis_channel)
@@ -63,6 +71,10 @@ class PriceUpdaterService:
                 # --- End Instrumentation ---
 
                 logger.info(f"Received new data package from Redis for price update (Latency: {latency:.3f}s).")
+                try:
+                    self._bb.emit_metric("PriceUpdaterService", "ingestion_lag_seconds", float(latency))
+                except Exception:
+                    pass
                 
                 # Deserialize Arrow data to DataFrame
                 buffer = payload['data']
@@ -80,7 +92,10 @@ class PriceUpdaterService:
                 
                 if prices_to_update:
                     logger.info(f"Extracted {len(prices_to_update)} prices to update in 'pricing' table.")
-                    with sqlite3.connect(self.trades_db_path) as conn:
+                    with sqlite3.connect(self.trades_db_path, timeout=30.0) as conn:
+                        conn.execute("PRAGMA busy_timeout=30000")
+                        conn.execute("PRAGMA journal_mode=WAL")
+                        conn.execute("PRAGMA synchronous=NORMAL")
                         # Disable auto-commit for batch operation
                         conn.isolation_level = None
                         conn.execute("BEGIN")
@@ -88,8 +103,12 @@ class PriceUpdaterService:
                         for symbol, price_data in prices_to_update.items():
                             # Update price without committing
                             conn.execute(
-                                "INSERT OR REPLACE INTO pricing (symbol, price_type, price, timestamp) VALUES (?, 'now', ?, ?)",
-                                (symbol, price_data['price'], timestamp)
+                                (
+                                    "INSERT OR REPLACE INTO pricing "
+                                    "(symbol, price_type, price, timestamp) "
+                                    "VALUES (?, 'now', ?, ?)"
+                                ),
+                                (symbol, price_data['price'], timestamp),
                             )
                         
                         # Single commit for all updates
@@ -108,6 +127,10 @@ class PriceUpdaterService:
                 pubsub.subscribe(self.redis_channel)
             except Exception as e:
                 logger.error(f"An error occurred in the price updater service: {e}", exc_info=True)
+                try:
+                    self._bb.emit_alert("PriceUpdaterService", "CRITICAL", "PRICE_UPDATER_EXCEPTION", str(e), context={"exception": repr(e)})
+                except Exception:
+                    pass
                 time.sleep(10)
 
     def _extract_prices(self, df: pd.DataFrame) -> dict:
@@ -130,14 +153,39 @@ class PriceUpdaterService:
             if not bloomberg_symbol:
                 continue
 
+            # Extract candidate price and market context
             price = row.get('adjtheor')
-            if not isinstance(price, (int, float)) or pd.isna(price):
-                bid = row.get('bid')
-                ask = row.get('ask')
-                if isinstance(bid, (int, float)) and isinstance(ask, (int, float)):
+            bid = row.get('bid')
+            ask = row.get('ask')
+
+            # Helpers for numeric checks
+            def _is_number(x):
+                return isinstance(x, (int, float)) and not pd.isna(x)
+
+            adj_is_num = _is_number(price)
+            bid_is_num = _is_number(bid)
+            ask_is_num = _is_number(ask)
+
+            # Determine if we have a valid, non-crossed spread
+            valid_spread = bid_is_num and ask_is_num and (bid <= ask)
+
+            if adj_is_num and valid_spread:
+                # Guard: if adjtheor lies outside of [bid, ask], use midpoint
+                if price < bid or price > ask:
+                    midpoint = (bid + ask) / 2
+                    logger.debug(
+                        "Replacing out-of-spread adjtheor with midpoint: sym=%s adj=%s bid=%s ask=%s mid=%s",
+                        bloomberg_symbol, price, bid, ask, midpoint,
+                    )
+                    price = midpoint
+                # else: keep adjtheor as-is
+            elif not adj_is_num:
+                # Fallback to existing behavior: use midpoint if both bid/ask available
+                if bid_is_num and ask_is_num:
                     price = (bid + ask) / 2
                 else:
                     price = None
+            # If adj_is_num and spread invalid or missing, keep adjtheor as-is
             
             if price is not None:
                 # Track duplicates

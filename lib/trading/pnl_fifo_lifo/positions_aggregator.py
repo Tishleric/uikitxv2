@@ -18,6 +18,7 @@ import threading
 import queue
 import pyarrow as pa  # Import pyarrow for Arrow deserialization
 import pickle  # Import pickle for envelope deserialization
+import os
 
 from .config import DEFAULT_SYMBOL, PNL_MULTIPLIER, REALIZED_PMAX_ENABLED
 from .pnl_engine import calculate_unrealized_pnl
@@ -54,6 +55,75 @@ class PositionsAggregator:
         self.db_write_queue = queue.Queue()
         
         logger.info("Initialized PositionsAggregator with in-memory caching and writer queue")
+
+        # Ensure DB schema has the expected columns (idempotent/guarded)
+        try:
+            self._ensure_positions_schema()
+        except Exception:
+            # Fail-open: schema migration issues should not crash the service; errors will surface on write
+            logger.exception("Positions schema check/migration failed")
+
+    def _ensure_positions_schema(self) -> None:
+        """Ensure the positions table has the expected columns, adding missing ones.
+        - Adds implied_vol REAL if missing.
+        """
+        conn = sqlite3.connect(self.trades_db_path, timeout=30.0)
+        try:
+            conn.execute("PRAGMA busy_timeout=30000")
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+
+            # Read columns
+            cur = conn.execute("PRAGMA table_info(positions)")
+            cols = {row[1] for row in cur.fetchall()}  # row[1] is name
+
+            if 'implied_vol' not in cols:
+                logger.info("Migrating positions schema: adding column implied_vol REAL")
+                conn.execute("ALTER TABLE positions ADD COLUMN implied_vol REAL")
+                conn.commit()
+        finally:
+            conn.close()
+
+    # ---- Instrument type helpers (fail-open, view-layer consistent) ----
+    def _normalize_instrument_type(self, value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        v = str(value).strip().upper()
+        if v in {"F", "FUT", "FUTURE", "FUTURES"}:
+            return "FUTURE"
+        if v in {"C", "P", "CALL", "PUT", "OPTION", "OPTIONS"}:
+            return "OPTION"
+        return None
+
+    def _classify_instrument_by_symbol(self, symbol: Optional[str]) -> str:
+        """Classify Bloomberg-like symbols into FUTURE vs OPTION.
+
+        Rules:
+        - Futures: two tokens → "TYZ5 Comdty"
+        - Options: three tokens → "BASE STRIKE Comdty" with STRIKE numeric (int or float)
+        - Default OPTION if ambiguous (fail-open toward option)
+        """
+        try:
+            s = (symbol or "").strip()
+            if not s:
+                return "OPTION"
+            tokens = s.split()
+            if len(tokens) >= 2 and tokens[-1].lower() == "comdty":
+                if len(tokens) == 2:
+                    return "FUTURE"
+                if len(tokens) >= 3:
+                    strike_token = tokens[-2]
+                    # Handle integer or decimal strike
+                    try:
+                        float(strike_token.replace(",", ""))
+                        return "OPTION"
+                    except Exception:
+                        # Not numeric: might still be an odd format; default OPTION
+                        return "OPTION"
+            # Non-Bloomberg or unexpected formats: default OPTION
+            return "OPTION"
+        except Exception:
+            return "OPTION"
     
     def _load_positions_from_db(self):
         """
@@ -64,7 +134,10 @@ class PositionsAggregator:
             logger.info("Loading positions data from database into memory...")
             start_time = time.time()
             
-            conn = sqlite3.connect(self.trades_db_path)
+            conn = sqlite3.connect(self.trades_db_path, timeout=30.0)
+            conn.execute("PRAGMA busy_timeout=30000")
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
             
             try:
                 # Get current trading day using Chicago-local time to avoid host timezone drift
@@ -270,6 +343,7 @@ class PositionsAggregator:
                 self.positions_cache['speed_y'] = None
                 self.positions_cache['theta'] = None
                 self.positions_cache['vega'] = None
+                self.positions_cache['implied_vol'] = None
                 self.positions_cache['has_greeks'] = False
                 self.positions_cache['instrument_type'] = None
                 
@@ -287,6 +361,8 @@ class PositionsAggregator:
                             self.positions_cache.loc[idx, 'speed_y'] = self._safe_multiply(greek_data.get('speed_y'), open_position)
                             self.positions_cache.loc[idx, 'theta'] = self._safe_multiply(greek_data.get('theta_F'), open_position)
                             self.positions_cache.loc[idx, 'vega'] = self._safe_multiply(greek_data.get('vega_y'), open_position)
+                            # Store raw implied_vol (not position-weighted)
+                            self.positions_cache.loc[idx, 'implied_vol'] = greek_data.get('implied_vol')
                             self.positions_cache.loc[idx, 'has_greeks'] = True
                             self.positions_cache.loc[idx, 'instrument_type'] = greek_data.get('instrument_type')
                 
@@ -367,7 +443,10 @@ class PositionsAggregator:
                         self.db_write_queue.put(self.positions_cache.copy())
                     
                     # Also update daily positions with new prices
-                    conn = sqlite3.connect(self.trades_db_path)
+                    conn = sqlite3.connect(self.trades_db_path, timeout=30.0)
+                    conn.execute("PRAGMA busy_timeout=30000")
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    conn.execute("PRAGMA synchronous=NORMAL")
                     try:
                         from .data_manager import update_daily_positions_unrealized_pnl
                         update_daily_positions_unrealized_pnl(conn)
@@ -448,6 +527,7 @@ class PositionsAggregator:
             self.positions_cache['speed_y'] = None
             self.positions_cache['theta'] = None
             self.positions_cache['vega'] = None
+            self.positions_cache['implied_vol'] = None
             self.positions_cache['has_greeks'] = False
             self.positions_cache['instrument_type'] = None
             
@@ -464,6 +544,8 @@ class PositionsAggregator:
                     self.positions_cache.loc[idx, 'speed_y'] = self._safe_multiply(greek_data.get('speed_y'), open_position)
                     self.positions_cache.loc[idx, 'theta'] = self._safe_multiply(greek_data.get('theta_F'), open_position)
                     self.positions_cache.loc[idx, 'vega'] = self._safe_multiply(greek_data.get('vega_y'), open_position)
+                    # Store raw implied_vol (not position-weighted)
+                    self.positions_cache.loc[idx, 'implied_vol'] = greek_data.get('implied_vol')
                     self.positions_cache.loc[idx, 'has_greeks'] = True
                     self.positions_cache.loc[idx, 'instrument_type'] = greek_data.get('instrument_type')
             
@@ -480,24 +562,41 @@ class PositionsAggregator:
     def _write_positions_to_db(self, positions_df):
         """Write a DataFrame of positions to the database."""
         # This function now runs in its own thread with its own short-lived connection
-        conn = sqlite3.connect(self.trades_db_path)
+        conn = sqlite3.connect(self.trades_db_path, timeout=30.0)
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
         cursor = conn.cursor()
         
         try:
             now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            # Default ON per deployment preference; no env required
+            write_type_enabled = True
             
             # Write all positions to database
             for _, row in positions_df.iterrows():
+                # Derive instrument_type (feature-flagged; fail-open)
+                inst_type_value = row.get('instrument_type')
+                if write_type_enabled:
+                    try:
+                        norm = self._normalize_instrument_type(inst_type_value)
+                        if not norm:
+                            norm = self._classify_instrument_by_symbol(row.get('symbol'))
+                        inst_type_value = norm
+                    except Exception:
+                        # On any error, leave original value to avoid impacting the pipeline
+                        pass
                 cursor.execute("""
                     INSERT OR REPLACE INTO positions (
                         symbol, open_position, closed_position,
                         delta_y, gamma_y, speed_y, theta, vega,
+                        implied_vol,
                         fifo_realized_pnl, fifo_unrealized_pnl,
                         lifo_realized_pnl, lifo_unrealized_pnl,
                         fifo_unrealized_pnl_close, lifo_unrealized_pnl_close,
                         last_updated, last_trade_update, last_greek_update,
                         has_greeks, instrument_type
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     row['symbol'],
                     row['open_position'],
@@ -507,6 +606,7 @@ class PositionsAggregator:
                     row['speed_y'],
                     row['theta'],
                     row['vega'],
+                    row.get('implied_vol'),
                     row['fifo_realized_pnl'],
                     row['fifo_unrealized_pnl'],
                     row['lifo_realized_pnl'],
@@ -517,7 +617,7 @@ class PositionsAggregator:
                     now,  # last_trade_update
                     now if row['has_greeks'] else None,  # last_greek_update
                     1 if row['has_greeks'] else 0,
-                    row['instrument_type']
+                    inst_type_value
                 ))
             
             conn.commit()

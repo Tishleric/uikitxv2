@@ -8,7 +8,8 @@ scan_interval_minutes: 60
 min_age_minutes: 60
 
 # Safety controls
-max_moves_per_cycle: 100000
+max_moves_per_cycle: 400000
+free_space_min_percent: 0
 exclude_globs:
   - "*.tmp"
   - "*.partial"

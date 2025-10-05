@@ -11,6 +11,7 @@ from .rangeslider import RangeSlider
 from .tabs import Tabs
 from .toggle import Toggle
 from .tooltip import Tooltip
+from .card import Card
 
 __all__ = [
     "Button",
@@ -23,5 +24,6 @@ __all__ = [
     "RangeSlider",
     "Tabs",
     "Toggle",
-    "Tooltip"
+    "Tooltip",
+    "Card"
 ] 

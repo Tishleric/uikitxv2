@@ -7,7 +7,7 @@ This allows for easy model selection and future extensibility.
 
 from typing import Dict, Type, Any
 from .option_model_interface import OptionModelInterface
-from .models import BachelierV1
+from .models import BachelierV1, BachelierV1Parity
 from lib.monitoring.decorators import monitor
 
 
@@ -18,6 +18,7 @@ class ModelFactory:
     _models: Dict[str, Type[OptionModelInterface]] = {
         'bachelier_v1': BachelierV1,
         'bachelier_v1.0': BachelierV1,  # Alias for convenience
+        'bachelier_v1_parity': BachelierV1Parity,
     }
     
     @staticmethod

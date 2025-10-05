@@ -7,12 +7,13 @@ all special cases for weekly, Friday, and quarterly options.
 """
 
 import re
-import pandas as pd
-from pathlib import Path
-from typing import Dict, Optional, Tuple, NamedTuple
-from enum import Enum
 import calendar
 from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Optional, NamedTuple
+
+import pandas as pd
 
 from .strike_converter import StrikeConverter
 
@@ -66,12 +67,38 @@ class RosettaStone:
     """CSV-based universal symbol translator for market prices."""
     
     def __init__(self, csv_path: Optional[Path] = None):
-        """Initialize translator with CSV mappings."""
+        """Initialize translator with CSV mappings.
+
+        Resolves the CSV path robustly across environments by trying, in order:
+        - Repository-root relative path based on this file location
+        - Absolute path of the conventional relative string resolved from cwd
+        - The plain relative string (cwd-dependent)
+        A provided csv_path overrides this resolution.
+        """
         if csv_path is None:
-            csv_path = Path("data/reference/symbol_translation/ExpirationCalendar_CLEANED.csv")
-            
+            candidates = [
+                Path(__file__).resolve().parents[3] / "data/reference/symbol_translation/ExpirationCalendar_CLEANED.csv",
+                Path("data/reference/symbol_translation/ExpirationCalendar_CLEANED.csv").resolve(),
+                Path("data/reference/symbol_translation/ExpirationCalendar_CLEANED.csv"),
+            ]
+            chosen: Optional[Path] = None
+            for p in candidates:
+                try:
+                    if p.exists():
+                        chosen = p
+                        break
+                except Exception:
+                    continue
+            if chosen is None:
+                # Fall back to repo-root heuristic even if exists() failed above for some reason
+                chosen = candidates[0]
+            csv_path = chosen
+
         self.csv_path = csv_path
-        self.df = pd.read_csv(csv_path)
+        try:
+            self.df = pd.read_csv(self.csv_path)
+        except Exception as e:
+            raise FileNotFoundError(f"RosettaStone could not load CSV at '{self.csv_path}'. Error: {e}")
         self._build_lookups()
         
         # Regex patterns for ActantTrades format
@@ -149,6 +176,11 @@ class RosettaStone:
                 self.lookups[f"actanttrades_{actanttrades_base}_to_actantrisk"] = actantrisk_base
                 self.lookups[f"cme_{cme_base}_to_actanttrades"] = actanttrades_base
                 self.lookups[f"actantrisk_{actantrisk_base}_to_actanttrades"] = actanttrades_base
+                # Direct Bloomberg → ActantTrades (base-only) for options
+                if not pd.isna(row.get('Bloomberg_Call')):
+                    self.lookups[f"bloomberg_{str(row['Bloomberg_Call'])}_to_actanttrades"] = actanttrades_base
+                if not pd.isna(row.get('Bloomberg_Put')):
+                    self.lookups[f"bloomberg_{str(row['Bloomberg_Put'])}_to_actanttrades"] = actanttrades_base
             
             # Add ActantTime mappings if available
             if 'ActantTime' in row and not pd.isna(row['ActantTime']):
@@ -172,6 +204,28 @@ class RosettaStone:
                         actanttrades_future = str(row['ActantTrades'])
                         self.lookups[f"actanttrades_{actanttrades_future}_to_bloomberg"] = bloomberg_future
                         self.lookups[f"bloomberg_{bloomberg_future}_to_actanttrades"] = actanttrades_future
+
+            # Provide direct CME ↔ Bloomberg mappings for futures and underlying symbols
+            # 1) Direct mapping for futures rows (cme_base → bloomberg_future)
+            if 'Option Product' in row and "Future" in row['Option Product']:
+                bloomberg_future = str(row.get('Bloomberg_Call')) if not pd.isna(row.get('Bloomberg_Call')) else None
+                if bloomberg_future:
+                    self.lookups[f"cme_{cme_base}_to_bloomberg"] = bloomberg_future
+                    self.lookups[f"bloomberg_{bloomberg_future}_to_cme"] = cme_base
+
+            # 2) Derived mapping from 'Underlying Symbol' (e.g., ZNU5 → TYU5 Comdty)
+            underlying = row.get('Underlying Symbol')
+            if underlying and not pd.isna(underlying):
+                cme_under = str(underlying).strip()
+                m = re.match(r'^(ZN|ZT|ZF|ZB)([FGHJKMNQUVXZ])(\d)$', cme_under)
+                if m:
+                    prefix, month, year_digit = m.groups()
+                    prefix_map = {'ZN': 'TY', 'ZT': 'TU', 'ZF': 'FV', 'ZB': 'US'}
+                    bb_root = prefix_map.get(prefix)
+                    if bb_root:
+                        bb_code = f"{bb_root}{month}{year_digit} Comdty"
+                        self.lookups[f"cme_{cme_under}_to_bloomberg"] = bb_code
+                        self.lookups[f"bloomberg_{bb_code}_to_cme"] = cme_under
             
             # Add Broker mappings if available
             if 'Broker' in row and not pd.isna(row['Broker']):
@@ -298,20 +352,25 @@ class RosettaStone:
             option_type = parts[4].upper()
             
         elif format_type == SymbolFormat.CME:
-            # Format: VY3N5 C11100
-            match = re.match(r'^([A-Z0-9]+)\s+([CP])(\d+)$', symbol)
-            if not match:
-                raise ValueError(f"Invalid CME format: {symbol}")
-                
-            base = match.group(1)
-            option_type = match.group(2)
-            strike_int = match.group(3)
-            
-            # Convert CME strike format to decimal
-            if len(strike_int) == 5:  # e.g., 11100
-                strike = str(int(strike_int) / 100)
+            # Format: VY3N5 C11100, or bare futures base like ZNU5
+            if re.match(r'^[A-Z0-9]+$', symbol):
+                base = symbol
+                option_type = 'F'
+                strike = "0"
             else:
-                strike = strike_int
+                match = re.match(r'^([A-Z0-9]+)\s+([CP])(\d+)$', symbol)
+                if not match:
+                    raise ValueError(f"Invalid CME format: {symbol}")
+                
+                base = match.group(1)
+                option_type = match.group(2)
+                strike_int = match.group(3)
+                
+                # Convert CME strike format to decimal
+                if len(strike_int) == 5:  # e.g., 11100
+                    strike = str(int(strike_int) / 100)
+                else:
+                    strike = strike_int
                 
         elif format_type == SymbolFormat.BLOOMBERG:
             # Format: VBYN25C3 111.750 Comdty
@@ -431,6 +490,114 @@ class RosettaStone:
         from_fmt = SymbolFormat(from_format)
         to_fmt = SymbolFormat(to_format)
         
+        # Special-case: Bloomberg → ActantTrades enhanced handling (futures and options)
+        if from_fmt == SymbolFormat.BLOOMBERG and to_fmt == SymbolFormat.ACTANT_TRADES:
+            raw = symbol.strip()
+            parts = raw.split()
+            # Expecting either [BASE, Comdty] for futures or [BASE, STRIKE, Comdty] for options
+            try:
+                if len(parts) == 2 and parts[1] == "Comdty":
+                    # Futures: base should include full string including Comdty
+                    full_bb = raw
+                    # Try direct futures mapping first
+                    target_base = self.lookups.get(
+                        f"bloomberg_{full_bb}_to_actanttrades"
+                    )
+                    if not target_base:
+                        # Fallback via ActantRisk
+                        ar_base = self.lookups.get(
+                            f"bloomberg_{full_bb}_to_actantrisk"
+                        )
+                        if ar_base:
+                            target_base = self.lookups.get(
+                                f"actantrisk_{ar_base}_to_actanttrades"
+                            )
+                    if not target_base:
+                        print(
+                            f"No mapping found for bloomberg futures {full_bb} to actanttrades"
+                        )
+                        return None
+                    # Reconstruct as futures (strike 0)
+                    return self._reconstruct_symbol(
+                        target_base,
+                        "0",
+                        "F",
+                        to_fmt,
+                        self.classify_symbol(raw, SymbolFormat.BLOOMBERG),
+                    )
+                elif len(parts) == 3 and parts[2] == "Comdty":
+                    # Options: BASE encodes call/put; second token is strike
+                    bb_base = parts[0]
+                    strike_in = parts[1]
+                    # Determine option type from base token, focusing on suffix
+                    option_type = None
+                    # If base ends with digits (e.g., TJPU25C2), find the letter before the trailing digits
+                    if bb_base and bb_base[-1].isdigit():
+                        i = len(bb_base) - 1
+                        while i >= 0 and bb_base[i].isdigit():
+                            i -= 1
+                        if i >= 0 and bb_base[i] in ('C', 'P'):
+                            option_type = bb_base[i]
+                    # Else, if it ends with C/P (e.g., TYZ5C)
+                    if option_type is None and bb_base and bb_base[-1] in ('C', 'P'):
+                        option_type = bb_base[-1]
+                    if option_type is None:
+                        print(
+                            f"Unable to infer option type from Bloomberg base: {bb_base}"
+                        )
+                        return None
+                    # Try multi-hop: Bloomberg → ActantRisk → ActantTrades
+                    target_base = None
+                    ar_base = self.lookups.get(
+                        f"bloomberg_{bb_base}_to_actantrisk"
+                    )
+                    if ar_base:
+                        target_base = self.lookups.get(
+                            f"actantrisk_{ar_base}_to_actanttrades"
+                        )
+                    if not target_base:
+                        # Secondary path via CME
+                        cme_base = self.lookups.get(
+                            f"bloomberg_{bb_base}_to_cme"
+                        )
+                        if cme_base:
+                            target_base = self.lookups.get(
+                                f"cme_{cme_base}_to_actanttrades"
+                            )
+                    if not target_base:
+                        print(
+                            f"No mapping found for bloomberg option {bb_base} to actanttrades via fallbacks"
+                        )
+                        return None
+                    # Ensure ActantTrades base reflects the inferred option type.
+                    # ActantTrades option base encodes type as XCMEO[CP]ADPS…
+                    try:
+                        m = re.match(r'^(XCMEO)([CP])(ADPS.*)$', str(target_base))
+                        if m:
+                            desired = option_type
+                            # Normalize to the desired C/P in the base
+                            target_base = f"{m.group(1)}{desired}{m.group(3)}"
+                    except Exception:
+                        # If pattern doesn't match, leave base unchanged
+                        pass
+                    # Format strike following existing rules
+                    try:
+                        strike_formatted = StrikeConverter.format_strike(strike_in, 'actanttrades')
+                    except ValueError:
+                        strike_formatted = str(strike_in)
+                    return self._reconstruct_symbol(
+                        target_base,
+                        strike_formatted,
+                        option_type,
+                        to_fmt,
+                        self.classify_symbol(raw, SymbolFormat.BLOOMBERG),
+                    )
+            except Exception as e:
+                print(
+                    f"Failed Bloomberg→ActantTrades special-case for symbol '{symbol}': {e}"
+                )
+                return None
+
         # Parse input symbol
         try:
             parsed = self.parse_symbol(symbol, from_fmt)
@@ -439,6 +606,12 @@ class RosettaStone:
             if from_format == 'actanttrades':
                 lookup_key = f"actanttrades_{symbol}_to_{to_format}"
                 translated = self.lookups.get(lookup_key)
+                if translated:
+                    return translated
+            # Allow direct CME futures base lookups when parse fails
+            if from_format == 'cme':
+                direct_key = f"cme_{symbol}_to_{to_format}"
+                translated = self.lookups.get(direct_key)
                 if translated:
                     return translated
             print(f"Failed to parse {symbol}: {e}")

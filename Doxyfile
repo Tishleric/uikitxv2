@@ -192,7 +192,7 @@ FULL_PATH_NAMES        = YES
 # will be relative from the directory where Doxygen is started.
 # This tag requires that the tag FULL_PATH_NAMES is set to YES.
 
-STRIP_FROM_PATH        =
+STRIP_FROM_PATH        = Z:/uikitxv2
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
 # path mentioned in the documentation of a class, which tells the reader which
@@ -217,7 +217,7 @@ SHORT_NAMES            = NO
 # explicit @brief command for a brief description.)
 # The default value is: NO.
 
-JAVADOC_AUTOBRIEF      = YEYES
+JAVADOC_AUTOBRIEF      = YES
 
 # If the JAVADOC_BANNER tag is set to YES then Doxygen will interpret a line
 # such as
@@ -536,7 +536,7 @@ TIMESTAMP              = NO
 # normally produced when WARNINGS is set to YES.
 # The default value is: NO.
 
-EXTRACT_ALL            = YES
+EXTRACT_ALL            = NO
 
 # If the EXTRACT_PRIVATE tag is set to YES, all private members of a class will
 # be included in the documentation.
@@ -600,7 +600,7 @@ RESOLVE_UNNAMED_PARAMS = YES
 # section is generated. This option has no effect if EXTRACT_ALL is enabled.
 # The default value is: NO.
 
-HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_MEMBERS     = YES
 
 # If the HIDE_UNDOC_CLASSES tag is set to YES, Doxygen will hide all
 # undocumented classes that are normally visible in the class hierarchy. If set
@@ -609,7 +609,7 @@ HIDE_UNDOC_MEMBERS     = NO
 # if EXTRACT_ALL is enabled.
 # The default value is: NO.
 
-HIDE_UNDOC_CLASSES     = NO
+HIDE_UNDOC_CLASSES     = YES
 
 # If the HIDE_UNDOC_NAMESPACES tag is set to YES, Doxygen will hide all
 # undocumented namespaces that are normally visible in the namespace hierarchy.
@@ -817,7 +817,7 @@ SHOW_FILES             = YES
 # Folder Tree View (if specified).
 # The default value is: YES.
 
-SHOW_NAMESPACES        = YES
+SHOW_NAMESPACES        = NO
 
 # The FILE_VERSION_FILTER tag can be used to specify a program or script that
 # Doxygen should invoke to get the current version for each file (typically from
@@ -841,7 +841,7 @@ FILE_VERSION_FILTER    =
 # DoxygenLayout.xml, Doxygen will parse it automatically even if the LAYOUT_FILE
 # tag is left empty.
 
-LAYOUT_FILE            =
+LAYOUT_FILE            = docs/doxygen/layout.xml
 
 # The CITE_BIB_FILES tag can be used to specify one or more bib files containing
 # the reference definitions. This must be a list of .bib files. The .bib
@@ -993,7 +993,7 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  =
+INPUT                  = apps/dashboards/main apps/dashboards/main/app.py src/core src/decorators src/utils src/lumberjack README.md docs/doxygen
 
 # This tag can be used to specify the character encoding of the source files
 # that Doxygen parses. Internally Doxygen uses the UTF-8 encoding. Doxygen uses
@@ -1119,7 +1119,13 @@ EXCLUDE                = .git \
                          .ruff_cache \
                          node_modules \
                          venv \
-                         .venv
+                         .venv \
+                         memory-bank \
+                         demo \
+                         ActantSOD \
+                         ActantEOD \
+                         ladderTest \
+                         TTRestAPI
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
@@ -1230,7 +1236,7 @@ FILTER_SOURCE_PATTERNS =
 # (index.html). This can be useful if you have a project on for instance GitHub
 # and want to reuse the introduction page also for the Doxygen output.
 
-USE_MDFILE_AS_MAINPAGE = code-index.html
+USE_MDFILE_AS_MAINPAGE = docs/doxygen/StartHere.md
 
 # If the IMPLICIT_DIR_DOCS tag is set to YES, any README.md file found in sub-
 # directories of the project's root, is used as the documentation for that sub-
@@ -1281,13 +1287,13 @@ STRIP_CODE_COMMENTS    = YES
 # entity all documented functions referencing it will be listed.
 # The default value is: NO.
 
-REFERENCED_BY_RELATION = NO
+REFERENCED_BY_RELATION = YES
 
 # If the REFERENCES_RELATION tag is set to YES then for each documented function
 # all documented entities called/used by that function will be listed.
 # The default value is: NO.
 
-REFERENCES_RELATION    = NO
+REFERENCES_RELATION    = YES
 
 # If the REFERENCES_LINK_SOURCE tag is set to YES and SOURCE_BROWSER tag is set
 # to YES then the hyperlinks from functions in REFERENCES_RELATION and
@@ -1386,7 +1392,7 @@ CLANG_DATABASE_PATH    =
 # classes, structs, unions or interfaces.
 # The default value is: YES.
 
-ALPHABETICAL_INDEX     = YES
+ALPHABETICAL_INDEX     = NO
 
 # The IGNORE_PREFIX tag can be used to specify a prefix (or a list of prefixes)
 # that should be ignored while generating the index headers. The IGNORE_PREFIX
@@ -2858,7 +2864,7 @@ DIR_GRAPH_MAX_DEPTH    = 1
 # The default value is: png.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-DOT_IMAGE_FORMAT       = png
+DOT_IMAGE_FORMAT       = svg
 
 # If DOT_IMAGE_FORMAT is set to svg or svg:svg or svg:svg:core, then this option
 # can be set to YES to enable generation of interactive SVG images that allow
@@ -2872,7 +2878,7 @@ DOT_IMAGE_FORMAT       = png
 # The default value is: NO.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-INTERACTIVE_SVG        = NO
+INTERACTIVE_SVG        = YES
 
 # The DOT_PATH tag can be used to specify the path where the dot tool can be
 # found. If left blank, it is assumed the dot tool can be found in the path.
@@ -2934,7 +2940,7 @@ PLANTUMLFILE_DIRS      =
 # Minimum value: 0, maximum value: 10000, default value: 50.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-DOT_GRAPH_MAX_NODES    = 50
+DOT_GRAPH_MAX_NODES    = 35
 
 # The MAX_DOT_GRAPH_DEPTH tag can be used to set the maximum depth of the graphs
 # generated by dot. A depth value of 3 means that only nodes reachable from the
@@ -2946,7 +2952,7 @@ DOT_GRAPH_MAX_NODES    = 50
 # Minimum value: 0, maximum value: 1000, default value: 0.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-MAX_DOT_GRAPH_DEPTH    = 0
+MAX_DOT_GRAPH_DEPTH    = 2
 
 # Set the DOT_MULTI_TARGETS tag to YES to allow dot to generate multiple output
 # files in one run (i.e. multiple -o and -T options on the command line). This

@@ -1,5 +1,15 @@
 """Monitor decorator for observatory system - Phase 8 with performance optimizations
 
+LEGACY NOTICE:
+- This decorator implements function-level tracing intended primarily for
+  development diagnostics. It is not the service-health framework. For
+  operational monitoring of pipeline services (completeness, correctness,
+  timeliness), use the BigBrother system under `lib/big_brother/`.
+
+SCOPE:
+- Keep usage narrow and intentional. The repository discourages blanket
+  application of this decorator in application code.
+
 Environment Variables:
     MONITOR_LOG_LEVEL: Controls console output verbosity
         - "ERROR": Only show failed executions
@@ -64,6 +74,11 @@ def start_observatory_writer(db_path: str = "logs/observatory.db",
         retention_enabled: Whether to enable automatic retention (default: True)
     """
     global _batch_writer, _retention_controller
+
+    # Allow global disable via environment variable
+    if os.environ.get("MONITOR_DISABLE") == "1":
+        print("[MONITOR] MONITOR_DISABLE=1 set. Skipping observatory writer startup.")
+        return None
     
     # Ensure queue exists
     queue = get_observatory_queue()
@@ -431,6 +446,12 @@ def monitor(
     Returns:
         Decorated function
     """
+    # Global kill-switch: turn decorator into no-op if disabled
+    if os.environ.get("MONITOR_DISABLE") == "1":
+        def _noop_decorator(func_or_descriptor: Any) -> Any:
+            return func_or_descriptor
+        return _noop_decorator
+
     # Default: capture EVERYTHING (Track Everything philosophy)
     if capture is None:
         capture = {

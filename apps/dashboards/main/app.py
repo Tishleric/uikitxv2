@@ -28,6 +28,7 @@ import requests
 import urllib.parse
 import threading
 import redis
+from functools import lru_cache
 
 # --- Adjust Python path ---
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -49,10 +50,16 @@ if lib_path not in sys.path:
 try:
     from monitoring.logging import setup_logging, shutdown_logging
     from components.themes import default_theme
-    from components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph, RadioButton, Mermaid, Loading, ListBox, RangeSlider, Checkbox, Tooltip
+    from components import Tabs, Grid, Button, ComboBox, Container, DataTable, Graph, RadioButton, Mermaid, Loading, ListBox, RangeSlider, Checkbox, Tooltip, Toggle
     print("Successfully imported logging, theme, and UI components.")
-    from lib.trading.pricing_monkey import run_pm_automation, get_market_movement_data_df, SCENARIOS
-    print("Successfully imported PM modules.")
+    try:
+        from lib.trading.pricing_monkey import run_pm_automation, get_market_movement_data_df, SCENARIOS  # type: ignore[attr-defined]
+        print("Successfully imported PM modules.")
+    except Exception:
+        # Fallback to explicit submodules to support lightweight package __init__
+        from lib.trading.pricing_monkey.automation import run_pm_automation
+        from lib.trading.pricing_monkey.processors import get_market_movement_data_df, SCENARIOS
+        print("Imported PM modules via subpackages (automation/processors) fallback.")
     from lib.trading.bond_future_options import analyze_bond_future_option_greeks
     from lib.trading.bond_future_options.bachelier_greek import generate_greek_profiles_data, generate_taylor_error_data
     print("Successfully imported bond future options module.")
@@ -65,8 +72,7 @@ try:
     )
     print("Successfully imported TT REST API tools.")
     # Import decorator functions
-    from lib.monitoring.decorators import monitor
-    from lib.monitoring.decorators.monitor import start_observatory_writer
+    
     print("Successfully imported tracing decorators.")
     # Import trading utilities
     from lib.trading.common import format_shock_value_for_display
@@ -77,6 +83,14 @@ try:
     except Exception:
         decimal_to_tt_bond_format_by_symbol = None  # type: ignore
     from lib.trading.pnl_fifo_lifo.data_manager import get_trading_day
+    from apps.dashboards.pm_basic.tab import create_pm_basic_content, register_callbacks as register_pm_basic_callbacks
+    # PM sync background service (Phase 1: read-only)
+    try:
+        from lib.trading.pm_sync.service import get_positions_sync_service
+        from lib.trading.pm_sync.config import load_config
+    except Exception:
+        get_positions_sync_service = None  # type: ignore
+        load_config = None  # type: ignore
     # Import Actant modules from new location
     from lib.trading.actant.eod import ActantDataService, get_most_recent_json_file, get_json_file_metadata
 except ImportError as e:
@@ -88,6 +102,46 @@ except Exception as e_global:
     traceback.print_exc()
     sys.exit(1)
 # --- End Imports ---
+
+# --- Optional Expiry Helpers (fail-open) ---
+try:
+    from lib.trading.option_expiry.helpers import BloombergOptionSymbolParser, CalendarCSVLookup
+    EXPIRY_PARSER = BloombergOptionSymbolParser()
+    EXPIRY_CAL = CalendarCSVLookup()
+    _EXPIRY_CAL_AVAILABLE = True
+except Exception:
+    EXPIRY_PARSER = None
+    EXPIRY_CAL = None
+    _EXPIRY_CAL_AVAILABLE = False
+
+
+@lru_cache(maxsize=2048)
+def _resolve_expiry_for_base(base: str):
+    try:
+        if not _EXPIRY_CAL_AVAILABLE or not base:
+            return None
+        info = EXPIRY_CAL.get_by_bloomberg_base(base)  # type: ignore[attr-defined]
+        if not info or not getattr(info, "expiry_ct", None):
+            return None
+        return info.expiry_ct.isoformat()
+    except Exception:
+        return None
+
+
+def _derive_expiry_from_symbol(symbol: str) -> str:
+    try:
+        if not _EXPIRY_CAL_AVAILABLE or EXPIRY_PARSER is None or not symbol:
+            return ""
+        s = str(symbol).strip()
+        parts = s.split()
+        if len(parts) != 3 or parts[2].lower() != "comdty":
+            return ""
+        parsed = EXPIRY_PARSER.parse_option_symbol(s)  # type: ignore[attr-defined]
+        exp = _resolve_expiry_for_base(parsed.base)  # type: ignore[attr-defined]
+        return exp or ""
+    except Exception:
+        return ""
+
 
 # --- Logging ---
 logs_dir = os.path.join(project_root, 'logs')
@@ -105,8 +159,7 @@ if not logger_root.handlers:
     )
     atexit.register(shutdown_logging)
 logger = logging.getLogger(__name__)
-
-@monitor()
+ 
 def verify_log_database():
     """Verify that the logging database tables exist and can be accessed."""
     try:
@@ -213,14 +266,9 @@ def serve_doxygen(filename='index.html'):
 
 # --- End App Init ---
 
-# --- Start Observatory Writer ---
-# Start the observatory writer for @monitor decorator
-try:
-    start_observatory_writer(db_path="logs/observatory.db")
-    logger.info("Observatory writer started successfully")
-except Exception as e:
-    logger.error(f"Failed to start observatory writer: {e}")
-# --- End Observatory Writer ---
+# --- Legacy Trace Writer Disabled ---
+# Note: The legacy function-level tracing writer is intentionally not started here
+# to avoid confusion with the upcoming BigBrother service-health system.
 
 # --- Register Actant PnL Callbacks Early ---
 # Import and register Actant PnL callbacks at startup to avoid double-click issue
@@ -233,6 +281,25 @@ except Exception as e:
     logger.error(f"Failed to register Actant PnL callbacks at startup: {e}")
     app._actant_pnl_callbacks_registered = False
 # --- End Actant PnL Registration ---
+
+# Register PM Basic tab callbacks at startup
+try:
+    register_pm_basic_callbacks(app)
+    logger.info("PM Basic callbacks registered at startup")
+except Exception as e:
+    logger.error(f"Failed to register PM Basic callbacks at startup: {e}")
+
+# Optionally start PM positions sync background service (read-only) at boot
+try:
+    if load_config is not None and get_positions_sync_service is not None:
+        _pmcfg = load_config()
+        if _pmcfg.auto_start_writer_on_boot:
+            svc = get_positions_sync_service(trades_db_path=os.path.join(project_root, 'trades.db'))
+            svc.start()
+            # Health line after boot
+            logger.info(f"[PM-SYNC] Service online; Writer={'enabled' if _pmcfg.auto_start_writer_session else 'manual'}; Subscribed=positions:changed; include_futures={_pmcfg.include_futures}")
+except Exception as e:
+    logger.error(f"Failed to start PM positions sync service: {e}")
 
 # --- Register Observatory Callbacks Early ---
 # Import and register Observatory callbacks at startup
@@ -567,7 +634,6 @@ analysis_tab_content = Container(
 ).render()
 
 # --- Logs Database Utilities ---
-@monitor()
 def query_flow_trace_logs(limit=100):
     """
     Query the flowTrace table from the SQLite log database.
@@ -605,7 +671,6 @@ def query_flow_trace_logs(limit=100):
         logger.error(f"Error querying flow trace logs: {e}", exc_info=True)
         return []
 
-@monitor()
 def query_performance_metrics():
     """
     Query the AveragePerformance table from the SQLite log database.
@@ -2867,6 +2932,15 @@ def create_frg_monitor_content():
             "textAlign": "center"
         }
     )
+    # Sidebar switch shown in the FRGMonitor pane header area (available on all FRGMonitor tabs)
+    sidebar_switch = html.Div([
+        html.Div("Side Bar", style={"fontSize": "0.85rem", "opacity": "0.85", "marginBottom": "4px"}),
+        html.Div([
+            html.Span("Collapse", style={"marginRight": "8px"}),
+            Toggle(id="frg-sidebar-toggle", value=True, theme=default_theme).render(),
+            html.Span("Expand", style={"marginLeft": "8px"}),
+        ], style={"display": "flex", "alignItems": "center", "gap": "6px"})
+    ], style={"display": "flex", "flexDirection": "column", "alignItems": "flex-start", "marginBottom": "10px"})
     
     # --- Simple auto-refresh components ---
     # Poll FRG data at 300 ms for lower-latency UI updates
@@ -2879,15 +2953,17 @@ def create_frg_monitor_content():
     # Create tab contents
     positions_content = create_positions_tab_content()
     daily_positions_content = create_daily_positions_tab_content()
+    frg_mobile_content = create_frg_mobile_tab_content()
     
     # Use wrapped Tabs component
     tabs = Tabs(
         id="frg-monitor-tabs",
         tabs=[
             ("Live Positions", positions_content),
-            ("Daily Positions", daily_positions_content)
+            ("Daily Positions", daily_positions_content),
+            ("FRGMobile", frg_mobile_content)
         ],
-        active_tab="tab-0",
+        active_tab=None,  # Default to first tab
         theme=default_theme
     )
     
@@ -2896,10 +2972,15 @@ def create_frg_monitor_content():
         id="frg-monitor-container",
         children=[
             header,
+            sidebar_switch,
+            # One-shot init interval fires only when FRGMonitor is mounted
+            # Use a short polling window to wait for device-info-store to be populated reliably
+            dcc.Interval(id="frg-monitor-init", interval=250, max_intervals=20),
             tabs.render(),
             # Add the auto-refresh components to the layout
             refresh_interval,
-            data_hash_store
+            data_hash_store,
+            dcc.Store(id='frg-last-prices-store', data={})
         ],
         style={"padding": "10px"},  # Reduced padding for more width
         fluid=True  # Make the main container full-width
@@ -2911,12 +2992,15 @@ def create_positions_tab_content():
     
     # Status and update info
     info_row = html.Div([
-        html.Span("Status: ", style={"fontWeight": "bold"}),
-        html.Span("Initializing...", id="positions-status-text"),
-        html.Span(" | Last Update: ", style={"fontWeight": "bold", "marginLeft": "20px"}),
-        html.Span("--", id="positions-last-update-text"),
-        html.Span(" (Chicago time)", style={"fontSize": "0.8rem", "fontStyle": "italic", "marginLeft": "10px"})
-    ], style={"marginBottom": "15px", "fontSize": "0.9rem"})
+        html.Div([
+            html.Span("Status: ", style={"fontWeight": "bold"}),
+            html.Span("Initializing...", id="positions-status-text"),
+            html.Span(" | Last Update: ", style={"fontWeight": "bold", "marginLeft": "20px"}),
+            html.Span("--", id="positions-last-update-text"),
+            html.Span(" (Chicago time)", style={"fontSize": "0.8rem", "fontStyle": "italic", "marginLeft": "10px"})
+        ]),
+        html.Div("All greeks are in yield space", style={"fontSize": "0.8rem", "fontStyle": "italic", "opacity": "0.8"})
+    ], style={"marginBottom": "15px", "fontSize": "0.9rem", "display": "flex", "justifyContent": "space-between", "alignItems": "center"})
     
     # DataTable
     positions_table = DataTable(
@@ -3046,6 +3130,30 @@ def create_daily_positions_tab_content():
 
 # --- End FRGMonitor Tab ---
 
+def create_frg_mobile_tab_content():
+    """Create mobile-friendly FRG view with stacked symbol cards."""
+    info_row = html.Div([
+        html.Div([
+            html.Span("Status: ", style={"fontWeight": "bold"}),
+            html.Span("Initializing...", id="frg-mobile-status-text"),
+            html.Span(" | Last Update: ", style={"fontWeight": "bold", "marginLeft": "20px"}),
+            html.Span("--", id="frg-mobile-last-update-text"),
+            html.Span(" (Chicago time)", style={"fontSize": "0.8rem", "fontStyle": "italic", "marginLeft": "10px"})
+        ]),
+        html.Div("All greeks are in yield space", style={"fontSize": "0.8rem", "fontStyle": "italic", "opacity": "0.8"})
+    ], style={"marginBottom": "15px", "fontSize": "0.9rem", "display": "flex", "justifyContent": "space-between", "alignItems": "center"})
+
+    cards_container = html.Div(id="frg-mobile-cards-container", style={"width": "100%", "display": "flex", "flexDirection": "column", "gap": "10px"})
+
+    container = Container(
+        id="frg-mobile-tab-container",
+        children=[info_row, cards_container],
+        theme=default_theme,
+        style={"padding": "10px", "width": "100%"},
+        fluid=True
+    )
+    return container.render()
+
 # --- Actant EOD Helper Functions (Placeholder) ---
 def aeod_create_dashboard_layout():
     """Create the main dashboard layout with new design."""
@@ -3074,6 +3182,7 @@ def create_sidebar():
     sidebar_items = [
         {"id": "nav-frg-monitor", "label": "FRGMonitor", "icon": "📊"},  # Moved to top
         {"id": "nav-pricing-monkey", "label": "Option Hedging", "icon": "💰"},
+        {"id": "nav-pricing-monkey-basic", "label": "FRGMonkey", "icon": "🧪"},
         {"id": "nav-analysis", "label": "Option Comparison", "icon": "📊"},
         {"id": "nav-greek-analysis", "label": "Greek Analysis", "icon": "📈"},
         {"id": "nav-scenario-ladder", "label": "Scenario Ladder", "icon": "📊"},
@@ -3147,9 +3256,9 @@ def create_sidebar():
         nav_buttons.append(button)
     
     sidebar_content = html.Div([
-        html.H2("FRGM Trade Accelerator", style=header_style),
-        html.Div(nav_buttons, style={'padding': '0'})
-    ], style=sidebar_style)
+        html.Button("FRGM Trade Accelerator", id="sidebar-toggle", n_clicks=0, style={**header_style, 'background': 'none', 'border': 'none', 'width': '100%', 'cursor': 'pointer'}),
+        html.Div(nav_buttons, id="sidebar-nav-container", style={'padding': '0'})
+    ], id="app-sidebar", style=sidebar_style)
     
     return sidebar_content
 
@@ -3157,6 +3266,7 @@ def get_page_content(page_name):
     """Get content for the specified page"""
     page_content_mapping = {
         "pricing-monkey": pricing_monkey_tab_main_container_rendered,
+        "pricing-monkey-basic": create_pm_basic_content(),
         "analysis": analysis_tab_content,
         "greek-analysis": create_greek_analysis_content(),
         "project-docs": create_project_documentation_content(),
@@ -3259,7 +3369,13 @@ content_style = {
 # Create main layout with sidebar
 app.layout = html.Div([
     active_page_store,
+    dcc.Store(id="device-info-store"),
+    dcc.Store(id="mobile-init-done", data=False),
+    dcc.Interval(id="device-info-probe", interval=100, max_intervals=1),
+    dcc.Store(id="sidebar-collapsed-store", data=False),
     sidebar,
+    # Floating hamburger shown when sidebar is collapsed
+    # Floating hamburger removed in favor of in-pane switch
     html.Div(
         id="main-content-area",
         children=[get_page_content("frg-monitor")],  # Default content
@@ -3272,11 +3388,25 @@ app.layout = html.Div([
     "padding": "0"
 })
 
+# Provide a validation layout that includes the FRGMonitor subtree so callbacks
+# that reference FRGMonitor IDs validate even before navigation builds the view.
+try:
+    app.validation_layout = html.Div([
+        app.layout,
+        create_frg_monitor_content()
+    ])
+except Exception:
+    # Fail-open: if validation layout cannot be built at import time, skip it.
+    # Callbacks will still work because suppress_callback_exceptions=True, but
+    # Dash may warn at startup.
+    pass
+
 # --- Navigation Callback ---
 @app.callback(
     [Output("main-content-area", "children"),
      Output("active-page-store", "data"),
      Output("nav-pricing-monkey", "style"),
+     Output("nav-pricing-monkey-basic", "style"),
      Output("nav-analysis", "style"),
      Output("nav-greek-analysis", "style"),
      Output("nav-logs", "style"),
@@ -3289,6 +3419,7 @@ app.layout = html.Div([
      Output("nav-frg-monitor", "style"),
      Output("nav-observatory", "style")],
     [Input("nav-pricing-monkey", "n_clicks"),
+     Input("nav-pricing-monkey-basic", "n_clicks"),
      Input("nav-analysis", "n_clicks"),
      Input("nav-greek-analysis", "n_clicks"),
      Input("nav-logs", "n_clicks"),
@@ -3304,8 +3435,7 @@ app.layout = html.Div([
     [State("active-page-store", "data")],
     prevent_initial_call=False
 )
-@monitor()
-def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, spot_risk_clicks, frg_monitor_clicks, observatory_clicks, current_page):
+def handle_navigation(pm_clicks, pm_basic_clicks, analysis_clicks, greek_clicks, logs_clicks, project_docs_clicks, scenario_ladder_clicks, actant_eod_clicks, actant_pnl_clicks, spot_risk_clicks, frg_monitor_clicks, observatory_clicks, current_page):
     """Handle sidebar navigation with proper state management"""
     
     # Determine which button was clicked
@@ -3317,6 +3447,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
         trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
         page_mapping = {
             "nav-pricing-monkey": "pricing-monkey",
+            "nav-pricing-monkey-basic": "pricing-monkey-basic",
             "nav-analysis": "analysis",
             "nav-greek-analysis": "greek-analysis", 
             "nav-logs": "logs",
@@ -3371,6 +3502,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
     # Apply styles based on active page
     styles = {
         "pricing-monkey": active_style if active_page == "pricing-monkey" else inactive_style,
+        "pricing-monkey-basic": active_style if active_page == "pricing-monkey-basic" else inactive_style,
         "analysis": active_style if active_page == "analysis" else inactive_style,
         "greek-analysis": active_style if active_page == "greek-analysis" else inactive_style,
         "logs": active_style if active_page == "logs" else inactive_style,
@@ -3386,7 +3518,7 @@ def handle_navigation(pm_clicks, analysis_clicks, greek_clicks, logs_clicks, pro
     
     logger.info(f"Navigation: switched to page '{active_page}'")
     
-    return [content], active_page, styles["pricing-monkey"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["spot-risk"], styles["frg-monitor"], styles["observatory"]
+    return [content], active_page, styles["pricing-monkey"], styles["pricing-monkey-basic"], styles["analysis"], styles["greek-analysis"], styles["logs"], styles["project-docs"], styles["scenario-ladder"], styles["actant-eod"], styles["actant-pnl"], styles["spot-risk"], styles["frg-monitor"], styles["observatory"]
 
 # Remove old tabs-based layout
 # main_tabs_rendered = Tabs(
@@ -3413,17 +3545,66 @@ logger.info("UI layout defined with sidebar navigation.")
 
 # --- FRGMonitor Callbacks ---
 @app.callback(
+    Output("sidebar-collapsed-store", "data"),
+    Input("frg-sidebar-toggle", "value"),
+    State("sidebar-collapsed-store", "data"),
+    prevent_initial_call=False
+)
+def toggle_sidebar(frg_toggle_value, collapsed):
+    """Toggle collapsed state from the FRGMonitor pane switch only (header no longer toggles)."""
+    is_collapsed = bool(collapsed)
+    if frg_toggle_value is not None:
+        is_collapsed = not bool(frg_toggle_value)
+    return is_collapsed
+
+# Keep the FRGMonitor switch state in sync with the current store so the UI reflects
+# programmatic changes (e.g., mobile default collapse) and header clicks.
+@app.callback(
+    Output("frg-sidebar-toggle", "value", allow_duplicate=True),
+    Input("sidebar-collapsed-store", "data"),
+    prevent_initial_call=True
+)
+def sync_frg_toggle(collapsed):
+    try:
+        return not bool(collapsed)
+    except Exception:
+        raise PreventUpdate
+
+@app.callback(
+    Output("app-sidebar", "style"),
+    Output("main-content-area", "style"),
+    Output("sidebar-nav-container", "style"),
+    Input("sidebar-collapsed-store", "data"),
+    prevent_initial_call=False
+)
+def sync_sidebar_styles(collapsed):
+    expanded_sidebar = {
+        'position': 'fixed', 'top': 0, 'left': 0, 'bottom': 0, 'width': '240px', 'padding': '20px 0',
+        'backgroundColor': default_theme.panel_bg, 'borderRight': f'2px solid {default_theme.secondary}', 'overflowY': 'auto', 'zIndex': 1000
+    }
+    collapsed_sidebar = {
+        'position': 'fixed', 'top': 0, 'left': 0, 'bottom': 0, 'width': '0px', 'padding': '0',
+        'backgroundColor': default_theme.panel_bg, 'overflow': 'hidden', 'zIndex': 1000
+    }
+    expanded_content = {**content_style, 'marginLeft': '240px'}
+    collapsed_content = {**content_style, 'marginLeft': '0px'}
+    is_collapsed = bool(collapsed)
+    nav_style = {'padding': '0'} if not is_collapsed else {'display': 'none'}
+    # Floating button visibility
+    return (collapsed_sidebar if is_collapsed else expanded_sidebar), (collapsed_content if is_collapsed else expanded_content), nav_style
+@app.callback(
     [Output("positions-table", "columns"),
      Output("positions-table", "data"),
      Output("positions-status-text", "children"),
      Output("positions-last-update-text", "children"),
-     Output("frg-data-hash-store", "data")],
+     Output("frg-data-hash-store", "data"),
+     Output("frg-last-prices-store", "data")],
     Input("frg-refresh-interval", "n_intervals"),
     State("frg-data-hash-store", "data"),
+    State("frg-last-prices-store", "data"),
     prevent_initial_call=False
 )
-@monitor(sample_rate=0.5)
-def update_positions_table(n_intervals, hash_store):
+def update_positions_table(n_intervals, hash_store, last_prices_store):
     """Update positions table from trades.db only when triggered by a new signal."""
     import sqlite3
     import pandas as pd
@@ -3457,6 +3638,16 @@ def update_positions_table(n_intervals, hash_store):
         else:
             date_modifier = "'0 hours'"  # Fallback
 
+        # Detect if implied_vol column exists (graceful fallback when aggregator not running)
+        try:
+            col_rows = conn.execute("PRAGMA table_info(positions)").fetchall()
+            position_cols = {row[1] for row in col_rows}
+            has_iv_col = 'implied_vol' in position_cols
+        except Exception:
+            has_iv_col = False
+
+        iv_select = "p.implied_vol" if has_iv_col else "NULL AS implied_vol"
+
         # Fetch positions data
         query = f"""
         SELECT 
@@ -3470,6 +3661,7 @@ def update_positions_table(n_intervals, hash_store):
             p.theta,
             (p.theta / 252.0) as theta_decay_pnl,
             p.vega,
+            {iv_select},
             p.fifo_realized_pnl,
             p.fifo_unrealized_pnl,
             (p.fifo_realized_pnl + p.fifo_unrealized_pnl) as pnl_live,
@@ -3478,7 +3670,7 @@ def update_positions_table(n_intervals, hash_store):
             CASE WHEN p.instrument_type = 'FUTURE' THEN (p.lifo_realized_pnl + p.lifo_unrealized_pnl) ELSE NULL END AS non_gamma_lifo,
             CASE WHEN p.instrument_type = 'OPTION' THEN (p.lifo_realized_pnl + p.lifo_unrealized_pnl) ELSE NULL END AS gamma_lifo,
             p.last_updated,
-            pr_now.price as live_px,
+            COALESCE(pr_now.price, 0) as live_px,
             -- Close price: show only if from today
             CASE 
                 WHEN pr_close.timestamp LIKE '{trading_day}' || '%' 
@@ -3520,6 +3712,36 @@ def update_positions_table(n_intervals, hash_store):
         # Diagnostics: log how many rows are excluded by the trading-day filter
         df = pd.read_sql_query(query, conn)
         conn.close()
+
+        # --- Apply NPV cap for theta on options with open positions ---
+        # Boundary: |theta| <= NPV, where NPV = live_px * |open_position| * 1000
+        # Notes:
+        # - Apply only to OPTION rows with non-zero open_position
+        # - Do not require price > 0 (price may be 0). live_px comes from SQL COALESCE, so numeric.
+        # - Preserve theta sign when capping (negative theta stays negative if capped)
+        if not df.empty:
+            try:
+                inst_is_option = df['instrument_type'].astype(str).str.upper() == 'OPTION'
+                open_pos_num = pd.to_numeric(df['open_position'], errors='coerce')
+                live_px_num = pd.to_numeric(df['live_px'], errors='coerce')
+                theta_num = pd.to_numeric(df['theta'], errors='coerce')
+
+                has_open = open_pos_num.fillna(0) != 0
+                theta_ok = theta_num.notna()
+
+                mask = inst_is_option & has_open & theta_ok
+                if mask.any():
+                    npv = live_px_num[mask] * open_pos_num[mask].abs() * 1000.0
+                    theta_abs = theta_num[mask].abs()
+                    theta_sign = np.sign(theta_num[mask])
+                    theta_bounded = theta_sign * np.minimum(theta_abs, npv)
+
+                    df.loc[mask, 'theta'] = theta_bounded
+                    df.loc[mask, 'theta_decay_pnl'] = theta_bounded / 252.0
+            except Exception:
+                # Fail-open: on any error, leave theta values unchanged
+                pass
+        # --- End NPV cap ---
         
         # --- Compute tick-display columns (LivePXTX / ClosePXTX) ---
         # Helper: classify instrument type with safe fallback
@@ -3597,45 +3819,168 @@ def update_positions_table(n_intervals, hash_store):
             df['live_px_tx'] = None
             df['close_px_tx'] = None
 
+        # Compute NPV for options rows: NPV = live_px * open_position * 1000
+        if not df.empty:
+            try:
+                inst_upper = df['instrument_type'].astype(str).str.upper()
+                is_option = inst_upper.isin(['OPTION', 'C', 'P', 'CALL', 'PUT'])
+                open_pos_num = pd.to_numeric(df['open_position'], errors='coerce')
+                live_px_num = pd.to_numeric(df['live_px'], errors='coerce')
+                npv_series = live_px_num * open_pos_num * 1000.0
+                df['npv'] = np.where(is_option, npv_series, np.nan)
+            except Exception:
+                # Fail-open: on any error, leave NPV column as NaN
+                df['npv'] = np.nan
+        else:
+            df['npv'] = np.nan
+
+        # Derive Expiry text (YYYY-MM-DD) for options; blank otherwise. Fail-open on any error.
+        try:
+            if not df.empty:
+                df['expiry'] = df.apply(
+                    lambda r: _derive_expiry_from_symbol(r.get('symbol'))
+                    if _classify_instrument(r) == 'OPTION' else "",
+                    axis=1
+                )
+            else:
+                df['expiry'] = ""
+        except Exception:
+            df['expiry'] = ""
+
+        # --- Build LivePX display with arrow indicators (fail-open) ---
+        try:
+            prev_map = last_prices_store or {}
+            if not isinstance(prev_map, dict):
+                prev_map = {}
+        except Exception:
+            prev_map = {}
+
+        new_prev_map = dict(prev_map)
+        EPSILON = 1e-9
+        try:
+            if not df.empty:
+                display_vals = []
+                for _, r in df.iterrows():
+                    sym = str(r.get('symbol') or '').strip()
+                    curr = pd.to_numeric(r.get('live_px'), errors='coerce')
+                    prev = pd.to_numeric(prev_map.get(sym), errors='coerce') if sym in prev_map else None
+                    arrow = '→'
+                    try:
+                        if curr is not None and not pd.isna(curr):
+                            if prev is not None and not pd.isna(prev):
+                                delta = float(curr) - float(prev)
+                                if delta > EPSILON:
+                                    arrow = '▲'
+                                elif delta < -EPSILON:
+                                    arrow = '▼'
+                            num_str = f"{float(curr):,.6f}"
+                        else:
+                            num_str = "--"
+                    except Exception:
+                        num_str = "--"
+                        arrow = '→'
+                    display_vals.append(f"{num_str} {arrow}")
+                    if sym.upper() != 'AGGREGATE':
+                        try:
+                            new_prev_map[sym] = float(curr) if curr is not None and not pd.isna(curr) else prev_map.get(sym)
+                        except Exception:
+                            new_prev_map[sym] = prev_map.get(sym)
+                df['live_px_display'] = display_vals
+            else:
+                df['live_px_display'] = ""
+        except Exception:
+            # Fail-open: create display from numeric without arrows
+            try:
+                df['live_px_display'] = df['live_px'].apply(lambda v: f"{float(v):,.6f} →" if pd.notna(pd.to_numeric(v, errors='coerce')) else "-- →")
+            except Exception:
+                df['live_px_display'] = ""
+
         # Format columns
         columns = [
             {"name": "Symbol", "id": "symbol"},
             {"name": "Type", "id": "instrument_type"},
             {"name": "Open", "id": "open_position", "type": "numeric", "format": {"specifier": ","}},
             {"name": "Closed", "id": "closed_position", "type": "numeric", "format": {"specifier": ","}},
-            {"name": "Delta Y", "id": "delta_y", "type": "numeric", "format": {"specifier": ",.0f"}},
-            {"name": "Gamma Y", "id": "gamma_y", "type": "numeric", "format": {"specifier": ",.0f"}},
-            {"name": "Speed Y", "id": "speed_y", "type": "numeric", "format": {"specifier": ",.0f"}},
+            {"name": "Delta", "id": "delta_y", "type": "numeric", "format": {"specifier": ",.0f"}},
+            {"name": "Gamma", "id": "gamma_y", "type": "numeric", "format": {"specifier": ",.0f"}},
+            {"name": "Speed", "id": "speed_y", "type": "numeric", "format": {"specifier": ",.0f"}},
             {"name": "Theta", "id": "theta", "type": "numeric", "format": {"specifier": ",.0f"}},
             {"name": "Vega", "id": "vega", "type": "numeric", "format": {"specifier": ",.0f"}},
+            # Display IV as round(implied_vol * open_position) for non-aggregate rows; blank otherwise.
+            {"name": "IV", "id": "iv_display", "type": "numeric", "format": {"specifier": ",.3f"}},
             {"name": "PnL Live", "id": "pnl_live", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "PnL Close", "id": "pnl_close", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "Theta Decay Pnl", "id": "theta_decay_pnl", "type": "numeric", "format": {"specifier": "$,.6f"}},
+            {"name": "NPV", "id": "npv", "type": "numeric", "format": {"specifier": "$,.2f"}},
+            {"name": "Theta Decay Pnl", "id": "theta_decay_pnl", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "LIFO", "id": "non_gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "LIFOc", "id": "non_gamma_lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "Gamma LIFO", "id": "gamma_lifo", "type": "numeric", "format": {"specifier": "$,.2f"}},
             {"name": "LIFOC", "id": "lifoc", "type": "numeric", "format": {"specifier": "$,.2f"}},
-            {"name": "LivePX", "id": "live_px", "type": "numeric", "format": {"specifier": ",.6f"}},
+            {"name": "LivePX", "id": "live_px_display", "type": "text"},
             {"name": "LivePXTX", "id": "live_px_tx", "type": "text"},
             {"name": "ClosePX", "id": "close_px", "type": "numeric", "format": {"specifier": ",.6f"}},
-            {"name": "ClosePXTX", "id": "close_px_tx", "type": "text"}
+            {"name": "ClosePXTX", "id": "close_px_tx", "type": "text"},
+            {"name": "Expiry Date", "id": "expiry", "type": "text"}
         ]
         
+        # Compute IV display column: round(implied_vol, 3) for non-aggregate rows
+        try:
+            if not df.empty:
+                # Avoid NaNs and ensure numeric operations
+                implied_vol_num = pd.to_numeric(df.get('implied_vol', pd.Series([None]*len(df))), errors='coerce')
+                # Identify aggregate rows by symbol name
+                is_aggregate = df['symbol'].astype(str).str.upper() == 'AGGREGATE'
+                iv_display = (implied_vol_num).round(3)
+                # Blank out for aggregates and for rows where implied_vol is missing or instrument is FUTURE
+                inst_upper = df['instrument_type'].astype(str).str.upper()
+                is_future = inst_upper == 'FUTURE'
+                iv_display = iv_display.where(~(is_aggregate | is_future | implied_vol_num.isna()), other=None)
+                df['iv_display'] = iv_display
+            else:
+                df['iv_display'] = None
+        except Exception:
+            df['iv_display'] = None
+
         # Convert dataframe to records
         data = df.to_dict('records')
         
         # Calculate single aggregate row
-        aggregate_row = {'symbol': 'AGGREGATE', 'instrument_type': 'AGGREGATE'}
-        
-        if not df.empty:
-            # Sum all numeric columns except prices
-            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-            exclude_cols = ['live_px', 'close_px', 'open_position', 'closed_position']
-            
-            for col in numeric_cols:
-                if col not in exclude_cols:
-                    total = df[col].sum()
-                    aggregate_row[col] = total if total != 0 else None
+        aggregate_row = {
+            'symbol': 'AGGREGATE',
+            'instrument_type': 'AGGREGATE',
+            'open_position': '—',
+            'closed_position': '—',
+            'iv_display': '—',
+            'live_px_display': '—',
+            'live_px_tx': '—',
+            'close_px': '—',
+            'close_px_tx': '—',
+            'expiry': '—'
+        }
+
+        # Build aggregate values from displayed columns, not dataframe dtypes
+        exclude_ids = {'open_position', 'closed_position', 'live_px', 'close_px', 'implied_vol', 'iv_display'}
+        target_ids = [
+            c.get('id') for c in columns
+            if c.get('type') == 'numeric' and c.get('id') not in exclude_ids
+        ]
+        for col_id in target_ids:
+            if col_id in df.columns:
+                series = pd.to_numeric(df[col_id], errors='coerce').fillna(0.0)
+                total = float(series.sum())
+                aggregate_row[col_id] = 0 if total == 0 else total
+            else:
+                aggregate_row[col_id] = 0
+
+        # Normalize aggregate row: ensure 0 instead of blanks/NaN for populated fields
+        for agg_key, agg_val in list(aggregate_row.items()):
+            if agg_key not in ('symbol', 'instrument_type'):
+                try:
+                    if agg_val is None or pd.isna(agg_val):
+                        aggregate_row[agg_key] = 0
+                except Exception:
+                    # Fail-open: leave as-is on any unexpected type
+                    pass
         
         # Add aggregate row
         data.append(aggregate_row)
@@ -3662,13 +4007,179 @@ def update_positions_table(n_intervals, hash_store):
         
         # Return data with new hash
         new_hash_store = {'hash': current_hash}
-        return columns, data, status_text, current_time, new_hash_store
+        return columns, data, status_text, current_time, new_hash_store, new_prev_map
         
     except PreventUpdate:
         raise
     except Exception as e:
         logger.error(f"Error updating positions table: {type(e).__name__}: {str(e)}", exc_info=True)
-        return [], [], f"Error: {str(e)}", "--", hash_store
+        return [], [], f"Error: {str(e)}", "--", hash_store, (last_prices_store or {})
+
+@app.callback(
+    Output("frg-mobile-cards-container", "children"),
+    Output("frg-mobile-status-text", "children"),
+    Output("frg-mobile-last-update-text", "children"),
+    Input("positions-table", "data"),
+    State("positions-last-update-text", "children"),
+    prevent_initial_call=False
+)
+def update_frg_mobile_cards(table_data, table_last_update):
+    """Render stacked cards for FRGMobile using positions-table data to ensure consistency."""
+    import pandas as pd
+
+    try:
+        from lib.components import Card
+
+        # Helpers
+        def kv(label, value, color=None):
+            style = {"display": "flex", "justifyContent": "space-between", "alignItems": "baseline", "flexWrap": "wrap", "gap": "6px", "margin": "4px 0", "fontSize": "1.1rem"}
+            val_style = {"fontWeight": "600", "textAlign": "right", "overflowWrap": "anywhere", "wordBreak": "break-word", "minWidth": 0}
+            if color:
+                val_style["color"] = color
+            return html.Div([html.Span(label), html.Span(value, style=val_style)], style=style)
+
+        def fmt_int(val):
+            try:
+                num = pd.to_numeric(val, errors='coerce')
+                if pd.isna(num):
+                    num = 0
+                return f"{int(num):,}"
+            except Exception:
+                return "0"
+
+        def fmt_usd(val):
+            try:
+                num = pd.to_numeric(val, errors='coerce')
+                if pd.isna(num):
+                    num = 0.0
+                return f"${float(num):,.2f}"
+            except Exception:
+                return "$0.00"
+
+        rows = table_data or []
+        non_agg = [r for r in rows if str(r.get('symbol', '')).upper() != 'AGGREGATE']
+        agg_row = next((r for r in rows if str(r.get('symbol', '')).upper() == 'AGGREGATE'), {})
+
+        cards = []
+        for r in non_agg:
+            pnl = r.get('pnl_live') or 0
+            pnl_color = default_theme.success if pnl > 0 else (default_theme.danger if pnl < 0 else default_theme.text_light)
+            itype = (r.get('instrument_type') or '').upper()
+            is_option = itype == 'OPTION' or itype in {'C', 'P', 'CALL', 'PUT'}
+
+            if is_option:
+                # OPTION order: Open, Closed, DV01, other greeks, then Live PnL and LivePXTX
+                rows_kv = [
+                    kv("Open", fmt_int(r.get('open_position'))),
+                    kv("Closed", fmt_int(r.get('closed_position'))),
+                    kv("DV01", fmt_int(r.get('delta_y'))),
+                    kv("Gamma", fmt_int(r.get('gamma_y'))),
+                    kv("Speed", fmt_int(r.get('speed_y'))),
+                    kv("Theta", fmt_int(r.get('theta'))),
+                    kv("Vega", fmt_int(r.get('vega'))),
+                    kv("Live PnL", fmt_usd(pnl), color=pnl_color),
+                    kv("LivePXTX", r.get('live_px_tx') or "—"),
+                ]
+            else:
+                # FUTURE/basic order: Open, Closed, DV01, Live PnL, LivePXTX
+                rows_kv = [
+                    kv("Open", fmt_int(r.get('open_position'))),
+                    kv("Closed", fmt_int(r.get('closed_position'))),
+                    kv("DV01", fmt_int(r.get('delta_y'))),
+                    kv("Live PnL", fmt_usd(pnl), color=pnl_color),
+                    kv("LivePXTX", r.get('live_px_tx') or "—"),
+                ]
+
+            cards.append(Card(
+                id=f"frg-mobile-card-{r.get('symbol')}",
+                header=str(r.get('symbol') or '—'),
+                body=html.Div(rows_kv),
+                theme=default_theme,
+                style={"fontSize": "1.0rem"}
+            ).render())
+
+        # Aggregate card
+        if rows:
+            # Aggregate: show only DV01 and Live PnL (no Open/Closed, no LivePXTX)
+            delta_sum = agg_row.get('delta_y') if agg_row else 0
+            pnl_sum = agg_row.get('pnl_live') if agg_row else 0
+            pnl_color = default_theme.success if (pnl_sum or 0) > 0 else (default_theme.danger if (pnl_sum or 0) < 0 else default_theme.text_light)
+            agg_body = html.Div([
+                kv("DV01", fmt_int(delta_sum)),
+                kv("Live PnL", fmt_usd(pnl_sum), color=pnl_color),
+            ])
+            cards = [Card(
+                id="frg-mobile-card-AGGREGATE",
+                header="AGGREGATE",
+                body=agg_body,
+                theme=default_theme,
+                style={"fontSize": "1.0rem"}
+            ).render()] + cards
+        else:
+            cards = [html.Div("No positions available", style={"opacity": "0.8"})]
+
+        status_text = f"Connected - {len(non_agg)} rows"
+        last_update = table_last_update or "--"
+        return cards, status_text, last_update
+    except Exception as e:
+        logger.error(f"Error updating FRGMobile cards: {type(e).__name__}: {str(e)}", exc_info=True)
+        return [html.Div("Error loading data", style={"color": default_theme.danger})], f"Error: {str(e)}", table_last_update or "--"
+
+# --- Device detection (clientside) ---
+app.clientside_callback(
+    """
+    function(n) {
+        if (!n) { return window.dash_clientside.no_update; }
+        try {
+            var ud = (navigator.userAgentData || null);
+            var ua = navigator.userAgent || "";
+            // UA-CH mobile (Chromium on Android/others)
+            var isUACHMobile = !!(ud && ud.mobile);
+            // iPadOS often reports as MacIntel; touch points >1 is the reliable signal
+            var isIPadOS = (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+            // Broader UA matches for phones/tablets and Samsung Internet
+            var isIPhoneIPod = /iPhone|iPod/i.test(ua);
+            var isAndroid = /Android/i.test(ua);
+            var isSamsung = /SamsungBrowser/i.test(ua);
+            var hasMobileToken = /(Mobile|Mobi)/i.test(ua);
+            var isiPadLegacy = /iPad/i.test(ua);
+            var isMobileUA = hasMobileToken || isIPhoneIPod || isAndroid || isSamsung || isiPadLegacy;
+
+            var isMobile = (isUACHMobile || isIPadOS || isMobileUA);
+            return {ua: ua, width: window.innerWidth, height: window.innerHeight, isMobile: isMobile};
+        } catch (e) {
+            return {ua: "", width: null, height: null, isMobile: false};
+        }
+    }
+    """,
+    Output("device-info-store", "data"),
+    Input("device-info-probe", "n_intervals")
+)
+
+"""Mobile defaulting localized to FRGMonitor via frg-monitor-init interval."""
+@app.callback(
+    Output("frg-monitor-tabs", "active_tab", allow_duplicate=True),
+    Output("sidebar-collapsed-store", "data", allow_duplicate=True),
+    Output("mobile-init-done", "data"),
+    Input("frg-monitor-init", "n_intervals"),
+    State("device-info-store", "data"),
+    State("mobile-init-done", "data"),
+    prevent_initial_call=True
+)
+def frgmonitor_local_mobile_init(n, device_info, already_done):
+    try:
+        if not n:
+            raise PreventUpdate
+        if already_done:
+            raise PreventUpdate
+        if not device_info or not device_info.get("isMobile"):
+            raise PreventUpdate
+        # Set FRGMobile tab and collapse sidebar
+        return "frg-monitor-tabs-tab-2", True, True
+    except PreventUpdate:
+        raise
+    except Exception:
+        raise PreventUpdate
 
 @app.callback(
     [Output("daily-positions-table", "columns"),
@@ -3679,7 +4190,6 @@ def update_positions_table(n_intervals, hash_store):
     Input("frg-refresh-interval", "n_intervals"),
     prevent_initial_call=False  # Allow initial call to populate on startup
 )
-@monitor(sample_rate=0.5)
 def update_daily_positions_table(trigger_data):
     """Update daily positions table from trades.db only when triggered by a new signal."""
     import sqlite3
@@ -3753,7 +4263,6 @@ def update_daily_positions_table(trigger_data):
     Output("dynamic-options-area", "children"),
     Input("num-options-selector", "value")
 )
-@monitor()
 def update_option_blocks(selected_num_options_str: str | None):
     # This function remains the same as in your provided file
     if selected_num_options_str is None:
@@ -3786,8 +4295,7 @@ def update_option_blocks(selected_num_options_str: str | None):
     [State("num-options-selector", "value")],
     prevent_initial_call=True
 )
-# This is a key user action we want to trace for performance monitoring
-@monitor()
+# This is a key user action we may trace in DEV only (legacy trace disabled by default)
 def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     if n_clicks is None or n_clicks == 0: raise PreventUpdate
 
@@ -4019,7 +4527,6 @@ def handle_update_sheet_button_click(n_clicks: int | None, *args: any):
     State({"type": "option-data-store", "index": MATCH}, "data"), 
     prevent_initial_call=True 
 )
-@monitor()
 def update_graph_from_combobox(selected_y_column_value: str, stored_option_data: dict):
     if not selected_y_column_value or not stored_option_data or 'df_json' not in stored_option_data or 'trade_amount' not in stored_option_data:
         logger.warning("ComboBox callback triggered with no selection or incomplete stored data.")
@@ -4106,7 +4613,6 @@ def update_graph_from_combobox(selected_y_column_value: str, stored_option_data:
     State("market-movement-data-store", "data"),
     prevent_initial_call=True
 )
-@monitor()
 def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_underlying, stored_data):
     """Unified callback to handle all Analysis tab interactions"""
     # Determine which input triggered the callback
@@ -4361,7 +4867,6 @@ def handle_analysis_interactions(refresh_clicks, selected_y_axis, selected_under
     
     return data_json, fig, underlying_options, underlying_value, table_data, table_columns
 
-@monitor()
 def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scenario_values=None):
     """
     Helper function to create the analysis graph figure with multiple series from different expiries
@@ -4528,7 +5033,6 @@ def create_analysis_graph(data_dict, y_axis_column, underlying_key='base', scena
     )
     
     return fig
-@monitor()
 def prepare_table_data(data_dict, underlying_key, y_axis_column):
     """
     Transform nested dictionary data to a flat format suitable for DataTable display.
@@ -4624,7 +5128,6 @@ def prepare_table_data(data_dict, underlying_key, y_axis_column):
      Input("view-toggle-table", "n_clicks")],
     prevent_initial_call=True
 )
-@monitor()
 def toggle_view(graph_clicks, table_clicks):
     # Determine which button was clicked last
     ctx = dash.callback_context
@@ -4660,7 +5163,6 @@ def toggle_view(graph_clicks, table_clicks):
      Input("logs-toggle-performance", "n_clicks")],
     prevent_initial_call=False
 )
-@monitor()
 def toggle_logs_tables(flow_clicks, performance_clicks):
     """Toggle visibility between Flow Trace and Performance tables."""
     # Set basic styles
@@ -4712,7 +5214,6 @@ def toggle_logs_tables(flow_clicks, performance_clicks):
     [Input("logs-refresh-button", "n_clicks")],
     prevent_initial_call=True
 )
-@monitor()
 def refresh_log_data(n_clicks):
     """
     Refresh log data by querying the SQLite database.
@@ -4736,7 +5237,6 @@ def refresh_log_data(n_clicks):
 
 # --- End Callbacks ---
 
-@monitor()
 def empty_log_tables():
     """
     Empty the flowTrace and AveragePerformance tables in the SQLite log database.
@@ -4773,7 +5273,6 @@ def empty_log_tables():
     Input("logs-empty-button", "n_clicks"),
     prevent_initial_call=True
 )
-@monitor()
 def empty_logs(n_clicks):
     """
     Empty the logs database tables when the Empty Table button is clicked.
@@ -4825,7 +5324,6 @@ def empty_logs(n_clicks):
      State("acp-convexity-input", "value"),
      State("acp-option-type-selector", "value")]
 )
-@monitor()
 def acp_update_greek_analysis(n_clicks, strike, future_price, time_to_expiry, market_price_decimal,
                          dv01, convexity, option_type):
     """Recalculate Greeks based on input parameters"""
@@ -5196,7 +5694,6 @@ def acp_update_greek_analysis(n_clicks, strike, future_price, time_to_expiry, ma
     [State("acp-view-mode-graph-btn", "n_clicks")],
     prevent_initial_call=True
 )
-@monitor()
 def acp_generate_table_view(store_data, table_clicks, graph_clicks):
     """Generate table view content when in table mode"""
     # Determine if we're in table view
@@ -5453,7 +5950,6 @@ def acp_generate_table_view(store_data, table_clicks, graph_clicks):
      Input("acp-view-mode-table-btn", "n_clicks")],
     prevent_initial_call=True
 )
-@monitor()
 def acp_toggle_view_mode(graph_clicks, table_clicks):
     """Toggle between graph and table views"""
     ctx = dash.callback_context
@@ -5515,7 +6011,6 @@ def acp_toggle_view_mode(graph_clicks, table_clicks):
     Input("acp-main-container", "id"),
     prevent_initial_call=False
 )
-@monitor()
 def acp_trigger_initial_calculation(container_id):
     """Trigger calculation on page load"""
     return 1
@@ -5538,7 +6033,6 @@ def acp_trigger_initial_calculation(container_id):
      State('scl-demo-mode-store', 'data')],
     prevent_initial_call=False
 )
-@monitor()
 def scl_load_and_display_orders(store_data, spot_price_data, n_clicks, current_table_data, baseline_data, demo_mode_data):
     """Load and display working orders from TT API with spot price integration"""
     logger.info("Scenario Ladder callback triggered: load_and_display_orders")
@@ -5886,7 +6380,6 @@ def scl_load_and_display_orders(store_data, spot_price_data, n_clicks, current_t
     [Input('scl-refresh-data-button', 'n_clicks')],
     prevent_initial_call=True
 )
-@monitor()
 def scl_fetch_spot_price_callback(n_clicks):
     """Fetch spot price from Pricing Monkey"""
     if n_clicks is None or n_clicks == 0:
@@ -6596,7 +7089,6 @@ def aeod_create_dashboard_layout():
     Input("aeod-load-data-button", "n_clicks"),
     prevent_initial_call=False
 )
-@monitor()
 def aeod_load_data(n_clicks):
     """Load the most recent JSON file and populate filter options."""
     try:
@@ -6638,7 +7130,6 @@ def aeod_load_data(n_clicks):
     Input("aeod-load-pm-button", "n_clicks"),
     prevent_initial_call=True
 )
-@monitor()
 def aeod_load_pm_data(n_clicks):
     """Load PM data for Actant EOD"""
     try:
@@ -6661,7 +7152,6 @@ def aeod_load_pm_data(n_clicks):
     State("aeod-toggle-states-store", "data"),
     prevent_initial_call=False
 )
-@monitor()
 def aeod_update_toggle_states_store(graph_btn, table_btn, abs_btn, pct_btn, scenario_btn, metric_btn, current_states):
     """Update toggle states store for Actant EOD dashboard"""
     if current_states is None:
@@ -6707,7 +7197,6 @@ def aeod_update_toggle_states_store(graph_btn, table_btn, abs_btn, pct_btn, scen
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=True
 )
-@monitor()
 def aeod_create_dynamic_visualization_grid(selected_scenarios, selected_metrics, toggle_states, data_loaded):
     """Create dynamic visualization grid based on current selections and toggle states."""
     if not data_loaded:
@@ -6777,7 +7266,6 @@ def aeod_create_dynamic_visualization_grid(selected_scenarios, selected_metrics,
      Input("aeod-prefix-filter-listbox", "value")],
     prevent_initial_call=True
 )
-@monitor()
 def aeod_update_metric_categories(metric_categories, prefix_filter):
     """Create metric category checkboxes and listboxes."""
     if not metric_categories:
@@ -6864,7 +7352,6 @@ def aeod_update_metric_categories(metric_categories, prefix_filter):
      Input("aeod-category-misc-checkbox", "value")],
     prevent_initial_call=True
 )
-@monitor()
 def aeod_toggle_category_visibility(*checkbox_values):
     """Toggle visibility of metric listboxes based on checkbox state."""
     styles = []
@@ -6901,7 +7388,6 @@ def aeod_toggle_category_visibility(*checkbox_values):
      Input("aeod-category-misc-checkbox", "value")],
     prevent_initial_call=True
 )
-@monitor()
 def aeod_collect_selected_metrics(*inputs):
     """Collect selected metrics from category listboxes, but only if the category checkbox is checked."""
     # Split inputs into listbox values and checkbox states
@@ -6930,7 +7416,6 @@ def aeod_collect_selected_metrics(*inputs):
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=False
 )
-@monitor()
 def aeod_update_scenario_graph(selected_metrics, toggle_states, range_values, graph_id, data_loaded):
     """Update graph for a specific scenario based on selected metrics and range."""
     if not data_loaded or not selected_metrics or not range_values:
@@ -7040,7 +7525,6 @@ def aeod_update_scenario_graph(selected_metrics, toggle_states, range_values, gr
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=False
 )
-@monitor()
 def aeod_update_scenario_table(selected_metrics, toggle_states, range_values, table_id, data_loaded):
     """Update table for a specific scenario based on selected metrics and range."""
     if not data_loaded or not selected_metrics or not range_values:
@@ -7109,7 +7593,6 @@ def aeod_update_scenario_table(selected_metrics, toggle_states, range_values, ta
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=False
 )
-@monitor()
 def aeod_update_metric_graph(selected_scenarios, toggle_states, range_values, graph_id, data_loaded):
     """Update graph for a specific metric based on selected scenarios and range."""
     if not data_loaded or not selected_scenarios or not range_values:
@@ -7225,7 +7708,6 @@ def aeod_update_metric_graph(selected_scenarios, toggle_states, range_values, gr
     State("aeod-data-loaded-store", "data"),
     prevent_initial_call=False
 )
-@monitor()
 def aeod_update_metric_table(selected_scenarios, toggle_states, range_values, table_id, data_loaded):
     """Update table for a specific metric based on selected scenarios and range."""
     if not data_loaded or not selected_scenarios or not range_values:
@@ -7309,7 +7791,6 @@ def aeod_update_metric_table(selected_scenarios, toggle_states, range_values, ta
      Input("aeod-view-mode-table-btn", "n_clicks")],
     prevent_initial_call=False
 )
-@monitor()
 def aeod_update_view_mode_button_styles(graph_clicks, table_clicks):
     """Update button styles for view mode toggle."""
     ctx = dash.callback_context
@@ -7346,7 +7827,6 @@ def aeod_update_view_mode_button_styles(graph_clicks, table_clicks):
      Input("aeod-percentage-percentage-btn", "n_clicks")],
     prevent_initial_call=False
 )
-@monitor()
 def aeod_update_percentage_button_styles(abs_clicks, pct_clicks):
     """Update button styles for percentage toggle."""
     ctx = dash.callback_context
@@ -7383,7 +7863,6 @@ def aeod_update_percentage_button_styles(abs_clicks, pct_clicks):
      Input("aeod-viz-mode-metric-btn", "n_clicks")],
     prevent_initial_call=False
 )
-@monitor()
 def aeod_update_viz_mode_button_styles(scenario_clicks, metric_clicks):
     """Update button styles for visualization mode toggle."""
     ctx = dash.callback_context
@@ -7424,7 +7903,6 @@ def aeod_update_viz_mode_button_styles(scenario_clicks, metric_clicks):
      Input("scl-live-mode-btn", "n_clicks")],
     prevent_initial_call=False
 )
-@monitor()
 def scl_toggle_demo_mode(demo_clicks, live_clicks):
     """Toggle between demo and live mode"""
     ctx = dash.callback_context

@@ -1,5 +1,10 @@
 # Progress Tracker
 
+## Current Status (September 2025)
+
+- ✅ BigBrother Refactor Phase 0 complete: restored pre-BB watchers; snapshot saved under `docs/impl_snapshots/`.
+- ▶️ Next: Phase 1 – implement `@monitor` sink and BB Bridge scaffolds; define config surface in `memory-bank/io-schema.md`.
+
 ## Current Status (August 2025)
 
 ### Recent Accomplishments

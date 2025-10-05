@@ -20,6 +20,7 @@ from watchdog.events import FileSystemEventHandler, FileCreatedEvent
 
 from .data_manager import roll_2pm_prices, roll_4pm_prices, perform_eod_settlement
 from .config import CLOSE_PRICE_WATCHER, FUTURES_SYMBOLS
+from lib.big_brother.emitter.redis_emitter import RedisBBEmitter
 
 logger = logging.getLogger(__name__)
 
@@ -97,12 +98,13 @@ class DailyCSVTracker:
 class ClosePriceFileHandler(FileSystemEventHandler):
     """Handle close price CSV files from Trade Control directories"""
     
-    def __init__(self, db_path: str, startup_time: float):
+    def __init__(self, db_path: str, startup_time: float, bb_emitter=None):
         self.db_path = db_path
         self.startup_time = startup_time
         self.daily_tracker = DailyCSVTracker()
         self.processed_files = set()  # Track processed files to avoid duplicates
         # self._start_4pm_monitor()  # Disabled - use manual trigger (run_manual_eod_settlement.bat)
+        self._bb = bb_emitter or RedisBBEmitter()
         
     def _ignore_old_file(self, event_path: str) -> bool:
         """Return True if the file existed before the watcher started."""
@@ -186,6 +188,11 @@ class ClosePriceFileHandler(FileSystemEventHandler):
             # Track file
             status = self.daily_tracker.add_file(date_str, hour)
             logger.info(f"Daily status for {date_str}: {status}")
+            try:
+                # Emit completeness checkpoint: expect 3 hours (14,15,16)
+                self._bb.emit_checkpoint("ClosePriceWatcher", "closes_hour_received", int(status['received_count']), 3, labels={"date": date_str, "hour": hour})
+            except Exception:
+                pass
             
             # Mark as processed
             self.processed_files.add(str(filepath))
@@ -444,7 +451,13 @@ class ClosePriceWatcher:
         self.config = CLOSE_PRICE_WATCHER
         self.observers = []
         self.startup_time = time.time()
-        self.handler = ClosePriceFileHandler(self.db_path, self.startup_time)
+        self._bb = RedisBBEmitter()
+        self.handler = ClosePriceFileHandler(self.db_path, self.startup_time, bb_emitter=self._bb)
+        try:
+            # Lifecycle READY at watcher init
+            self._bb.emit_lifecycle("ClosePriceWatcher", "READY")
+        except Exception:
+            pass
         
     def start(self):
         """Start watching directories"""

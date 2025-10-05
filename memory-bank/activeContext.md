@@ -1,5 +1,20 @@
 # Active Context
 
+## Current Focus: BigBrother Refactor – Decorator-First, Exceptions-Only Stream (2025-09-30)
+
+### Phase 0 – Baseline restore and freeze ✅
+- Pre‑BigBrother versions of watcher/service runners restored per snapshot manifest.
+- Snapshot of BB‑instrumented files saved under `docs/impl_snapshots/` for parity reference.
+
+### Next Steps
+1. Keep `bigbrother_transition_plan.md` as canonical (updated to direct‑publish model).
+2. Phase 1: Enable `@monitor` + BB Emitter (direct publish to Redis), no service logic changes.
+3. Finalize env/config surface for direct publish and exceptions‑only persistence.
+
+See `memory-bank/bigbrother_transition_plan.md` for the detailed phases, checkpoints, and rollback.
+
+---
+
 ## Current Status: Debug Logging Added to Watchers (2025-08-04)
 
 ### What Was Just Done

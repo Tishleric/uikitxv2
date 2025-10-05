@@ -170,7 +170,21 @@ def calculate_unrealized_pnl(positions_df, price_dicts, method='live'):
         sod_tod = price_dicts['sodTod'].get(symbol, actual_price)
         sod_tom = price_dicts['sodTom'].get(symbol, actual_price)
         close_price = price_dicts['close'].get(symbol, actual_price)
-        now_price = price_dicts['now'].get(symbol, actual_price)
+        # Default missing/None/NaN now price to 0.0 per UI policy for assets without a live feed
+        now_candidate = price_dicts['now'].get(symbol)
+        if now_candidate is None:
+            now_price = 0.0
+        else:
+            try:
+                # Handle pandas NaN or non-numeric
+                if hasattr(now_candidate, "__float__"):
+                    now_price = float(now_candidate)
+                    if now_price != now_price:  # NaN check
+                        now_price = 0.0
+                else:
+                    now_price = 0.0
+            except Exception:
+                now_price = 0.0
         
         # Get effective entry price (Pmax logic)
         entry_price = get_effective_entry_price(actual_price, sod_tod, trade_time)

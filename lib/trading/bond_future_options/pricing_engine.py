@@ -325,16 +325,20 @@ class BondFutureOption:
         
         # Get gamma and delta from bachelier_greek
         gamma_F = greeks['gamma']
-        delta_F = greeks['delta']
-        
-        # Adjust delta for put option if needed
-        if option_type == 'put':
-            delta_F = delta_F - 1.0
+        # delta_F = greeks['delta']
+        # 
+        # # Adjust delta for put option if needed
+        # if option_type == 'put':
+        #     delta_F = delta_F - 1.0
+        #
+        # # Apply DV01 and convexity adjustments for Y-space (original formulation)
+        # dF_dy = -self.future_dv01
+        # d2F_dy2 = self.future_convexity
+        # return gamma_F * (dF_dy**2) + delta_F * d2F_dy2
 
-        # Apply DV01 and convexity adjustments for Y-space
-        dF_dy = -self.future_dv01
-        d2F_dy2 = self.future_convexity
-        return gamma_F * (dF_dy**2) + delta_F * d2F_dy2
+        # Dashboard display gamma per contract; overall pipeline scales by 1000 later,
+        # so returning gamma_F/256 here yields Gamma_F * (1000/256) after analysis scaling.
+        return gamma_F / 256.0
 
  
 

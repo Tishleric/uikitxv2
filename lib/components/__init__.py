@@ -3,7 +3,7 @@
 # Import all basic components
 from .basic import (
     Button, Checkbox, ComboBox, Container, ListBox, Loading, 
-    RadioButton, RangeSlider, Tabs, Toggle, Tooltip
+    RadioButton, RangeSlider, Tabs, Toggle, Tooltip, Card
 )
 
 # Import all advanced components
@@ -29,6 +29,7 @@ __all__ = [
     'Tabs',
     'Toggle',
     'Tooltip',
+    'Card',
     # Advanced components
     'DataTable',
     'Graph',

@@ -76,9 +76,14 @@ def bisection(f: Callable[[float], float], a: float, b: float,
     return 0.5*(a+b), it
 
 
-def implied_vol(S,K,T,C):
+def implied_vol(S,K,T,C, type='call'):
 
-    def f_sigma(sig): return bachelier_call(S, K, sig, T) - C
+    if type == 'C':
+        def f_sigma(sig): return bachelier_call(S, K, sig, T) - C
+    elif type == 'P':
+        def f_sigma(sig): return bachelier_put(S, K, sig, T) - C
+    else:
+        raise ValueError("Invalid option type. Must be 'call' or 'put'.")
 
     # Bracket [0, hi] by geometric expansion
     lo, hi = 0.0, 1e-4
@@ -90,10 +95,10 @@ def implied_vol(S,K,T,C):
 
 if __name__ == "__main__":
     # Deep OTM example (tweak to your market): price tiny, monotone in sigma
-    S, K, T = 111.75, 110.0, 0.003538
-    C_mkt = 1.75
+    S, K, T = 111.5625, 110.5, 0.0034887579365079
+    C_mkt = 0
     # Root function in sigma: f(sig) = model - market
-    def f_sigma(sig): return bachelier_call(S, K, sig, T) - C_mkt
+    def f_sigma(sig): return bachelier_put(S, K, sig, T) - C_mkt
 
     # Bracket [0, hi] by geometric expansion
     lo, hi = 0.0, 1e-4
@@ -102,11 +107,10 @@ if __name__ == "__main__":
     f1 = Counter(f_sigma); root_b, it_b = brentq(f1, lo, hi, xtol=1e-16, ftol=1e-16)
     f2 = Counter(f_sigma); root_bis, it_bis = bisection(f2, lo, hi, xtol=1e-16, ftol=1e-16)
 
-    print("Recalculated Price_brentq", bachelier_call(S,K, root_b, T))
-    print("Recalculated Price_bisect", bachelier_call(S,K, root_bis, T))
+    print("Recalculated Price_brentq", bachelier_put(S,K, root_b, T))
+    print("Recalculated Price_bisect", bachelier_put(S,K, root_bis, T))
 
     print(f"Brent:    sigma={root_b:.12g}, iters={it_b}, f-evals={f1.n}")
     print(f"Bisection:sigma={root_bis:.12g}, iters={it_bis}, f-evals={f2.n}")
 
-    F = 112
     

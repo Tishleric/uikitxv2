@@ -7,7 +7,7 @@ warnings.filterwarnings('ignore', category=pd.errors.ChainedAssignmentError)
 warnings.filterwarnings('ignore', category=pd.errors.SettingWithCopyWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)  # Use built-in FutureWarning
 
-from bachelier_greek import analytical_greeks
+from bachelier_greek import analytical_greeks, analytical_greeks_put
 from Brent_Bisection import *
 import matplotlib.pyplot as plt
 
@@ -40,25 +40,41 @@ def plot_pnl_diff(df2):
     df2 = df2[['timestamp', 'underlying_future_price', 'expiry', 'vtexp', 'strike', 'adjtheor', 'itype']]
     df2 = df2[df2['adjtheor'] >= 0]
     df2['recalculated_price_binary_search'] = df2['adjtheor']
-    df2['moneyness'] = (-df2['strike'] + df2['underlying_future_price'])
+    if df2['itype'].iloc[0] == 'C':
+        df2['moneyness'] = (-df2['strike'] + df2['underlying_future_price'])
+    elif df2['itype'].iloc[0] == 'P':
+        df2['moneyness'] = (df2['strike'] - df2['underlying_future_price'])
     df2['adjtheor'] = df2['adjtheor'].astype(float)
 
-    df2['IV_binary_search'] = df2.apply(lambda row: implied_vol(row['underlying_future_price'], row['strike'], row['vtexp'], row['adjtheor']), axis=1)
+    df2['IV_binary_search'] = df2.apply(lambda row: implied_vol(row['underlying_future_price'], row['strike'], row['vtexp'], row['adjtheor'], row['itype']), axis=1)
     if df2['itype'].iloc[0] == 'C':
         df2['recalculated_price_binary_search'] = df2.apply(lambda row: bachelier_call(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp']), axis=1)
     elif df2['itype'].iloc[0] == 'P':
         df2['recalculated_price_binary_search'] = df2.apply(lambda row: bachelier_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp']), axis=1)
     
-    df2['delta_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['delta'], axis=1)
-    df2['theta_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['theta'], axis=1)
-    df2['vega_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['vega'], axis=1)
-    df2['gamma_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['gamma'], axis=1)
-    df2['speed_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['speed'], axis=1)
-    df2['volga_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['volga'], axis=1)
-    df2['vanna_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['vanna'], axis=1)
-    df2['veta_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['veta'], axis=1)
-    df2['charm_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['charm'], axis=1)
-    df2['theta_dot_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp']).get('theta_dot', 0), axis=1)
+    if df2['itype'].iloc[0] == 'C':
+        df2['delta_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['delta'], axis=1)
+        df2['theta_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['theta'], axis=1)
+        df2['vega_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['vega'], axis=1)
+        df2['gamma_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['gamma'], axis=1)
+        df2['speed_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['speed'], axis=1)
+        df2['volga_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['volga'], axis=1)
+        df2['vanna_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['vanna'], axis=1)
+        df2['veta_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['veta'], axis=1)
+        df2['charm_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['charm'], axis=1)
+        df2['theta_dot_binary_search'] = df2.apply(lambda row: analytical_greeks(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp']).get('theta_dot', 0), axis=1)
+    elif df2['itype'].iloc[0] == 'P':
+        df2['delta_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['delta'], axis=1)
+        df2['theta_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['theta'], axis=1)
+        df2['vega_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['vega'], axis=1)
+        df2['gamma_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['gamma'], axis=1)
+        df2['speed_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['speed'], axis=1)
+        df2['volga_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['volga'], axis=1)
+        df2['vanna_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['vanna'], axis=1)
+        df2['veta_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['veta'], axis=1)
+        df2['charm_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp'])['charm'], axis=1)
+        df2['theta_dot_binary_search'] = df2.apply(lambda row: analytical_greeks_put(row['underlying_future_price'], row['strike'], row['IV_binary_search'], row['vtexp']).get('theta_dot', 0), axis=1)
+
     df2['del_F'] = df2['underlying_future_price'].shift(-1) - df2['underlying_future_price']
     df2['del_T'] = df2['vtexp'].shift(-1) - df2['vtexp']
     df2['del_C'] = df2['adjtheor'].shift(-1) - df2['adjtheor']
@@ -199,20 +215,21 @@ if __name__ == "__main__":
         plot_pnl_diff(df2, file_name)
     """
 
-
+    import glob
     folder_names = ["19AUG25", "20AUG25", "21AUG25"]
     folder_path = r"Y:/uikitxv2/lib/trading/bond_future_options/data_validation/accuracy_validation"  # change this to your folder path
     for folder_name in folder_names:
         folder = folder_path + f"/{folder_name}"
-        files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+        files = [os.path.basename(p) for p in glob.glob(os.path.join(folder, "*unique_hourly.csv"))]
+
         for file in files:
             df = pd.read_csv(folder + f"/{file}")
             if df['itype'].iloc[0] == 'P':
-                continue
-            else:
-                df2, df3, df4 = plot_pnl_diff(df)
-                df2.to_csv(folder_path + f"/{folder_name}_Plex/{file.replace('.csv', '_Plex.csv')}")
-                df3.to_csv(folder_path + f"/{folder_name}_Plex/{file.replace('.csv', '_Plex_outliers_2nd_order.csv')}")
-                df4.to_csv(folder_path + f"/{folder_name}_Plex/{file.replace('.csv', '_Plex_outliers_error.csv')}")
-                print(f"Processed {file}")
+                df['adjtheor'] = df['adjtheor'].apply(lambda x: x if x > 0 else 0)
+
+            df2, df3, df4 = plot_pnl_diff(df)
+            df2.to_csv(folder_path + f"/{folder_name}_Plex/{file.replace('.csv', '_hourly_Plex.csv')}")
+            df3.to_csv(folder_path + f"/{folder_name}_Plex/{file.replace('.csv', '_hourly_Plex_outliers_2nd_order.csv')}")
+            df4.to_csv(folder_path + f"/{folder_name}_Plex/{file.replace('.csv', '_hourly_Plex_outliers_error.csv')}")
+            print(f"Processed {file}")
 

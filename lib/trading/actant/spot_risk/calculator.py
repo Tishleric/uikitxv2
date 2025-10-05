@@ -91,7 +91,7 @@ class SpotRiskGreekCalculator:
     def __init__(self, 
                  dv01: float = DEFAULT_DV01, 
                  convexity: float = DEFAULT_CONVEXITY,
-                 model: str = 'bachelier_v1',
+                 model: str = 'bachelier_v1_parity',
                  greek_config: Optional[GreekConfiguration] = None):
         """
         Initialize calculator with future DV01 and convexity.
@@ -99,7 +99,7 @@ class SpotRiskGreekCalculator:
         Args:
             dv01: Dollar Value of 01 basis point for the future (default: 63.0)
             convexity: Convexity of the future (default: 0.0042)
-            model: Model version to use (default: 'bachelier_v1')
+            model: Model version to use (default: 'bachelier_v1_parity')
             greek_config: Optional Greek configuration for selective calculation
         """
         self.dv01 = dv01
